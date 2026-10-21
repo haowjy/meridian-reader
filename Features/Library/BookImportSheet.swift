@@ -4,7 +4,7 @@ import SwiftUI
 /// is, and where the book goes. It can't be pulled away while it works; *Cancel* stops it.
 ///
 /// ```
-/// Cancel             Import Book             Import   ← Import: a downloaded book, before it starts
+/// Cancel             Import Book             Import   ← Import: a prepared book, before it starts
 /// ╭──────╮  Pride and Prejudice
 /// │cover │  Jane Austen
 /// ╰──────╯  pride-and-prejudice.epub   61 chapters

@@ -2,13 +2,13 @@ import SwiftUI
 
 /// One row of a menu, as every renderer draws it: a row's ⋯ and long press (`MenuRows`, in a
 /// SwiftUI `Menu` or `.contextMenu`) and the ⋯ panel (`MoreMenuPanel`). An item kind's menu (a
-/// page's, a folder's, a download's) is one ordered list of these, built once by its definition
+/// page's, a folder's, a prepare's) is one ordered list of these, built once by its definition
 /// and rendered unchanged by every entry point, so order, names, symbols, red and dimming are
 /// decided in one place. Its title comes from `Verbs` and its symbol from `Icons`; whether it
 /// shows, dimmed or not, from `MenuAvailability` (DR-09). A destructive row is red in every
 /// renderer.
 struct MenuRow: Identifiable {
-    /// The row's accessibility identifier, the same in every renderer (`menuDownload`).
+    /// The row's accessibility identifier, the same in every renderer (`menuPrepare`).
     let id: String
     let title: String
     /// nil: a submenu's choice drawn as its title alone (a Sort choice not picked).

@@ -1,11 +1,11 @@
 import Foundation
 
 /// How an import starts: *Import Book…* (the Library's ＋ and ⋯, the empty Library's card) opens
-/// the Files picker, and the picked file is copied in and imported at once; a book downloaded
+/// the Files picker, and the picked file is copied in and imported at once; a book prepared
 /// from an `.epub` link waits in the sheet for *Import*. Either way the import sheet shows it
 /// (`BookImportFlow`) and lands on the book's screen.
 ///
-/// One import at a time: a book arriving while the import sheet is up (a second download
+/// One import at a time: a book arriving while the import sheet is up (a second prepare
 /// finishing) is not imported; its file goes and a toast says so. Each flow closes and lands
 /// only its own sheet (`ShellState.closeImport`).
 @MainActor
@@ -43,8 +43,8 @@ struct BookImportActions {
         }
     }
 
-    /// A book downloaded from a link (already in `BookImportFiles`): the sheet asks first.
-    func importDownloaded(_ file: URL) {
+    /// A book prepared from a link (already in `BookImportFiles`): the sheet asks first.
+    func importPrepared(_ file: URL) {
         start(file, into: nil, waitsForImport: true)
     }
 

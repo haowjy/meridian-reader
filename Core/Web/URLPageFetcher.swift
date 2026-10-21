@@ -5,7 +5,7 @@ import WebKit
 /// Loads a web page out of sight and hands back what the browser would: the page as extraction
 /// reads it (`PageSnapshot`), then its content, extracted as the browser extracts its own page
 /// (`SingleWebPageSource`); or its links (`LinkPage`), for a story's table of contents. For pages
-/// fetched without the browser, which it never touches. Follow's chapters and Downloads' links
+/// fetched without the browser, which it never touches. Follow's chapters and Prepared audio' links
 /// come through here, one at a time, paced by `FetchQueue`.
 ///
 /// - **A real view, out of sight.** Each fetch gets a fresh `WKWebView` the size of the app's

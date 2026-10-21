@@ -37,8 +37,8 @@ struct DetailLine: View {
                 HStack(spacing: Spacing.xxs) {
                     if let ring = part.ring { ProgressRing(fraction: ring) }
                     if let symbol = part.symbol {
-                        // The downloaded ↓ takes the accent, as the Download control does (C97).
-                        if symbol == Icons.downloaded { Image(systemName: symbol).foregroundStyle(Palette.accent) }
+                        // The prepared ↓ takes the accent, as the Prepare control does (C97).
+                        if symbol == Icons.prepared { Image(systemName: symbol).foregroundStyle(Palette.accent) }
                         else { Image(systemName: symbol) }
                     }
                     Text(part.text)
@@ -86,10 +86,10 @@ struct DetailPart: Hashable, ExpressibleByStringLiteral {
     /// it (no ✓: that is selection's only).
     static var finished: DetailPart { DetailPart(ListeningTime.finishedLabel, ring: 1) }
 
-    /// `text` after the accent filled ↓ a downloaded row starts its second line with (a page's, a
+    /// `text` after the accent filled ↓ a prepared row starts its second line with (a page's, a
     /// download's, a voice model's in Settings).
-    static func downloaded(_ text: String) -> DetailPart {
-        DetailPart(text, symbol: Icons.downloaded, spoken: "\(Verbs.downloaded), \(text)")
+    static func prepared(_ text: String) -> DetailPart {
+        DetailPart(text, symbol: Icons.prepared, spoken: "\(Verbs.prepared), \(text)")
     }
 }
 

@@ -10,8 +10,8 @@ import Foundation
 /// never reloads Core ML. A crash in either route turns the whole route off at the next launch
 /// (`KokoroCrashRecovery`).
 ///
-/// `prepare()` loads Core ML and puts the ONNX files on disk (download only), so the fallback
-/// never downloads in the background.
+/// `prepare()` loads Core ML and puts the ONNX files on disk (prepare only), so the fallback
+/// never prepared audio in the background.
 final class KokoroSplitHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .kokoro
 

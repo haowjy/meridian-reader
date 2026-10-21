@@ -1,17 +1,17 @@
 import SwiftUI
 
-/// A download's menu: the one definition the Downloads list's rows show from their ⋯ and their
+/// A prepare's menu: the one definition the Prepared Audio list's rows show from their ⋯ and their
 /// long press, the same rows in every section. Which options show and greyed or not is
-/// `MenuRegistry`'s (C98): *Re-download* (grey while queued), *Keep* (grey unless its audio is in
-/// another voice than downloads now use), *Remove Download(s)* (red). No *Pause* / *Resume*: the
+/// `MenuRegistry`'s (C98): *Prepare Again* (grey while queued), *Keep* (grey unless its audio is in
+/// another voice than prepared audio now use), *Remove Prepare(s)* (red). No *Pause* / *Resume*: the
 /// row's ↓ mark does that.
 ///
-/// Every row is a page (C110): *Re-download* renders that page again, *Keep* keeps the voice of the
-/// download it came from, and *Remove Download* (the row's swipe too) is the page's own, as in its
-/// menu (`DownloadCenter.deleteDownloads(of:)`). A folder's download is turned off on its screen.
-struct DownloadMenu: View {
-    let item: DownloadArticles.Item
-    let downloads: DownloadCenter
+/// Every row is a page (C110): *Prepare Again* renders that page again, *Keep* keeps the voice of the
+/// prepare it came from, and *Remove Prepare* (the row's swipe too) is the page's own, as in its
+/// menu (`PrepareCenter.deletePrepared audio(of:)`). A folder's prepare is turned off on its screen.
+struct PrepareMenu: View {
+    let item: PrepareArticles.Item
+    let preparedAudio: PrepareCenter
     let library: LibraryStore
     /// A From Listening row: only *Delete Audio* (C135).
     var isListeningAudio = false
@@ -29,13 +29,13 @@ struct DownloadMenu: View {
         facts.isQueued = item.status.fraction != nil
         facts.isOtherVoice = otherVoice != nil
         facts.isListeningAudio = isListeningAudio
-        return MenuRegistry.rows(.download, at: .downloads, facts) { option in
+        return MenuRegistry.rows(.prepare, at: .preparedAudio, facts) { option in
             switch option {
-            case .redownload:
-                return MenuRow(id: "menuRedownload", title: Verbs.redownload, icon: Icons.redownload) { downloads.redownload(article: key) }
+            case .reprepare:
+                return MenuRow(id: "menuReprepare", title: Verbs.reprepare, icon: Icons.reprepare) { preparedAudio.reprepare(article: key) }
             case .keep:
                 return MenuRow(id: "menuKeep", title: Verbs.keep, icon: Icons.keep) {
-                    if let otherVoice { downloads.keep(id, voice: otherVoice) }
+                    if let otherVoice { preparedAudio.keep(id, voice: otherVoice) }
                 }
             default:
                 return removeRow
@@ -43,17 +43,17 @@ struct DownloadMenu: View {
         }
     }
 
-    /// *Remove Download* for a page, *Remove Downloads* for a folder, as their own menus say; the
+    /// *Remove Prepare* for a page, *Remove Prepared audio* for a folder, as their own menus say; the
     /// row's swipe too.
     var removeRow: MenuRow {
         MenuRow(id: "menuDeleteAudio", title: Verbs.deleteAudio, icon: Icons.delete, isDestructive: true) {
             if isListeningAudio {
                 // Only the audio; the article stays (C135).
-                if !needsAudio(item.key), let article = library.article(key: item.key) { library.deleteDownloads(article) }
+                if !needsAudio(item.key), let article = library.article(key: item.key) { library.deletePreparedAudio(article) }
             } else if let article = library.article(key: item.key) {
-                downloads.deleteDownloads(of: article)
+                preparedAudio.deletePreparedAudio(of: article)
             } else {
-                downloads.remove(item.recordID)
+                preparedAudio.remove(item.recordID)
             }
         }
     }

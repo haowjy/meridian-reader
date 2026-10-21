@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The app's lists of cards (the Library, a folder, Settings, Downloads, Follow, the Move tree):
+/// The app's lists of cards (the Library, a folder, Settings, Prepared audio, Follow, the Move tree):
 /// grouped cards on paper at the page margin, each section's title a `SectionHeader` in line with
 /// the cards, and a note under a card in caption type.
 ///
@@ -9,7 +9,7 @@ import SwiftUI
 /// ╭──────────────────────────────────────╮
 /// │ Apple                              ✓ │   rows on `.listCard()`
 /// ╰──────────────────────────────────────╯
-/// On-device voices download once, …          `.listFooter()`
+/// On-device voices prepare once, …          `.listFooter()`
 /// ```
 extension View {
     /// Grouped cards on paper, at the page margin, `Spacing.l` between sections.

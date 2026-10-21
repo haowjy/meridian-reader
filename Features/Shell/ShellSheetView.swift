@@ -23,8 +23,8 @@ struct ShellSheetView: View {
             MoveTreeSheet(request: request)
         case .importBook(let flow):
             BookImportSheet(flow: flow)
-        case .downloads:
-            DownloadsSheet()
+        case .preparedAudio:
+            PreparedAudioSheet()
         case .folderDetails(let id):
             FolderDetailsSheet(folderID: id)
         case .follow(let flow):

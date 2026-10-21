@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// ⋯ › Downloads (decision D16): what is downloading and what is downloaded, with the voice each
+/// ⋯ › Prepared audio (decision D16): what is preparing and what is prepared, with the voice each
 /// is in. Sections, each only when it has rows:
 ///
 /// ```
-/// Downloads                                         Done
+/// Prepared audio                                         Done
 /// Now                                        Pause All
 /// ▣  Pride and Prejudice                    (◔)    ⋯   the ↓ filling as it renders
 ///    4 of 12   ~2 h 45 min left
@@ -13,26 +13,26 @@ import SwiftUI
 ///    Kokoro Heart
 /// [i] Bond Ladders                          (◔)    ⋯   paused: the mark in grey
 ///    Kokoro Heart   Paused
-/// Downloaded  1
+/// Prepared  1
 /// [i] Coupon Basics                                 ⋯
 ///    ↓ Kokoro Heart   12 MB
 /// 12 MB on this iPhone
 /// Different Voice  1
 /// [i] Seven-Day Yield                               ⋯
 ///    Kokoro Bella   9 MB
-/// Downloads now render in Kokoro Heart. …
+/// Prepared audio now render in Kokoro Heart. …
 /// ```
 ///
-/// Every row is a `ListRow`: a tap opens what was downloaded (the Reader for a page, the Library
+/// Every row is a `ListRow`: a tap opens what was prepared (the Reader for a page, the Library
 /// at a folder); a queued one has its pause / resume control before the ⋯; ⋯ and the long press
-/// are the download's menu (`DownloadMenu`, the same in every section); swipe left is its
-/// *Remove Download* (*Remove Downloads* on a folder).
-struct DownloadsSheet: View {
+/// are the prepare's menu (`PrepareMenu`, the same in every section); swipe left is its
+/// *Remove Prepare* (*Remove Prepared audio* on a folder).
+struct PreparedAudioSheet: View {
     @Environment(ShellState.self) private var shell
 
     var body: some View {
         NavigationStack {
-            DownloadsList()
+            PreparedAudioList()
                 .toolbar {
                     SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "downloadsDone") {
                         shell.sheet = nil
@@ -46,18 +46,18 @@ struct DownloadsSheet: View {
     }
 }
 
-/// The Downloads list itself: the sheet's, and Settings › Downloads & Storage › Downloads. Every
+/// The Prepared Audio list itself: the sheet's, and Settings › Prepared audio & Storage › Prepared audio. Every
 /// row is one page (C110), a folder's pages each on their own row: its status mark before line
 /// two (a spinner waiting, the accent ↓ filling with its own progress, filled once done), line two
 /// its folder's name (its site when it is in no folder). Waiting is in the order pages render.
-/// A folder's own download (its toggle, *Turn Off Download*) stays on the folder's screen.
-struct DownloadsList: View {
-    @Environment(DownloadCenter.self) private var downloads
+/// A folder's own prepare (its toggle, *Turn Off Prepare*) stays on the folder's screen.
+struct PreparedAudioList: View {
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
     @Environment(\.speechController) private var speech
-    /// Bytes on disk of each downloaded page, by its key (measured off the main actor).
+    /// Bytes on disk of each prepared page, by its key (measured off the main actor).
     @State private var sizes: [UUID: Int64] = [:]
     /// From Listening (C135): articles with audio made while listening, not prepared, newest
     /// played first, with their sizes.
@@ -67,14 +67,14 @@ struct DownloadsList: View {
     @State private var confirmingClear = false
 
     var body: some View {
-        let overview = downloads.pageOverview
-        let records = downloads.overview.queued
+        let overview = preparedAudio.pageOverview
+        let records = preparedAudio.overview.queued
         let revision = speech.localTTS.audioCache.contentRevision
         List {
             if overview.isEmpty && listening.isEmpty {
                 Section {
-                    EmptyState(String(localized: "Nothing Downloaded"), symbol: Icons.downloads,
-                               description: Text("Download an article from its \(Text.symbol(Icons.more)) in the Library, or a folder with \(Text.symbol(Icons.download)) on its screen. Its audio is made ahead of time, so it plays offline."))
+                    EmptyState(String(localized: "Nothing Prepared"), symbol: Icons.preparedAudio,
+                               description: Text("Prepare an article’s audio from its \(Text.symbol(Icons.more)) in the Library, or a folder’s with \(Text.symbol(Icons.prepare)) on its screen. Its audio is made ahead of time, so it plays offline."))
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("downloadsEmpty")
                 }
@@ -96,7 +96,7 @@ struct DownloadsList: View {
                 }
             }
             if !overview.done.isEmpty {
-                section(overview.done, header: SectionHeader(title: Verbs.downloaded, count: overview.done.count),
+                section(overview.done, header: SectionHeader(title: Verbs.prepared, count: overview.done.count),
                         headerID: "downloadsDoneHeader") {
                     let total = overview.done.compactMap { sizes[$0.key] }.reduce(0, +)
                     if total > 0 {
@@ -107,7 +107,7 @@ struct DownloadsList: View {
                 }
             }
             if !listening.isEmpty {
-                let items = listening.map { DownloadArticles.Item(recordID: $0, key: $0, status: .done, voice: nil) }
+                let items = listening.map { PrepareArticles.Item(recordID: $0, key: $0, status: .done, voice: nil) }
                 Section {
                     ForEach(items) { item in listeningRow(item) }
                         .listRowInsets(EdgeInsets())
@@ -127,8 +127,8 @@ struct DownloadsList: View {
                 section(overview.differentVoice,
                         header: SectionHeader(title: String(localized: "Different Voice"), count: overview.differentVoice.count),
                         headerID: "downloadsDifferentVoiceHeader") {
-                    if let voice = speech.localTTS.downloadVoice {
-                        Text(String(localized: "Downloads now render in \(voiceLabel(voice)). A download’s menu has Re-download, to hear it in that voice, and Keep, to keep it as it is."))
+                    if let voice = speech.localTTS.prepareVoice {
+                        Text(String(localized: "Prepared audio now renders in \(voiceLabel(voice)). An article’s menu here has Prepare Again, to hear it in that voice, and Keep, to keep it as it is."))
                             .listFooter()
                     }
                 }
@@ -136,10 +136,10 @@ struct DownloadsList: View {
         }
         .cardListStyle()
         .animation(Motion.standard, value: overview)
-        .navigationTitle(Verbs.downloads)
+        .navigationTitle(Verbs.preparedAudio)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: overview.done.map(\.key)) { sizes = await measure(overview.done.map(\.key)) }
-        .task(id: "\(revision)-\(downloads.records.count)") { await loadListening() }
+        .task(id: "\(revision)-\(preparedAudio.records.count)") { await loadListening() }
         .toolbar {
             let rows = listMenuRows(hasPrepared: !overview.isEmpty)
             if !rows.isEmpty {
@@ -150,10 +150,10 @@ struct DownloadsList: View {
                 }
             }
         }
-        .alert(String(localized: "Delete \(downloads.heldArticleKeys.count) articles and their prepared audio? This can’t be undone."),
+        .alert(String(localized: "Delete \(preparedAudio.heldArticleKeys.count) articles and their prepared audio? This can’t be undone."),
                isPresented: $confirmingDeleteAll) {
             Button(Verbs.delete, role: .destructive) {
-                shell.attempt(String(localized: "Couldn’t delete the articles")) { try downloads.deleteAll() }
+                shell.attempt(String(localized: "Couldn’t delete the articles")) { try preparedAudio.deleteAll() }
             }
             .accessibilityIdentifier("preparedDeleteAllConfirm")
             Button(Verbs.cancel, role: .cancel) {}
@@ -170,9 +170,9 @@ struct DownloadsList: View {
     /// Listening, each only while its section has rows (`MenuRegistry`).
     private func listMenuRows(hasPrepared: Bool) -> [MenuRow] {
         var facts = MenuRegistry.Facts()
-        facts.hasPrepared = hasPrepared && !downloads.heldArticleKeys.isEmpty
+        facts.hasPrepared = hasPrepared && !preparedAudio.heldArticleKeys.isEmpty
         facts.hasListeningAudio = !listening.isEmpty
-        return MenuRegistry.rows(.screen, at: .downloads, facts) { option in
+        return MenuRegistry.rows(.screen, at: .preparedAudio, facts) { option in
             if option == .deleteAllPrepared {
                 return MenuRow(id: "preparedDeleteAll", title: Verbs.deleteAllPrepared, icon: Icons.delete,
                                isDestructive: true) { confirmingDeleteAll = true }
@@ -182,12 +182,12 @@ struct DownloadsList: View {
         }
     }
 
-    private func listeningRow(_ item: DownloadArticles.Item) -> some View {
+    private func listeningRow(_ item: PrepareArticles.Item) -> some View {
         let article = library.article(key: item.key)
         let title = article?.lineOne ?? ""
         let kind: ListRow.Kind = .article(artwork: article?.artworkImage, letter: article?.artworkLetter ?? String(title.prefix(1)))
         let place = article.flatMap { $0.folder?.name ?? ArticleRowTitle.lineTwoSource(title: $0.givenTitle, source: $0.byline) }
-        let menu = DownloadMenu(item: item, downloads: downloads, library: library, isListeningAudio: true,
+        let menu = PrepareMenu(item: item, preparedAudio: preparedAudio, library: library, isListeningAudio: true,
                                 needsAudio: speech.localTTS.listeningNeedsKey)
         // No accent ↓: that mark is for prepared audio only (C135).
         return ListRow(kind: kind, title: title, subtitle: place,
@@ -202,7 +202,7 @@ struct DownloadsList: View {
     /// Articles in the Library or Recent with audio on disk that no prepare record holds, newest
     /// played first.
     private func loadListening() async {
-        let held = Set(downloads.heldArticleKeys)
+        let held = Set(preparedAudio.heldArticleKeys)
         let keys = speech.localTTS.audioCache.cachedArticleKeys().filter { !held.contains($0) }
         let articles = keys.compactMap(library.article(key:))
             .sorted { ($0.lastPlayedAt ?? .distantPast) > ($1.lastPlayedAt ?? .distantPast) }
@@ -213,23 +213,23 @@ struct DownloadsList: View {
     private func clearListening() {
         let needs = speech.localTTS.listeningNeedsKey
         for key in listening where !needs(key) {
-            if let article = library.article(key: key) { library.deleteDownloads(article) }
+            if let article = library.article(key: key) { library.deletePreparedAudio(article) }
         }
         Task { await loadListening() }
     }
 
     // MARK: - Sections
 
-    /// *Pause All* / *Resume All* over everything still to download.
+    /// *Pause All* / *Resume All* over everything still to prepare.
     private func pauseAllHeader(_ title: String, count: Int?, anyRunning: Bool) -> SectionHeader {
         SectionHeader(title: title, count: count, actionTitle: anyRunning ? Verbs.pauseAll : Verbs.resumeAll,
                       actionIdentifier: "downloadsPauseAll") {
-            downloads.setAllPaused(anyRunning)
+            preparedAudio.setAllPaused(anyRunning)
         }
     }
 
     private func section<Footer: View>(
-        _ items: [DownloadArticles.Item], header: SectionHeader, headerID: String, @ViewBuilder footer: () -> Footer
+        _ items: [PrepareArticles.Item], header: SectionHeader, headerID: String, @ViewBuilder footer: () -> Footer
     ) -> some View {
         let footer = footer()
         return Section {
@@ -252,7 +252,7 @@ struct DownloadsList: View {
 
     private var waitingNote: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(String(localized: "Downloads render with an on-device voice. Choose one in Settings to go on."))
+            Text(String(localized: "Prepared audio renders with an on-device voice. Choose one in Settings to go on."))
             PillButton(Verbs.settings, systemImage: Icons.settings, style: .neutral, size: .compact) {
                 shell.present(.settings)
             }
@@ -263,45 +263,45 @@ struct DownloadsList: View {
 
     // MARK: - A row
 
-    private func row(_ item: DownloadArticles.Item) -> some View {
+    private func row(_ item: PrepareArticles.Item) -> some View {
         let article = library.article(key: item.key)
-        let title = article?.lineOne ?? downloads.records.first { $0.id == item.recordID }?.title ?? ""
+        let title = article?.lineOne ?? preparedAudio.records.first { $0.id == item.recordID }?.title ?? ""
         let kind: ListRow.Kind = .article(artwork: article?.artworkImage, letter: article?.artworkLetter ?? String(title.prefix(1)))
         // Line two as a row's anywhere: its folder, else its site.
         let place = article.flatMap { $0.folder?.name ?? ArticleRowTitle.lineTwoSource(title: $0.givenTitle, source: $0.byline) }
-        let downloadMenu = DownloadMenu(item: item, downloads: downloads, library: library)
-        let menu = AnyView(downloadMenu)
+        let prepareMenu = PrepareMenu(item: item, preparedAudio: preparedAudio, library: library)
+        let menu = AnyView(prepareMenu)
         return ListRow(kind: kind, title: title, subtitle: place, details: detail(item),
-                       download: mark(item), menu: menu, showsListening: false)
+                       prepare: mark(item), menu: menu, showsListening: false)
             .opensOnTap { open(article) }
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                downloadMenu.removeRow.swipeButton(role: .destructive)
+                prepareMenu.removeRow.swipeButton(role: .destructive)
             }
             .accessibilityIdentifier("downloadRow")
     }
 
     /// The row's one status mark (C102): filling with its own progress, waiting, paused, done.
-    private func mark(_ item: DownloadArticles.Item) -> DownloadState {
+    private func mark(_ item: PrepareArticles.Item) -> PrepareState {
         switch item.status {
-        case .downloading(let f), .fetching(let f): .downloading(fraction: f)
+        case .preparing(let f), .fetching(let f): .preparing(fraction: f)
         case .queued, .waitingForVoice: .queued(fraction: 0)
         case .paused: .paused(fraction: 0)
-        case .done: item.failed ? .notDownloaded : .downloaded
-        case .differentVoice: .downloaded
+        case .done: item.failed ? .notPrepared : .prepared
+        case .differentVoice: .prepared
         }
     }
 
-    private func detail(_ item: DownloadArticles.Item) -> [String] {
+    private func detail(_ item: PrepareArticles.Item) -> [String] {
         let voice = item.voice.map(voiceLabel)
         switch item.status {
-        case .downloading(let f): return ["\(Int((f * 100).rounded()))%"]
+        case .preparing(let f): return ["\(Int((f * 100).rounded()))%"]
         case .fetching: return [String(localized: "Getting the article")]
         case .queued: return [voice].compactMap { $0 }
         case .paused: return [String(localized: "Paused")]
         case .waitingForVoice: return [String(localized: "Needs a voice")]
         case .done, .differentVoice:
-            if item.failed { return [String(localized: "Couldn’t download")] }
+            if item.failed { return [String(localized: "Couldn’t prepare")] }
             return [voice, sizes[item.key].map(FileSizes.label)].compactMap { $0 }
         }
     }

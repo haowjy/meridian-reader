@@ -54,7 +54,7 @@ struct ListeningSettingsSection: View {
                 }
                 Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to remove its download.")
                 if !VoiceCatalog.hasHighQualityVoice(forLanguage: speech.effectiveLanguageCode) {
-                    // C129: Siri's voices aren't offered to apps; better Apple voices are a download.
+                    // C129: Siri's voices aren't offered to apps; better Apple voices are a prepare.
                     Text("Better Apple voices (Enhanced or Premium) can be downloaded in iOS Settings > Accessibility > Spoken Content > Voices.")
                         .accessibilityIdentifier("appleVoiceHint")
                 }
@@ -83,7 +83,7 @@ struct ListeningSettingsSection: View {
             Task { await localTTS.selectEngine(id) }
         } accessory: {
             if pending {
-                // The download's mark doubles as the Cancel button (no extra rows appear).
+                // The prepare's mark doubles as the Cancel button (no extra rows appear).
                 Button {
                     localTTS.synth.cancelDownload()
                 } label: {
@@ -96,9 +96,9 @@ struct ListeningSettingsSection: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if gateOK, localTTS.isModelInstalled(id), !pending {
-                // What was downloaded goes: *Remove Download*, as for a page's or a folder's. The
-                // row stays (to download again), so not `.destructive` (`Palette.destructive`).
-                MenuRow(id: "engineRemoveDownload", title: Verbs.removeDownload, icon: Icons.removeDownload,
+                // What was prepared goes: *Remove Prepare*, as for a page's or a folder's. The
+                // row stays (to prepare again), so not `.destructive` (`Palette.destructive`).
+                MenuRow(id: "engineRemoveDownload", title: Verbs.removeModelDownload, icon: Icons.removeModelDownload,
                         isDestructive: true) { try? localTTS.deleteModel(id) }
                     .swipeButton()
             }
@@ -106,13 +106,13 @@ struct ListeningSettingsSection: View {
     }
 
     /// Line two: the model's state, after the accent filled ↓ once it is downloaded (as a downloaded row's
-    /// line two starts), so the trailing slots hold only its download's progress and the
+    /// line two starts), so the trailing slots hold only its prepare's progress and the
     /// selection ✓.
     private func localSubtitle(_ descriptor: EngineDescriptor, gateOK: Bool) -> DetailPart {
         let text = localState(descriptor, gateOK: gateOK)
-        let downloaded = gateOK && localTTS.isModelInstalled(descriptor.id)
+        let prepared = gateOK && localTTS.isModelInstalled(descriptor.id)
             && localTTS.synth.state.warmingEngineID != descriptor.id
-        return downloaded ? .downloaded(text) : DetailPart(text)
+        return prepared ? .prepared(text) : DetailPart(text)
     }
 
     private func localState(_ descriptor: EngineDescriptor, gateOK: Bool) -> String {
@@ -211,7 +211,7 @@ struct VoicePage: View {
         let current = descriptor.resolvedVoice(localTTS.voice(for: descriptor.id))
         Section {
             ForEach(descriptor.voices) { voice in
-                let downloading = localTTS.voiceDownloadID == voice.id
+                let preparing = localTTS.voiceDownloadID == voice.id
                 SettingsChoiceRow(
                     title: voice.label,
                     subtitle: DetailPart(voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail),
@@ -220,9 +220,9 @@ struct VoicePage: View {
                 ) {
                     Task { await localTTS.chooseVoice(voice.id, for: descriptor.id) }
                 } accessory: {
-                    if downloading {
+                    if preparing {
                         // A voice downloading shows as every download does (its size is unknown, so
-                        // the mark's spinner), in the slot the preview leaves while it downloads.
+                        // the mark's spinner), in the slot the preview leaves while it prepared audio.
                         ModelDownloadMark(fraction: nil)
                             .accessibilityLabel("Downloading \(voice.label)")
                     } else if VoicePreviewPlayer.hasPreview(voice) {

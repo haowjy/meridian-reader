@@ -41,7 +41,7 @@ enum LocalEngineState: Equatable {
     var selectedEngineID: SpeechEngineID { activeEngineID ?? .apple }
 
     /// The selection to persist on entering this state. A load in flight keeps the last committed
-    /// choice, so a launch interrupted mid-download comes back on the engine that last worked.
+    /// choice, so a launch interrupted mid-prepare comes back on the engine that last worked.
     var persistedSelection: SpeechEngineID? {
         switch self {
         case .ready(let id): return id

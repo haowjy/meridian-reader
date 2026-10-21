@@ -31,7 +31,7 @@ final class TestVoiceProvider: SpeechEngineProvider {
 
 private final class TestVoiceHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID
-    /// Seconds each render takes (default 0.15); `-testVoice.delay 1.5` slows it so a download can
+    /// Seconds each render takes (default 0.15); `-testVoice.delay 1.5` slows it so a prepare can
     /// be seen in progress.
     private let delay: TimeInterval = UserDefaults.standard.double(forKey: "testVoice.delay") > 0 ? UserDefaults.standard.double(forKey: "testVoice.delay") : 0.15
     var routingLabel: String? { "test" }

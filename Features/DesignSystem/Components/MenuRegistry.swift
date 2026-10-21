@@ -5,13 +5,13 @@ import Foundation
 /// no state change in that place undoes) and when it can run now (`enabled`). Outside where it
 /// applies it is hidden; where it applies but can't run now it is greyed out (DR-09 as refined
 /// by C98: grey when some other state could make it usable there, hidden when nothing could).
-/// Every menu (a row's ⋯ and long press, a folder header's *More*, the ⋯ panels, the Downloads
+/// Every menu (a row's ⋯ and long press, a folder header's *More*, the ⋯ panels, the Prepared audio
 /// rows, the Now Playing bar, History) is assembled from here by kind and place; the renderer
 /// only adds each option's title, symbol and action (`MenuRegistry.rows`). Pure values, so the
 /// table test (`MenuRegistryTests`) checks every kind × place × state.
 enum MenuRegistry {
     /// What a menu is for.
-    enum Kind: String, CaseIterable { case article, folder, download, screen }
+    enum Kind: String, CaseIterable { case article, folder, prepare, screen }
 
     /// Where a menu opens.
     enum Place: String, CaseIterable {
@@ -35,8 +35,8 @@ enum MenuRegistry {
         case libraryHome
         /// A folder screen's ⋯ panel.
         case folderScreen
-        /// A Downloads list row.
-        case downloads
+        /// A Prepared Audio list row.
+        case preparedAudio
         /// The Library's ＋ (the home or a folder's screen).
         case add
         /// A folder screen's bottom bar in Edit.
@@ -46,15 +46,15 @@ enum MenuRegistry {
     /// Every option, in menu order within its kind.
     enum Option: String, CaseIterable {
         // A page
-        case read, goTo, download, favorite, move, finished, playback, markAllAbove, skip, share, save,
+        case read, goTo, prepare, favorite, move, finished, playback, markAllAbove, skip, share, save,
              removeFromRecent, stopListening, removeFromHistory
         // A folder, book or series
-        case continueFolder, playFromStart, folderDownload, removeDownloads, folderFavorite, folderMove,
+        case continueFolder, playFromStart, folderPrepare, removePreparedAudio, folderFavorite, folderMove,
              editDetails, deleteFolder
-        // A download
-        case redownload, keep, removeDownload
+        // A prepare
+        case reprepare, keep, removePrepare
         // A screen's own rows
-        case newFolder, importFile, saveFromWebsite, pasteText, follow, sort, reload, downloads, settings
+        case newFolder, importFile, saveFromWebsite, pasteText, follow, sort, reload, preparedAudio, settings
         // The Prepared Audio list's own ⋯ (C135)
         case deleteAllPrepared, clearListeningAudio
     }
@@ -79,9 +79,9 @@ enum MenuRegistry {
         // A folder
         var hasArticlesToPlay = false
         var hasArticles = false
-        var downloadIsOn = false
-        var hasDownloads = false
-        // A download
+        var prepareIsOn = false
+        var hasPreparedAudio = false
+        // A prepare
         var isQueued = false
         var isOtherVoice = false
         /// A row of From Listening: audio made while listening, not prepared (C135).
@@ -134,7 +134,7 @@ enum MenuRegistry {
         // browser have the bookmark, so *Save* isn't in their menus.
         Spec(option: .read, kind: .article, places: articleListPlaces, enabled: { $0.hasTarget }, greyIf: "no page or address"),
         Spec(option: .goTo, kind: .article, places: [.nowPlaying], enabled: { $0.goToEnabled }, greyIf: "nowhere to go"),
-        Spec(option: .download, kind: .article, places: articlePlaces, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
+        Spec(option: .prepare, kind: .article, places: articlePlaces, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
         Spec(option: .favorite, kind: .article, places: articlePlaces, enabled: { $0.canFavorite }, greyIf: "it can\u{2019}t be starred"),
         Spec(option: .move, kind: .article, places: articlePlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
         Spec(option: .finished, kind: .article, places: articlePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),
@@ -151,25 +151,25 @@ enum MenuRegistry {
         Spec(option: .stopListening, kind: .article, places: [.bar], block: 1, enabled: { $0.isLoaded }, greyIf: "nothing loaded"),
         Spec(option: .removeFromHistory, kind: .article, places: [.history], block: 1),
 
-        // A folder. Its row's tap opens it; its header has ▶ and Download beside *More*.
+        // A folder. Its row's tap opens it; its header has ▶ and Prepare beside *More*.
         Spec(option: .continueFolder, kind: .folder, places: [.row, .tile], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
         Spec(option: .playFromStart, kind: .folder, places: [.header], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
-        // One row: Download, Turn Off Download while on, Remove Downloads once all is downloaded.
-        Spec(option: .folderDownload, kind: .folder, places: [.row, .tile],
-             enabled: { $0.downloadIsOn || $0.hasDownloads || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
-        Spec(option: .removeDownloads, kind: .folder, places: [.header], enabled: { $0.hasDownloads }, greyIf: "nothing downloaded or downloading"),
+        // One row: Prepare, Turn Off Prepare while on, Remove Prepared audio once all is prepared.
+        Spec(option: .folderPrepare, kind: .folder, places: [.row, .tile],
+             enabled: { $0.prepareIsOn || $0.hasPreparedAudio || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
+        Spec(option: .removePreparedAudio, kind: .folder, places: [.header], enabled: { $0.hasPreparedAudio }, greyIf: "nothing downloaded or downloading"),
         // Its screen's More makes a subfolder in it (C122); never in a folder that keeps its own order.
         Spec(option: .folderFavorite, kind: .folder, places: folderPlaces),
         Spec(option: .folderMove, kind: .folder, places: folderPlaces),
         Spec(option: .editDetails, kind: .folder, places: folderPlaces),
         Spec(option: .deleteFolder, kind: .folder, places: folderPlaces),
 
-        // A download. Its ↓ mark pauses and resumes.
-        Spec(option: .redownload, kind: .download, places: [.downloads], applies: { !$0.isListeningAudio },
+        // A prepare. Its ↓ mark pauses and resumes.
+        Spec(option: .reprepare, kind: .prepare, places: [.preparedAudio], applies: { !$0.isListeningAudio },
              enabled: { !$0.isQueued }, hiddenIf: "audio from listening", greyIf: "still preparing"),
-        Spec(option: .keep, kind: .download, places: [.downloads], applies: { !$0.isListeningAudio },
+        Spec(option: .keep, kind: .prepare, places: [.preparedAudio], applies: { !$0.isListeningAudio },
              enabled: { $0.isOtherVoice }, hiddenIf: "audio from listening", greyIf: "its audio is in the current voice"),
-        Spec(option: .removeDownload, kind: .download, places: [.downloads]),
+        Spec(option: .removePrepare, kind: .prepare, places: [.preparedAudio]),
 
         // A screen's own rows (＋ has New Folder and Import Book; the address field starts a search).
         // ＋ makes things in the screen on top; the ⋯ panels keep only Sort, Reload and the tail.
@@ -190,11 +190,11 @@ enum MenuRegistry {
         Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen],
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .reload, kind: .screen, places: [.browser], enabled: { $0.hasWebPage }, greyIf: "no page up"),
-        Spec(option: .downloads, kind: .screen, places: panelPlaces),
+        Spec(option: .preparedAudio, kind: .screen, places: panelPlaces),
         // The Prepared Audio list's ⋯: each only while its section has rows.
-        Spec(option: .deleteAllPrepared, kind: .screen, places: [.downloads], applies: { $0.hasPrepared },
+        Spec(option: .deleteAllPrepared, kind: .screen, places: [.preparedAudio], applies: { $0.hasPrepared },
              hiddenIf: "nothing prepared"),
-        Spec(option: .clearListeningAudio, kind: .screen, places: [.downloads], applies: { $0.hasListeningAudio },
+        Spec(option: .clearListeningAudio, kind: .screen, places: [.preparedAudio], applies: { $0.hasListeningAudio },
              hiddenIf: "no audio from listening"),
         Spec(option: .settings, kind: .screen, places: panelPlaces),
     ]

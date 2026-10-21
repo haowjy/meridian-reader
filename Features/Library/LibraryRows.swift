@@ -10,9 +10,9 @@ import SwiftUI
 /// Tapping the row plays it (`LibraryActions.play`; a waiting chapter is fetched first), except
 /// the page you hear, which opens Now Playing, so a stray tap never pauses it, and a link that
 /// can't play, which opens in the browser. Its only control is ⋯ (`ArticleMenu`), the same menu as
-/// its long press (decision D11), whose first row, *Read*, opens it. Its download shows on the
-/// row (`DownloadCenter.state(of:)`): dimmed under a jade ↓ while downloading, a accent filled ↓ once
-/// downloaded. Swipe left removes it from the Library, and from every list it shows in
+/// its long press (decision D11), whose first row, *Read*, opens it. Its prepare shows on the
+/// row (`PrepareCenter.state(of:)`): dimmed under a jade ↓ while preparing, a accent filled ↓ once
+/// prepared. Swipe left removes it from the Library, and from every list it shows in
 /// (`LibraryQueries`). A page in the Library lifts into a drag from the long press, to be filed in
 /// a folder or placed between rows (`LibraryDrag`), a chapter as any page (decision D19); not on
 /// the home's Favorites tab or in search results (`LibraryScreenKey.filtered`), where a page in a
@@ -25,7 +25,7 @@ struct LibraryArticleRow: View {
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
     @Environment(\.libraryScreenKey) private var screenKey
@@ -78,7 +78,7 @@ struct LibraryArticleRow: View {
     }
 
     private var articleActions: ArticleActions {
-        ArticleActions(article: article, library: library, shell: shell, speech: speech, downloads: downloads, follow: follow)
+        ArticleActions(article: article, library: library, shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }
 
     private var playState: PlayState {
@@ -91,7 +91,7 @@ struct LibraryArticleRow: View {
                 progress: article.isLink ? .unplayed(minutes: nil) : actions.progress(of: article),
                 playState: playState,
                 insertionEdge: screen.insertion?.id == .article(article.listenKey) ? screen.insertion?.edge : nil,
-                download: downloads.state(of: article), isFavorite: marksFavorite && article.isFavorite,
+                prepare: preparedAudio.state(of: article), isFavorite: marksFavorite && article.isFavorite,
                 menu: isEditing ? nil : AnyView(menu))
             .opensOnTap(isEditing ? nil : activate)
             .libraryDropRow(.article(article.listenKey), in: screen)
@@ -126,8 +126,8 @@ struct LibraryArticleRow: View {
 /// for the symbol. A folder whose pages play shows its place (the page it is at) and the time
 /// left; any other folder shows its count. Its only control is ⋯ (`FolderMenu`, with *Continue*
 /// and *Play from Start*), the same menu as its long press, which also lifts it into a drag; a
-/// dragged row let go on it is filed in it. Its download shows as a page's does: dimmed under a
-/// jade ↓ while its download runs, a accent filled ↓ once every page it covers is downloaded; Download
+/// dragged row let go on it is filed in it. Its prepare shows as a page's does: dimmed under a
+/// jade ↓ while its prepare runs, a accent filled ↓ once every page it covers is prepared; Prepare
 /// itself is in its screen's header. Swipe left asks to delete it. On the home's Favorites tab or in search results
 /// (`LibraryScreenKey.filtered`) a nested folder shows its parents' path, opens under them, so ‹
 /// goes to its parent, and doesn't lift.
@@ -138,11 +138,11 @@ struct LibraryFolderRow: View {
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
     @Environment(\.libraryScreenKey) private var screenKey
-    /// Its menu's *Turn Off Download* asked: the question shows by its ⋯.
+    /// Its menu's *Turn Off Prepare* asked: the question shows by its ⋯.
     @State private var turningOff: Folder?
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
@@ -164,9 +164,9 @@ struct LibraryFolderRow: View {
     @ViewBuilder private var liveBody: some View {
         let articles = folder.playOrder
         let progress = actions.progress(of: folder, articles: articles)
-        let menu = FolderMenu(folder: folder, articles: articles, actions: actions, downloads: downloads, screen: screen,
-                              progress: progress, onTurnOffDownload: { turningOff = folder })
-        opening(row(progress, download: downloads.state(of: folder, articles: articles), menu: isEditing ? nil : AnyView(menu)))
+        let menu = FolderMenu(folder: folder, articles: articles, actions: actions, preparedAudio: preparedAudio, screen: screen,
+                              progress: progress, onTurnOffPrepare: { turningOff = folder })
+        opening(row(progress, prepare: preparedAudio.state(of: folder, articles: articles), menu: isEditing ? nil : AnyView(menu)))
             .accessibilityIdentifier("folderRow")
             .libraryDropRow(.folder(folder.id), in: screen)
             .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
@@ -194,7 +194,7 @@ struct LibraryFolderRow: View {
         }
     }
 
-    private func row(_ progress: FolderProgress, download: DownloadState, menu: AnyView?) -> some View {
+    private func row(_ progress: FolderProgress, prepare: PrepareState, menu: AnyView?) -> some View {
         let plays = progress.hasArticlesToPlay
         let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: plays ? [] : contents,
                                        cover: folder.hasDetails ? folder.coverImage : nil)
@@ -203,9 +203,9 @@ struct LibraryFolderRow: View {
                        playState: plays ? actions.playState(of: folder) : .idle,
                        isDropTarget: screen.dropTarget == folder.id,
                        insertionEdge: screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil,
-                       download: download, isFavorite: marksFavorite && folder.isFavorite,
+                       prepare: prepare, isFavorite: marksFavorite && folder.isFavorite,
                        folderHasDetails: folder.hasDetails, menu: menu,
-                       menuAnchor: AnyView(Color.clear.turnOffDownloadQuestion($turningOff)))
+                       menuAnchor: AnyView(Color.clear.turnOffPrepareQuestion($turningOff)))
     }
 
     /// What is in it, as its screen's header counts it: ["2 folders", "3 articles"]; ["Empty"].
@@ -278,7 +278,7 @@ extension Folder {
     }
 
     /// What its pages are called in a count: "chapters" in an imported EPUB, "articles" in any (C120)
-    /// other folder (its row, its header, Downloads).
+    /// other folder (its row, its header, Prepared audio).
     var itemNoun: String {
         kind == .book ? String(localized: "chapters") : String(localized: "articles")
     }

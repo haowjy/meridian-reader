@@ -13,8 +13,8 @@ struct BrowseStartPage: View {
     /// A page tile's long press: the page's menu (`ArticleMenu`).
     var pageMenu: (Article) -> AnyView
     /// A folder tile's long press: the folder's menu (`FolderMenu`); its closure asks *Turn Off
-    /// Download* by the tile.
-    var folderMenu: (Folder, _ onTurnOffDownload: @escaping () -> Void) -> AnyView
+    /// Prepare* by the tile.
+    var folderMenu: (Folder, _ onTurnOffPrepare: @escaping () -> Void) -> AnyView
     var onSearch: (String) -> Void
     var onClearSearches: () -> Void
 

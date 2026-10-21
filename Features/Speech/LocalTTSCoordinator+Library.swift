@@ -14,7 +14,7 @@ extension LocalTTSCoordinator: LibraryAudioEffects {
         pendingBakes.removePending(articleID: articleID)
     }
 
-    /// Also when a download stops (paused, removed). `DownloadCenter` never asks this of a page
+    /// Also when a prepare stops (paused, removed). `PrepareCenter` never asks this of a page
     /// listening needs (`needsAudio`): removing a job fails its chunk waiters.
     func removeBakeJob(cacheKey: UUID) {
         synthQueue.remove(cacheKey: cacheKey)

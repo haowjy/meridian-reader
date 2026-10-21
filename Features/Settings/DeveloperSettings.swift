@@ -79,7 +79,7 @@ final class DeveloperSettings {
 
 /// The app's extractor (`AppComposition.extractor`): `base`, except that every extraction fails
 /// while *Fake Extraction Failure* is on: the browser's Reader and Save, Follow's preview and
-/// chapters, a download's page.
+/// chapters, a prepare's page.
 struct DeveloperSwitchedExtractor: ArticleExtracting {
     let base: any ArticleExtracting
     let developer: DeveloperSettings

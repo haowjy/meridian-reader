@@ -15,7 +15,7 @@ import SwiftUI
 ///   after that the text never scrolls by itself.
 /// - 🔖 saves / removes from the Library (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
 ///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
-///   Download, Downloads, Settings; Favorites / History / Website). Both act through
+///   Prepare, Prepared audio, Settings; Favorites / History / Website). Both act through
 ///   `ArticleActions`, as in Now Playing.
 /// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
 /// - Scrolling down reads full screen, as in Now Playing (`ReaderSheet`, `ReadingChrome`); a link
@@ -30,7 +30,7 @@ struct ReaderSheetScreen: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(\.readingAppearance) private var appearance
     @State private var jumpMode = false
     @State private var scroll = ReadingScrollHandle()
@@ -43,7 +43,7 @@ struct ReaderSheetScreen: View {
         // The article's library page, if it has one (saved, played, or a favorite).
         ArticleLookup(key: readerArticle.id, canonicalURL: readerArticle.origin.canonicalURL) { article in
             sheet(ArticleActions(article: article, readerArticle: readerArticle, library: library, shell: shell, speech: speech,
-                              downloads: downloads, follow: follow))
+                              preparedAudio: preparedAudio, follow: follow))
         }
     }
 
@@ -77,7 +77,7 @@ struct ReaderSheetScreen: View {
         } floating: {
             // The line at the band's top edge; the toast floats above it.
             ZStack(alignment: .top) {
-                DownloadProgressEdge()
+                PrepareProgressEdge()
                 ShellToastLayer()
             }
         }

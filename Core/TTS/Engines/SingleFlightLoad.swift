@@ -2,7 +2,7 @@ import Foundation
 
 /// A host's model load, run once (`LocalSynthHost.prepare`): the first `run` starts it, later
 /// callers await the same load. Cancelling a caller cancels the load, so Settings' cancel reaches
-/// a download in flight. A load that failed or was cancelled runs again on the next `run`;
+/// a prepare in flight. A load that failed or was cancelled runs again on the next `run`;
 /// `reset` forgets a finished one (the host lost what it loaded). `close` ends it for good: the
 /// load in flight is cancelled and waited for, and every later `run` throws, so a host being
 /// unloaded can't finish loading behind its caller or load again.

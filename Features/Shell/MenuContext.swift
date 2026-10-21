@@ -3,7 +3,7 @@ import SwiftUI
 /// What the ⋯ panel shows, in three blocks: the item's own menu (a page's `ArticleMenu` or a
 /// folder's `FolderMenu`, the same rows as everywhere that item's menu shows; none on a screen
 /// with no item, the Library's home and the start page), then the screen's own rows, ending in
-/// *Downloads* and *Settings* (`tail`), then the big buttons, the rightmost (nearest the thumb,
+/// *Prepared audio* and *Settings* (`tail`), then the big buttons, the rightmost (nearest the thumb,
 /// the panel's focus point) last:
 ///
 /// - browser:  `[Favorites][History][Reader]`
@@ -17,7 +17,7 @@ struct MenuContext {
     var isOnReadingPage = false
 
     /// A screen's own block, from `MenuRegistry` (C98): *Sort*, *Follow…*, *Reload* where they
-    /// apply, then *Downloads* and *Settings*, always last. `custom` gives the rows only a screen
+    /// apply, then *Prepared audio* and *Settings*, always last. `custom` gives the rows only a screen
     /// can make (its *Sort*, *Follow…*, *Reload*).
     @MainActor
     static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(), shell: ShellState,
@@ -28,7 +28,7 @@ struct MenuContext {
             case .settings:
                 return MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings) { shell.present(.settings) }
             default:
-                return MenuRow(id: "moreDownloads", title: Verbs.downloads, icon: Icons.downloads) { shell.present(.downloads) }
+                return MenuRow(id: "morePreparedAudio", title: Verbs.preparedAudio, icon: Icons.preparedAudio) { shell.present(.preparedAudio) }
             }
         }
     }

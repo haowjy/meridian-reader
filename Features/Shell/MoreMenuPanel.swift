@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The ⋯ menu panel's content (shown by `MorphMenuOverlay`), drawn from a `MenuContext`: the
 /// item's rows (a page's or a folder's own menu, the same rows its ⋯ and long press show), a
-/// divider, the screen's rows ending in *Downloads* and *Settings*, a divider, then the row of big
+/// divider, the screen's rows ending in *Prepared audio* and *Settings*, a divider, then the row of big
 /// buttons whose rightmost one is the panel's focus point (`morphMenuFocus`). It draws rows as
 /// they come (`MenuRow`): hidden ones left out, dimmed ones disabled, destructive ones red, a
 /// submenu (*Sort*) with its chevron. Every row closes the panel and runs its action once the

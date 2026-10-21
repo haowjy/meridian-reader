@@ -30,7 +30,7 @@ final class LibraryStore {
     /// (`SpeechController.rekeyActiveSession`).
     @ObservationIgnored var keyMerged: (UUID, UUID, String?) -> Void = { _, _, _ in }
     /// An edit was stored (`edit`): pages or folders may have left the Library, and what lists
-    /// them outside it follows (the Downloads list, `DownloadCenter`).
+    /// them outside it follows (the Prepared Audio list, `PrepareCenter`).
     @ObservationIgnored var editStored: () -> Void = {}
     /// Favorites whose icon `backfillFavoriteIcons` already fetched this launch.
     @ObservationIgnored var iconTried = Set<UUID>()

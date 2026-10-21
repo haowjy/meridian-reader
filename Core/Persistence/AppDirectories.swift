@@ -15,8 +15,8 @@ enum AppDirectories {
     static var audioCache: URL { applicationSupport.appending(path: "TTSCache", directoryHint: .isDirectory) }
     /// Bake jobs waiting for the on-device engine (`PendingBakeJobStore`).
     static var pendingBakeJobs: URL { applicationSupport.appending(path: "PendingBakeJobs.json") }
-    /// The download list (`DownloadListStore`).
-    static var downloads: URL { applicationSupport.appending(path: "Downloads.json") }
+    /// The prepare list (`PrepareListStore`).
+    static var preparedAudio: URL { applicationSupport.appending(path: "Downloads.json") }
     /// A book's file while it is imported (`BookImportFiles`).
     static var imports: URL { applicationSupport.appending(path: "Imports", directoryHint: .isDirectory) }
     /// The frozen bookmarks file the library migration reads (`LegacyBookmarks`).

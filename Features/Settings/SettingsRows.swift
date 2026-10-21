@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// One fixed-layout choice row: title, optional one-line subtitle (a downloaded model's starts
-/// with the accent filled ↓, as every downloaded row's line two does), a fixed-size trailing accessory slot
-/// (a download's progress, a voice's preview), and a fixed-size slot for the selection ✓. State
+/// with the accent filled ↓, as every prepared row's line two does), a fixed-size trailing accessory slot
+/// (a prepare's progress, a voice's preview), and a fixed-size slot for the selection ✓. State
 /// changes swap contents inside the slots, so the row's size never changes.
 struct SettingsChoiceRow<Accessory: View>: View {
     let title: String
@@ -122,14 +122,14 @@ struct SettingsControlRow<Control: View>: View {
 }
 
 /// A voice model downloading (tap = cancel): the `DownloadMark` filling as it downloads, as every
-/// download shows; a spinner while the fraction is unknown (preparing, compiling).
+/// prepare shows; a spinner while the fraction is unknown (preparing, compiling).
 struct ModelDownloadMark: View {
     let fraction: Double?
 
     var body: some View {
         Group {
             if let fraction, fraction < 1 {
-                DownloadMark(state: .downloading(fraction: fraction), size: Glyph.modelDownload)
+                PrepareMark(state: .preparing(fraction: fraction), size: Glyph.modelDownload)
             } else {
                 ProgressView().controlSize(.small)
             }

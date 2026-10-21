@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The ⋯ for the Library screen on top (the home or a folder): the screen's rows, the same on
-/// both (`MenuRegistry`, C98): *Sort*, *Follow…*, *Downloads*, *Settings*. The surface's ＋ shows the same
+/// both (`MenuRegistry`, C98): *Sort*, *Follow…*, *Prepared audio*, *Settings*. The surface's ＋ shows the same
 /// two creating rows (`createRows`), so both act on the screen on top (`topFolder`), and so does
 /// *Follow…*, whose story's folder goes there. Nothing in it acts on the browser's page.
 @MainActor
@@ -9,7 +9,7 @@ struct LibraryScreenMenu {
     let library: LibraryStore
     let speech: SpeechController
     let shell: ShellState
-    let downloads: DownloadCenter
+    let preparedAudio: PrepareCenter
     let follow: FollowCenter
     let screen: LibraryScreenState
     /// The pushed screen on top (nil: the home).
@@ -18,8 +18,8 @@ struct LibraryScreenMenu {
     let topLevelSort: Binding<String>
     /// A folder moved from its own screen: show it where it went.
     let showMoved: (Folder) -> Void
-    /// *Turn Off Download*: the surface asks `turnOffDownloadQuestion` by the ⋯.
-    let onTurnOffDownload: (Folder) -> Void
+    /// *Turn Off Prepare*: the surface asks `turnOffPrepareQuestion` by the ⋯.
+    let onTurnOffPrepare: (Folder) -> Void
 
     /// The folder whose screen is on top (nil: the home). New folders and imported books go in
     /// it (a book or series too), or at the top level from the home.
@@ -31,7 +31,7 @@ struct LibraryScreenMenu {
     }
 
     /// The screen's rows only (C98, C100): *Sort ›* (not in a folder that keeps its own order),
-    /// *Downloads*, *Settings*; then the big buttons, on the home only *Browser* (its tabs are
+    /// *Prepared audio*, *Settings*; then the big buttons, on the home only *Browser* (its tabs are
     /// Favorites and Recent).
     var menu: MenuContext {
         let folder = topFolder

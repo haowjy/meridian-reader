@@ -11,7 +11,7 @@ struct BrowseStartView: View {
     @Environment(\.articleExtractor) private var extractor
     @Environment(\.speechController) private var speech
     @Environment(ShellState.self) private var shell
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(FollowCenter.self) private var follow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
@@ -159,7 +159,7 @@ struct BrowseStartView: View {
                 menu: { menu(actions) }
             )
         }
-        .overlay(alignment: .top) { DownloadProgressEdge() }
+        .overlay(alignment: .top) { PrepareProgressEdge() }
         .overlay(alignment: .top) { ShellToastLayer() }
     }
 
@@ -227,11 +227,11 @@ struct BrowseStartView: View {
                                             save: { folder in run { try await $0.save(in: folder) } },
                                             toggleFavorite: service.toggleFavorite)
         return ArticleActions(article: libraryPage, url: webPage, loaded: webPage == nil ? nil : loaded, library: library,
-                           shell: shell, speech: speech, downloads: downloads, follow: follow)
+                           shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }
 
     /// The browser's ⋯: the page's menu (`ArticleMenu`) while a page is up, then *New Search*,
-    /// *Follow…*, *Reload*, *Downloads*, *Settings*, then `[Favorites][History][Reader]`.
+    /// *Follow…*, *Reload*, *Prepared audio*, *Settings*, then `[Favorites][History][Reader]`.
     private func menu(_ actions: ArticleActions) -> MenuContext {
         var facts = MenuRegistry.Facts()
         facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
@@ -271,14 +271,14 @@ struct BrowseStartView: View {
                 onShowFavorites: shell.showFavorites,
                 pageMenu: { page in
                     AnyView(ArticleMenu(actions: ArticleActions(article: page, library: library, shell: shell, speech: speech,
-                                                          downloads: downloads, follow: follow),
+                                                          preparedAudio: preparedAudio, follow: follow),
                                      place: .elsewhere))
                 },
-                folderMenu: { folder, onTurnOffDownload in
+                folderMenu: { folder, onTurnOffPrepare in
                     AnyView(FolderMenu(folder: folder, articles: folder.playOrder,
                                        actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow),
-                                       downloads: downloads, screen: favoritesScreen, place: .tile,
-                                       onTurnOffDownload: onTurnOffDownload))
+                                       preparedAudio: preparedAudio, screen: favoritesScreen, place: .tile,
+                                       onTurnOffPrepare: onTurnOffPrepare))
                 },
                 onSearch: submit,
                 onClearSearches: { recentSearchesRaw = "" }
@@ -331,14 +331,14 @@ struct BrowseStartView: View {
     }
 
     /// Runs a page action; a failed extraction shows the alert.
-    /// A tapped `.epub` link downloads instead of showing; the book then waits in the import
+    /// A tapped `.epub` link prepared audio instead of showing; the book then waits in the import
     /// sheet for *Import*.
     private func bookDownloaded(_ event: WebViewStore.BookDownload) {
         switch event {
         case .started(let name):
-            shell.showToast(ShellToast(message: String(localized: "Downloading “\(name)”…"), systemImage: Icons.download))
+            shell.showToast(ShellToast(message: String(localized: "Downloading “\(name)”…"), systemImage: Icons.prepare))
         case .finished(let file):
-            BookImportActions(library: library, shell: shell).importDownloaded(file)
+            BookImportActions(library: library, shell: shell).importPrepared(file)
         case .failed(let name):
             shell.showToast(ShellToast(message: String(localized: "Couldn't download “\(name)”"),
                                        systemImage: Icons.warning))

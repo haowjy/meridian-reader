@@ -34,7 +34,7 @@ struct ReaderApp: App {
     @State private var shell = AppComposition.shell
     @State private var library: LibraryStore
     @State private var follow: FollowCenter
-    @State private var downloads: DownloadCenter
+    @State private var preparedAudio: PrepareCenter
     /// Block Ads: every web view's rule lists, and Settings › Browsing's switch.
     @State private var contentBlocker: ContentBlocker
     /// How pages read (Settings › Reading, the Aa panel): one store for both editors.
@@ -53,7 +53,7 @@ struct ReaderApp: App {
         _library = State(initialValue: library)
         let follow = AppComposition.makeFollow(library: library)
         _follow = State(initialValue: follow)
-        _downloads = State(initialValue: AppComposition.makeDownloads(library: library, follow: follow))
+        _preparedAudio = State(initialValue: AppComposition.makePreparedAudio(library: library, follow: follow))
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
         AppComposition.runLaunchMaintenance(library: library)
@@ -67,13 +67,13 @@ struct ReaderApp: App {
                 .environment(\.speechController, speechController)
                 .environment(shell)
                 .environment(library)
-                .environment(downloads)
+                .environment(preparedAudio)
                 .environment(follow)
                 .environment(contentBlocker)
                 .environment(\.readingAppearance, readingAppearance)
                 .environment(developer)
                 .task {
-                    await AppLaunch.run(library: library, speech: speechController, shell: shell, downloads: downloads,
+                    await AppLaunch.run(library: library, speech: speechController, shell: shell, preparedAudio: preparedAudio,
                                         follow: follow)
                 }
         }

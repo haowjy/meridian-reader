@@ -60,7 +60,7 @@ enum EngineLatencyProbe {
         let os = ProcessInfo.processInfo.operatingSystemVersionString
         log("device=\(DeviceChipGate.machineIdentifier) os=\(os) build=\(LocalTTSCoordinator.buildConfiguration) lowPower=\(ProcessInfo.processInfo.isLowPowerModeEnabled) thermal=\(ProcessInfo.processInfo.thermalState.rawValue)")
 
-        // The app's own load (download / first compile) settles first; then the bake worker
+        // The app's own load (prepare / first compile) settles first; then the bake worker
         // holds (it finishes its current chunk) and the app's host goes, so the probe's host is
         // the only one loaded and timings aren't interleaved.
         let waitStart = ListenTimingLog.now()

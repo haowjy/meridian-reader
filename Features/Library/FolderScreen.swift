@@ -7,7 +7,7 @@ import SwiftUI
 /// (`FolderHeader`): a folder with details (a book's from its file, or any folder's from *Edit
 /// Details*: a cover or an author) has its cover above the title, the author before the counts.
 /// A followed story has its status line (Follow). A folder whose pages play has the action row:
-/// its Download control (the folder's Download toggle, F7), the big ▶ (Continue) and *More* (the
+/// its Prepare control (the folder's Prepare toggle, F7), the big ▶ (Continue) and *More* (the
 /// folder's menu, as its row's ⋯). *Edit*, or *Select* in a row's menu, puts check circles on the
 /// rows (and drag handles when the sort is *Manual*); the surface's bottom bar then acts on the
 /// selection. Out of Edit, a long press lifts a row to drop on a folder or between rows
@@ -23,11 +23,11 @@ import SwiftUI
 ///                    2 folders   7 pages
 ///                  3 of 7   38%   52 min left
 ///                ◯↓         ( ▶ )         ⋯
-///             Download                   More
+///             Prepare                   More
 ///  📁 Bonds                                ⋯
 ///     4 pages
 ///  ▣ Coupon Basics                      ●  ⋯
-///  ▣ ↓ Finished                                 ← downloaded, finished (● the ring, full)
+///  ▣ ↓ Finished                                 ← prepared, finished (● the ring, full)
 ///  ▣ Seven-Day Yield                   ▂▅▇ ⋯   ← playing: tinted, with bars
 ///  ▣ Playing                                     (marks in the trailing listening column)
 ///  🔗  investing.example.com                ⋯   (link: lighter)
@@ -118,11 +118,11 @@ private struct FolderContentsList: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(\.speechController) private var speech
     @Environment(LibraryScreenState.self) private var screen
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Query private var queriedArticles: [Article]
 
     @Binding var headerTitleHidden: Bool
-    /// *Turn Off Download* asked from the header's Download control, or from *More*: the question
+    /// *Turn Off Prepare* asked from the header's Prepare control, or from *More*: the question
     /// shows by the control that asked.
     @State private var turningOffFromControl: Folder?
     @State private var turningOffFromMore: Folder?
@@ -199,7 +199,7 @@ private struct FolderContentsList: View {
 
     /// The centred header (`FolderHeader`): the cover for a folder with details, the title,
     /// details and where it is; a followed story's status (`FollowStatus`); then, when its pages
-    /// play, the Download control, the big ▶ and *More*.
+    /// play, the Prepare control, the big ▶ and *More*.
     private var header: some View {
         let style: FolderHeaderStyle = folder.hasDetails ? .detailed(cover: folder.coverImage) : .folder
         let playback = actions.progress(of: folder, articles: articles)
@@ -213,36 +213,36 @@ private struct FolderContentsList: View {
                             actions: playback.hasArticlesToPlay ? headerActions : nil) {
             if folder.kind == .series { FollowStatus(folder: folder, articles: articles) }
         } more: {
-            FolderMenu(folder: folder, articles: articles, actions: actions, downloads: downloads, screen: screen,
-                       place: .header, progress: playback, onTurnOffDownload: { turningOffFromMore = folder },
+            FolderMenu(folder: folder, articles: articles, actions: actions, preparedAudio: preparedAudio, screen: screen,
+                       place: .header, progress: playback, onTurnOffPrepare: { turningOffFromMore = folder },
                        onMoved: { shell.libraryPath = library.path(to: folder) })
         } anchor: { control in
-            Color.clear.turnOffDownloadQuestion(control == .download ? $turningOffFromControl : $turningOffFromMore)
+            Color.clear.turnOffPrepareQuestion(control == .prepare ? $turningOffFromControl : $turningOffFromMore)
         }
     }
 
-    /// The Download control, the ▶ (`LibraryActions.playFolder`) and their states. The control
-    /// downloads when it shows ↓, the toggle on or off (turning it on, and listing again pages
-    /// whose downloads were deleted, P8); downloading or downloaded with the toggle on, it asks to
-    /// turn it off (`DownloadCenter.turnOff`: what is downloaded stays); downloaded with the
-    /// toggle off, it turns it on and nothing is downloaded again (`DownloadCenter.download`: new
-    /// pages download).
+    /// The Prepare control, the ▶ (`LibraryActions.playFolder`) and their states. The control
+    /// prepared audio when it shows ↓, the toggle on or off (turning it on, and listing again pages
+    /// whose prepared audio were deleted, P8); preparing or prepared with the toggle on, it asks to
+    /// turn it off (`PrepareCenter.turnOff`: what is prepared stays); prepared with the
+    /// toggle off, it turns it on and nothing is prepared again (`PrepareCenter.prepare`: new
+    /// pages prepare).
     private var headerActions: FolderHeaderActions {
-        let state = downloads.state(of: folder, articles: articles)
-        let isOn = downloads.isOn(folder)
-        let record = downloads.record(for: .folder(folder.id))
+        let state = preparedAudio.state(of: folder, articles: articles)
+        let isOn = preparedAudio.isOn(folder)
+        let record = preparedAudio.record(for: .folder(folder.id))
         let running = record.map { $0.hasQueuedArticles } ?? false
-        // While it downloads, the caption is the count and a tap opens Downloads (C96).
+        // While it prepared audio, the caption is the count and a tap opens Prepared audio (C96).
         let caption = running ? record.map { String(localized: "\($0.finishedCount) of \($0.entries.count)") } : nil
-        return FolderHeaderActions(download: state, downloadIsOn: isOn, onDownload: {
-            if running && state != .downloaded {
-                shell.present(.downloads)
-            } else if isOn && state != .notDownloaded {
+        return FolderHeaderActions(prepare: state, prepareIsOn: isOn, onPrepare: {
+            if running && state != .prepared {
+                shell.present(.preparedAudio)
+            } else if isOn && state != .notPrepared {
                 turningOffFromControl = folder
             } else {
-                DownloadActions(downloads: downloads, shell: shell).download(folder)
+                PrepareActions(preparedAudio: preparedAudio, shell: shell).prepare(folder)
             }
-        }, downloadCaption: caption, play: actions.playState(of: folder), onPlay: { actions.playFolder(folder) })
+        }, prepareCaption: caption, play: actions.playState(of: folder), onPlay: { actions.playFolder(folder) })
     }
 
     /// ["2 folders", "7 articles"] ("7 chapters" in an imported EPUB); none for an empty folder,

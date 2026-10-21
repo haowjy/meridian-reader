@@ -10,7 +10,7 @@ import Observation
 final class LocalSynthService: SynthChunkRendering {
     /// Changed only by `setState(_:)`, which then calls `onStateChange`.
     private(set) var state: LocalEngineState = .off
-    /// After every state change (including download progress while warming).
+    /// After every state change (including prepare progress while warming).
     @ObservationIgnored var onStateChange: (() -> Void)?
 
     @ObservationIgnored private let engines: EngineRegistry

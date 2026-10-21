@@ -213,7 +213,7 @@ final class ArticleAudioCache {
     /// to speak (a chunk plan with chunks, from `plans`) and no CAF in exactly this engine and
     /// voice (stale units of another voice don't count). A paragraph with nothing to speak (a bare
     /// "—") never gets audio, so it is never missing: an article is rendered once the rest is.
-    /// The render queue, Downloads, staging the next chapter, Apple standing in for a chapter and
+    /// The render queue, Prepared audio, staging the next chapter, Apple standing in for a chapter and
     /// the voice-switch cleanup all ask this.
     func missingParagraphs(articleID: UUID, paragraphs: [String], engineID: String, voiceID: String,
                            plans: ChunkPlans) -> [Int] {

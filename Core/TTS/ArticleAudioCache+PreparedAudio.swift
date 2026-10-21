@@ -1,6 +1,6 @@
 import Foundation
 
-/// What the Downloads list asks the audio cache: which voice a page's audio is in.
+/// What the Prepared Audio list asks the audio cache: which voice a page's audio is in.
 extension ArticleAudioCache {
     /// The cache voice key most of the article's paragraphs were rendered in (a voice change
     /// leaves the older voice's paragraphs in place until each is rendered again); nil when it has

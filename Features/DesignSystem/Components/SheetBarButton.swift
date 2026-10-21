@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A sheet's *Done*, *Cancel* or *Save* in its navigation bar: the neutral compact pill the
-/// Reader's and Now Playing's close pill is (`SheetClosePill`), on every sheet (Downloads,
+/// Reader's and Now Playing's close pill is (`SheetClosePill`), on every sheet (Prepared audio,
 /// History, Settings, Edit Details, the Move tree, Import Book), without the bar's own glass
 /// behind it. So a sheet's buttons look one way, at rest and over a scrolled list, light or dark.
 ///

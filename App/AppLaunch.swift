@@ -10,16 +10,16 @@ enum AppLaunch {
     private static var didRun = false
 
     static func run(library: LibraryStore, speech: SpeechController, shell: ShellState,
-                    downloads: DownloadCenter? = nil, follow: FollowCenter? = nil) async {
+                    preparedAudio: PrepareCenter? = nil, follow: FollowCenter? = nil) async {
         guard !didRun else { return }
         didRun = true
-        await launch(library: library, speech: speech, shell: shell, downloads: downloads, follow: follow)
+        await launch(library: library, speech: speech, shell: shell, preparedAudio: preparedAudio, follow: follow)
     }
 
     /// The launch sequence `run` does once. `importFiles`: where book imports keep their files.
-    /// Downloads and Follow's fetching carry on once the library's maintenance is done.
+    /// Prepared audio and Follow's fetching carry on once the library's maintenance is done.
     static func launch(library: LibraryStore, speech: SpeechController, shell: ShellState,
-                       downloads: DownloadCenter? = nil, follow: FollowCenter? = nil,
+                       preparedAudio: PrepareCenter? = nil, follow: FollowCenter? = nil,
                        importFiles: BookImportFiles = .standard) async {
         // No import is running yet: a book file a killed import left goes.
         importFiles.clearLeftovers()
@@ -28,7 +28,7 @@ enum AppLaunch {
         #endif
 
         maintainLibrary(library, tts: speech.localTTS)
-        downloads?.start()
+        preparedAudio?.start()
         follow?.start()
         shell.restoreAtLaunch { library.folder(id: $0) != nil }
 

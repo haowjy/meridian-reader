@@ -1,6 +1,6 @@
 import Foundation
 
-/// Apple `AVSpeechSynthesizer`: always available, no download, no bake cache. Playback is
+/// Apple `AVSpeechSynthesizer`: always available, no prepare, no bake cache. Playback is
 /// driven directly by `SpeechController` (utterances), so there is no synth host.
 @MainActor
 final class AppleSpeechProvider: SpeechEngineProvider {

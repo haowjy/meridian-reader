@@ -5,7 +5,7 @@ enum ActionLabelFit: CaseIterable {
     /// The title and its detail: *▶ **Continue**  4 of 18*, *⏮ From Start*.
     case full
     /// The short title (`PillButton.shortTitle`, else the title), still with its detail:
-    /// *↻ Redo* for *↻ Re-download*.
+    /// *↻ Redo* for *↻ Prepare Again*.
     case short
     /// The short title without its detail: *▶ **Continue***, *⏮ From Start*.
     case titleOnly
@@ -13,8 +13,8 @@ enum ActionLabelFit: CaseIterable {
     case icon
 }
 
-/// A row of labelled buttons that never wraps: the Library's first-run card, a download's
-/// *Re-download* / *Keep*. The row is drawn
+/// A row of labelled buttons that never wraps: the Library's first-run card, a prepare's
+/// *Prepare Again* / *Keep*. The row is drawn
 /// once per `ActionLabelFit` and the first that fits the width is shown: every label in full,
 /// then the short titles, then without details, then symbols alone. The symbols-only row is the last resort, taken even
 /// when it doesn't fit, so the buttons stay on one line at every width and text size.
@@ -63,7 +63,7 @@ struct ActionButtonRowGallery: View {
             }
             PreviewState("compact choices") {
                 ActionButtonRow(spacing: Spacing.xs) { fit in
-                    PillButton("Re-download", shortTitle: "Redo", systemImage: Icons.redownload, size: .compact,
+                    PillButton("Prepare Again", shortTitle: "Redo", systemImage: Icons.reprepare, size: .compact,
                                fit: fit) {}
                     PillButton("Keep", systemImage: Icons.keep, style: .neutral, size: .compact, fit: fit) {}
                 }

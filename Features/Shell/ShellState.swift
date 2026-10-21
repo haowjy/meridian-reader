@@ -35,8 +35,8 @@ enum ShellSheet: Identifiable, Equatable {
     case moveTo(MoveRequest)
     /// A book being imported: its progress, *Add to*, and D13's question.
     case importBook(BookImportFlow)
-    /// ⋯ › Downloads: what is downloading and downloaded (decision D16).
-    case downloads
+    /// ⋯ › Prepared audio: what is preparing and prepared (decision D16).
+    case preparedAudio
     /// *Edit Details* for a folder, book or series: its name, author and cover.
     case folderDetails(UUID)
     /// ⋯ → *Follow…*: a story's table of contents, reviewed, into a folder of chapters.
@@ -54,7 +54,7 @@ enum ShellSheet: Identifiable, Equatable {
         case .share(let url): "share-\(url.absoluteString)"
         case .moveTo(let request): "moveTo-\(request.id)"
         case .importBook(let flow): "importBook-\(flow.id)"
-        case .downloads: "downloads"
+        case .preparedAudio: "downloads"
         case .folderDetails(let id): "folderDetails-\(id.uuidString)"
         case .follow(let flow): "follow-\(flow.id)"
         case .following(let id): "following-\(id.uuidString)"

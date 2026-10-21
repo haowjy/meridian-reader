@@ -9,7 +9,7 @@ import SwiftUI
 /// Reading      themes (◐)(Aa)(Aa)(Aa)(Aa), font, size [A] 100% [A], spacing, Scroll / Pages, a sample
 /// Listening    engines (download, ↓ once downloaded, ✓ chosen), Voice ›, Language ›, Speed [0.75× … 2×]
 /// Browsing     Block Ads (on)
-/// Downloads    Downloads ›, the audio kept on this iPhone
+/// Prepared audio    Prepared audio ›, the audio kept on this iPhone
 /// Developer    (developer options only) listen debug, fake extraction failure, the panel
 /// Version 1.0 (1)                        (2 s long-press: developer options on / off)
 /// ```
@@ -179,17 +179,17 @@ private struct BrowsingSettingsSection: View {
 private struct StorageSettingsSection: View {
     let speech: SpeechController
 
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @State private var preparedBytes: Int64?
     @State private var listeningBytes: Int64?
 
     var body: some View {
-        let overview = downloads.overview
+        let overview = preparedAudio.overview
         Section {
-            SettingsLinkRow(title: Verbs.downloads, symbol: Icons.downloads,
+            SettingsLinkRow(title: Verbs.preparedAudio, symbol: Icons.preparedAudio,
                             value: overview.isEmpty ? String(localized: "None") : "\(overview.done.count + overview.queued.count + overview.differentVoice.count)",
-                            accessibilityID: "settingsDownloads") {
-                DownloadsList()
+                            accessibilityID: "settingsPreparedAudio") {
+                PreparedAudioList()
             }
             sizeRow(String(localized: "Prepared Audio"), bytes: preparedBytes, id: "settingsPreparedSize")
             sizeRow(String(localized: "Audio From Listening"), bytes: listeningBytes, id: "settingsAudioSize")
@@ -202,7 +202,7 @@ private struct StorageSettingsSection: View {
         .listCard()
         .task {
             let cache = speech.localTTS.audioCache
-            let held = Set(downloads.heldArticleKeys)
+            let held = Set(preparedAudio.heldArticleKeys)
             let dirs = cache.cachedArticleKeys().map { (held.contains($0), cache.directory(for: $0)) }
             let (p, l) = await Task.detached(priority: .utility) {
                 dirs.reduce((Int64(0), Int64(0))) { sum, d in
@@ -255,7 +255,7 @@ private struct DeveloperSettingsSection: View {
         } header: {
             SectionHeader(title: String(localized: "Developer")).listHeader()
         } footer: {
-            Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes every extraction fail (Reader, Save, Follow, Downloads) until the app quits.")
+            Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes every extraction fail (Reader, Save, Follow, Prepared Audio) until the app quits.")
                 .listFooter()
         }
         .listCard()

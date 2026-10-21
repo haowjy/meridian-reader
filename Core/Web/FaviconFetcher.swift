@@ -20,12 +20,12 @@ enum FaviconFetcher {
         return webView
     }
 
-    /// Best-effort icon URL from the live document, then its bytes (`download`).
+    /// Best-effort icon URL from the live document, then its bytes (`prepare`).
     @MainActor
     private static func fetch(from webView: WKWebView) async -> Data? {
         let href = await iconHREF(from: webView)
         guard let href, let url = URL(string: href) else { return nil }
-        return await download(url: url)
+        return await prepare(url: url)
     }
 
     @MainActor
@@ -64,7 +64,7 @@ enum FaviconFetcher {
     }
 
     /// The icon at `url`, or nil when the answer isn't one (`icon(_:response:)`).
-    private static func download(url: URL) async -> Data? {
+    private static func prepare(url: URL) async -> Data? {
         var request = URLRequest(url: url)
         request.timeoutInterval = 8
         do {
@@ -75,7 +75,7 @@ enum FaviconFetcher {
         }
     }
 
-    /// A download's bytes when they are an icon: a 2xx answer, neither empty nor huge, that
+    /// A prepare's bytes when they are an icon: a 2xx answer, neither empty nor huge, that
     /// decodes as an image. Many sites answer a missing `/favicon.ico` with a 200 HTML page.
     static func icon(_ data: Data, response: URLResponse) -> Data? {
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
@@ -90,7 +90,7 @@ enum FaviconFetcher {
         guard !cleaned.isEmpty else { return nil }
         for path in ["apple-touch-icon.png", "favicon.ico"] {
             guard let url = URL(string: "https://\(cleaned)/\(path)") else { continue }
-            if let data = await download(url: url) { return data }
+            if let data = await prepare(url: url) { return data }
         }
         return nil
     }

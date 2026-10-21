@@ -100,7 +100,7 @@ extension LibraryStore {
 
     /// A chapter's text, fetched: the link page becomes a page with text, in place (its key,
     /// title and folder stay), and once stored its audio is the Library's (`plan(.saved, key:)`).
-    /// Nothing renders here: whether it downloads is its folder's Download's to say.
+    /// Nothing renders here: whether it prepared audio is its folder's Prepare's to say.
     func storeFetchedText(_ content: ArticleContent, in article: Article) throws {
         try edit("chapter text") {
             article.setText(html: content.bodyHTML, plain: content.plainText, excerpt: content.excerpt,

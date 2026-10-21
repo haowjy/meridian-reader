@@ -4,7 +4,7 @@ import Foundation
 /// (`ShellSheet.importBook`). It runs `BookImporter` on a file in `BookImportFiles` and deletes
 /// that file however the import ends.
 ///
-/// - A picked file starts at once; a downloaded one (an `.epub` link) waits in `.ready` for the
+/// - A picked file starts at once; a prepared one (an `.epub` link) waits in `.ready` for the
 ///   sheet's *Import*.
 /// - *Add to* (`destinationID`) can change while the book is read and prepared. The importer
 ///   looks it up again in its one save, so the book is stored where *Add to* says, durably, with
@@ -18,7 +18,7 @@ import Foundation
 @Observable
 final class BookImportFlow: Identifiable {
     enum Phase: Equatable {
-        /// A downloaded book, waiting for *Import*.
+        /// A prepared book, waiting for *Import*.
         case ready
         case working(BookImportProgress)
         /// The book (this folder) is in the Library already: *Replace* or *Cancel*.
@@ -70,7 +70,7 @@ final class BookImportFlow: Identifiable {
         if case .working = phase { true } else { false }
     }
 
-    /// The file's name, as picked or downloaded.
+    /// The file's name, as picked or prepared.
     var fileName: String { file.lastPathComponent }
 
     /// The book's title: from its package once read, else its file's name.
@@ -94,7 +94,7 @@ final class BookImportFlow: Identifiable {
 
     // MARK: - The sheet's buttons
 
-    /// *Import* on a downloaded book.
+    /// *Import* on a prepared book.
     func startImport() {
         guard phase == .ready else { return }
         run(.cancel)

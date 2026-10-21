@@ -3,7 +3,7 @@ import SwiftUI
 
 /// "This page", wherever it shows: a Library row, a Favorites tile, a History visit, the Now
 /// Playing bar, the Reader, Now Playing and the browser. What it is (saved, a favorite, its
-/// download) and what its menu (`ArticleMenu`), 🔖, ☆ and the Move tree do with it are decided here
+/// prepare) and what its menu (`ArticleMenu`), 🔖, ☆ and the Move tree do with it are decided here
 /// once. The places keep only what differs: the browser extracts its page before it saves it and
 /// stars it with the web view's title and icon (`loaded`), and Now Playing adds *Go to*.
 ///
@@ -24,7 +24,7 @@ struct ArticleActions {
     let library: LibraryStore
     let shell: ShellState
     let speech: SpeechController
-    let downloads: DownloadCenter
+    let preparedAudio: PrepareCenter
     let follow: FollowCenter
 
     /// The browser's page before it is extracted: Save extracts it first, and ☆ takes the web
@@ -39,7 +39,7 @@ struct ArticleActions {
 
     /// `url` nil: the article's address, else the page's.
     init(article: Article?, readerArticle: ReaderArticle? = nil, url: URL? = nil, loaded: LoadedPage? = nil,
-         library: LibraryStore, shell: ShellState, speech: SpeechController, downloads: DownloadCenter,
+         library: LibraryStore, shell: ShellState, speech: SpeechController, preparedAudio: PrepareCenter,
          follow: FollowCenter) {
         self.readerArticle = readerArticle
         self.url = url ?? readerArticle?.origin.url ?? article?.url
@@ -48,7 +48,7 @@ struct ArticleActions {
         self.library = library
         self.shell = shell
         self.speech = speech
-        self.downloads = downloads
+        self.preparedAudio = preparedAudio
         self.follow = follow
     }
 
@@ -58,7 +58,7 @@ struct ArticleActions {
     var savedArticle: Article? { article.flatMap { $0.isSavedToLibrary ? $0 : nil } }
     var isSaved: Bool { savedArticle != nil }
     /// In the Library (saved, or a link there such as a story's chapter): its menu offers
-    /// *Remove from Library*, *Move to…* and *Download*.
+    /// *Remove from Library*, *Move to…* and *Prepare*.
     var isInLibrary: Bool { article?.isInLibrary == true }
     var isFavorite: Bool { article?.isFavorite == true }
     /// ☆ as the Library offers it: a web page, or a page in the Library (a chapter too).
@@ -69,9 +69,9 @@ struct ArticleActions {
         guard let url, url.scheme != nil, url.host?.isEmpty == false else { return nil }
         return url
     }
-    /// Where its download stands (`DownloadCenter.state(of:)`): downloading or downloaded, its
-    /// menu offers *Remove Download*.
-    var hasDownload: Bool { article.map { downloads.state(of: $0) != .notDownloaded } == true }
+    /// Where its prepare stands (`PrepareCenter.state(of:)`): preparing or prepared, its
+    /// menu offers *Remove Prepare*.
+    var hasPrepare: Bool { article.map { preparedAudio.state(of: $0) != .notPrepared } == true }
     /// There is text to save: the article's, the page's own (not a link's), or the browser's page
     /// once extracted.
     var canSave: Bool {
@@ -146,19 +146,19 @@ struct ArticleActions {
         }
     }
 
-    /// *Download* / *Remove Download*: *Remove Download* takes the page out of every download and
-    /// keeps it out (`DownloadCenter.deleteDownloads(of:)`, P8).
-    func toggleDownload() {
+    /// *Prepare* / *Remove Prepare*: *Remove Prepare* takes the page out of every prepare and
+    /// keeps it out (`PrepareCenter.deletePrepared audio(of:)`, P8).
+    func togglePrepare() {
         guard let article else { return }
-        // Downloading saves it (C104): a page played without saving goes into the Library first.
+        // Preparing saves it (C104): a page played without saving goes into the Library first.
         if !article.isInLibrary {
             guard article.isSaved, shell.attempt(String(localized: "Couldn’t save"), { try library.saveUnsaved(article) }) != nil
             else { return }
         }
-        if hasDownload {
-            downloads.deleteDownloads(of: article)
+        if hasPrepare {
+            preparedAudio.deletePreparedAudio(of: article)
         } else {
-            DownloadActions(downloads: downloads, shell: shell).download(article)
+            PrepareActions(preparedAudio: preparedAudio, shell: shell).prepare(article)
         }
     }
 

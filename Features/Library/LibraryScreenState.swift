@@ -8,8 +8,8 @@ enum LibraryItemID: Hashable {
 
 /// What the Library's screens share with their surface:
 /// Edit's selection, which the bottom bar acts on, and the dialogs a row or a menu asks for
-/// (delete, rename, new folder), shown once by `libraryDialogs`. *Turn Off Download* is asked
-/// where it was tapped instead (`turnOffDownloadQuestion`).
+/// (delete, rename, new folder), shown once by `libraryDialogs`. *Turn Off Prepare* is asked
+/// where it was tapped instead (`turnOffPrepareQuestion`).
 @MainActor
 @Observable
 final class LibraryScreenState {
@@ -164,28 +164,28 @@ extension View {
         modifier(LibraryDialogs(state: state, onDeleted: onDeleted))
     }
 
-    /// *Turn Off Download*'s question for `folder` (nil: not asked), asked first since what
-    /// downloads next stops: *Turn Off Download* (`DownloadCenter.turnOff`, what is downloaded
+    /// *Turn Off Prepare*'s question for `folder` (nil: not asked), asked first since what
+    /// prepared audio next stops: *Turn Off Prepare* (`PrepareCenter.turnOff`, what is prepared
     /// stays) or *Cancel*. One question for every way in, each attaching it to the control that
-    /// asks (on iOS 26 it shows as a popover pointing there): the folder header's Download control
+    /// asks (on iOS 26 it shows as a popover pointing there): the folder header's Prepare control
     /// and *More*, a folder row's ⋯ (its long press too), the screen's ⋯.
-    func turnOffDownloadQuestion(_ folder: Binding<Folder?>) -> some View {
-        modifier(TurnOffDownloadQuestion(folder: folder))
+    func turnOffPrepareQuestion(_ folder: Binding<Folder?>) -> some View {
+        modifier(TurnOffPrepareQuestion(folder: folder))
     }
 }
 
-private struct TurnOffDownloadQuestion: ViewModifier {
+private struct TurnOffPrepareQuestion: ViewModifier {
     @Binding var folder: Folder?
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
 
     func body(content: Content) -> some View {
-        content.confirmationDialog(Verbs.turnOffDownload, isPresented: Binding(get: { folder != nil },
+        content.confirmationDialog(Verbs.turnOffPrepare, isPresented: Binding(get: { folder != nil },
                                                                                 set: { if !$0 { folder = nil } }),
                                    titleVisibility: .hidden, presenting: folder) { folder in
-            Button(Verbs.turnOffDownload, role: .destructive) { downloads.turnOff(folder) }
+            Button(Verbs.turnOffPrepare, role: .destructive) { preparedAudio.turnOff(folder) }
             Button(Verbs.cancel, role: .cancel) {}
         } message: { _ in
-            Text("Downloaded audio stays. New articles won’t download.")
+            Text("Prepared audio stays. New articles won’t be prepared.")
         }
     }
 }

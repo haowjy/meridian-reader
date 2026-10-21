@@ -20,9 +20,9 @@ import Foundation
 /// | Read | `Icons.reader` |
 /// | Continue | `Icons.play` |
 /// | Play from Here, Play from Start | `Icons.play`, `Icons.previous` |
-/// | Download / Remove Download (a page, its menu and its download in the list) | `Icons.download` / `Icons.removeDownload` |
-/// | Download / Turn Off Download (a folder) | `Icons.download` / `Icons.turnOffDownload` |
-/// | Remove Downloads (a folder, its menu and its download in the list) | `Icons.removeDownload` |
+/// | Prepare / Remove Prepare (a page, its menu and its prepare in the list) | `Icons.prepare` / `Icons.removePrepare` |
+/// | Prepare / Turn Off Prepare (a folder) | `Icons.prepare` / `Icons.turnOffPrepare` |
+/// | Remove Prepared audio (a folder, its menu and its prepare in the list) | `Icons.removePrepare` |
 /// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
 /// | Move to… / Save to Folder… | `Icons.move` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
@@ -33,9 +33,9 @@ import Foundation
 /// | Remove from Recent | `Icons.removeFromRecent` |
 /// | Rename…, Edit Details… | `Icons.rename`, `Icons.editDetails` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
-/// | Pause / Resume (a download), Re-download, Keep | `Icons.pause` / `Icons.resume`, `Icons.redownload`, `Icons.keep` |
+/// | Pause / Resume (a prepare), Prepare Again, Keep | `Icons.pause` / `Icons.resume`, `Icons.reprepare`, `Icons.keep` |
 /// | New Folder…, Import Book…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.follow` |
-/// | Downloads, Settings | `Icons.downloads`, `Icons.settings` |
+/// | Prepared audio, Settings | `Icons.prepared audio`, `Icons.settings` |
 enum Verbs {
     // MARK: A page
 
@@ -46,22 +46,24 @@ enum Verbs {
     /// A page in a folder: play from its start, on through the folder.
     static let playFromHere = String(localized: "Play from Here")
     static let playFromStart = String(localized: "Play from Start")
-    static let download = String(localized: "Download")
-    /// A page's, in its menu and in the Downloads list: its audio deleted, and it stays out of
+    static let prepare = String(localized: "Prepare Audio")
+    /// A page's, in its menu and in the Prepared Audio list: its audio deleted, and it stays out of
     /// every download (P8). A voice model's in Settings (its swipe): the model deleted, to be
-    /// downloaded again before the engine speaks.
-    static let removeDownload = String(localized: "Remove Download")
+    /// prepared again before the engine speaks.
+    static let removePrepare = String(localized: "Remove Prepared Audio")
+    /// A voice model's, in Settings (its swipe) and the CPU route bench: a real file download.
+    static let removeModelDownload = String(localized: "Remove Prepared Audio")
     /// The Prepared Audio list's row action (C135): the audio only, never the article.
     static let deleteAudio = String(localized: "Delete Audio")
     static let deleteAllPrepared = String(localized: "Delete All…")
     static let clearListeningAudio = String(localized: "Clear Audio From Listening…")
-    /// A folder's, in its menu and in the Downloads list: its download off and gone, and
-    /// *Remove Download* for each of its pages.
-    static let removeDownloads = String(localized: "Remove Downloads")
-    /// A download done: the Downloads list's section, a folder header's control, the ↓ VoiceOver
-    /// reads before a downloaded row's line two.
-    static let downloaded = String(localized: "Downloaded")
-    static let turnOffDownload = String(localized: "Turn Off Download")
+    /// A folder's, in its menu and in the Prepared Audio list: its prepare off and gone, and
+    /// *Remove Prepare* for each of its pages.
+    static let removePreparedAudio = String(localized: "Remove Prepared Audio")
+    /// A prepare done: the Prepared Audio list's section, a folder header's control, the ↓ VoiceOver
+    /// reads before a prepared row's line two.
+    static let prepared = String(localized: "Prepared")
+    static let turnOffPrepare = String(localized: "Turn Off Prepare Audio")
     static let addToFavorites = String(localized: "Add to Favorites")
     static let removeFromFavorites = String(localized: "Remove from Favorites")
     static let moveTo = String(localized: "Move to…")
@@ -100,16 +102,16 @@ enum Verbs {
 
     /// ▶ from the start or a page not begun (VoiceOver on a ▶; a paused page says *Continue*).
     static let play = String(localized: "Play")
-    /// ⏸, what you hear; a download's too.
+    /// ⏸, what you hear; a prepare's too.
     static let pause = String(localized: "Pause")
 
-    // MARK: A download
+    // MARK: A prepare
 
     static let resume = String(localized: "Resume")
     static let pauseAll = String(localized: "Pause All")
     static let resumeAll = String(localized: "Resume All")
-    static let redownload = String(localized: "Re-download")
-    /// Keep a download made in another voice.
+    static let reprepare = String(localized: "Prepare Again")
+    /// Keep a prepare made in another voice.
     static let keep = String(localized: "Keep")
 
     // MARK: Screens
@@ -128,7 +130,7 @@ enum Verbs {
     static let newSearch = String(localized: "New Search")
     static let reload = String(localized: "Reload")
     /// The ⋯ panel's last rows and the screens they open.
-    static let downloads = String(localized: "Downloads")
+    static let preparedAudio = String(localized: "Prepared Audio")
     static let settings = String(localized: "Settings")
     static let favorites = String(localized: "Favorites")
     /// The browser's: pages visited.

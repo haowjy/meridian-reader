@@ -43,7 +43,7 @@ enum BottomChrome {
     static let transportDiscSize: CGFloat = 64
     /// The glyph inside the transport disc.
     static let transportDiscGlyph: CGFloat = 26
-    /// A folder header's play / pause between Download and More (C124): smaller than the
+    /// A folder header's play / pause between Prepare and More (C124): smaller than the
     /// transport's, its glyph in the same proportion.
     static let headerDiscSize: CGFloat = 56
     /// The glyph inside the header disc.

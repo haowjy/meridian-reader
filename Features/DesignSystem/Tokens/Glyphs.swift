@@ -16,7 +16,7 @@ enum Glyph {
     /// A book preview's chapter row's empty leading mark (`ListRow`); the playing bars inside a
     /// play button; a Settings choice's ✓ or spinner.
     static let mark: CGFloat = 20
-    /// A round control: a download's `DownloadMark` in the Downloads list and a folder header, the
+    /// A round control: a prepare's `PrepareMark` in the Prepared Audio list and a folder header, the
     /// header's ⋯.
     static let control: CGFloat = 28
     /// A voice model's download in Settings, beside its row's text.

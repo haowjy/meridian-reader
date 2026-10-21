@@ -43,7 +43,7 @@ struct BandNowPlayingBar: View {
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
     @Environment(LibraryStore.self) private var library
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Article]
 
     private var isHidden: Bool {
@@ -60,7 +60,7 @@ struct BandNowPlayingBar: View {
                 BarProgress(speech: speech, now: now)
             } else if let article = lastPlayed.first(where: \.isLive) {
                 ResumeBar(article: article, actions: ArticleActions(article: article, library: library, shell: shell, speech: speech,
-                                                           downloads: downloads, follow: follow))
+                                                           preparedAudio: preparedAudio, follow: follow))
             } else {
                 NowPlayingBar.placeholder()
             }
@@ -79,7 +79,7 @@ private struct BarProgress: View {
     @Environment(ShellState.self) private var shell
     @Environment(LibraryStore.self) private var library
     @Environment(FollowCenter.self) private var follow
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Query private var articles: [Article]
     @State private var cover = BarCover()
 
@@ -107,7 +107,7 @@ private struct BarProgress: View {
             onOpen: shell.showNowPlaying,
             onPlayPause: speech.pressNowPlaying,
             menu: AnyView(BarMenu(actions: ArticleActions(article: articles.first.flatMap { $0.isLive ? $0 : nil }, library: library,
-                                                       shell: shell, speech: speech, downloads: downloads, follow: follow),
+                                                       shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow),
                                   onStop: speech.stop))
         )
     }

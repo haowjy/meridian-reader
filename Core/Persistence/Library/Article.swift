@@ -119,7 +119,7 @@ final class Article {
         return byline
     }
 
-    /// What names it in one line (a row, a tile, the bar, a download): `ArticleRowTitle.lineOne`.
+    /// What names it in one line (a row, a tile, the bar, a prepare): `ArticleRowTitle.lineOne`.
     var lineOne: String { ArticleRowTitle.lineOne(title: givenTitle, source: source, address: urlString) }
     /// What its artwork's letter stands for: `ArticleRowTitle.artworkLetter`.
     var artworkLetter: String { ArticleRowTitle.artworkLetter(title: givenTitle, source: source, address: urlString) }

@@ -17,8 +17,8 @@ import SwiftData
 ///   Favorites tab's search). Remove leaves the star, so a removed favorite stays in Favorites,
 ///   and the prune keeps a starred page (`prunable`); only unstarring takes it out.
 ///
-/// Downloads go by the Library's line: the Downloads list keeps what is in the Library
-/// (`DownloadCenter`). The bar's resume (`lastPlayed`) and the prune (`prunable`) aren't lists:
+/// Prepared audio go by the Library's line: the Prepared Audio list keeps what is in the Library
+/// (`PrepareCenter`). The bar's resume (`lastPlayed`) and the prune (`prunable`) aren't lists:
 /// they read pages by when they were played. Predicates never go through the optional `folder` relationship
 /// (iOS 17 can't always translate it); they use `Article.folderID`. Optional dates are compared
 /// through `?? distantPast`.

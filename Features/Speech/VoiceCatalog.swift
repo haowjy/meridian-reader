@@ -77,7 +77,7 @@ enum VoiceCatalog {
             ?? AVSpeechSynthesisVoice(language: code.replacingOccurrences(of: "_", with: "-"))
     }
 
-    /// Whether any Enhanced or Premium voice is installed for `code` (Settings' download hint).
+    /// Whether any Enhanced or Premium voice is installed for `code` (Settings' prepare hint).
     static func hasHighQualityVoice(forLanguage code: String,
                                     from all: [AVSpeechSynthesisVoice] = AVSpeechSynthesisVoice.speechVoices()) -> Bool {
         let base = ListenLanguage.baseCode(code)

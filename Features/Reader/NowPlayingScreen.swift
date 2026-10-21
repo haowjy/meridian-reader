@@ -32,7 +32,7 @@ struct NowPlayingScreen: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(\.readingAppearance) private var appearance
 
     /// The playing page's reading content, looked up by key when the page changes.
@@ -49,7 +49,7 @@ struct NowPlayingScreen: View {
             let readerArticle = content?.key == now.articleKey ? content?.readerArticle : nil
             ArticleLookup(key: now.articleKey, canonicalURL: readerArticle?.origin.canonicalURL) { article in
                 player(now, ArticleActions(article: article, readerArticle: readerArticle, library: library, shell: shell, speech: speech,
-                                        downloads: downloads, follow: follow))
+                                        preparedAudio: preparedAudio, follow: follow))
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
             .onChange(of: now.articleKey, initial: true) { _, key in load(key) }
@@ -96,7 +96,7 @@ struct NowPlayingScreen: View {
         } floating: {
             // The line at the band's top edge, as in the Reader; the toast floats above it.
             ZStack(alignment: .top) {
-                DownloadProgressEdge()
+                PrepareProgressEdge()
                 ShellToastLayer()
             }
         }

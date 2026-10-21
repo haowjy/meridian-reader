@@ -1,16 +1,16 @@
 import SwiftUI
 
-/// Every row in the Library, a folder, a book's contents, the browser's history and Downloads.
+/// Every row in the Library, a folder, a book's contents, the browser's history and Prepared audio.
 ///
 /// ```
 /// 📁 Bonds                                       ⋯   folder: its count on the second line
 ///    2 folders   3 articles
 /// ▣  Pride and Prejudice                         ⋯   book: its place and time left
 ///    Ch 24   6 h 10 min left                ◐  ⋯   (the listening column: ◐ part-way)
-/// ▣ Coupon Basics                             ●  ⋯   page, downloaded: the accent filled ↓ badge;
+/// ▣ Coupon Basics                             ●  ⋯   page, prepared: the accent filled ↓ badge;
 /// ▣ ↓ example.com   Finished                          ● the same ring, full
-/// ▣̲ Seven-Day Yield                          ▂▅▇ ⋯   page, playing and downloading: tinted,
-/// ▣ Playing                                           bars; the download mark before line two (C102)
+/// ▣̲ Seven-Day Yield                          ▂▅▇ ⋯   page, playing and preparing: tinted,
+/// ▣ Playing                                           bars; the prepare mark before line two (C102)
 /// 🔗 serials.example.com                              link: lighter
 /// ```
 ///
@@ -26,12 +26,12 @@ import SwiftUI
 /// the same ring full once finished, the bars while it is what you hear, and nothing (the column
 /// kept, so nothing shifts) before it starts. Line two keeps the words ("18 min", "6 min left",
 /// "Finished", "Playing"). Rows with no listening (a folder with its count, a book preview's
-/// chapter, `showsListening` false: browser visits, downloads) have no column.
+/// chapter, `showsListening` false: browser visits, prepared audio) have no column.
 ///
-/// Its download (`download`) shows on the row itself, never as a button: downloading dims the
-/// small ↓ filling before line two (grey while paused; C102), downloaded puts a accent filled ↓ before the second
+/// Its prepare (`prepare`) shows on the row itself, never as a button: preparing dims the
+/// small ↓ filling before line two (grey while paused; C102), prepared puts a accent filled ↓ before the second
 /// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is centred on the
-/// toolbar's ⋯ slot like the Now Playing bar's ⏸; a row with a control of its own (a download's
+/// toolbar's ⋯ slot like the Now Playing bar's ⏸; a row with a control of its own (a prepare's
 /// pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
 /// whatever leads it.
 ///
@@ -67,7 +67,7 @@ struct ListRow: View {
     var subtitle: String?
     /// A short note between the subtitle and the status ("Fetching text…", "2 h ago").
     var note: String?
-    /// More parts after the note, in the same tertiary ink (a download's count and size).
+    /// More parts after the note, in the same tertiary ink (a prepare's count and size).
     var details: [String] = []
     var progress: Progress = .unplayed(minutes: nil)
     var playState: PlayState = .idle
@@ -75,8 +75,8 @@ struct ListRow: View {
     var isDropTarget = false
     /// A dragged row would be placed beside this one, on this side: a line marks the place.
     var insertionEdge: VerticalEdge?
-    /// Where its download stands: the dimmed thumbnail while downloading, the ↓ badge once done.
-    var download: DownloadState = .notDownloaded
+    /// Where its prepare stands: the dimmed thumbnail while preparing, the ↓ badge once done.
+    var prepare: PrepareState = .notPrepared
     var isFavorite = false
     var folderHasDetails = false
     /// The rows of its ⋯ menu, the same as its long press (nil: no ⋯, as in Edit).
@@ -84,10 +84,10 @@ struct ListRow: View {
     /// A view laid behind the ⋯ at its size (behind the row when it has none): a question its menu
     /// asks attaches there, so on iOS 26 its popover points at the ⋯.
     var menuAnchor: AnyView?
-    /// A control of the row's own, 44 pt, just before the ⋯ (a download's pause / resume).
+    /// A control of the row's own, 44 pt, just before the ⋯ (a prepare's pause / resume).
     var accessory: AnyView?
     /// Whether the row has the trailing listening column (false where listening never shows:
-    /// browser visits, the Downloads list).
+    /// browser visits, the Prepared Audio list).
     var showsListening = true
 
     /// `RowHeight.content` at the default text size; larger text grows the row through its
@@ -109,7 +109,7 @@ struct ListRow: View {
             // The title is the row's one VoiceOver element, its status the value (the rest is
             // hidden); the ⋯ stays its own.
             HStack(spacing: Spacing.s) {
-                downloadLeading
+                prepareLeading
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: Spacing.xs) {
@@ -168,7 +168,7 @@ struct ListRow: View {
         .opacity(isDimmed ? Palette.lighterRowOpacity : 1)
         .animation(Motion.snappy, value: isDropTarget)
         .animation(Motion.snappy, value: insertionEdge)
-        .animation(Motion.standard, value: download)
+        .animation(Motion.standard, value: prepare)
         .sensoryFeedback(.selection, trigger: isDropTarget) { _, isTarget in isTarget }
         .sensoryFeedback(.selection, trigger: insertionEdge) { _, edge in edge != nil }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
@@ -235,7 +235,7 @@ struct ListRow: View {
 
     // MARK: - Second line
 
-    /// The ✓ badge once downloaded, the subtitle, the note, then the status, spaced apart on one
+    /// The ✓ badge once prepared, the subtitle, the note, then the status, spaced apart on one
     /// line: "↓ example.org   4 min left" (the ring is the trailing column's). The subtitle and note give way first; at
     /// accessibility sizes they are left out and the status truncates if it must, so the line
     /// never wraps or widens the row.
@@ -245,15 +245,15 @@ struct ListRow: View {
         // At accessibility sizes there is no room for both: the status alone (VoiceOver reads all).
         let leads = typeSize.isAccessibilitySize && status != nil ? []
             : [subtitle, note].compactMap { $0 } + details + (folderCount ?? [])
-        // A skipped chapter never plays, so it shows no downloaded mark (C89).
-        let badged = download == .downloaded && !isSkipped
-        let queued = download.isQueued
+        // A skipped chapter never plays, so it shows no prepared mark (C89).
+        let badged = prepare == .prepared && !isSkipped
+        let queued = prepare.isQueued
         // Rendering now or paused: the small ↓ filling in the same slot (C102), never on the tile.
-        let filling = download.isDownloading && !queued
+        let filling = prepare.isPreparing && !queued
         if !leads.isEmpty || status != nil || badged || queued || filling {
             HStack(spacing: partSpacing) {
                 if filling {
-                    DownloadMark(state: download, size: statusMarkSize)
+                    PrepareMark(state: prepare, size: statusMarkSize)
                         .padding(.trailing, -partSpacing / 2)
                         .transition(.opacity)
                 } else if queued {
@@ -262,8 +262,8 @@ struct ListRow: View {
                         .padding(.trailing, -partSpacing / 2)
                         .transition(.opacity)
                 } else if badged {
-                    // Downloaded: the accent filled ↓ before the line, as tall as its text (C97).
-                    Image(systemName: Icons.downloaded)
+                    // Prepared: the accent filled ↓ before the line, as tall as its text (C97).
+                    Image(systemName: Icons.prepared)
                         .foregroundStyle(Palette.accent)
                         .padding(.trailing, -partSpacing / 2)
                         .transition(.opacity)
@@ -363,7 +363,7 @@ struct ListRow: View {
             case .skipped: parts.append("Skipped in playback")
             }
         }
-        if download != .notDownloaded { parts.append(download.label) }
+        if prepare != .notPrepared { parts.append(prepare.label) }
         return parts.joined(separator: ", ")
     }
 
@@ -379,15 +379,15 @@ struct ListRow: View {
         return Palette.ink
     }
 
-    /// The thumbnail, dimmed under the download's `DownloadMark` while it downloads (C90): the ↓
+    /// The thumbnail, dimmed under the prepare's `PrepareMark` while it prepared audio (C90): the ↓
     /// filling with its real progress while it renders now, grey while paused. Waiting its turn
     /// leaves the tile alone: the spinner is in the badge slot (C93).
-    private var downloadLeading: some View {
-        // The tile is never covered or dimmed by a download (C102): its state is the line-two mark.
+    private var prepareLeading: some View {
+        // The tile is never covered or dimmed by a prepare (C102): its state is the line-two mark.
         leading
     }
 
-    /// The line-two download mark's side: as tall as the caption text.
+    /// The line-two prepare mark's side: as tall as the caption text.
     @ScaledMetric(relativeTo: .caption) private var statusMarkSize: CGFloat = 13
 
     private var isSkipped: Bool {
@@ -479,29 +479,29 @@ struct ListRowGallery: View {
                         subtitle: "Jane Austen", progress: .unplayed(minutes: 645), menu: menu)
                 ListRow(kind: .folder(symbol: Icons.folder, count: []), title: "Pride and Prejudice",
                         subtitle: "Ch 24", progress: .partWay(fraction: 0.38, minutesLeft: 370),
-                        download: .downloading(fraction: 0.2), folderHasDetails: true, menu: menu)
+                        prepare: .preparing(fraction: 0.2), folderHasDetails: true, menu: menu)
                 ListRow(kind: .folder(symbol: Icons.library, count: []), title: "The Lighthouse Keeper",
                         subtitle: "Ch 14", progress: .partWay(fraction: 0.12, minutesLeft: 1210), playState: .playing,
-                        download: .downloaded, menu: menu)
+                        prepare: .prepared, menu: menu)
             }
             PreviewState("page: not downloaded, downloading, downloaded") {
                 ListRow(kind: .article(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
                         progress: .unplayed(minutes: 18), menu: menu)
                 ListRow(kind: .article(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
-                        progress: .unplayed(minutes: 18), download: .downloading(fraction: 0.4), menu: menu)
+                        progress: .unplayed(minutes: 18), prepare: .preparing(fraction: 0.4), menu: menu)
                 ListRow(kind: .article(letter: "N"), title: "Notes on Tides", subtitle: "example.org",
-                        progress: .unplayed(minutes: 18), download: .downloaded, menu: menu)
+                        progress: .unplayed(minutes: 18), prepare: .prepared, menu: menu)
             }
             PreviewState("page: part-way, playing, paused while downloading, finished") {
                 ListRow(kind: .article(letter: "S"), title: "Seven-Day Yield: Definition, Calculation, and Example",
                         subtitle: "investing.example.com", progress: .partWay(fraction: 0.4, minutesLeft: 6),
-                        download: .downloaded, menu: menu)
+                        prepare: .prepared, menu: menu)
                 ListRow(kind: .article(letter: "C"), title: "Coupon Basics", subtitle: "example.com",
-                        progress: .partWay(fraction: 0.58, minutesLeft: 9), playState: .playing, download: .downloaded,
+                        progress: .partWay(fraction: 0.58, minutesLeft: 9), playState: .playing, prepare: .prepared,
                         menu: menu)
                 ListRow(kind: .article(letter: "C"), title: "Coupon Basics", subtitle: "example.com",
                         progress: .partWay(fraction: 0.58, minutesLeft: 9), playState: .paused,
-                        download: .downloading(fraction: 0.1), menu: menu)
+                        prepare: .preparing(fraction: 0.1), menu: menu)
                 ListRow(kind: .article(letter: "B"), title: "Bond Ladders", subtitle: "example.com", progress: .finished,
                         menu: menu)
             }

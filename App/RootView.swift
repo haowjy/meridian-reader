@@ -102,6 +102,6 @@ struct EngineNoticeBanner: View {
         .environment(ShellState())
         .environment(library)
         .environment(follow)
-        .environment(AppComposition.makeDownloads(library: library, follow: follow))
+        .environment(AppComposition.makePreparedAudio(library: library, follow: follow))
         .modelContainer(container)
 }

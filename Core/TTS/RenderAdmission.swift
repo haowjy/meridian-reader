@@ -27,11 +27,11 @@ enum RenderAdmission: Equatable {
     ///   - isPlayingArticle: the audio belongs to the article that is playing.
     ///   - inBackgroundBurst: a background burst is running (less than the low-water mark of
     ///     listening was ready ahead when it started, and it hasn't reached the high-water mark).
-    ///   - isDownloadTurn: the audio is a download's, audio is playing, and the playing article
+    ///   - isPrepareTurn: the audio is a prepare's, audio is playing, and the playing article
     ///     needs nothing rendered now (no burst, or nothing of it left to render) (C94).
     static func decide(engineReady: Bool, phase: AppRunState.Phase, rendersInBackground: Bool,
                        isLiveRequest: Bool, isPlayingArticle: Bool, inBackgroundBurst: Bool,
-                       isDownloadTurn: Bool = false) -> RenderAdmission {
+                       isPrepareTurn: Bool = false) -> RenderAdmission {
         guard engineReady, modelCallsAllowed(phase: phase, rendersInBackground: rendersInBackground) else {
             return isLiveRequest ? .deferToApple : .park
         }
@@ -41,7 +41,7 @@ enum RenderAdmission: Equatable {
         case .inactive:
             return rendersInBackground || isLiveRequest ? .render : .park
         case .background:
-            return isLiveRequest || (isPlayingArticle && inBackgroundBurst) || isDownloadTurn ? .render : .park
+            return isLiveRequest || (isPlayingArticle && inBackgroundBurst) || isPrepareTurn ? .render : .park
         }
     }
 

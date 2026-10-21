@@ -51,7 +51,7 @@ struct KokoroONNXMainMigration: LaunchMigration {
 
 /// With the Core ML route off, its 7 stages (≈82 MB) are dead weight: the ONNX route needs only
 /// the vocab, voice packs and G2P / lexicon files beside them. Deleted at every launch they are
-/// found, off the main thread; the Core ML route downloads them again when turned on.
+/// found, off the main thread; the Core ML route prepared audio them again when turned on.
 struct KokoroCoreMLStageCleanup: LaunchMigration {
     func runIfNeeded(_ tts: LocalTTSCoordinator) {
         let route = KokoroRouteSettings(defaults: tts.defaults)

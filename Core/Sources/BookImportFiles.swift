@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where a book's file waits while it is imported: `Application Support/Imports/`. A picked file
-/// is copied in under its security-scoped access, and a downloaded one is saved there, so the
+/// is copied in under its security-scoped access, and a prepared one is saved there, so the
 /// import never reads a file it doesn't own. Each file sits in a folder of its own, under its
 /// own name (a book with no title in its package is named after its file). The import deletes
 /// it when it ends, however it ends; launch clears whatever a killed import left.
@@ -25,7 +25,7 @@ struct BookImportFiles {
         return destination
     }
 
-    /// A place for a file named `name` (a download's suggested name): its folder exists, the file
+    /// A place for a file named `name` (a prepare's suggested name): its folder exists, the file
     /// doesn't yet.
     func newFile(named name: String) throws -> URL {
         let folder = directory.appending(path: UUID().uuidString, directoryHint: .isDirectory)

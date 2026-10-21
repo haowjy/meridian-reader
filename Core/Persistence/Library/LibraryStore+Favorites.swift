@@ -60,7 +60,7 @@ extension LibraryStore {
         }
     }
 
-    /// Saves a page played without saving into the Library's top level (starring or downloading
+    /// Saves a page played without saving into the Library's top level (starring or preparing
     /// it, C104); a page in the Library stays where it is. Inside an `edit`.
     func fileIfUnsaved(_ article: Article) {
         guard article.addedAt == nil else { return }
@@ -71,7 +71,7 @@ extension LibraryStore {
 
     /// *Save from Website…* and *Paste* of an address (C126): the page for `url` saved in `folder`
     /// (nil: the top level), at its end. One the library has already moves there and is saved;
-    /// a new one is a link page, whose text is fetched when it first plays or downloads.
+    /// a new one is a link page, whose text is fetched when it first plays or prepared audio.
     @discardableResult
     func saveLink(_ url: URL, in folder: Folder?) throws -> Article {
         let existing = article(url: url)
@@ -99,7 +99,7 @@ extension LibraryStore {
 
     /// *Paste Text…* (C127): a new article holding `text`, saved at the end of `folder` (nil: the
     /// top level). It has no web address (`ArticleOrigin.book`, locator "text:<key>"), so nothing
-    /// ever refetches it; it reads, plays and downloads like any saved article.
+    /// ever refetches it; it reads, plays and prepared audio like any saved article.
     @discardableResult
     func saveText(title: String, text: String, in folder: Folder?) throws -> Article {
         let plain = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -141,7 +141,7 @@ extension LibraryStore {
             .replacingOccurrences(of: ">", with: "&gt;")
     }
 
-    /// `fileIfUnsaved` as its own change (*Download* on a page played without saving).
+    /// `fileIfUnsaved` as its own change (*Prepare* on a page played without saving).
     func saveUnsaved(_ article: Article) throws {
         guard article.addedAt == nil else { return }
         try edit("save to download") { fileIfUnsaved(article) }

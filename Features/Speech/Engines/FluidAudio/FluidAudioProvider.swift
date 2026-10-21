@@ -177,7 +177,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
     }
 
     /// Non-default Kokoro packs are fetched on first use (~0.5 MB); do it at select time so the
-    /// first render doesn't wait on the network (and a failed download keeps the old voice).
+    /// first render doesn't wait on the network (and a failed prepare keeps the old voice).
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {
         guard id == .kokoro else { return }
         switch routeSettings.route {

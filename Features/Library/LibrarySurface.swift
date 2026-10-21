@@ -21,10 +21,10 @@ struct LibrarySurface: View {
     @Environment(ShellState.self) private var shell
     @Environment(LibraryStore.self) private var library
     @Environment(\.speechController) private var speech
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(FollowCenter.self) private var follow
     @State private var screen = LibraryScreenState()
-    /// The ⋯'s *Turn Off Download* asked: the question shows by the ⋯.
+    /// The ⋯'s *Turn Off Prepare* asked: the question shows by the ⋯.
     @State private var turningOff: Folder?
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
@@ -61,7 +61,7 @@ struct LibrarySurface: View {
                     toolbar
                 }
             }
-            .overlay(alignment: .top) { DownloadProgressEdge() }
+            .overlay(alignment: .top) { PrepareProgressEdge() }
             .overlay(alignment: .top) { ShellToastLayer() }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("libraryChrome")
@@ -113,7 +113,7 @@ struct LibrarySurface: View {
                               identifier: "libraryHistory") { shell.present(.history) }
                 .toolbarSlot(3)
             MoreMenuButton(id: "libraryMore") { screenMenu.menu }
-            .turnOffDownloadQuestion($turningOff)
+            .turnOffPrepareQuestion($turningOff)
             .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
     }
@@ -121,9 +121,9 @@ struct LibrarySurface: View {
     // MARK: - The screen on top
 
     private var screenMenu: LibraryScreenMenu {
-        LibraryScreenMenu(library: library, speech: speech, shell: shell, downloads: downloads, follow: follow, screen: screen,
+        LibraryScreenMenu(library: library, speech: speech, shell: shell, preparedAudio: preparedAudio, follow: follow, screen: screen,
                           top: shell.libraryPath.last, topLevelSort: $topLevelSort,
                           showMoved: { shell.libraryPath = library.path(to: $0) },
-                          onTurnOffDownload: { turningOff = $0 })
+                          onTurnOffPrepare: { turningOff = $0 })
     }
 }

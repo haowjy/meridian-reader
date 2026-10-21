@@ -6,11 +6,11 @@ import SwiftUI
 /// title, symbol and action. Built only when the menu opens: a row passes this view, never its
 /// `rows`, so nothing here runs on a row's redraw.
 ///
-/// The row's one download option: *Download* (the toggle off, nothing downloaded), *Turn Off
-/// Download* (toggle on, still to finish), *Remove Downloads* (all downloaded, red). *Turn Off
-/// Download* asks first (`onTurnOffDownload`, by the control the menu opened from), then turns it
-/// off and keeps what is downloaded. *Remove Downloads* deletes its pages' audio and keeps them
-/// out of its download (P8). *Edit Details…* holds the name too (no *Rename…*). Delete asks
+/// The row's one prepare option: *Prepare* (the toggle off, nothing prepared), *Turn Off
+/// Prepare* (toggle on, still to finish), *Remove Prepared audio* (all prepared, red). *Turn Off
+/// Prepare* asks first (`onTurnOffPrepare`, by the control the menu opened from), then turns it
+/// off and keeps what is prepared. *Remove Prepared audio* deletes its pages' audio and keeps them
+/// out of its prepare (P8). *Edit Details…* holds the name too (no *Rename…*). Delete asks
 /// through `LibraryScreenState`'s dialogs, which the screen hosts.
 struct FolderMenu: View {
     enum Place {
@@ -28,14 +28,14 @@ struct FolderMenu: View {
     /// Its pages in play order (what its row or screen already holds).
     let articles: [Article]
     let actions: LibraryActions
-    let downloads: DownloadCenter
+    let preparedAudio: PrepareCenter
     let screen: LibraryScreenState
     var place: Place = .row
     /// What its row or header already computed; nil: computed here.
     var progress: FolderProgress?
-    /// *Turn Off Download*: its host asks `turnOffDownloadQuestion` by the control the menu
+    /// *Turn Off Prepare*: its host asks `turnOffPrepareQuestion` by the control the menu
     /// opened from (a row's ⋯, the header's *More*).
-    let onTurnOffDownload: () -> Void
+    let onTurnOffPrepare: () -> Void
     /// After *Move to…* is saved (the folder's own screen shows it where it went).
     var onMoved: () -> Void = {}
 
@@ -60,8 +60,8 @@ struct FolderMenu: View {
         var facts = MenuRegistry.Facts()
         facts.hasArticlesToPlay = (progress ?? actions.progress(of: folder, articles: articles)).hasArticlesToPlay
         facts.hasArticles = !articles.isEmpty
-        facts.downloadIsOn = downloads.isOn(folder)
-        facts.hasDownloads = downloads.hasDownloads(folder, articles: articles)
+        facts.prepareIsOn = preparedAudio.isOn(folder)
+        facts.hasPreparedAudio = preparedAudio.hasPreparedAudio(folder, articles: articles)
         facts.isFixedOrder = folder.kind.isBookOrSeries
         return facts
     }
@@ -80,20 +80,20 @@ struct FolderMenu: View {
             return MenuRow(id: "menuPlayFromStart", title: Verbs.playFromStart, icon: Icons.previous) {
                 actions.playFolderFromStart(folder)
             }
-        case .folderDownload:
-            let state = downloads.state(of: folder, articles: articles)
-            if facts.downloadIsOn && state != .downloaded {
-                return MenuRow(id: "menuDownload", title: Verbs.turnOffDownload, icon: Icons.turnOffDownload,
-                               action: onTurnOffDownload)
+        case .folderPrepare:
+            let state = preparedAudio.state(of: folder, articles: articles)
+            if facts.prepareIsOn && state != .prepared {
+                return MenuRow(id: "menuPrepare", title: Verbs.turnOffPrepare, icon: Icons.turnOffPrepare,
+                               action: onTurnOffPrepare)
             }
-            if state == .downloaded || (!facts.downloadIsOn && facts.hasDownloads) {
-                return removeDownloads
+            if state == .prepared || (!facts.prepareIsOn && facts.hasPreparedAudio) {
+                return removePreparedAudio
             }
-            return MenuRow(id: "menuDownload", title: Verbs.download, icon: Icons.download) {
-                DownloadActions(downloads: downloads, shell: shell).download(folder)
+            return MenuRow(id: "menuPrepare", title: Verbs.prepare, icon: Icons.prepare) {
+                PrepareActions(preparedAudio: preparedAudio, shell: shell).prepare(folder)
             }
-        case .removeDownloads:
-            return removeDownloads
+        case .removePreparedAudio:
+            return removePreparedAudio
         case .folderFavorite:
             let isFavorite = folder.isFavorite
             return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,
@@ -114,9 +114,9 @@ struct FolderMenu: View {
         }
     }
 
-    private var removeDownloads: MenuRow {
-        MenuRow(id: "menuRemoveDownloads", title: Verbs.removeDownloads, icon: Icons.removeDownload,
-                isDestructive: true) { downloads.deleteDownloads(of: folder) }
+    private var removePreparedAudio: MenuRow {
+        MenuRow(id: "menuRemovePreparedAudio", title: Verbs.removePreparedAudio, icon: Icons.removePrepare,
+                isDestructive: true) { preparedAudio.deletePreparedAudio(of: folder) }
     }
 
     /// A row's swipe, without building the menu: the menu's *Delete Folder…* (it asks first).

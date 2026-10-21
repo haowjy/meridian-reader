@@ -66,7 +66,7 @@ enum AppComposition {
     static let developer = DeveloperSettings(defaults: .standard)
 
     /// The app's one extractor: Readability, failing while Fake Extraction Failure is on. The
-    /// browser's comes from the environment (`ReaderApp`), Follow's and Downloads' fetches from
+    /// browser's comes from the environment (`ReaderApp`), Follow's and Prepared audio' fetches from
     /// `makeFollow`.
     static let extractor: any ArticleExtracting = DeveloperSwitchedExtractor(base: ReadabilityArticleExtractor(),
                                                                              developer: developer)
@@ -97,22 +97,22 @@ enum AppComposition {
         return blocker
     }
 
-    /// Downloads (decision D16) over the app's library: a link page's text comes through Follow
+    /// Prepared audio (decision D16) over the app's library: a link page's text comes through Follow
     /// (`FollowCenter.fill`), so it is fetched once and in the one queue. Its pages render in the
-    /// speech stack's render queue (`DownloadRendering`); the queue's changes and the library's
+    /// speech stack's render queue (`PrepareRendering`); the queue's changes and the library's
     /// stored edits are wired to it here, and it acts on them once started, after the launch's
     /// library maintenance (`AppLaunch`).
-    static func makeDownloads(library: LibraryStore, follow: FollowCenter) -> DownloadCenter {
+    static func makePreparedAudio(library: LibraryStore, follow: FollowCenter) -> PrepareCenter {
         let speech = speechController
         let tts = speech.localTTS
-        let downloads = DownloadCenter(library: library, rendering: tts,
+        let preparedAudio = PrepareCenter(library: library, rendering: tts,
                                        fill: { await follow.fill($0, priority: .background) },
                                        needsAudio: { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 })
-        tts.onRenderStateChange = { [weak downloads] in downloads?.scheduleCheck() }
-        tts.preparedKey = { [weak downloads] key in downloads?.hasRecord(for: key) ?? false }
+        tts.onRenderStateChange = { [weak preparedAudio] in preparedAudio?.scheduleCheck() }
+        tts.preparedKey = { [weak preparedAudio] key in preparedAudio?.hasRecord(for: key) ?? false }
         tts.listeningNeedsKey = { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 }
-        library.editStored = { [weak downloads] in downloads?.followLibrary() }
-        return downloads
+        library.editStored = { [weak preparedAudio] in preparedAudio?.followLibrary() }
+        return preparedAudio
     }
 
     /// The audio cache at launch, in order. First the render queue is held: it adopts no saved

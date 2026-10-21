@@ -6,7 +6,7 @@ import SwiftUI
 /// - `.groove`: a capsule on a faint ink track, inside content (a folder header's bar,
 ///   `barHeight` tall).
 /// - `.edge`: square ends on a faint accent track, running edge to edge along chrome (the
-///   downloads line on the bottom band's top edge, `edgeHeight` tall).
+///   prepared audio line on the bottom band's top edge, `edgeHeight` tall).
 struct ProgressLine: View {
     enum Track {
         case groove
@@ -20,7 +20,7 @@ struct ProgressLine: View {
 
     /// A folder header's bar.
     static let barHeight: CGFloat = 3
-    /// The downloads line along the top edge of the bottom chrome.
+    /// The prepared audio line along the top edge of the bottom chrome.
     static let edgeHeight: CGFloat = 2
 
     @Environment(\.readingPalette) private var reading

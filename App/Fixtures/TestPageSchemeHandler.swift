@@ -140,9 +140,9 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
         return "<p><img alt=\"A tall picture\" width=\"200\" height=\"1600\" src=\"\(src)\"></p>"
     }
 
-    /// Points page one's "Download a book" at the synthetic EPUB (`TestEPUB`) as a `blob:` URL
+    /// Points page one's "Prepare a book" at the synthetic EPUB (`TestEPUB`) as a `blob:` URL
     /// served as `application/epub+zip`: WebKit downloads that as it would a book from the web
-    /// (it makes no downloads from a custom scheme like this one).
+    /// (it makes no prepared audio from a custom scheme like this one).
     private static var bookLink: String {
         guard let book = try? TestEPUB.data() else { return "" }
         return """

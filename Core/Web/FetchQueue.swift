@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Every page fetched out of sight goes through here, strictly one at a time: a story's table of
-/// contents, a chapter's text, a download's link page. Each request waits for the one before it
+/// contents, a chapter's text, a prepare's link page. Each request waits for the one before it
 /// and for its site's pause (`FetchPacing`): a few seconds normally, longer
 /// after slow replies, backing off when the site refuses (429, 5xx) or doesn't answer. Of the
 /// requests whose site is ready, one asked for by a tap (`Priority.user`) goes first, then the

@@ -55,14 +55,14 @@ private struct HistoryRow: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
-    @Environment(DownloadCenter.self) private var downloads
+    @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(FollowCenter.self) private var follow
 
     var body: some View {
         ArticleLookup(key: ArticleIdentity.articleKey(canonicalURL: visit.urlString), canonicalURL: visit.urlString) { page in
             let menu = AnyView(VisitMenu(visit: visit,
                                          actions: ArticleActions(article: page, url: visit.url, library: library, shell: shell,
-                                                              speech: speech, downloads: downloads, follow: follow),
+                                                              speech: speech, preparedAudio: preparedAudio, follow: follow),
                                          library: library))
             ListRow(kind: .article(artwork: visit.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
                                 letter: ArticleRowTitle.artworkLetter(title: visit.title, source: visit.host,

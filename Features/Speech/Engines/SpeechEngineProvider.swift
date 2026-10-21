@@ -16,7 +16,7 @@ protocol SpeechEngineProvider: AnyObject {
     func isInstalled(_ id: SpeechEngineID) -> Bool
     /// Remove downloaded model files for `id`.
     func deleteModels(_ id: SpeechEngineID) throws
-    /// Make sure `voice`'s files are on disk (download if needed) before it's selected.
+    /// Make sure `voice`'s files are on disk (prepare if needed) before it's selected.
     /// No-op for engines whose voices ship with the model.
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws
     /// The previous process died inside a call of one of this provider's engines (`crash.engine`).

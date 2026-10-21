@@ -4,7 +4,7 @@ import SwiftUI
 /// or a folder given details (`detailed`): the cover, then the title and details. A plain folder:
 /// its title and counts. Under them, once it has started, where it is ("3 of 7   38%   6 h 10 min
 /// left", parts spaced apart, never joined by a separator); then the caller's `status` (a followed
-/// story's line); then, for a folder whose pages play (`actions`), one row: its Download control,
+/// story's line); then, for a folder whose pages play (`actions`), one row: its Prepare control,
 /// the big ▶ and *More* (the caller's `more`, the folder's own menu).
 ///
 /// ```
@@ -15,11 +15,11 @@ import SwiftUI
 ///      Jane Austen   Book   61 chapters
 ///     24 of 61   38%   6 h 10 min left
 ///        ◯↓          ( ▶ )          ⋯
-///     Download                     More
+///     Prepare                     More
 /// ```
 ///
-/// The Download control is a `DownloadMark` (an outline ↓, the circle filling as it downloads, a
-/// accent filled ↓ once downloaded) with what it shows written under it; *More* opens a menu; the ▶ is the
+/// The Prepare control is a `PrepareMark` (an outline ↓, the circle filling as it prepared audio, a
+/// accent filled ↓ once prepared) with what it shows written under it; *More* opens a menu; the ▶ is the
 /// folder's Continue (⏸ while one of its pages is what you hear). The side controls share one
 /// width, so the ▶ stays centred whatever their captions say. The row is an `ActionButtonRow`
 /// (decision D21): with its captions while they fit whole, else the symbols alone (VoiceOver and
@@ -39,7 +39,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     var actions: FolderHeaderActions?
     @ViewBuilder var status: Status
     @ViewBuilder var more: More
-    /// Laid behind the Download control and *More*, at their size.
+    /// Laid behind the Prepare control and *More*, at their size.
     @ViewBuilder var anchor: (FolderHeaderControl) -> Anchor
 
     @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 54
@@ -87,16 +87,16 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
 
     private func actionControls(_ actions: FolderHeaderActions, captions: Bool) -> some View {
         CentredSidesLayout(spacing: Spacing.l, minSide: sideWidth) {
-            Button(action: actions.onDownload) {
-                sideLabel(actions.downloadCaption ?? actions.download.label, shown: captions) {
-                    DownloadMark(state: actions.download)
+            Button(action: actions.onPrepare) {
+                sideLabel(actions.prepareCaption ?? actions.prepare.label, shown: captions) {
+                    PrepareMark(state: actions.prepare)
                 }
             }
             .buttonStyle(PillPressStyle())
-            .accessibilityLabel(Verbs.download)
-            .accessibilityValue(downloadValue(actions))
-            .accessibilityIdentifier("folderDownload")
-            .background { anchor(.download) }
+            .accessibilityLabel(Verbs.prepare)
+            .accessibilityValue(prepareValue(actions))
+            .accessibilityIdentifier("folderPrepare")
+            .background { anchor(.prepare) }
             PlayStateButton(state: actions.play, look: .headerDisc, action: actions.onPlay)
                 .accessibilityIdentifier("folderContinue")
             Menu { more } label: {
@@ -131,13 +131,13 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
         .accessibilityShowsLargeContentViewer { Text(caption) }
     }
 
-    /// "On, 40 percent", "On, downloaded", "Off".
-    private func downloadValue(_ actions: FolderHeaderActions) -> String {
-        var parts = [actions.downloadIsOn ? String(localized: "On") : String(localized: "Off")]
-        switch actions.download {
-        case .downloading, .queued, .paused: parts.append(actions.download.percentText)
-        case .downloaded: parts.append(actions.download.label)
-        case .notDownloaded: break
+    /// "On, 40 percent", "On, prepared", "Off".
+    private func prepareValue(_ actions: FolderHeaderActions) -> String {
+        var parts = [actions.prepareIsOn ? String(localized: "On") : String(localized: "Off")]
+        switch actions.prepare {
+        case .preparing, .queued, .paused: parts.append(actions.prepare.percentText)
+        case .prepared: parts.append(actions.prepare.label)
+        case .notPrepared: break
         }
         return parts.joined(separator: ", ")
     }
@@ -196,18 +196,18 @@ private struct CentredSidesLayout: Layout {
 
 /// A `FolderHeader` side control, for its `anchor`.
 enum FolderHeaderControl {
-    case download, more
+    case prepare, more
 }
 
 /// A `FolderHeader`'s action row: its values and what its controls do.
 struct FolderHeaderActions {
-    var download: DownloadState
-    /// The folder's Download toggle (VoiceOver reads it with the state).
-    var downloadIsOn: Bool
-    var onDownload: () -> Void
-    /// The Download control's caption while a download runs ("2 of 3", C96); nil: the state's own
-    /// label. The header has no separate download line.
-    var downloadCaption: String? = nil
+    var prepare: PrepareState
+    /// The folder's Prepare toggle (VoiceOver reads it with the state).
+    var prepareIsOn: Bool
+    var onPrepare: () -> Void
+    /// The Prepare control's caption while a prepare runs ("2 of 3", C96); nil: the state's own
+    /// label. The header has no separate prepare line.
+    var prepareCaption: String? = nil
     var play: PlayState
     var onPlay: () -> Void
 }
@@ -234,18 +234,18 @@ struct FolderHeaderGallery: View {
             }
             PreviewState("folder of pages, not started, not downloaded") {
                 header(title: "Finance", detail: ["2 folders", "7 pages"], progress: ["52 min"],
-                       actions: .init(download: .notDownloaded, downloadIsOn: false, onDownload: {}, play: .idle, onPlay: {}))
+                       actions: .init(prepare: .notPrepared, prepareIsOn: false, onPrepare: {}, play: .idle, onPlay: {}))
             }
             PreviewState("book, part-way, downloading 40%") {
                 header(style: .detailed(cover: nil), title: "Pride and Prejudice",
                        detail: ["Jane Austen", "61 chapters"], progress: ["24 of 61", "38%", "6 h 10 min left"],
-                       actions: .init(download: .downloading(fraction: 0.4), downloadIsOn: true, onDownload: {},
-                                      downloadCaption: "24 of 61", play: .idle, onPlay: {}))
+                       actions: .init(prepare: .preparing(fraction: 0.4), prepareIsOn: true, onPrepare: {},
+                                      prepareCaption: "24 of 61", play: .idle, onPlay: {}))
             }
             PreviewState("followed story, a chapter playing, downloaded") {
                 FolderHeader(style: .detailed(cover: nil), title: "The Lantern Road", detail: ["A. Writer", "108 chapters"],
                              progressLabel: ["24 of 108", "20%", "41 h left"],
-                             actions: .init(download: .downloaded, downloadIsOn: true, onDownload: {}, play: .playing,
+                             actions: .init(prepare: .prepared, prepareIsOn: true, onPrepare: {}, play: .playing,
                                             onPlay: {})) {
                     HeaderLink(symbol: Icons.follow, parts: ["Following", "41 of 108 fetched"]) {}
                 } more: {

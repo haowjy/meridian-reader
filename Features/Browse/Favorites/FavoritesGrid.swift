@@ -9,7 +9,7 @@ struct FavoritesGrid: View {
     var onOpen: (Article) -> Void
     var onOpenFolder: (Folder) -> Void
     var articleMenu: (Article) -> AnyView
-    var folderMenu: (Folder, _ onTurnOffDownload: @escaping () -> Void) -> AnyView
+    var folderMenu: (Folder, _ onTurnOffPrepare: @escaping () -> Void) -> AnyView
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -67,7 +67,7 @@ struct FavoritesGrid: View {
     }
 }
 
-/// A folder's tile: its own view, so *Turn Off Download*, asked from its menu, shows by it.
+/// A folder's tile: its own view, so *Turn Off Prepare*, asked from its menu, shows by it.
 private struct FolderTile<Tile: View>: View {
     let folder: Folder
     let onOpen: (Folder) -> Void
@@ -85,7 +85,7 @@ private struct FolderTile<Tile: View>: View {
         .accessibilityHint(String(localized: "Opens it in the Library"))
         .accessibilityIdentifier("favoriteFolderTile")
         .contextMenu { menu(folder) { turningOff = folder } }
-        .turnOffDownloadQuestion($turningOff)
+        .turnOffPrepareQuestion($turningOff)
     }
 }
 

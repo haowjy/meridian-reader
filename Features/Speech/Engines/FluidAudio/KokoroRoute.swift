@@ -95,7 +95,7 @@ struct KokoroRouteSettings {
 ///   no banner (the same voice and the same cached audio, so nothing the user hears changes).
 /// - ONNX route crash #1 → the same, silently, on one thread fewer (a fresh session).
 /// - ONNX route crash #2 (without a healthy stretch in between) → still Kokoro, one thread fewer
-///   again; downloads and new rendering pause, while playback goes on through audio already
+///   again; prepared audio and new rendering pause, while playback goes on through audio already
 ///   rendered. Only where playback reaches audio not rendered yet does it pause, with a plain
 ///   notice and Retry (C129, amended).
 /// A healthy stretch (`healthyRendersToReset` ONNX calls in one session) or Retry resets the count.
@@ -112,7 +112,7 @@ enum KokoroCrashRecovery {
         case pauseForRetry
     }
 
-    static let pausedNotice = "Kokoro stopped twice in a row, so downloads are paused and playback stopped where no audio is ready yet. Tap Retry to continue with the same voice."
+    static let pausedNotice = "Kokoro stopped twice in a row, so preparing audio is paused and playback stopped where no audio is ready yet. Tap Retry to continue with the same voice."
 
     /// `crashedRoute` nil = legacy marker (older builds only ran Core ML).
     static func onCrash(route crashedRoute: KokoroRoute?, onnxCrashCount: inout Int) -> Outcome {

@@ -88,11 +88,11 @@ struct ArticleMenu: View {
             guard case .nowPlaying(let goTo) = place else { break }
             return MenuRow(id: "menuGoTo", title: String(localized: "Go to \(goTo.name)"), icon: goTo.symbol,
                            action: goTo.action)
-        case .download:
-            let has = actions.hasDownload
-            return MenuRow(id: "menuDownload", title: has ? Verbs.removeDownload : Verbs.download,
-                           icon: has ? Icons.removeDownload : Icons.download, isDestructive: has,
-                           action: actions.toggleDownload)
+        case .prepare:
+            let has = actions.hasPrepare
+            return MenuRow(id: "menuPrepare", title: has ? Verbs.removePrepare : Verbs.prepare,
+                           icon: has ? Icons.removePrepare : Icons.prepare, isDestructive: has,
+                           action: actions.togglePrepare)
         case .favorite:
             let isFavorite = actions.isFavorite
             return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,
@@ -157,7 +157,7 @@ struct ArticleMenu: View {
 }
 
 extension ArticleActions {
-    /// The ⋯ panel of the Reader and Now Playing (decision D24): the page's menu, then *Downloads*
+    /// The ⋯ panel of the Reader and Now Playing (decision D24): the page's menu, then *Prepared audio*
     /// and *Settings*, then `[Favorites][History][Website]`. *Website* is the page's own web page
     /// in the browser, wherever the sheet was opened from; playback keeps going.
     func readingPageMenu(_ place: ArticleMenu.Place) -> MenuContext {

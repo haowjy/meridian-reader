@@ -14,7 +14,7 @@ import Observation
 /// then left for the next launch (or ▶) with why (`failures`). Unfollowed stories' chapters are
 /// still fetched: Unfollow stops only the daily check.
 ///
-/// Downloads fetch a link page's text through here too (`fill`), so a page is never fetched twice
+/// Prepared audio fetch a link page's text through here too (`fill`), so a page is never fetched twice
 /// at once and nothing goes around the queue.
 @MainActor
 @Observable
@@ -67,7 +67,7 @@ final class FollowCenter {
     }
 
     /// Pages being fetched now (loading, or waiting in the queue for their turn and their site's
-    /// pause): the loop's chapter, ▶'s, and a download's link page.
+    /// pause): the loop's chapter, ▶'s, and a prepare's link page.
     private var fetching: Set<UUID> = []
     /// Pages whose last try was refused or got no answer, tried again after the back-off.
     private var retrying: Set<UUID> = []

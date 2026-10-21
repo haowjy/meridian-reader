@@ -75,13 +75,13 @@ enum Icons {
     static let editDetails = "square.and.pencil"
     static let share = "square.and.arrow.up"
     /// Something goes for good: *Delete Folder…*, Edit's *Remove*, *Remove from History*, *Remove
-    /// Cover*. (A page leaving the Library is `unsave`; a download going, `removeDownload`.)
+    /// Cover*. (A page leaving the Library is `unsave`; a prepare going, `removePrepare`.)
     static let delete = "trash"
     static let sort = "arrow.up.arrow.down"
     /// Select (Edit's check circles).
     static let select = "checkmark.circle"
     /// Checked: the chosen option in a list or menu (where the system draws the same ✓ in its own
-    /// pickers). Not Select's circle, nor the filled circle that means downloaded, nor a finished
+    /// pickers). Not Select's circle, nor the filled circle that means prepared, nor a finished
     /// page (that is the listening ring, full).
     static let checkmark = "checkmark"
     /// Mark as Finished: a filled circle, the listening ring made full (a finished page shows the
@@ -136,30 +136,31 @@ enum Icons {
     /// Developer options' listen debug: its switch and its panel.
     static let debug = "ladybug"
 
-    // MARK: Downloads
+    // MARK: Prepared audio
 
-    /// Download (a row's menu, a toast, a folder header's control before it downloads).
-    static let download = "arrow.down.circle"
-    /// The arrow alone, inside a download's filling circle (`DownloadMark`).
-    static let downloadArrow = "arrow.down"
-    /// Downloaded: the grey badge before a row's second line, a folder header's control, a voice
+    /// Prepare (a row's menu, a toast, a folder header's control before it prepared audio).
+    static let prepare = "arrow.down.circle"
+    /// The arrow alone, inside a prepare's filling circle (`PrepareMark`).
+    static let prepareArrow = "arrow.down"
+    /// Prepared: the grey badge before a row's second line, a folder header's control, a voice
     /// model in Settings.
-    /// Waiting to download with Reduce Motion on, in place of the spinner (C93).
-    static let downloadQueued = "hourglass"
+    /// Waiting to prepare with Reduce Motion on, in place of the spinner (C93).
+    static let prepareQueued = "hourglass"
     /// A filled ↓, not a ✓ (C89): ✓ means only selection and a picked option.
-    static let downloaded = "arrow.down.circle.fill"
-    /// The Downloads list.
-    static let downloads = "tray.and.arrow.down"
-    /// *Remove Download* (a page) and *Remove Downloads* (a folder), in their menus and the
-    /// Downloads list: the audio deleted.
-    static let removeDownload = "trash.circle"
-    /// Turning a folder's Download off (its audio stays).
-    static let turnOffDownload = "arrow.down.circle.dotted"
-    /// *Re-download*: down again (not the browser's Reload arrow).
-    static let redownload = "arrow.uturn.down.circle"
-    /// *Resume* a paused download (not Download's arrow, nor listening's ▶).
+    static let prepared = "arrow.down.circle.fill"
+    /// The Prepared Audio list.
+    static let preparedAudio = "tray.and.arrow.down"
+    /// *Remove Prepare* (a page) and *Remove Prepared audio* (a folder), in their menus and the
+    /// Prepared Audio list: the audio deleted.
+    static let removePrepare = "trash.circle"
+    static let removeModelDownload = "trash.circle"
+    /// Turning a folder's Prepare off (its audio stays).
+    static let turnOffPrepare = "arrow.down.circle.dotted"
+    /// *Prepare Again*: down again (not the browser's Reload arrow).
+    static let reprepare = "arrow.uturn.down.circle"
+    /// *Resume* a paused prepare (not Prepare's arrow, nor listening's ▶).
     static let resume = "playpause.fill"
-    /// Keep a download made with another voice.
+    /// Keep a prepare made with another voice.
     static let keep = "pin"
 
     // MARK: Settings and reading
@@ -172,7 +173,7 @@ enum Icons {
     static let textLarger = "textformat.size.larger"
     /// Block Ads (Settings › Browsing).
     static let blockAds = "hand.raised"
-    /// Downloads and storage (Settings).
+    /// Prepared audio and storage (Settings).
     static let storage = "internaldrive"
 
     // MARK: Notices

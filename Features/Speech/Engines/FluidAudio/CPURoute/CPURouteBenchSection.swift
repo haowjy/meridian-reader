@@ -79,7 +79,7 @@ struct CPURouteBenchSection: View {
             HStack { ProgressView(); Text("Verifying SHA-256…").foregroundStyle(Palette.secondaryInk) }
         case let .installed(bytes):
             LabeledContent("CPU model", value: "installed, \(FileSizes.label(bytes))")
-            Button(Verbs.removeDownload, role: .destructive) { store.delete() }
+            Button(Verbs.removeModelDownload, role: .destructive) { store.delete() }
                 .disabled(bench.isRunning || bench.soakRunning)
                 .accessibilityIdentifier("cpuBenchDeleteModel")
         case let .failed(message):

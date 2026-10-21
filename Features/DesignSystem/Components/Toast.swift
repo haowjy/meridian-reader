@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A short message that floats over the bottom chrome and goes away by itself: "Nothing to
-/// listen to on this page", "Downloading…" with *View*. Present it by inserting it; the
+/// listen to on this page", "Preparing…" with *View*. Present it by inserting it; the
 /// owner removes it after a few seconds (`Toast.duration`, longer with an action). Without an
 /// action it takes no taps, so it never blocks what is under it.
 ///
@@ -101,17 +101,17 @@ struct ToastGallery: View {
                 Toast(message: "Nothing to listen to on this page", systemImage: Icons.listen)
             }
             PreviewState("with an action") {
-                Toast(message: "Downloading…", systemImage: Icons.download, actionTitle: "View")
+                Toast(message: "Preparing…", systemImage: Icons.prepare, actionTitle: "View")
             }
             PreviewState("a long message") {
-                Toast(message: "New pages in “A Folder With a Longer Name” will download", systemImage: Icons.download)
+                Toast(message: "New pages in “A Folder With a Longer Name” will download", systemImage: Icons.prepare)
             }
             PreviewState("a long message with an action") {
                 Toast(message: "“A Folder With a Longer Name” is already downloading",
-                      systemImage: Icons.download, actionTitle: "View")
+                      systemImage: Icons.prepare, actionTitle: "View")
             }
             PreviewState("on a reading page") {
-                Toast(message: "Downloading…", systemImage: Icons.download, actionTitle: "View")
+                Toast(message: "Preparing…", systemImage: Icons.prepare, actionTitle: "View")
                     .onReadingPreview()
             }
         }

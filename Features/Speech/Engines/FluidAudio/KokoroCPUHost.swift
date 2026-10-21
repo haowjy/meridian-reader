@@ -107,7 +107,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
                 // 2) The 163 MB ONNX model.
                 try await KokoroONNXModelStore.shared.ensureInstalled { f in progress?(0.03 + 0.97 * f) }
                 try Task.checkCancellation()
-                let tDownloaded = ListenTimingLog.ms(since: t0)
+                let tPrepared = ListenTimingLog.ms(since: t0)
                 // 3) Load: lexicon + Swift G2P, voice pack, ORT session (on the render QoS).
                 let fe = try KokoroAneCPUFrontend()
                 try await fe.prepare()
@@ -128,7 +128,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
                     self.packs[voice] = pack
                 }
                 ListenTimingLog.log("kokoro_cpu_init_end", [
-                    "ok": true, "ms": ListenTimingLog.ms(since: t0), "download_ms": tDownloaded,
+                    "ok": true, "ms": ListenTimingLog.ms(since: t0), "download_ms": tPrepared,
                     "session_ms": ListenTimingLog.ms(since: tSession), "threads": threads,
                     "reused_model": reused, "ort": KokoroONNXSession.runtimeVersion,
                     "nan_patched": model.patched, "patched_now": model.patchedNow,
@@ -250,7 +250,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
 
     // MARK: - Files
 
-    /// Download what the route needs for `voice` without loading it (the Core ML route's fallback).
+    /// Prepare what the route needs for `voice` without loading it (the Core ML route's fallback).
     static func ensureFiles(voice: String) async throws {
         try await KokoroAneCPUFrontend.ensureAssets()
         try await KokoroAssets.ensureVoicePack(voice)

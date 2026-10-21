@@ -3,7 +3,7 @@ import SwiftUI
 /// Every empty list says so the same way: the system's empty view (`ContentUnavailableView`),
 /// its symbol from `Icons`, a Title Case title ("No History Yet"), a sentence-case line under it,
 /// and, where the list has a way to fill it, its actions (an `ActionButtonRow`). The Library's
-/// Everything, Favorites and Recent, the browser's History, Downloads and a folder that is gone.
+/// Everything, Favorites and Recent, the browser's History, Prepared audio and a folder that is gone.
 struct EmptyState<Actions: View>: View {
     let title: String
     let symbol: String

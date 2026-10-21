@@ -16,7 +16,7 @@ struct BackgroundRenderWatermarks: Equatable {
     /// background thread count, `KokoroRouteSettings.backgroundThreads`) time to catch up before
     /// the player runs dry and a paragraph goes to Apple.
     /// `-bgRender.lowWaterSeconds <s>` (a debug launch) lowers it so a simulator test sees bursts
-    /// and download turns alternate within a short page; the high-water mark is then twice it.
+    /// and prepare turns alternate within a short page; the high-water mark is then twice it.
     static var lowWater: TimeInterval { debugLowWater ?? 4 * 60 }
     /// A burst stops once this much listening is ready ahead: each burst adds about 4 min.
     static var highWater: TimeInterval { debugLowWater.map { $0 * 2 } ?? 8 * 60 }

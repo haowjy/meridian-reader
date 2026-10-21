@@ -38,7 +38,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Called when a bake job leaves the queue and when the render queue's state may have moved
     /// (audio rendered or deleted, the engine or voice changed). Often, and inside the queue's own
     /// work: the handler acts later, never re-entering the queue in the call. Set by the
-    /// composition (Downloads, `AppComposition.makeDownloads`).
+    /// composition (Prepared audio, `AppComposition.makePrepared audio`).
     @ObservationIgnored var onRenderStateChange: (() -> Void)?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
@@ -68,7 +68,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// From the start of the launch's audio-cache steps until the library's launch maintenance has
     /// finished (`holdRenderingForLaunch`, `endLaunchHold`).
     @ObservationIgnored private(set) var isHeldForLaunch = false
-    /// Voice whose files are downloading after the user picked it (Settings shows a spinner).
+    /// Voice whose files are preparing after the user picked it (Settings shows a spinner).
     private(set) var voiceDownloadID: String?
     /// Last voice download failure (Settings footer); cleared on the next pick.
     private(set) var voiceDownloadError: String?
@@ -213,7 +213,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     /// The banner's Retry (or pressing play): a fresh engine session with the same engine and
-    /// voice, then rendering and downloads go on.
+    /// voice, then rendering and prepared audio go on.
     func retryAfterEngineStop() {
         engineCrashNotice = nil
         guard isPausedForRetry else { return }
@@ -357,7 +357,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         onEngineChange?()
     }
 
-    /// User picked `voice` in Settings: download its files if needed (e.g. a ~0.5 MB Kokoro
+    /// User picked `voice` in Settings: prepare its files if needed (e.g. a ~0.5 MB Kokoro
     /// pack), then switch. The article cache then re-renders in the new voice (one voice per
     /// article, see `ArticleAudioCache`). Returns true if the voice changed.
     @discardableResult
@@ -496,7 +496,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return true
     }
 
-    /// On article save (or a download, a finished listen's gap fill): render it in full, top
+    /// On article save (or a prepare, a finished listen's gap fill): render it in full, top
     /// down, behind what is queued (#1 when nothing is). A job already queued, the one playing
     /// included, keeps its place and plan and just turns saved.
     func startBakeIfNeeded(articleID: UUID, paragraphs: [String]) {

@@ -1,6 +1,6 @@
 import Foundation
 
-/// The audio side of library changes (`LibraryStore+AudioWork`, deleting a page's downloads): the
+/// The audio side of library changes (`LibraryStore+AudioWork`, deleting a page's prepared audio): the
 /// audio files, and what the speech stack keeps in step with them, the render queue, the saved
 /// bake jobs and the crash-resume target launch read. `LocalTTSCoordinator` in the app.
 @MainActor

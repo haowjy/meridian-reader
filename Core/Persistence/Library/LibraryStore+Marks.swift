@@ -1,7 +1,7 @@
 import Foundation
 
 /// What a row's menu marks on pages and chapters: finished or not, skipped in playback or not,
-/// and their downloaded audio. Marks never touch playback. A mark whose save fails is rolled back
+/// and their prepared audio. Marks never touch playback. A mark whose save fails is rolled back
 /// and throws `LibraryStoreError.saveFailed`.
 extension LibraryStore {
     /// *Mark as Finished* / *Mark as Unfinished* (rows, Edit's *Mark Finished*). A finished page
@@ -30,8 +30,8 @@ extension LibraryStore {
         try edit(skips ? "skip in playback" : "play in playback") { article.skipsInPlayback = skips }
     }
 
-    /// Whether `article` has audio on disk for any voice (*Remove Downloads* is offered).
-    func hasDownloads(_ article: Article) -> Bool {
+    /// Whether `article` has audio on disk for any voice (*Remove Prepared audio* is offered).
+    func hasPreparedAudio(_ article: Article) -> Bool {
         guard let key = article.key else { return false }
         return audio.audioCache.hasCache(for: key)
     }
