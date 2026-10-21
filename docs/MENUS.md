@@ -25,7 +25,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 - **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
 - **Reader / Now Playing ⋯**: the article's options, then Prepared Audio, then [Settings][Saved][Reader]. Reader is disabled (already reading). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
-- **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, then [Settings][History][Reader]. Reader opens the current page in the Reader (greyed when the page isn't readable). No New Search: a tap on the address field starts one.
+- **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, then [Settings][Saved][Reader]. Reader opens the current page in the Reader (greyed when the page isn't readable). No New Search: a tap on the address field starts one.
 - **Prepare on a page out of the Library** (C104): enabled; it saves the page to the Library's top level first. Grey only on a browser page not yet loaded as a page.
 - **Prepared Audio row** (one article, C110): Prepare Again (that article), Remove Prepared Audio (that article). Pause All in the section header; a folder's prepare is turned off on its screen.
 
