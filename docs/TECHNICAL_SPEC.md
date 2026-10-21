@@ -515,3 +515,9 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 - `VoiceCatalog.bestVoice(forLanguage:gender:)` ranks Premium > Enhanced > default, then the
   Kokoro voice's gender (`gender(ofKokoroVoice:)`), then region. Launch logs `apple_voices`
   (English voices, quality, and a Siri count) to the timing log.
+
+## Tests (C133)
+
+Critical-only: crash guard and recovery policy, download cache integrity, no data loss on a
+failed save, no text dropped by the chunker, and one smoke UI test. About 13 s to run. The audit
+table is in the decision log (C133).

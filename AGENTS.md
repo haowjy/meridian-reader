@@ -25,17 +25,12 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 - **All automated tests together run in under 60 seconds** of sequential time on the Simulator
   (unit and UI, `test-without-building` wall clock: about 5 s and 35 s; without
   `-collect-test-diagnostics never`, xcodebuild can sit minutes in `simctl diagnose` after the
-  UI tests). Unit tests cover only the riskiest pure logic: time left (`ListeningTimeTests`),
-  list membership and the removed state (`PlayedNotSavedTests`), the download accept rule
-  (`DownloadOverviewTests`), the engine crash guard (`EngineCrashGuardTests`), the web view's
-  reloads after its content process ends (`ContentProcessRecoveryTests`), the bundled Block Ads list compiling
-  (`BundledRuleListTests`), text splitting and
-  chunking (`TextChunkerTests`, `ParagraphSplitTests`), Pages mode's page breaks
-  (`ReadingPaginationTests`), Follow's contents readers and back-off
-  (`FollowTests`). `CoreFlowsUITests` holds the three
-  end-to-end flows: save and play a browsed page, swipe-Remove takes a played page out of every
-  list, open a folder and play it. A new test must fit the budget: replace one rather than add
-  one.
+  UI tests). **Test policy (C133): critical tests only**, guarding costly regressions: the
+  engine crash guard and C129 recovery (`EngineCrashGuardTests`), cache integrity (audio in the
+  wrong voice never counts as downloaded, `DownloadOverviewTests`), a failed save never losing
+  an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), and one
+  smoke UI test (`CoreFlowsUITests.testSaveAndPlayABrowsedArticle`). Add a test only for data
+  loss, crashes, store migration or cache integrity; verify everything else on the running app.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
 - One scheme, `MeridianReader`, with two test targets: `MeridianReaderTests` (unit, `Tests/`) and
   `MeridianReaderUITests` (`UITests/`). Use a separate `-derivedDataPath` per worktree.
