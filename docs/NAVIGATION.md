@@ -718,13 +718,12 @@ row) opens Now Playing instead.
 
 **The two sheets share their chrome** (decision D24), so Listen turns the Reader into Now Playing
 with nothing moving but what has to: the same top bar (`SheetTopBar`: the close pill at the top
-left, **Aa** then ☝︎ at the top right, at the article margin), 🔖 in slot 1 and ⋯ in slot 5 of the
-bottom row, the same ⋯ menu (Now Playing adds *Go to*), and the same colours and type (the
-reading theme, below). They differ where the job does: its
-middle slots are the transport (⏮, the round ⏸ / ▶, ⏭) where the Reader has
-Listen, it has the scrub capsule with the speed and the status notes, and its text follows the
-audio under a title card (the Reader's sits under a heading and never moves by itself); the
-Reader shows the Now Playing bar of another article above its row.
+left, **Aa** then ☝︎ at the top right, at the article margin), a player card (title, time left,
+scrub row) above the address field row, 🔖 in slot 1 and ⋯ in slot 5 of the bottom row, the same
+⋯ menu (Now Playing adds *Go to*), and the same colours and type (the reading theme, below). They
+differ where the job does: Now Playing's middle slots are the transport (⏮, the round ⏸ / ▶, ⏭)
+where the Reader has Listen, it has the scrub row in the player card with the speed, and its text
+follows the audio (the Reader's sits under a heading and never moves by itself).
 
 ### The Reader sheet
 
@@ -732,25 +731,34 @@ Reader shows the Now Playing bar of another article above its row.
 ┌──────────────────────────────────────┐
 │                 ───                  │ ← grabber
 │ ( ‹ Browser )             (Aa) (☝︎)  │ ← the pill names what is underneath
-│ Notes on Tides                       │ ← title, then "site   9 min"
+│ example.org  9 min                   │ ← source and length (title is in the player card)
 │ … text in the reading theme …        │
-│ ╭ Now Playing bar ──────────────╮    │ ← what you hear (always another page)
+│ ╭ [art] Notes on Tides          9 min ╮ │ ← player card: artwork, title, time
+│ ╰─────────────────────────────────────╯ │   (no scrub before Listen)
+│ [<>] ( article-address capsule     ) │ ← address field row
 │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own ▶, a pill over slots 2–4
 └──────────────────────────────────────┘
 ```
 
-The heading is the serif title, then the site and length under it; an article with no title of its own
-shows the site and length alone (nothing stands in for a title). When the article's own
-first heading repeats the title, that heading takes the title's look and the source line moves
-under it; under Now Playing's title card that heading is hidden, so either sheet shows the title
-once. The length becomes the time left once the article has been started, as in its row and on
-Listen (a finished article shows its length). The reading style always wins over an article's own styles (an extracted article's
-stylesheets are left out), and an extracted title drops a trailing site name ("Speech synthesis
-- Wikipedia" reads "Speech synthesis").
+The heading shows the site and length above the text; its title is always suppressed (the player
+card in the band already shows it), so the title appears once. An article with no title of its own
+shows only the site and length. When the article's own first heading repeats the title, that
+heading takes the title's look and the source line moves under it. The length becomes the time left once the article
+has been started, as in its row and on Listen (a finished article shows its length). The reading
+style always wins over an article's own styles (an extracted article's stylesheets are left out),
+and an extracted title drops a trailing site name ("Speech synthesis - Wikipedia" reads "Speech
+synthesis").
 
 - **A sheet over the surface that opened it** (`ReaderSheetScreen`, `ShellState.reader`). From
   the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
+- **The player card** sits above the address field row and shows the artwork tile, the article
+  title (one line, clipped) and the time detail (*9 min*, *6 min left*, *Finished*). While the
+  article has not yet started the scrub row inside it is empty; it fills with the scrubber and
+  speed once Listen starts and Now Playing takes over.
+- **The address field row** (swap button + the article's URL or source in a capsule) sits between
+  the player card and the toolbar. The swap button opens the Library when the browser is in front,
+  or returns to the browser when the Library is.
 - **Listen** reads *▶ **Listen** 9 min*, *▶ **Continue** 6 min left* for an article part-way through
   (at the playback speed, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
   at large text sizes), or *▶ Listen Again* for a finished one. It starts at the article's saved spot, makes the article what you
@@ -804,14 +812,14 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
 │                 ───                  │ ← grabber
 │ ( ⌄ example.com )         (Aa) (☝︎)  │ ← the Reader's top bar; the pill names where it
 │                                      │   plays from
-│ ╭ [art] Title                      ╮ │ ← the title card, scrolls with the text
-│ ╰       example.com   9 min left   ╯ │
-│ … text dimmed; the spoken paragraph  │
+│ … text dimmed; the spoken paragraph  │ ← no title card in the text (title is in the band)
 │   highlighted in full ink, the       │
 │   sentence underlined …              │
 │            ( Jump to Audio )         │ ← after you scroll away, bars up only (C128)
-│ Preparing next…                      │ ← status notes, above the scrubber
-│ ( ━━━━━●━━━━░░░░──           1× )    │ ← the scrub capsule, the speed at its end
+│ ╭ [art] Title              9 min ──╮ │ ← player card: artwork, title, time left
+│ ╰ ━━━━━●━━━━░░░░──          1×   ╯ │   scrub row + speed at its end
+│ [<>] ( article-address capsule     ) │ ← address field row
+│ Preparing next…                      │ ← status notes, above the transport
 │ [🔖]  [⏮]  (⏸)  [⏭]  [ ⋯ ]          │ ← 🔖 and ⋯ as in the Reader; the round ⏸ / ▶
 └──────────────────────────────────────┘
 ```
@@ -826,14 +834,16 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   appearance" below). Over a light app, a dark theme (Dark, Black) gives it light status bar
   content and a heavier dim on the strip above it; while a finger pulls it down the dim lifts, but
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
-  stays readable. A **title card** at the top of the text (it scrolls with the text) shows the
-  artwork, line one as the Now Playing bar has it (the title; for an article without one its site,
-  `ArticleRowTitle.lineOne`), and the site and time left as two parts, the site left out when line one
-  is already it (*◉ Finished* at the end). The
-  spoken paragraph is on the theme's highlight; every paragraph stays in full ink (C105). The *Jump to Audio* pill is ink with the article's
-  colour for its text; the scrub capsule, the bubble, the jump hint, the ⋯ panel and the speed
-  popover take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on
-  the same reading article, in both, so everything below applies to it too.
+  stays readable. The article's first heading is hidden (the player card in the band shows the
+  title, so the heading would duplicate it). The spoken paragraph is on the theme's highlight;
+  every paragraph stays in full ink (C105). The *Jump to Audio* pill is ink with the article's
+  colour for its text; the scrub row, the bubble, the jump hint, the ⋯ panel and the speed popover
+  take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on the
+  same reading article, in both, so everything below applies to it too.
+- **The player card** (`ReadingPlayerCard`, in the band above the address field row) shows the
+  artwork tile, the title (`ArticleRowTitle.lineOne`: the title; for an article without one its
+  site) and the time left (*9 min left*; *Finished* at the end). The scrub row runs inside it;
+  the speed control sits at its trailing end.
 - **The close pill names where it plays from** (*⌄ Pride and Prejudice*; VoiceOver: *Close Now
   Playing*, *Playing from …*): the folder the article is in, a book, a series or one you
   made; *Library* for a saved article in no folder; the site for an article you haven't saved. Tapping
@@ -862,26 +872,26 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
   above the controls (no arrow: the spoken sentence may be above or below).
   Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
   the thumb.
-- **At the end** it stays on the article: the text stays, all of it in full ink, the title card
+- **At the end** it stays on the article: the text stays, all of it in full ink, the player card
   says "◉ Finished" where the time left was (the Reader shows the article's length), and ▶
   plays the article again.
-- **Controls** (today's listen rows): the scrub capsule (the speed at its trailing end) and
-  `[🔖][⏮][▶︎][⏭][⋯]` in the browser's five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭
-  under 🕘, ⋯ under ⋯). ▶︎ / ⏸ is a
+- **Controls** (the band): the player card (scrub row + speed), the address field row (swap
+  button + URL capsule), optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the browser's
+  five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭ under 🕘, ⋯ under ⋯). ▶︎ / ⏸ is a
   64 pt round button (accent fill, dark glyph; fixed size, like the toolbar glyphs). The row stays
   44 pt, so every slot sits where it does on the other surfaces; the disc overhangs it. ⏮ ⏭ and
   headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", Apple-fallback / language notes, the
-  developer-only Debug chip) sit **above** the scrubber so appearing text never pushes it.
+  developer-only Debug chip) sit **above** the transport row so appearing text never pushes it.
 - **⋯**: the article's menu ("Menus", above) for the article you hear, with *Go to <name>* first (when
   it plays from a folder or the Library), then *Prepared Audio, Settings*; big buttons
   **Favorites / History / Website**.
 - A **prepare progress line** runs along the top edge of the bottom band while prepared audio run,
   as on the other surfaces, in the theme's accent.
-- **Scrubber** (sentence-precise): fill = progress (weighted by text length; with a local
-  voice the thumb moves smoothly inside a paragraph, estimated from the player's time); the
-  lighter fill ahead of it is audio already rendered (local voices; Apple speaks live so there is
-  none).
+- **Scrubber** (sentence-precise; the track runs inside the player card): fill = progress
+  (weighted by text length; with a local voice the thumb moves smoothly inside a paragraph,
+  estimated from the player's time); the lighter fill ahead of it is audio already rendered (local
+  voices; Apple speaks live so there is none).
   - **Grab the thumb** (±26 pt) and it moves relative to your finger — no jump; touch elsewhere on
     the track and it jumps there. The touch area is the whole capsule height plus its rounded
     leading end.

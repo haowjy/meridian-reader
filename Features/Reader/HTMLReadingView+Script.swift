@@ -326,7 +326,9 @@ extension HTMLReadingWebView {
             var norm = function(t) { return (t || '').replace(/\\s+/g, ' ').trim().toLowerCase(); };
             var title = document.querySelector('.reader-title');
             var top = document.querySelector('.reader-top');
-            if (title && norm(first.textContent) === norm(title.textContent)) {
+            if (title && title.dataset.hidden && norm(first.textContent) === norm(title.textContent)) {
+              first.style.display = 'none';
+            } else if (title && norm(first.textContent) === norm(title.textContent)) {
               title.style.display = 'none';
               first.classList.add('reader-title');
               first.parentNode.insertBefore(title.parentNode, first.nextSibling);
@@ -354,7 +356,9 @@ extension HTMLReadingWebView.Coordinator {
         } else {
             header = heading.map {
                 "<header class=\"reader-heading\">"
-                    + ($0.title.map { "<div class=\"reader-title\">\(escape($0))</div>" } ?? "")
+                    + ($0.title.map { [hidden = $0.titleHidden] t in
+                        hidden ? "<div class=\"reader-title\" data-hidden=\"1\" style=\"display:none\">\(escape(t))</div>"
+                            : "<div class=\"reader-title\">\(escape(t))</div>" } ?? "")
                     + "<div class=\"reader-detail\">"
                     + $0.detail.filter { !$0.isEmpty }.map { "<span>\(escape($0))</span>" }.joined()
                     + "</div></header>"

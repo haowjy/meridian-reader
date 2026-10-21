@@ -62,7 +62,13 @@ struct NowPlayingScreen: View {
     }
 
     private func player(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
-        NowPlayingSheet(
+        let palette = appearance.palette(accent: AppAppearance.shared.accent)
+        let artwork = now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
+        let fieldAddress = now.canonicalURL ?? now.source
+        let swap = shell.isBrowsing
+            ? BandSwap(systemImage: Icons.library, label: Verbs.library, hint: "", identifier: "fieldSwap") { shell.openLibrary() }
+            : BandSwap(systemImage: Icons.browser, label: Verbs.browser, hint: "", identifier: "fieldSwap") { shell.leaveLibrary() }
+        return NowPlayingSheet(
             playingFrom: playingFromName(now, saved: actions.isSaved),
             playState: speech.playState(of: .article(now.articleKey)),
             showsJumpToAudio: !following && !now.isFinished,
@@ -71,7 +77,7 @@ struct NowPlayingScreen: View {
             },
             onPlayPause: speech.pressNowPlaying,
             onJumpToAudio: { following = true },
-            palette: appearance.palette(accent: AppAppearance.shared.accent)
+            palette: palette
         ) {
             TextAppearanceControl()
         } accessory: {
@@ -81,17 +87,35 @@ struct NowPlayingScreen: View {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
             text(now, readerArticle: actions.readerArticle)
+        } player: {
+            PlayheadReader(speech: speech) { spot in
+                let left = ListeningTime.minutesLeft(in: speech.document, fromUTF16Offset: spot.utf16Offset,
+                                                     rate: speech.rateMultiplier)
+                let timeDetail = now.isFinished ? String(localized: "Finished")
+                    : (left > 0 ? ListeningTime.leftLabel(minutes: left) : nil)
+                ReadingPlayerCard(title: now.lineOne, timeDetail: timeDetail, artwork: artwork,
+                                  artworkLetter: now.artworkLetter) {
+                    playerScrub
+                }
+                .environment(\.readingPalette, palette)
+            }
+        } field: {
+            BandFieldRow(swap: swap) {
+                Text(fieldAddress)
+                    .typeStyle(.caption)
+                    .foregroundStyle(palette.secondaryInk)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .bottomChromeField()
+            }
         } controls: {
             NowPlayingControls(
-                speech: speech, scrubMap: scrubMap, detectedLanguage: speech.sessionDetectedLanguage,
+                speech: speech, detectedLanguage: speech.sessionDetectedLanguage,
                 save: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                                onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                     .disabled(actions.readerArticle == nil)),
-                more: AnyView(MoreMenuButton(id: "nowPlayingMore") { actions.readingPageMenu(.nowPlaying(goTo(now, actions))) }),
-                onScrubPreview: { p in
-                    scrubPreview = p
-                    if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
-                }
+                more: AnyView(MoreMenuButton(id: "nowPlayingMore") { actions.readingPageMenu(.nowPlaying(goTo(now, actions))) })
             )
         } floating: {
             // The line at the band's top edge, as in the Reader; the toast floats above it.
@@ -100,6 +124,63 @@ struct NowPlayingScreen: View {
                 ShellToastLayer()
             }
         }
+    }
+
+    /// The scrub row for the player card: a bare (no capsule) ReaderScrubRow with speed, or a
+    /// placeholder until the map is ready (so nothing shifts when the scrub map builds).
+    @ViewBuilder
+    private var playerScrub: some View {
+        if let scrubMap {
+            let doc = speech.document
+            let buffered = bufferedSpans(scrubMap)
+            PlayheadReader(speech: speech) { spot in
+                ReaderScrubRow(
+                    map: scrubMap,
+                    position: Self.scrubFraction(scrubMap, document: doc, spot: spot),
+                    buffered: buffered,
+                    onScrubPreview: { p in
+                        scrubPreview = p
+                        if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
+                    },
+                    onScrubCommit: seek(to:),
+                    isCapsule: false
+                ) {
+                    SpeedButton(speech: speech)
+                }
+            }
+        } else {
+            // Placeholder: keeps card height stable until scrub map builds.
+            HStack(spacing: 0) {
+                Color.clear.frame(height: BottomChrome.fieldControlSize)
+                    .frame(maxWidth: .infinity)
+                SpeedButton(speech: speech)
+            }
+        }
+    }
+
+    /// Scrubber fraction of `spot`. `ReaderScrubMap` keeps a spot inside its paragraph (< 1 of
+    /// it), so the end of a paragraph never reads as the start of the next one.
+    private static func scrubFraction(_ map: ReaderScrubMap, document doc: ParagraphDocument,
+                                      spot: PlayheadSpot) -> Double {
+        guard doc.paragraphs.indices.contains(spot.paragraph) else { return map.fraction(paragraph: spot.paragraph) }
+        return map.fraction(paragraph: spot.paragraph,
+                            offset: spot.utf16Offset - doc.startUTF16Offset(forParagraph: spot.paragraph))
+    }
+
+    /// Lighter "buffered" fill: stretches of rendered audio, as scrubber fractions.
+    private func bufferedSpans(_ map: ReaderScrubMap) -> [ClosedRange<Double>] {
+        guard let id = speech.activeSessionID,
+              let ready = speech.bakeReadyParagraphIndices(articleID: id, paragraphCount: speech.document.count,
+                                                           detectedLanguage: speech.sessionDetectedLanguage),
+              !ready.isEmpty else { return [] }
+        return map.spans(covering: ready)
+    }
+
+    /// Scrubber release: seeks the playhead to the sentence under the thumb.
+    private func seek(to target: ReaderScrubMap.Target) {
+        let doc = speech.document
+        guard !doc.isEmpty else { return }
+        speech.seek(toUTF16Offset: doc.startUTF16Offset(forParagraph: target.paragraph) + target.offset)
     }
 
     // MARK: - Text
@@ -246,8 +327,8 @@ private struct SpokenText: View {
         let paragraph = speech.currentParagraphIndex
         HTMLReadingView(
             html: html,
-            heading: ReaderHeading(title: card.title, detail: []),
-            topView: titleCard,
+            heading: ReaderHeading(title: card.title, detail: [], titleHidden: true),
+            topView: nil,
             activeParagraphIndex: speech.spokenParagraph(scrubPreview: scrubPreview),
             sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),
             spokenWord: finished || scrubPreview != nil ? nil : spokenWord(paragraph),

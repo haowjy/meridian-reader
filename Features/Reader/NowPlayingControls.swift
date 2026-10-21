@@ -1,66 +1,27 @@
 import SwiftUI
 
-/// Now Playing's bottom band (in the reading theme's colours), top to bottom: the status notes (buffering, the Apple-fallback and
-/// language notes, the developer Debug chip; "● Finished" is the title card's), the scrub row (sentence-precise
-/// scrubber, the speed at its end) and the transport row (🔖 and ⋯ in the Reader's slots). Notes sit above the scrubber so appearing text
-/// never pushes it when you skip.
-///
-/// Only the leaves that need the live offset read it (`PlayheadReader`), so playback ticks don't
-/// redraw the band.
+/// Now Playing's bottom band (in the reading theme's colours): the status notes (buffering, the
+/// Apple-fallback and language notes, the developer Debug chip) and the transport row (🔖 and ⋯ in
+/// the Reader's slots). The scrub row is now in the player card above the band.
 struct NowPlayingControls: View {
     @Bindable var speech: SpeechController
     @Environment(ShellState.self) private var shell
     @Environment(DeveloperSettings.self) private var developer
-    let scrubMap: ReaderScrubMap?
     let detectedLanguage: String?
     /// 🔖, transport slot 1.
     let save: AnyView
     /// ⋯, transport slot 5.
     let more: AnyView
-    /// Paragraph under the scrub thumb while dragging (nil when the drag ends).
-    let onScrubPreview: (Int?) -> Void
 
     @Environment(\.readingPalette) private var reading
 
     private var palette: ReadingPalette { reading ?? .app }
-
-    /// The same fact the title card reads for its "● Finished".
     private var isFinished: Bool { speech.nowPlaying?.isFinished == true }
 
     var body: some View {
         VStack(spacing: BottomChrome.rowSpacing) {
             notes
-            // The drag bubble spans the band's width.
-            scrubRow
-                .readerScrubBubble()
             ListenControllerView(leading: save, trailing: more, speech: speech)
-        }
-    }
-
-    @ViewBuilder
-    private var scrubRow: some View {
-        if let scrubMap {
-            let doc = speech.document
-            let buffered = bufferedSpans(scrubMap)
-            PlayheadReader(speech: speech) { spot in
-                ReaderScrubRow(
-                    map: scrubMap,
-                    position: Self.scrubFraction(scrubMap, document: doc, spot: spot),
-                    buffered: buffered,
-                    onScrubPreview: onScrubPreview,
-                    onScrubCommit: seek(to:)
-                ) {
-                    SpeedButton(speech: speech)
-                }
-            }
-        } else {
-            // Holds the capsule's place (and the speed) until the scrub map is built, so nothing
-            // shifts.
-            HStack(spacing: 0) {
-                Spacer(minLength: 0)
-                SpeedButton(speech: speech)
-            }
-            .bottomChromeField()
         }
     }
 
@@ -127,32 +88,6 @@ struct NowPlayingControls: View {
             .accessibilityIdentifier(id)
     }
 
-    /// Scrubber fraction of `spot`. `ReaderScrubMap` keeps a spot inside its paragraph (< 1 of
-    /// it), so the end of a paragraph never reads as the start of the next one.
-    private static func scrubFraction(_ map: ReaderScrubMap, document doc: ParagraphDocument,
-                                      spot: PlayheadSpot) -> Double {
-        guard doc.paragraphs.indices.contains(spot.paragraph) else { return map.fraction(paragraph: spot.paragraph) }
-        return map.fraction(paragraph: spot.paragraph, offset: spot.utf16Offset - doc.startUTF16Offset(forParagraph: spot.paragraph))
-    }
-
-    /// Lighter "buffered" fill (like a video player): stretches of rendered audio, as scrubber
-    /// fractions. Local engine only (Apple speaks live, so there's nothing to show).
-    private func bufferedSpans(_ map: ReaderScrubMap) -> [ClosedRange<Double>] {
-        guard let id = speech.activeSessionID,
-              let ready = speech.bakeReadyParagraphIndices(articleID: id, paragraphCount: speech.document.count,
-                                                           detectedLanguage: detectedLanguage),
-              !ready.isEmpty else { return [] }
-        return map.spans(covering: ready)
-    }
-
-    /// Scrubber release: the playhead to the sentence under the thumb. Playing keeps playing from
-    /// that sentence; paused stays paused there (a real seek, not stop-and-reload); finished just
-    /// moves where ▶ starts.
-    private func seek(to target: ReaderScrubMap.Target) {
-        let doc = speech.document
-        guard !doc.isEmpty else { return }
-        speech.seek(toUTF16Offset: doc.startUTF16Offset(forParagraph: target.paragraph) + target.offset)
-    }
 }
 
 /// A playhead position: paragraph + document UTF-16 offset inside it.

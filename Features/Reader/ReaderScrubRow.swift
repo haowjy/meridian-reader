@@ -100,6 +100,8 @@ struct ReaderScrubRow<Trailing: View>: View {
     var onScrubCommit: (ReaderScrubMap.Target) -> Void
     /// At the capsule's trailing end, like the mic in the browser's address field.
     @ViewBuilder var trailing: Trailing
+    /// When false the row renders without the field capsule wrapper, for use inside a player card.
+    var isCapsule: Bool = true
 
     @State private var dragFraction: Double?
     @State private var anchor: (fraction: Double, x: CGFloat) = (0, 0)
@@ -127,17 +129,29 @@ struct ReaderScrubRow<Trailing: View>: View {
     private static var space: String { "readerScrubTrack" }
 
     var body: some View {
-        // Styled exactly like the browser's address field: the same field capsule
-        // (`bottomChromeField`), its trailing control in a field control's frame like the mic.
+        if isCapsule {
+            // Styled like the browser's address field: same field capsule, trailing control in a
+            // field control's frame like the mic.
+            rowContent
+                .bottomChromeField(leading: Self.fieldLeading, trailing: Spacing.xxs)
+                #if DEBUG
+                .onAppear(perform: showDemoBubbleIfRequested)
+                #endif
+        } else {
+            // Bare row for use inside a floating card (no capsule wrapper).
+            rowContent
+                #if DEBUG
+                .onAppear(perform: showDemoBubbleIfRequested)
+                #endif
+        }
+    }
+
+    private var rowContent: some View {
         HStack(spacing: Spacing.xxs) {
             scrubber
                 .padding(.trailing, Spacing.xxs)
             trailing
         }
-        .bottomChromeField(leading: Self.fieldLeading, trailing: Spacing.xxs)
-        #if DEBUG
-        .onAppear(perform: showDemoBubbleIfRequested)
-        #endif
     }
 
     #if DEBUG
@@ -160,12 +174,12 @@ struct ReaderScrubRow<Trailing: View>: View {
             let w = max(1, g.size.width)
             ScrubTrack(value: dragFraction ?? position, buffered: buffered, isDragging: dragging)
             .frame(width: w, height: g.size.height)
-            // Bigger touch target: the whole capsule height and its rounded leading end.
+            // Bigger touch target: the whole capsule height and (for capsule mode) its rounded end.
             .overlay {
                 Color.clear
                     .contentShape(Rectangle())
                     .padding(.vertical, -Self.dragOvershoot)
-                    .padding(.leading, -Self.fieldLeading)
+                    .padding(.leading, isCapsule ? -Self.fieldLeading : 0)
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
                             .onChanged { v in scrub(v, width: w) }

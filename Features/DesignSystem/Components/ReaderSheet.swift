@@ -4,13 +4,14 @@ import SwiftUI
 ///
 /// ```
 /// ┌──────────────────────────────────────┐
-/// │                 ───                  │ ← grabber
-/// │ ( ‹ Browser )             (Aa) (☝︎)  │ ← `SheetTopBar`: the close pill names what is
-/// │ `banner` (the ☝︎ hint, while on)     │   underneath; `textAppearance` (Aa), `accessory` (☝︎)
-/// │ … `text`: ReadingHeading, then the   │ ← fills the sheet, running under the header and
-/// │   text in the reading theme …        │   the band
-/// │ ╭ `bar` (the Now Playing bar) ─────╮ │ ← what you hear (always another page)
-/// │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own play button over slots 2–4
+/// │                 ───                  │ <- grabber
+/// │ ( < Browser )             (Aa) (^)  │ <- `SheetTopBar`: the close pill names what is
+/// │ `banner` (the ^ hint, while on)      │   underneath; `textAppearance` (Aa), `accessory` (^)
+/// │ ... `text`: ReadingHeading, then the │ <- fills the sheet, running under the header and
+/// │   text in the reading theme ...      │   the band
+/// │ +-- `player` (title + time card) ---+│ <- article info; scrub row when playing
+/// │ [<>] ( article address capsule     ) │ <- `field`: swap button + address capsule
+/// │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]   │ <- this page's own play button over slots 2–4
 /// └──────────────────────────────────────┘
 /// ```
 ///
@@ -21,8 +22,8 @@ import SwiftUI
 /// pull down all close it (`onClose`, after it has gone). 🔖 saves (tap) or files (long-press,
 /// `onSaveToFolder`). `more` is the ⋯ button. `floating` floats just above the bottom band (a
 /// toast).
-struct ReaderSheet<Reading: View, Bar: View, More: View, TextAppearance: View, Accessory: View, Banner: View,
-                   Floating: View>: View {
+struct ReaderSheet<Player: View, Field: View, Reading: View, More: View, TextAppearance: View, Accessory: View,
+                   Banner: View, Floating: View>: View {
     /// What is underneath: "Browser", "Library".
     let backTitle: String
     let listenTitle: String
@@ -44,7 +45,10 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, TextAppearance: View, A
     /// with it, so it never covers the first line.
     @ViewBuilder var banner: Banner
     @ViewBuilder var text: Reading
-    @ViewBuilder var bar: Bar
+    /// Article info card (title, time, optional scrub) above the field row.
+    @ViewBuilder var player: Player
+    /// The field row (swap button + address capsule).
+    @ViewBuilder var field: Field
     @ViewBuilder var more: More
     @ViewBuilder var floating: Floating
 
@@ -62,8 +66,11 @@ struct ReaderSheet<Reading: View, Bar: View, More: View, TextAppearance: View, A
         } content: {
             text
         } band: {
-            VStack(spacing: Spacing.xs) {
-                bar
+            VStack(spacing: BottomChrome.rowSpacing) {
+                VStack(spacing: 0) {
+                    player
+                    field
+                }
                 BottomToolbarSpanLayout {
                     saveButton
                     PlayStateButton(state: listenState,
@@ -91,13 +98,13 @@ extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView,
     Floating == EmptyView {
     init(backTitle: String, listenTitle: String, listenDetail: String? = nil, listenState: PlayState, isSaved: Bool,
          onClose: @escaping () -> Void, onListen: @escaping () -> Void, onToggleSave: @escaping () -> Void,
-         onSaveToFolder: (() -> Void)? = nil, @ViewBuilder text: () -> Reading, @ViewBuilder bar: () -> Bar,
-         @ViewBuilder more: () -> More) {
+         onSaveToFolder: (() -> Void)? = nil, @ViewBuilder text: () -> Reading, @ViewBuilder player: () -> Player,
+         @ViewBuilder field: () -> Field, @ViewBuilder more: () -> More) {
         self.init(backTitle: backTitle, listenTitle: listenTitle, listenDetail: listenDetail, listenState: listenState,
                   isSaved: isSaved,
                   onClose: onClose, onListen: onListen, onToggleSave: onToggleSave, onSaveToFolder: onSaveToFolder,
                   textAppearance: { EmptyView() }, accessory: { EmptyView() }, banner: { EmptyView() }, text: text,
-                  bar: bar, more: more, floating: { EmptyView() })
+                  player: player, field: field, more: more, floating: { EmptyView() })
     }
 }
 
@@ -129,22 +136,27 @@ struct ReadingHeading: View {
 struct ReaderSheetGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("another page playing") { frame(.idle, "Listen", "9 min", bar: true) }
-            PreviewState("nothing playing, part-way, saved") {
-                frame(.idle, Verbs.continue, "6 min left", bar: false, saved: true)
-            }
+            PreviewState("not started") { frame(.idle, "Listen", "9 min") }
+            PreviewState("part-way, saved") { frame(.idle, Verbs.continue, "6 min left", saved: true) }
         }
     }
 
-    private func frame(_ state: PlayState, _ title: String, _ detail: String, bar: Bool, saved: Bool = false)
-        -> some View {
+    private func frame(_ state: PlayState, _ title: String, _ detail: String, saved: Bool = false) -> some View {
         ReaderSheet(backTitle: "Browser", listenTitle: title, listenDetail: detail, listenState: state, isSaved: saved,
                     onClose: {}, onListen: {}, onToggleSave: {}) {
             SampleReading(title: "Notes on Tides", detail: ["example.org", "9 min"])
-        } bar: {
-            if bar {
-                NowPlayingBar(title: "Chapter 12: Hunsford", detail: ["Pride and Prejudice", "9 min left"],
-                              progress: 0.3, state: .playing, onOpen: {}, onPlayPause: {}, menu: nil)
+        } player: {
+            ReadingPlayerCard(title: "Notes on Tides", timeDetail: detail, artworkLetter: "example.org") { EmptyView() }
+        } field: {
+            BandFieldRow(swap: BandSwap(systemImage: Icons.library, label: Verbs.library, hint: "",
+                                        identifier: "fieldSwap", action: {})) {
+                Text("example.org/notes-on-tides")
+                    .typeStyle(.caption)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .bottomChromeField()
             }
         } more: {
             Image(systemName: Icons.more).toolbarIconFrame()

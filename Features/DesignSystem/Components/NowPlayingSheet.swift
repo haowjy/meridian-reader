@@ -2,19 +2,20 @@ import SwiftUI
 
 /// What you hear, opened up: a `Sheet` over everything that shrinks back into the Now Playing
 /// bar, in the Reader's colours and type (the reading theme, `palette`): the spoken paragraph
-/// highlighted in full ink, the others dimmed, under a title card.
+/// highlighted in full ink, the others dimmed.
 ///
 /// ```
 /// ┌──────────────────────────────────────┐
-/// │                 ───                  │ ← grabber
-/// │ ( ⌄ Pride and Prejudice ) (Aa) (☝︎)  │ ← `SheetTopBar`, as in the Reader: the pill names
-/// │ `banner` (the ☝︎ hint, while on)     │   where it plays from and shrinks it; Aa, `accessory`
-/// │ `text`: [▣ title, site  N min left]  │ ← fills the sheet, under the header and the band;
-/// │  dimmed, SPOKEN in full ink, dimmed  │   follows the audio; the title card scrolls with it
-/// │            ( Jump to Audio )         │ ← after you scroll away, bars up only (C128)
-/// │ `controls`: status notes,            │
-/// │ ( scrubber ─────────────●───   1× )  │ ← the scrub capsule, speed at its end
-/// │ [🔖] [⏮] (⏸) [⏭] [⋯]                 │ ← 🔖 and ⋯ where the Reader has them
+/// │                 ───                  │ <- grabber
+/// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- `SheetTopBar`, as in the Reader: the pill names
+/// │ `banner` (the ^ hint, while on)      │   where it plays from and shrinks it; Aa, `accessory`
+/// │ `text`: dimmed, SPOKEN in full ink   │ <- fills the sheet, under the header and the band;
+/// │         dimmed                       │   follows the audio
+/// │            ( Jump to Audio )         │ <- after you scroll away, bars up only (C128)
+/// │ +-- `player` (title + scrub card) --+│ <- title, time left, scrub row and speed
+/// │ [<>] ( article address capsule     ) │ <- `field`: swap button + address capsule
+/// │ `controls`: status notes             │
+/// │ [🔖] [⏮] (⏸) [⏭] [⋯]                │ <- 🔖 and ⋯ where the Reader has them
 /// └──────────────────────────────────────┘
 /// ```
 ///
@@ -22,8 +23,8 @@ import SwiftUI
 /// `playState` / `onPlayPause`, the only control over the text then; Jump to Audio shows only with the bars up (C128). The pill, the
 /// grabber and a pull down shrink it (`onCollapse`, after it has gone). `floating` floats just
 /// above the bottom band (a toast), as in the Reader.
-struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Banner: View, Controls: View,
-                       Floating: View>: View {
+struct NowPlayingSheet<Player: View, Field: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
+                       Controls: View, Floating: View>: View {
     /// The book, series or folder the page lives in, else the Library or its site.
     let playingFrom: String
     /// What you hear, for the play / pause floating in full screen.
@@ -42,7 +43,11 @@ struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Ban
     /// Under the top bar, in the header (the ☝︎ hint), as in the Reader.
     @ViewBuilder var banner: Banner
     @ViewBuilder var text: Reading
-    /// Status notes, the scrub row and the transport row, stacked in the bottom band.
+    /// Article info card (title, time, scrub row) above the field row.
+    @ViewBuilder var player: Player
+    /// The field row (swap button + address capsule).
+    @ViewBuilder var field: Field
+    /// Status notes and the transport row in the bottom band.
     @ViewBuilder var controls: Controls
     /// Floats just above the bottom band, as in the Reader (a toast).
     @ViewBuilder var floating: Floating
@@ -63,9 +68,14 @@ struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Ban
         } content: {
             text
         } band: {
-            VStack(spacing: BottomChrome.rowSpacing) { controls }
-                .bottomChromeBand()
-                .overlay(alignment: .top) { floating }
+            VStack(spacing: BottomChrome.rowSpacing) {
+                player
+                field
+                controls
+            }
+            .readerScrubBubble()
+            .bottomChromeBand()
+            .overlay(alignment: .top) { floating }
         } overText: {
             ZStack(alignment: .bottom) {
                 jumpToAudio
@@ -159,8 +169,10 @@ struct NowPlayingSheetGallery: View {
     }
 
     private func frame(_ state: PlayState, note: String?, back: Bool, saved: Bool = false) -> some View {
-        NowPlayingSheet(playingFrom: "Pride and Prejudice", playState: state, showsJumpToAudio: back, onCollapse: {},
-                        onPlayPause: {}, palette: ReadingTheme.sepia.palette(accent: .jade)) {
+        let palette = ReadingTheme.sepia.palette(accent: .jade)
+        let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
+        return NowPlayingSheet(playingFrom: "Pride and Prejudice", playState: state, showsJumpToAudio: back,
+                               onCollapse: {}, onPlayPause: {}, palette: palette) {
             TextAppearanceButton(isOpen: false) {}
         } accessory: {
             JumpModeButton(isOn: false) {}
@@ -168,15 +180,32 @@ struct NowPlayingSheetGallery: View {
             EmptyView()
         } text: {
             SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true, card: true)
+        } player: {
+            ReadingPlayerCard(title: "Chapter 12: Hunsford", timeDetail: "9 min left", artworkLetter: "P") {
+                ReaderScrubRow(map: map, position: 0.42, buffered: [0.42...0.6],
+                               onScrubPreview: { _ in }, onScrubCommit: { _ in }, isCapsule: false) {
+                    Text("1x").typeStyle(.caption).foregroundStyle(palette.ink).fieldTextFrame()
+                }
+            }
+        } field: {
+            BandFieldRow(swap: BandSwap(systemImage: Icons.library, label: Verbs.library, hint: "",
+                                        identifier: "fieldSwap", action: {})) {
+                Text("gutenberg.org/pride-and-prejudice/chapter-12")
+                    .typeStyle(.caption)
+                    .foregroundStyle(palette.secondaryInk)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .bottomChromeField()
+            }
         } controls: {
             if let note {
                 Text(note)
                     .typeStyle(.caption)
-                    .foregroundStyle(ReadingTheme.sepia.palette(accent: .jade).secondaryInk)
+                    .foregroundStyle(palette.secondaryInk)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Spacing.xs)
             }
-            ScrubBar(value: 0.42, buffered: [0.42...0.6], elapsed: "6:10", remaining: "9 min left") { _ in }
             NowPlayingTransport(state: state, onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
                 SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {})
             } more: {

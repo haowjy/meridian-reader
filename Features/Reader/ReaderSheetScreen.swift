@@ -50,6 +50,17 @@ struct ReaderSheetScreen: View {
     private func sheet(_ actions: ArticleActions) -> some View {
         let start = listenStart(actions.article)
         let listen = listenLabel(start, finished: actions.article?.finishedAt != nil)
+        let palette = appearance.palette(accent: AppAppearance.shared.accent)
+        let isFinished = actions.article?.finishedAt != nil
+        let timeDetail = isFinished ? String(localized: "Finished") : listen.detail
+        let playerTitle = ArticleRowTitle.lineOne(title: readerArticle.title, source: readerArticle.sourceLabel,
+                                                  address: readerArticle.origin.canonicalURL)
+        let playerLetter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,
+                                                         address: readerArticle.origin.canonicalURL)
+        let fieldAddress = readerArticle.origin.canonicalURL ?? readerArticle.sourceLabel
+        let swap = shell.isBrowsing
+            ? BandSwap(systemImage: Icons.library, label: Verbs.library, hint: "", identifier: "fieldSwap") { shell.openLibrary() }
+            : BandSwap(systemImage: Icons.browser, label: Verbs.browser, hint: "", identifier: "fieldSwap") { shell.leaveLibrary() }
         return ReaderSheet(
             backTitle: state.origin.backTitle,
             listenTitle: listen.title,
@@ -60,7 +71,7 @@ struct ReaderSheetScreen: View {
             onListen: { self.listen(from: nil, start: start) },
             onToggleSave: actions.toggleSaved,
             onSaveToFolder: actions.saveToFolder,
-            palette: appearance.palette(accent: AppAppearance.shared.accent)
+            palette: palette
         ) {
             TextAppearanceControl()
         } accessory: {
@@ -70,8 +81,23 @@ struct ReaderSheetScreen: View {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
             text(start, status: listen.detail, chapter: actions.article?.isChapter == true)
-        } bar: {
-            NowPlayingBarView(speech: speech)
+        } player: {
+            // Show the bar when a different article is playing while the user reads this one.
+            if let nowPlaying = speech.nowPlaying, nowPlaying.articleKey != readerArticle.id {
+                NowPlayingBarView(speech: speech)
+            }
+            ReadingPlayerCard(title: playerTitle, timeDetail: timeDetail, artworkLetter: playerLetter) { EmptyView() }
+                .environment(\.readingPalette, palette)
+        } field: {
+            BandFieldRow(swap: swap) {
+                Text(fieldAddress)
+                    .typeStyle(.caption)
+                    .foregroundStyle(palette.secondaryInk)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .bottomChromeField()
+            }
         } more: {
             MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
         } floating: {
@@ -95,7 +121,7 @@ struct ReaderSheetScreen: View {
 
     @ViewBuilder
     private func text(_ start: ListenSpot, status: String?, chapter: Bool) -> some View {
-        HTMLReadingView(html: readerArticle.readingHTML, heading: ReaderHeading(title: readerArticle.title, detail: detail(status)),
+        HTMLReadingView(html: readerArticle.readingHTML, heading: ReaderHeading(title: readerArticle.title, detail: detail(status), titleHidden: true),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
                         opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:),
                         pageTimeLeft: { [document = readerArticle.document, rate = speech.rateMultiplier] in
