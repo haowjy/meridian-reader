@@ -13,7 +13,7 @@ import SwiftUI
 /// └───────────────────────────────── home indicator ┘    ⋯ always slot 5
 /// ```
 ///
-/// The reader keeps its own band (field rows over a `BottomToolbarSpanLayout` row) and Now
+/// The reader keeps its own band (a `BottomToolbarSpanLayout` row over the player card, C143) and Now
 /// Playing a five-slot transport, on the same grid.
 enum BottomChrome {
     /// Horizontal margin of the band's content.
