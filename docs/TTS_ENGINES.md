@@ -40,7 +40,13 @@ mid-utterance, is in `LISTEN_PLAYBACK.md` → "Engine binding".
 ## Apple
 
 - `AppleListenEngine`: `AVSpeechSynthesizer` with one utterance for the rest of the article.
-- Voices: the installed system voices of good quality (`VoiceCatalog`), "System default" first.
+- Voices: all installed non-novelty system voices (`VoiceCatalog`), Premium and Enhanced first then
+  Standard, plus a "Best for language" system-default entry. The voice picker lists all qualities
+  and labels them Premium / Enhanced / Standard.
+- Default voice for English (C139): Nora / "Voice 4" (identifier contains `siri.natural.Nora` or
+  name is "Voice 4") if installed, then any Premium/Enhanced voice by quality + gender + region
+  score, then Samantha, Daniel, Karen, Moira, Tessa in that order among Standard voices, then any
+  remaining installed voice. Non-English languages use quality + gender + region scoring only.
 - Offline, nothing to prepare. Speaks whenever no on-device engine is ready, when the article's
   language isn't one the engine supports, and for any chunk the engine can't render.
 
