@@ -64,6 +64,20 @@ final class PrepareOverviewTests: XCTestCase {
         XCTAssertTrue(o.done.isEmpty)
     }
 
+    /// C138: each article renders in its own voice, so its audio counts as prepared in that voice
+    /// whatever the voice in Settings; audio not in its own voice never does.
+    func testEachArticleIsPreparedInItsOwnVoice() {
+        let two = record([.done, .done])
+        let (a, b) = (two.entries[0].key, two.entries[1].key)
+        let own = [a: heart, b: bella]
+        XCTAssertTrue(PrepareOverview.isPrepared([a, b], records: [two], currentVoiceOf: { own[$0] }) { own[$0] })
+        XCTAssertFalse(PrepareOverview.isPrepared([b], records: [two], currentVoiceOf: { own[$0] }) { _ in self.heart },
+                       "audio in another voice than the article's")
+        let o = PrepareArticles(records: [two], active: nil, currentVoiceOf: { own[$0] }, rendersPreparedAudio: true) { own[$0] }
+        XCTAssertEqual(o.done.map(\.voice), [heart, bella], "each row named by its own voice")
+        XCTAssertTrue(o.differentVoice.isEmpty)
+    }
+
     /// Prepared audio.json written before C121 names an article's prepare `page`: it still decodes,
     /// and is written back under the same name.
     func testAnArticleTargetKeepsItsStoredName() throws {

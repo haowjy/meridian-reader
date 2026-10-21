@@ -66,6 +66,7 @@ struct ArticleMenu: View {
         facts.inFolder = article?.folder != nil
         facts.canPlay = actions.isSaved || article?.isWaitingChapter == true
         facts.canFavorite = actions.canFavorite
+        facts.hasVoices = actions.speech.localTTS.wantsLocalBake
         facts.hasShareURL = actions.shareURL != nil
         facts.inRecent = !facts.inLibrary && article.map(LibraryQueries.isInRecent) == true
         if case .nowPlaying(let goTo) = place { facts.goToEnabled = goTo.availability == .enabled }
@@ -93,6 +94,12 @@ struct ArticleMenu: View {
             return MenuRow(id: "menuPrepare", title: has ? Verbs.removePrepare : Verbs.prepare,
                            icon: has ? Icons.removePrepare : Icons.prepare, isDestructive: has,
                            action: actions.togglePrepare)
+        case .voice:
+            let tts = actions.speech.localTTS
+            let name = article.flatMap { tts.effectiveVoice(of: $0.listenKey) }.map(tts.engines.voiceName(forCacheVoice:))
+            return MenuRow(id: "menuVoice", title: name.map(Verbs.voiceRow) ?? Verbs.voice, icon: Icons.voice) {
+                if let article { actions.shell.present(.voice(.article(article.listenKey))) }
+            }
         case .favorite:
             let isFavorite = actions.isFavorite
             return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,

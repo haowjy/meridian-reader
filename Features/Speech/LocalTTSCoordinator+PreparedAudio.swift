@@ -26,13 +26,21 @@ extension LocalTTSCoordinator: PrepareRendering {
     /// It reads `bakeMarksRevision`, so a view showing it redraws as audio is rendered.
     func missingPrepareParagraphs(cacheKey: UUID, paragraphs: [String]) -> Int {
         _ = bakeMarksRevision
-        guard let voice = prepareVoice else { return paragraphs.count }
+        guard wantsLocalBake || prepareVoice != nil, let voice = storedVoice(of: cacheKey) ?? prepareVoice else {
+            return paragraphs.count
+        }
         return audioCache.missingParagraphs(articleID: cacheKey, paragraphs: paragraphs, engineID: cacheEngineID,
                                             voiceID: voice, plans: chunkPlans).count
     }
 
     func renderedVoice(of key: UUID) -> String? {
         audioCache.renderedVoice(articleID: key)
+    }
+
+    /// C138: the voice `key`'s prepared audio renders in: the article's own (or its book's), else
+    /// the prepare voice its first audio will take.
+    func prepareVoice(of key: UUID) -> String? {
+        storedVoice(of: key) ?? prepareVoice
     }
 
     /// The engine is loaded and the launch's hold over (so no job waits for either), and

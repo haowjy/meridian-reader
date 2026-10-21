@@ -73,6 +73,10 @@ final class Article {
     /// Front matter, licence pages, or the user's "Skip in Playback": never reached by carrying
     /// on from the chapter before.
     var skipsInPlayback: Bool = false
+    /// C138: the voice all its audio is in, as a cache voice key ("kokoro.af_heart"); set when its
+    /// first audio renders (or from its audio at migration), nil before. A book or series chapter
+    /// speaks in its folder's voice instead (`Folder.voiceID`). Read through `LibraryStore.voice(of:)`.
+    var voiceID: String?
     /// Not written or read (kept as stored by older builds; persisted fields don't change).
     var fetchStateRaw: String = "none"
     var folder: Folder?

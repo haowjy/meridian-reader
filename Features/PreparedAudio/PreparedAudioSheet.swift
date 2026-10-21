@@ -107,7 +107,8 @@ struct PreparedAudioList: View {
                 }
             }
             if !listening.isEmpty {
-                let items = listening.map { PrepareArticles.Item(recordID: $0, key: $0, status: .done, voice: nil) }
+                let items = listening.map { PrepareArticles.Item(recordID: $0, key: $0, status: .done,
+                                                                 voice: speech.localTTS.audioCache.renderedVoice(articleID: $0)) }
                 Section {
                     ForEach(items) { item in listeningRow(item) }
                         .listRowInsets(EdgeInsets())
@@ -128,7 +129,7 @@ struct PreparedAudioList: View {
                         header: SectionHeader(title: String(localized: "Different Voice"), count: overview.differentVoice.count),
                         headerID: "downloadsDifferentVoiceHeader") {
                     if let voice = speech.localTTS.prepareVoice {
-                        Text(String(localized: "Prepared audio now renders in \(voiceLabel(voice)). An article’s menu here has Prepare Again, to hear it in that voice, and Keep, to keep it as it is."))
+                        Text(String(localized: "Its audio isn’t in its article’s voice, so it doesn’t play. Prepare Again makes it in that voice (\(voiceLabel(voice)) for new articles)."))
                             .listFooter()
                     }
                 }
@@ -191,7 +192,7 @@ struct PreparedAudioList: View {
                                 needsAudio: speech.localTTS.listeningNeedsKey)
         // No accent ↓: that mark is for prepared audio only (C135).
         return ListRow(kind: kind, title: title, subtitle: place,
-                       details: [listeningSizes[item.key].map(FileSizes.label)].compactMap { $0 },
+                       details: [item.voice.map(voiceLabel), listeningSizes[item.key].map(FileSizes.label)].compactMap { $0 },
                        menu: AnyView(menu), showsListening: false)
             .opensOnTap { open(article) }
             .contextMenu { AnyView(menu) }
@@ -245,9 +246,9 @@ struct PreparedAudioList: View {
         }
     }
 
-    /// "Kokoro Heart" for a cache voice key.
+    /// "Heart" for a cache voice key (C138: as an article's *Voice* row names it).
     private func voiceLabel(_ voice: String) -> String {
-        speech.localTTS.engines.voiceLabel(forCacheVoice: voice)
+        speech.localTTS.engines.voiceName(forCacheVoice: voice)
     }
 
     private var waitingNote: some View {
@@ -295,10 +296,10 @@ struct PreparedAudioList: View {
     private func detail(_ item: PrepareArticles.Item) -> [String] {
         let voice = item.voice.map(voiceLabel)
         switch item.status {
-        case .preparing(let f): return ["\(Int((f * 100).rounded()))%"]
+        case .preparing(let f): return ["\(Int((f * 100).rounded()))%", voice].compactMap { $0 }
         case .fetching: return [String(localized: "Getting the article")]
         case .queued: return [voice].compactMap { $0 }
-        case .paused: return [String(localized: "Paused")]
+        case .paused: return [String(localized: "Paused"), voice].compactMap { $0 }
         case .waitingForVoice: return [String(localized: "Needs a voice")]
         case .done, .differentVoice:
             if item.failed { return [String(localized: "Couldn’t prepare")] }

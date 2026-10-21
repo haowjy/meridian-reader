@@ -51,6 +51,10 @@ enum AppComposition {
         let library = LibraryStore(context: context, audio: speech.localTTS)
         library.stopPlaybackIfPlaying = { speech.stopIfPlaying($0) }
         library.keyMerged = { from, to, text in speech.rekeyActiveSession(from: from, to: to, text: text) }
+        // C138: one voice per article and per book, kept in the library.
+        let tts = speech.localTTS
+        tts.articleVoice = { [weak library] in library?.voice(ofKey: $0) }
+        tts.lockArticleVoice = { [weak library] key, voice in library?.lockVoice(ofKey: key, to: voice) ?? voice }
         return library
     }
 
@@ -111,7 +115,10 @@ enum AppComposition {
         tts.onRenderStateChange = { [weak preparedAudio] in preparedAudio?.scheduleCheck() }
         tts.preparedKey = { [weak preparedAudio] key in preparedAudio?.hasRecord(for: key) ?? false }
         tts.listeningNeedsKey = { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 }
-        library.editStored = { [weak preparedAudio] in preparedAudio?.followLibrary() }
+        library.editStored = { [weak preparedAudio] in
+            tts.forgetArticleVoices() // an article moved into a book speaks in the book's voice
+            preparedAudio?.followLibrary()
+        }
         return preparedAudio
     }
 
@@ -132,11 +139,23 @@ enum AppComposition {
         tts.holdRenderingForLaunch()
         library.finishAudioWork()
         for migration in tts.engines.launchMigrations { migration.runIfNeeded(tts) }
+        adoptArticleVoices(library: library, tts: tts)
         tts.audioCache.removeAllChunkScratch()
         let pruned = tts.audioCache.pruneEphemeral()
         if pruned.removed > 0 {
             ListenTimingLog.log("audio_cache_prune", ["removed": pruned.removed, "bytes": pruned.freedBytes])
         }
+    }
+
+    /// C138 migration, once: articles and books with audio take the voice most of it is in.
+    static func adoptArticleVoices(library: LibraryStore, tts: LocalTTSCoordinator) {
+        let doneKey = "reader.migration.articleVoices.c138"
+        guard !tts.defaults.bool(forKey: doneKey) else { return }
+        let adopted = library.adoptVoicesFromAudio { tts.audioCache.renderedVoice(articleID: $0) }
+        tts.defaults.set(true, forKey: doneKey)
+        tts.forgetArticleVoices()
+        ListenDebugLog.shared.append("C138 voices adopted: \(adopted.articles) articles, \(adopted.folders) books")
+        ListenTimingLog.log("article_voice_migration", ["articles": adopted.articles, "folders": adopted.folders])
     }
 
     static func makeProviders() -> [SpeechEngineProvider] {

@@ -744,7 +744,7 @@ final class SpeechController {
     /// `nil` means hide marks (Apple path — no CAF bake, don't fake "not ready").
     func bakeReadyParagraphIndices(articleID: UUID, paragraphCount: Int, detectedLanguage: String? = nil) -> Set<Int>? {
         guard let localID = localTTS.activeLocalEngineID, localTTS.engines.supports(localID),
-              let voice = localTTS.activeCacheVoice else { return nil }
+              let voice = localTTS.storedVoice(of: articleID) ?? localTTS.activeCacheVoice else { return nil }
         // Article speaks with Apple (language the engine can't speak): no marks, like Apple.
         let detected = detectedLanguage ?? (articleID == activeSessionID ? sessionDetectedLanguage : nil)
         guard localTTS.engines.isOnDevice(languageResolution(detected: detected).engineID) else { return nil }

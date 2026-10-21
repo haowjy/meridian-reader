@@ -70,6 +70,14 @@ struct PrepareOverview: Equatable {
     ///   - voiceOf: the voice a page's audio is in (its key), nil when it has none.
     init(records: [PrepareRecord], active: Active?, currentVoice: String?, rendersPreparedAudio: Bool,
          voiceOf: (UUID) -> String?) {
+        self.init(records: records, active: active, currentVoiceOf: { _ in currentVoice },
+                  rendersPreparedAudio: rendersPreparedAudio, voiceOf: voiceOf)
+    }
+
+    /// C138: `currentVoiceOf` is the voice each page renders in (its own, or its book's); nil: no
+    /// on-device voice.
+    init(records: [PrepareRecord], active: Active?, currentVoiceOf: (UUID) -> String?, rendersPreparedAudio: Bool,
+         voiceOf: (UUID) -> String?) {
         var runningDone = 0.0
         var runningTotal = 0
         for record in records {
@@ -94,15 +102,15 @@ struct PrepareOverview: Equatable {
                     runningDone += Double(record.finishedCount) + activeFraction
                     runningTotal += total
                 }
-                queued.append(Item(record: record, status: status, voice: currentVoice))
+                queued.append(Item(record: record, status: status, voice: record.entries.first.flatMap { currentVoiceOf($0.key) }))
                 continue
             }
             let voices = Set(record.entries.filter { $0.state == .done }.compactMap { voiceOf($0.key) })
-            if currentVoice != nil, let other = record.otherVoice(current: currentVoice, voiceOf: voiceOf) {
+            if let other = record.otherVoice(currentOf: { currentVoiceOf($0) ?? voiceOf($0) }, voiceOf: voiceOf) {
                 differentVoice.append(Item(record: record, status: .differentVoice(other), voice: other))
                 continue
             }
-            let named = voices.count == 1 ? voices.first : voices.first { $0 == currentVoice } ?? voices.sorted().first
+            let named = voices.count == 1 ? voices.first : voices.sorted().first
             done.append(Item(record: record, status: .done, voice: named))
         }
         progress = runningTotal > 0 ? runningDone / Double(runningTotal) : nil
@@ -122,9 +130,14 @@ struct PrepareOverview: Equatable {
     /// prepare keeps), as the Prepared Audio list counts it under *Prepared* (`done`). Empty `keys`: false.
     static func isPrepared(_ keys: [UUID], records: [PrepareRecord], currentVoice: String?,
                              voiceOf: (UUID) -> String?) -> Bool {
+        isPrepared(keys, records: records, currentVoiceOf: { _ in currentVoice }, voiceOf: voiceOf)
+    }
+
+    static func isPrepared(_ keys: [UUID], records: [PrepareRecord], currentVoiceOf: (UUID) -> String?,
+                             voiceOf: (UUID) -> String?) -> Bool {
         guard !keys.isEmpty else { return false }
         return keys.allSatisfy { key in
-            records.contains { $0.hasPrepared(key, current: currentVoice, voiceOf: voiceOf) }
+            records.contains { $0.hasPrepared(key, currentOf: currentVoiceOf, voiceOf: voiceOf) }
         }
     }
 
@@ -162,22 +175,28 @@ struct PrepareArticles: Equatable {
 
     init(records: [PrepareRecord], active: PrepareOverview.Active?, currentVoice: String?, rendersPreparedAudio: Bool,
          voiceOf: (UUID) -> String?) {
+        self.init(records: records, active: active, currentVoiceOf: { _ in currentVoice },
+                  rendersPreparedAudio: rendersPreparedAudio, voiceOf: voiceOf)
+    }
+
+    init(records: [PrepareRecord], active: PrepareOverview.Active?, currentVoiceOf: (UUID) -> String?,
+         rendersPreparedAudio: Bool, voiceOf: (UUID) -> String?) {
         var seen = Set<UUID>()
         // Queued pages first, in render order.
         for record in records where !record.isPaused {
             for entry in record.entries where entry.state == .queued && seen.insert(entry.key).inserted {
-                add(record, entry.key, rendersPreparedAudio: rendersPreparedAudio, active: active, currentVoice: currentVoice)
+                add(record, entry.key, rendersPreparedAudio: rendersPreparedAudio, active: active, currentVoice: currentVoiceOf(entry.key))
             }
         }
         for record in records where record.isPaused {
             for entry in record.entries where entry.state == .queued && seen.insert(entry.key).inserted {
-                waiting.append(Item(recordID: record.id, key: entry.key, status: .paused(fraction: 0), voice: currentVoice))
+                waiting.append(Item(recordID: record.id, key: entry.key, status: .paused(fraction: 0), voice: currentVoiceOf(entry.key)))
             }
         }
         for record in records {
             for entry in record.entries where entry.state != .queued && seen.insert(entry.key).inserted {
                 let voice = voiceOf(entry.key)
-                if let voice, currentVoice != nil, !record.accepts(voice, current: currentVoice) {
+                if let voice, let current = currentVoiceOf(entry.key), !record.accepts(voice, current: current) {
                     differentVoice.append(Item(recordID: record.id, key: entry.key, status: .differentVoice(voice), voice: voice))
                 } else {
                     done.append(Item(recordID: record.id, key: entry.key, status: .done, failed: entry.state == .failed,

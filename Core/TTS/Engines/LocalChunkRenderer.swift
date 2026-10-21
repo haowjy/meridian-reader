@@ -13,6 +13,8 @@ struct ChunkRenderRequest: Sendable {
     var priority: RenderPriority = .listener
     /// The render queue's front job.
     var isPrimary = false
+    /// C138: the engine voice to speak in (the article's own); nil: the host's current voice.
+    var voice: String? = nil
 
     /// What every timing-log line about this chunk carries.
     var logFields: [String: Any] {
@@ -100,9 +102,12 @@ final class LocalChunkRenderer: Sendable {
             ListenTimingLog.log("synth_blocked_bg", ["engine": descriptor.shortName.lowercased(), "chars": text.count])
             throw LocalSynthError.deferredInBackground
         }
+        // C138: the article's voice, set under the gate right before every call.
+        if let voice = request.voice { host.setVoice(voice) }
         let t0 = ListenTimingLog.now()
         let phase = runState.phase
         var fields = request.logFields
+        if let voice = request.voice { fields["voice"] = voice }
         fields["engine"] = descriptor.shortName.lowercased()
         fields["chars"] = text.count
         fields["depth"] = depth

@@ -210,35 +210,9 @@ struct VoicePage: View {
     private func localVoices(_ descriptor: EngineDescriptor) -> some View {
         let current = descriptor.resolvedVoice(localTTS.voice(for: descriptor.id))
         Section {
-            ForEach(descriptor.voices) { voice in
-                let preparing = localTTS.voiceDownloadID == voice.id
-                SettingsChoiceRow(
-                    title: voice.label,
-                    subtitle: DetailPart(voice.id == descriptor.defaultVoiceID ? Self.defaultVoiceSubtitle(voice.detail) : voice.detail),
-                    selected: current == voice.id && localTTS.voiceDownloadID == nil,
-                    accessibilityID: "voiceRow-\(voice.id)"
-                ) {
-                    Task { await localTTS.chooseVoice(voice.id, for: descriptor.id) }
-                } accessory: {
-                    if preparing {
-                        // A voice downloading shows as every download does (its size is unknown, so
-                        // the mark's spinner), in the slot the preview leaves while it prepared audio.
-                        ModelDownloadMark(fraction: nil)
-                            .accessibilityLabel("Downloading \(voice.label)")
-                    } else if VoicePreviewPlayer.hasPreview(voice) {
-                        Button {
-                            if speech.isPlaying { speech.pause() }
-                            preview.toggle(voice)
-                        } label: {
-                            Image(systemName: preview.playingID == voice.id ? Icons.previewStop : Icons.previewPlay)
-                                .tileSymbol()
-                                .foregroundStyle(Palette.accent)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(preview.playingID == voice.id ? "Stop preview" : "Preview \(voice.label)")
-                        .accessibilityIdentifier("voicePreview-\(voice.id)")
-                    }
-                }
+            VoiceChoiceRows(descriptor: descriptor, current: current, preparingID: localTTS.voiceDownloadID,
+                            preview: preview, speech: speech) { voice in
+                Task { await localTTS.chooseVoice(voice.id, for: descriptor.id) }
             }
         } header: {
             SectionHeader(title: descriptor.displayName).listHeader()
@@ -247,7 +221,7 @@ struct VoicePage: View {
                 if let error = localTTS.voiceDownloadError {
                     Text(error).foregroundStyle(Palette.destructive)
                 } else {
-                    Text("Switching voice re-renders listened articles in the new voice; the old voice keeps playing until each paragraph is ready.")
+                    Text("New articles and books speak in this voice. One already with audio keeps its own: change it from its \(Text.symbol(Icons.more)) › Voice.")
                 }
             }
             .listFooter()

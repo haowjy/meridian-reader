@@ -59,6 +59,9 @@ final class Folder {
     var sourceStateData: Data?
     /// Not written or read (kept as stored by older builds; persisted fields don't change).
     var languageCode: String?
+    /// C138: a book or series: the one voice every chapter speaks in (the first chapter's), as a
+    /// cache voice key; nil until a chapter has audio. Plain folders have none: each article keeps its own.
+    var voiceID: String?
 
     // Listening.
     /// The page that last played: where Continue resumes.

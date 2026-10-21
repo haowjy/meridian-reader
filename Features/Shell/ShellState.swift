@@ -39,6 +39,8 @@ enum ShellSheet: Identifiable, Equatable {
     case preparedAudio
     /// *Edit Details* for a folder, book or series: its name, author and cover.
     case folderDetails(UUID)
+    /// *Voice: Heart* in an article's or a book's menu: its voice picker (C138).
+    case voice(VoiceTarget)
     /// ⋯ → *Follow…*: a story's table of contents, reviewed, into a folder of chapters.
     case follow(FollowFlow)
     /// A followed story's status line: its checks, *Check Now*, *Unfollow*.
@@ -56,6 +58,7 @@ enum ShellSheet: Identifiable, Equatable {
         case .importBook(let flow): "importBook-\(flow.id)"
         case .preparedAudio: "downloads"
         case .folderDetails(let id): "folderDetails-\(id.uuidString)"
+        case .voice(let target): "voice-\(target.id)"
         case .follow(let flow): "follow-\(flow.id)"
         case .following(let id): "following-\(id.uuidString)"
         case .listenDebug: "listenDebug"

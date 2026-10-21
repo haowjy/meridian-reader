@@ -23,20 +23,14 @@ struct PrepareMenu: View {
     }
 
     var rows: [MenuRow] {
-        let id = item.recordID, key = item.key
-        let otherVoice: String? = if case .differentVoice(let voice) = item.status { voice } else { nil }
+        let key = item.key
         var facts = MenuRegistry.Facts()
         facts.isQueued = item.status.fraction != nil
-        facts.isOtherVoice = otherVoice != nil
         facts.isListeningAudio = isListeningAudio
         return MenuRegistry.rows(.prepare, at: .preparedAudio, facts) { option in
             switch option {
             case .reprepare:
                 return MenuRow(id: "menuReprepare", title: Verbs.reprepare, icon: Icons.reprepare) { preparedAudio.reprepare(article: key) }
-            case .keep:
-                return MenuRow(id: "menuKeep", title: Verbs.keep, icon: Icons.keep) {
-                    if let otherVoice { preparedAudio.keep(id, voice: otherVoice) }
-                }
             default:
                 return removeRow
             }

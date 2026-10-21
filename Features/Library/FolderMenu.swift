@@ -63,6 +63,8 @@ struct FolderMenu: View {
         facts.prepareIsOn = preparedAudio.isOn(folder)
         facts.hasPreparedAudio = preparedAudio.hasPreparedAudio(folder, articles: articles)
         facts.isFixedOrder = folder.kind.isBookOrSeries
+        facts.isBookOrSeries = folder.kind.isBookOrSeries
+        facts.hasVoices = actions.speech.localTTS.wantsLocalBake
         return facts
     }
 
@@ -94,6 +96,11 @@ struct FolderMenu: View {
             }
         case .removePreparedAudio:
             return removePreparedAudio
+        case .folderVoice:
+            let tts = actions.speech.localTTS
+            let voice = folder.voiceID ?? tts.activeCacheVoice
+            return MenuRow(id: "menuVoice", title: voice.map { Verbs.voiceRow(tts.engines.voiceName(forCacheVoice: $0)) } ?? Verbs.voice,
+                           icon: Icons.voice) { shell.present(.voice(.folder(folder.id))) }
         case .folderFavorite:
             let isFavorite = folder.isFavorite
             return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,

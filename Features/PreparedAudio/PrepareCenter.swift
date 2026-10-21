@@ -103,7 +103,7 @@ final class PrepareCenter {
     // MARK: - What the list shows
 
     var overview: PrepareOverview {
-        PrepareOverview(records: records, active: activeProgress, currentVoice: rendering.prepareVoice,
+        PrepareOverview(records: records, active: activeProgress, currentVoiceOf: rendering.prepareVoice(of:),
                          rendersPreparedAudio: rendering.wantsLocalBake) { rendering.renderedVoice(of: $0) }
     }
 
@@ -125,7 +125,7 @@ final class PrepareCenter {
 
     /// The Prepared Audio list by page (C110).
     var pageOverview: PrepareArticles {
-        PrepareArticles(records: records, active: activeProgress, currentVoice: rendering.prepareVoice,
+        PrepareArticles(records: records, active: activeProgress, currentVoiceOf: rendering.prepareVoice(of:),
                       rendersPreparedAudio: rendering.wantsLocalBake) { rendering.renderedVoice(of: $0) }
     }
 
@@ -179,7 +179,7 @@ final class PrepareCenter {
     }
 
     private func isPrepared(_ keys: [UUID]) -> Bool {
-        PrepareOverview.isPrepared(keys, records: records, currentVoice: rendering.prepareVoice) {
+        PrepareOverview.isPrepared(keys, records: records, currentVoiceOf: rendering.prepareVoice(of:)) {
             rendering.renderedVoice(of: $0)
         }
     }
@@ -696,6 +696,8 @@ protocol PrepareRendering {
     var wantsLocalBake: Bool { get }
     /// The voice most of `key`'s audio is in.
     func renderedVoice(of key: UUID) -> String?
+    /// C138: the voice `key`'s audio renders in (its own, its book's, else the prepare voice).
+    func prepareVoice(of key: UUID) -> String?
     /// Prepared audio may go on in the background now: audio plays on a route that renders there (C94).
     var rendersPreparedAudioInBackground: Bool { get }
     /// Queues `paragraphs` of `cacheKey` to render in full in the prepare voice.

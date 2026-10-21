@@ -46,13 +46,13 @@ enum MenuRegistry {
     /// Every option, in menu order within its kind.
     enum Option: String, CaseIterable {
         // A page
-        case read, goTo, prepare, favorite, move, finished, playback, markAllAbove, skip, share, save,
+        case read, goTo, prepare, voice, favorite, move, finished, playback, markAllAbove, skip, share, save,
              removeFromRecent, stopListening, removeFromHistory
         // A folder, book or series
-        case continueFolder, playFromStart, folderPrepare, removePreparedAudio, folderFavorite, folderMove,
+        case continueFolder, playFromStart, folderPrepare, removePreparedAudio, folderVoice, folderFavorite, folderMove,
              editDetails, deleteFolder
         // A prepare
-        case reprepare, keep, removePrepare
+        case reprepare, removePrepare
         // A screen's own rows
         case newFolder, importFile, saveFromWebsite, pasteText, follow, sort, reload, preparedAudio, settings
         // The Prepared Audio list's own ⋯ (C135)
@@ -81,9 +81,12 @@ enum MenuRegistry {
         var hasArticles = false
         var prepareIsOn = false
         var hasPreparedAudio = false
+        /// A book or series: one voice for every chapter (C138).
+        var isBookOrSeries = false
+        /// An on-device voice speaks (Kokoro): *Voice* can pick one (C138).
+        var hasVoices = false
         // A prepare
         var isQueued = false
-        var isOtherVoice = false
         /// A row of From Listening: audio made while listening, not prepared (C135).
         var isListeningAudio = false
         // The Prepared Audio list
@@ -135,6 +138,9 @@ enum MenuRegistry {
         Spec(option: .read, kind: .article, places: articleListPlaces, enabled: { $0.hasTarget }, greyIf: "no page or address"),
         Spec(option: .goTo, kind: .article, places: [.nowPlaying], enabled: { $0.goToEnabled }, greyIf: "nowhere to go"),
         Spec(option: .prepare, kind: .article, places: articlePlaces, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
+        // C138: the voice it speaks in (its book's for a chapter); picking one remakes its audio.
+        Spec(option: .voice, kind: .article, places: articlePlaces, applies: { $0.hasPage }, enabled: { $0.hasVoices },
+             hiddenIf: "no page (a page in the browser only)", greyIf: "Apple's voice is selected"),
         Spec(option: .favorite, kind: .article, places: articlePlaces, enabled: { $0.canFavorite }, greyIf: "it can\u{2019}t be starred"),
         Spec(option: .move, kind: .article, places: articlePlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
         Spec(option: .finished, kind: .article, places: articlePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),
@@ -159,6 +165,9 @@ enum MenuRegistry {
              enabled: { $0.prepareIsOn || $0.hasPreparedAudio || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
         Spec(option: .removePreparedAudio, kind: .folder, places: [.header], enabled: { $0.hasPreparedAudio }, greyIf: "nothing downloaded or downloading"),
         // Its screen's More makes a subfolder in it (C122); never in a folder that keeps its own order.
+        Spec(option: .folderVoice, kind: .folder, places: folderPlaces, applies: { $0.isBookOrSeries },
+             enabled: { $0.hasVoices }, hiddenIf: "a plain folder (each article keeps its own voice)",
+             greyIf: "Apple's voice is selected"),
         Spec(option: .folderFavorite, kind: .folder, places: folderPlaces),
         Spec(option: .folderMove, kind: .folder, places: folderPlaces),
         Spec(option: .editDetails, kind: .folder, places: folderPlaces),
@@ -167,8 +176,6 @@ enum MenuRegistry {
         // A prepare. Its ↓ mark pauses and resumes.
         Spec(option: .reprepare, kind: .prepare, places: [.preparedAudio], applies: { !$0.isListeningAudio },
              enabled: { !$0.isQueued }, hiddenIf: "audio from listening", greyIf: "still preparing"),
-        Spec(option: .keep, kind: .prepare, places: [.preparedAudio], applies: { !$0.isListeningAudio },
-             enabled: { $0.isOtherVoice }, hiddenIf: "audio from listening", greyIf: "its audio is in the current voice"),
         Spec(option: .removePrepare, kind: .prepare, places: [.preparedAudio]),
 
         // A screen's own rows (＋ has New Folder and Import Book; the address field starts a search).

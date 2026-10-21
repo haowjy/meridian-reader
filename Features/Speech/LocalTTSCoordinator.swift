@@ -50,6 +50,14 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// C129: the engine stopped repeatedly; playback and the render queue wait for Retry
     /// (`retryAfterEngineStop`). The engine and voice stay selected.
     private(set) var isPausedForRetry = false
+    /// C138: the voice the article with `key` speaks in (its own, or its book's), as a cache voice
+    /// key; nil: none yet. Set by the composition from the library (`LibraryStore.voice(ofKey:)`).
+    @ObservationIgnored var articleVoice: (UUID) -> String? = { _ in nil }
+    /// C138: the article with `key` (or its book) takes `voice` unless it has one; returns the one
+    /// it speaks in after (`LibraryStore.lockVoice`).
+    @ObservationIgnored var lockArticleVoice: (UUID, String) -> String = { $1 }
+    /// Article voices read this launch, until the library changes (`articleVoicesChanged`).
+    @ObservationIgnored private var articleVoiceMemo: [UUID: String?] = [:]
     /// C134: `key` has a prepare record (set by the composition from the prepare list).
     @ObservationIgnored var preparedKey: (UUID) -> Bool = { _ in false }
     /// C134: listening needs `key`'s audio now (set by the composition: session, staged chapter).
@@ -321,7 +329,55 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// work is queued.
     var renderTarget: RenderTarget? {
         guard let id = synth.state.readyEngineID, let voice = cacheVoice(of: id) else { return nil }
-        return RenderTarget(engineID: id.rawValue, cacheVoice: voice)
+        return RenderTarget(engineID: id.rawValue, cacheVoice: voice, engineVoice: engineVoices[id])
+    }
+
+    /// C138: the loaded engine in the article's own voice (one voice per article and per book).
+    /// A voice of another engine (none today) can't render here: nothing renders for it.
+    func renderTarget(for cacheKey: UUID) -> RenderTarget? {
+        guard let base = renderTarget else { return nil }
+        guard let voice = storedVoice(of: cacheKey), voice != base.cacheVoice else { return base }
+        guard let id = synth.state.readyEngineID, let engineVoice = engineVoice(fromCacheVoice: voice, engine: id)
+        else { return nil }
+        return RenderTarget(engineID: base.engineID, cacheVoice: voice, engineVoice: engineVoice)
+    }
+
+    func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget? {
+        if storedVoice(of: cacheKey) == nil, let base = renderTarget {
+            let locked = lockArticleVoice(cacheKey, base.cacheVoice)
+            articleVoiceMemo[cacheKey] = .some(locked)
+        }
+        return renderTarget(for: cacheKey)
+    }
+
+    /// The voice the article with `key` speaks in (memoized; `articleVoicesChanged` forgets).
+    func storedVoice(of key: UUID) -> String? {
+        if let memo = articleVoiceMemo[key] { return memo }
+        let voice = articleVoice(key)
+        articleVoiceMemo[key] = .some(voice)
+        return voice
+    }
+
+    /// The voice the article with `key` plays in: its own, else the one in Settings that its first
+    /// audio would take (what a menu's *Voice* row shows).
+    func effectiveVoice(of key: UUID) -> String? {
+        storedVoice(of: key) ?? activeCacheVoice ?? cacheVoice(of: engines.defaultLocalEngineID)
+    }
+
+    /// Any library edit: voices are read again when next asked.
+    func forgetArticleVoices() { articleVoiceMemo.removeAll() }
+
+    /// A voice was set from a menu: read voices again, and the queue renders in the new one.
+    func articleVoicesChanged() {
+        articleVoiceMemo.removeAll()
+        synthQueue.renderTargetChanged()
+        noteBakeMarksChanged()
+    }
+
+    /// "kokoro.af_heart" → "af_heart" for engine `id`; nil when the voice isn't that engine's.
+    func engineVoice(fromCacheVoice voice: String, engine id: SpeechEngineID) -> String? {
+        guard let prefix = engines.descriptor(id)?.onDevice?.cacheVoicePrefix, voice.hasPrefix(prefix + ".") else { return nil }
+        return String(voice.dropFirst(prefix.count + 1))
     }
 
     func appleFallbackVoice(for paragraphs: [String]) -> String? {
@@ -331,7 +387,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Paragraphs of `cacheKey` that still need audio in what renders now
     /// (`ArticleAudioCache.missingParagraphs`); nil while no engine is loaded.
     func missingParagraphs(of cacheKey: UUID, paragraphs: [String]) -> [Int]? {
-        guard let target = renderTarget else { return nil }
+        guard let target = renderTarget(for: cacheKey) else { return nil }
         return audioCache.missingParagraphs(articleID: cacheKey, paragraphs: paragraphs, engineID: target.engineID,
                                             voiceID: target.cacheVoice, plans: chunkPlans)
     }
