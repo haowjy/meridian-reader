@@ -57,14 +57,15 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 - **Per-tick cost.** The live offset changes several times a second. Read it only in leaf views
   (`PlayheadReader`, the Now Playing bar's progress, Now Playing's sentence underline); reading it
   in a screen's body redraws the screen on every tick.
-- **One render target per article (C138).** The render queue renders only for
-  `LocalTTSCoordinator.renderTarget(for: key)`: the loaded engine in the article's own voice
-  (`Article.voiceID`, its book's `Folder.voiceID`), else the selected voice, which the article
-  takes as its first audio renders (`lockedRenderTarget`). Read at each step; no job, pending job
-  or entry point carries a voice. Code that renders, checks readiness or files audio reads the target;
-  code that changes the engine's state or voice tells the queue (`renderTargetChanged`, from
-  `engineStateChanged` and `setVoice`). With no target the queue parks: nothing may build a host
-  for it, a model loads only when it is selected.
+- **One `VoiceSelection` per article (C138a).** Engine + voice, stored on the article
+  (`Article.voiceID`, its book's `Folder.voiceID`), resolved by `LocalTTSCoordinator.selection(for:paragraphs:)`
+  (brand new: the Settings default, locked then). It is passed explicitly to playback
+  (`ListenRoute`, `ListenPlayRequest.selection`, `QueueUnitSource`) and the render queue reads
+  `renderTarget(for: key)`, which is non-nil only when the article's own engine is the loaded one.
+  Never read `engineVoices`, `activeLocalEngineID` or `defaultSelection` to decide what an
+  existing article plays or renders. The queue never writes Apple audio into the cache; the C129
+  gap fill and D9 `.appleStandIn` are the only Apple audio in an on-device article's listen, both
+  unsaved. A job whose engine isn't loaded waits in the queue; `ensureChunk` loads it (`awaitEngine`).
 - **What still needs audio** is decided only by `ArticleAudioCache.missingParagraphs` (a
   paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the
@@ -104,8 +105,8 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 - **Listen blocks are versioned.** Changing `ListenHTMLBlocks` (Core/Domain) rules means bumping
   `ListenHTMLBlocks.version`; library pages rebuild once and positions / audio must be remapped
   like `LibraryStore.migrateParagraphLayout` does.
-- **Engine changes go through `EngineHandover`.** Views call `selectEngine` / `chooseVoice` /
-  `deleteModel`; they never restart playback.
+- **Engine loads never re-route playback.** Views call `setDefaultSelection` (Settings),
+  `ArticleVoiceChange.apply` (a picker) or `deleteModel`; they never restart playback.
 - **Persisted ids and keys** never change (AGENTS.md); review any diff that touches one.
 
 ## Verifying here

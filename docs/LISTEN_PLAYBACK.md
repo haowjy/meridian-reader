@@ -164,18 +164,17 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
   `ready(id)`, `failed(id, message)` (Apple speaks; Settings shows the message). On every change
   the coordinator persists `reader.tts.engineID`, calls `onEngineChange` and tells the render
   queue what renders now (`renderTarget`, Render queue).
-- `speak` picks the engine once (`ListenRoute`: Apple, or the ready on-device engine and its
-  voice when it speaks the article's language) and binds it. Pause, resume, the play icon,
-  "Preparing next…" and stop go to the bound engine until stop or the next `speak`.
-- On `onEngineChange` the controller compares the bound route with the one `speak` would pick now
-  (`EngineHandover.decide`):
-  - Apple audible: it finishes the paragraph it is speaking; the next starts on the on-device
-    engine.
-  - Apple paused: re-speaks, paused, at the playhead on the on-device engine.
-  - On-device engine bound but no longer the pick (Apple chosen, model deleted, load failed, route
-    reload, voice change): re-speaks at the playhead now.
-- Views only call `selectEngine`, `chooseVoice`, `deleteModel` or `synth.cancelDownload`; they
-  never restart playback themselves.
+- `speak` picks the engine once from the article's selection (C138a, `ListenRoute`: `.apple(voice)`
+  for an article in an Apple voice, `.local(VoiceSelection)` for one in an on-device voice, and
+  `.appleStandIn`, D9's explicit unsaved exception) and binds it. Pause, resume, the play icon,
+  "Preparing next…" and stop go to the bound engine until stop or the next `speak`. An on-device
+  engine that isn't loaded loads for the article (`loadEngineIfNeeded`; one is loaded at a time);
+  the player waits for it (`awaitEngine`) and fills any gap with temporary Apple audio (C129).
+- Nothing moves a live utterance to another engine or voice: engine state changes don't
+  re-route (`EngineHandover` is gone). Changing an article's voice stops its playback
+  (`ArticleVoiceChange`).
+- Views only call `setDefaultSelection` (Settings), `ArticleVoiceChange.apply` (an article's or a
+  book's picker), `deleteModel` or `synth.cancelDownload`; they never restart playback themselves.
 
 ### UI binding
 
@@ -560,8 +559,16 @@ highlight and the paragraph picker stay fine-grained.
   missing. The render queue's work and job completion, the voice-switch cleanup, Prepared Audio,
   staging the next chapter and Apple standing in (D9) all ask it; the bake marks show
   `readyIndices`.
-- **One voice per article, and per book (C138).** Each article stores the voice its audio is in
-  (`Article.voiceID`, a cache voice key such as `kokoro.af_heart`); a book or series chapter
+- **One voice per article, and per book (C138, C138a).** Each article stores its selection, the
+  engine and voice together (`VoiceSelection`, stored in `Article.voiceID` as
+  `local.kokoro/af_heart` or `apple/<voice identifier>`; `apple/` is the best Apple voice for its
+  language). It is the only source of what plays, renders, prepares and is looked up in the cache,
+  resolved once per article (its own, else its book's, else for a brand-new article the Settings
+  default, or Apple when the default's engine can't speak its language) and passed explicitly
+  (`ListenPlayRequest.selection`, `QueueUnitSource.selection`, `RenderTarget`). No global engine or
+  voice is read on those paths; Settings holds only the default for new articles. The render
+  queue never files Apple audio in an article's cache: an engine failure fails the unit and the
+  player fills the gap live with temporary, unsaved Apple audio (C129). A book or series chapter
   speaks in its folder's (`Folder.voiceID`), so a book never changes voice between chapters.
   The voice is set when its first audio is about to render (`LocalTTSCoordinator.lockedRenderTarget`,
   from the render queue's step and the listen player's source): the voice selected in Settings
@@ -580,9 +587,12 @@ highlight and the paragraph picker stay fine-grained.
   first with the sizes.
 - **Migration (C138, once, `AppComposition.adoptArticleVoices`):** an article with audio takes the
   voice most of its paragraphs are in (`ArticleAudioCache.renderedVoice`); a book, the voice most
-  of its chapters' audio is in; articles with no audio get none.
-- **Language gate.** An article in a language the engine doesn't speak plays with Apple and is
-  kept out of the on-device queue (`LocalTTSCoordinator.localLanguageGate`).
+  of its chapters' audio is in; articles with no audio get none. C138a, once: a voice stored as a
+  cache voice key (`kokoro.af_heart`) becomes a selection with its engine (`LibraryStore.convertVoices`).
+  The Settings default comes from the engine and voices chosen before (`loadDefaultSelection`).
+- **Language gate.** Only when a brand-new article takes its selection: one in a language the
+  default's engine can't speak takes Apple (`LocalTTSCoordinator.localLanguageGate`). An article
+  with a selection keeps it.
 
 **Pending jobs.** Articles saved or opened while the engine was cold are kept as pending bake
 jobs in `Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`: the paragraphs and the
@@ -623,15 +633,14 @@ Library's list style: chrome cards on paper, `SectionHeader`s, notes in secondar
 choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed accessory and
 check slots, min height 48), so state changes never move rows.
 
-1. **Engines**: Apple and the registry's on-device engines. State lives in the subtitle
-   ("Preparing… 42%", "Preparing voice…", "Ready (recommended)"; a prepared engine's starts
-   with the grey ✓, `DetailPart.prepared`) and the accessory (the prepare's filling arrow,
-   `PrepareMark`, as every prepare shows; tapping it cancels). Swipe left on a prepared
-   engine for *Remove Prepared Audio*; crash and failure notices in the footer.
-2. **Voice ›** (`VoicePage`): the selected engine's voices (the engine ticked; Kokoro: curated
-   rows with preview, the default one marked "(default)"; Apple: "System default" and
-   good-quality system voices for the language).
-3. **Language ›** (`LanguagePage`), 4. **Speed**, the six speeds in one line.
+1. **Voice ›** (`VoicePage`): the default voice for new articles and books, from the one voice
+   switcher (`VoiceSelectionList`, C138a), the same list an article's or a book's *Voice* picker
+   shows. Engines are its sections: Kokoro's curated voices with samples (the default one marked
+   "(default)"; the model's download progress, tap to cancel, or *Remove Download* below them;
+   crash and failure notices in its footer), then Apple's: "Best for <language>" and the
+   installed voices for the language, Premium, then Enhanced, then the rest. Picking a voice
+   picks its engine; there is no Engine control. The row's value names it ("Heart", "Ava (Apple)").
+2. **Language ›** (`LanguagePage`), 3. **Speed**, the six speeds in one line.
 
 The version row at the bottom of Settings toggles developer options (a 2 s long-press); Settings
 › Developer then holds **Listen debug**.
