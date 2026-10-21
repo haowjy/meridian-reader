@@ -96,7 +96,7 @@ enum VoiceCatalog {
         guard let best = bestVoiceProxy(forLanguage: code, gender: gender, from: proxies) else {
             return AVSpeechSynthesisVoice(language: code.replacingOccurrences(of: "_", with: "-"))
         }
-        return AVSpeechSynthesisVoice(identifier: best.identifier)
+        return all.first { $0.identifier == best.identifier }
             ?? AVSpeechSynthesisVoice(language: code.replacingOccurrences(of: "_", with: "-"))
     }
 

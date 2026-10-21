@@ -70,8 +70,7 @@ enum AppLaunch {
     }
 
     /// Which Apple voices this device offers apps (C129: Siri's aren't among them), off the main
-    /// thread, into the timing log. Also prints every voice with the "C139VOICE" prefix so voice
-    /// selection can be diagnosed by grepping the log.
+    /// thread, into the timing log, with the English default it resolves to (C139).
     private static func logAppleVoices() {
         Task.detached(priority: .utility) {
             let all = AVSpeechSynthesisVoice.speechVoices()
@@ -79,16 +78,13 @@ enum AppLaunch {
             let q: (AVSpeechSynthesisVoice) -> String = {
                 switch $0.quality { case .premium: "premium"; case .enhanced: "enhanced"; default: "default" }
             }
-            let list = en.map { "\($0.name)|\($0.language)|\(q($0))|\($0.gender.rawValue)" }
+            let list = en.map { "\($0.identifier)|\($0.name)|\($0.language)|\(q($0))|\($0.gender.rawValue)" }
+            let resolved = VoiceCatalog.bestVoice(forLanguage: "en-US", from: all)
             ListenTimingLog.log("apple_voices", [
                 "count": en.count, "siri": en.filter { $0.identifier.lowercased().contains("siri") }.count,
+                "resolved_en": resolved.map { "\($0.identifier)|\($0.name)" } ?? "nil",
                 "voices": list.joined(separator: ";"),
             ])
-            let resolved = VoiceCatalog.bestVoice(forLanguage: "en-US", from: all)
-            for v in all.sorted(by: { $0.identifier < $1.identifier }) {
-                print("C139VOICE id=\(v.identifier) name=\(v.name) lang=\(v.language) quality=\(q(v)) gender=\(v.gender.rawValue)")
-            }
-            print("C139VOICE resolved_en_default id=\(resolved?.identifier ?? "nil") name=\(resolved?.name ?? "nil")")
         }
     }
 
