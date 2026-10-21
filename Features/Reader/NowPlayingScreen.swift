@@ -327,7 +327,7 @@ private struct SpokenText: View {
         let paragraph = speech.currentParagraphIndex
         HTMLReadingView(
             html: html,
-            heading: ReaderHeading(title: card.title, detail: []),
+            heading: ReaderHeading(title: nil, detail: []),
             topView: nil,
             activeParagraphIndex: speech.spokenParagraph(scrubPreview: scrubPreview),
             sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),

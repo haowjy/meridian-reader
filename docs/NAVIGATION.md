@@ -731,20 +731,19 @@ follows the audio (the Reader's sits under a heading and never moves by itself).
 ┌──────────────────────────────────────┐
 │                 ───                  │ ← grabber
 │ ( ‹ Browser )             (Aa) (☝︎)  │ ← the pill names what is underneath
-│ Notes on Tides                       │ ← title, then "site   9 min"
+│ example.org  9 min                   │ ← source and length (title is in the player card)
 │ … text in the reading theme …        │
-│ ╭ [art] Notes on Tides  9 min ─────╮ │ ← player card: artwork, title, time
-│ ╰ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1× ╯ │   (no scrub before Listen)
+│ ╭ [art] Notes on Tides          9 min ╮ │ ← player card: artwork, title, time
+│ ╰─────────────────────────────────────╯ │   (no scrub before Listen)
 │ [<>] ( article-address capsule     ) │ ← address field row
 │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own ▶, a pill over slots 2–4
 └──────────────────────────────────────┘
 ```
 
-The heading is the serif title, then the site and length under it; an article with no title of its own
-shows the site and length alone (nothing stands in for a title). When the article's own
-first heading repeats the title, that heading takes the title's look and the source line moves
-under it; in Now Playing the heading is hidden (the player card in the band already shows the
-title), so either sheet shows the title once. The length becomes the time left once the article
+The heading shows the site and length above the text; its title is always suppressed (the player
+card in the band already shows it), so the title appears once. An article with no title of its own
+shows only the site and length. When the article's own first heading repeats the title, that
+heading takes the title's look and the source line moves under it. The length becomes the time left once the article
 has been started, as in its row and on Listen (a finished article shows its length). The reading
 style always wins over an article's own styles (an extracted article's stylesheets are left out),
 and an extracted title drops a trailing site name ("Speech synthesis - Wikipedia" reads "Speech
@@ -873,7 +872,7 @@ synthesis").
   above the controls (no arrow: the spoken sentence may be above or below).
   Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
   the thumb.
-- **At the end** it stays on the article: the text stays, all of it in full ink, the title card
+- **At the end** it stays on the article: the text stays, all of it in full ink, the player card
   says "◉ Finished" where the time left was (the Reader shows the article's length), and ▶
   plays the article again.
 - **Controls** (the band): the player card (scrub row + speed), the address field row (swap

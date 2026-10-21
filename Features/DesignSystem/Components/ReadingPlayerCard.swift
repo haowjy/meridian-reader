@@ -88,7 +88,7 @@ struct ReadingPlayerCardGallery: View {
     }
 }
 
-#Preview("ReadingPlayerCard · light", traits: .sizeThatFitsLayout) { ReadingPlayerCardGallery().previewVariant(.light) }
-#Preview("ReadingPlayerCard · dark", traits: .sizeThatFitsLayout) { ReadingPlayerCardGallery().previewVariant(.dark) }
-#Preview("ReadingPlayerCard · AX5", traits: .sizeThatFitsLayout) { ReadingPlayerCardGallery().previewVariant(.largestText) }
+#Preview("ReadingPlayerCard - light", traits: .sizeThatFitsLayout) { ReadingPlayerCardGallery().previewVariant(.light) }
+#Preview("ReadingPlayerCard - dark", traits: .sizeThatFitsLayout) { ReadingPlayerCardGallery().previewVariant(.dark) }
+#Preview("ReadingPlayerCard - AX5", traits: .sizeThatFitsLayout) { ReadingPlayerCardGallery().previewVariant(.largestText) }
 #endif

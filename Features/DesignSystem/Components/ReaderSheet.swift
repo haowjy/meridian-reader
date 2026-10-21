@@ -67,8 +67,10 @@ struct ReaderSheet<Player: View, Field: View, Reading: View, More: View, TextApp
             text
         } band: {
             VStack(spacing: BottomChrome.rowSpacing) {
-                player
-                field
+                VStack(spacing: 0) {
+                    player
+                    field
+                }
                 BottomToolbarSpanLayout {
                     saveButton
                     PlayStateButton(state: listenState,
