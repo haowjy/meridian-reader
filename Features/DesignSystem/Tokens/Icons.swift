@@ -87,7 +87,7 @@ enum Icons {
     /// Mark as Finished: a filled circle, the listening ring made full (a finished page shows the
     /// full `ProgressRing` before "Finished"; rings mean listening, ✓ is selection's only). Filled, not the bare ring, so Edit's toolbar slot doesn't read as one of
     /// Edit's empty selection circles.
-    static let markFinished = "circle.fill"
+    static let markFinished = "checkmark.circle"
     /// Mark as Unfinished: the ring undone.
     static let markUnfinished = "circle.dashed"
     /// Mark All Above as Finished: a list of pages, rings full (no ✓; the circle-✓ is *Select*'s).

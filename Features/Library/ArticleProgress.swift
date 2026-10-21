@@ -10,9 +10,9 @@ enum ArticleProgress {
         if article.finishedAt != nil { return .finished }
         if article.skipsInPlayback { return .skipped }
         if let spot = spot(of: article) {
-            return .partWay(fraction: spot.fraction, minutesLeft: ListeningTime.minutes(words: spot.wordsLeft, rate: rate))
+            return .partWay(fraction: spot.fraction, minutesLeft: ListeningTime.rowMinutes(words: spot.wordsLeft, rate: rate))
         }
-        return .unplayed(minutes: article.hasText ? ListeningTime.minutes(words: article.wordCount, rate: rate) : nil)
+        return .unplayed(minutes: article.hasText ? ListeningTime.rowMinutes(words: Double(article.wordCount), rate: rate) : nil)
     }
 
     /// Started and not finished.

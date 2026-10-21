@@ -31,6 +31,7 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
     var height: CGFloat = RowHeight.compact
 
     @Environment(\.readingPalette) private var reading
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.rowLeading
     /// How much the row type has grown (1 at the default size).
     @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var growth: CGFloat = 1
@@ -47,7 +48,8 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title)
                         .typeStyle(.row)
-                        .lineLimit(1)
+                        // Whole labels at Accessibility sizes (C130): two lines there, one otherwise.
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                     if let subtitle {
                         DetailLine(parts: [subtitle])
                             .typeStyle(.caption)

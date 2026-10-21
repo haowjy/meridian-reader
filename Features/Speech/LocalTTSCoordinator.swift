@@ -47,6 +47,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// dismissible one-line banner and in Settings.
     private(set) var engineCrashNotice: String?
     private var crashedEngineID: SpeechEngineID?
+    /// C129: the engine stopped repeatedly; playback and the render queue wait for Retry
+    /// (`retryAfterEngineStop`). The engine and voice stay selected.
+    private(set) var isPausedForRetry = false
     /// The crash this launch found (the engine killed the previous process inside a call).
     private(set) var launchCrash: EngineCrashGuard.CrashInfo?
     /// Article + paragraph to resume after a crash, handed to the UI once (`takePendingResume`);
@@ -149,6 +152,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
         case .stay(_, let resume):
             pendingResume = resume
             return engine
+        case .pauseForRetry(_, let resume):
+            pendingResume = resume
+            isPausedForRetry = true
+            synthQueue.isPausedForRetry = true
+            return engine
         case .switchAway:
             crashedEngineID = engine
             return engines.crashFallback(for: engine)
@@ -183,9 +191,19 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// The on-device engine is loaded and serves listening and bake-ahead.
     var usesLocalEngine: Bool { synth.state.readyEngineID != nil }
 
-    /// Dismiss the one-line crash banner.
+    /// Dismiss the one-line crash banner (while paused for Retry, the banner is the way back, so
+    /// dismissing it is a Retry too: nothing stays paused without a visible reason).
     func dismissCrashNotice() {
+        if isPausedForRetry { retryAfterEngineStop() } else { engineCrashNotice = nil }
+    }
+
+    /// The banner's Retry (or pressing play): render and play again with the same engine and voice.
+    func retryAfterEngineStop() {
         engineCrashNotice = nil
+        guard isPausedForRetry else { return }
+        isPausedForRetry = false
+        synthQueue.isPausedForRetry = false
+        ListenTimingLog.log("engine_retry", ["engine": selectedEngineID.rawValue])
     }
 
     /// Launch: until `endLaunchHold`, the render queue adopts no saved bake job and renders

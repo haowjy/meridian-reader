@@ -249,7 +249,7 @@ name, each row showing where it is below the folder (its site when it is in the 
 the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. Favorites
 are the starred items in the Library. Recent is everything you opened or started (C104); *History* (🕘 in the band,
-a big button in the ⋯) is the browser's pages visited: one name per concept. On Favorites,
+a big button in the ⋯) is the browser's pages visited: one name per concept. From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as Recent does (C130). In an imported EPUB or followed story ＋ is dimmed (nothing can be added, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
 Recent and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
@@ -363,7 +363,7 @@ commas.
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
-  every empty list has (`EmptyState`): *This Folder Is Empty*, *Move pages here, or save them
+  every empty list has (`EmptyState`): *This Folder Is Empty*, *Move articles here, or save them
   here from the Reader's 🔖* (the toolbar's symbol).
   A favorite is still an ordinary page or folder and keeps the same actions and location.
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
@@ -372,7 +372,7 @@ commas.
   *Cancel* changes nothing; *Save* stores all three at once. A picked picture is kept as a
   600 px JPEG thumbnail, as a book's cover is. A folder with a cover or an author (a book has its
   file's) shows the detailed header: the cover above the title, the author before the counts
-  ("A. Writer   2 folders   3 pages"), then the same progress line and controls. Its row shows the cover in place of the folder symbol, and the author under the
+  ("A. Writer   2 folders   3 articles"), then the same progress line and controls. Its row shows the cover in place of the folder symbol, and the author under the
   title until a page in it has played. Details change only the look: its sort, Edit, drags and
   drops are unchanged. Clearing the author and removing the cover brings back the plain header.
 - **Importing a book** (*Import from…*: ＋, the home's and a folder's ⋯, the empty Library's
@@ -468,7 +468,7 @@ No feeds and no notifications. Unfollowing stops the checks; every chapter added
 text is still fetched.
 
 **Rows** are `ListRow`s, compact and two lines for every kind (YouTube Music's rows). A folder
-row's second line is what is in it ("2 folders   3 pages", "Empty"), in Edit too; one whose pages
+row's second line is what is in it ("2 folders   3 articles", "Empty"), in Edit too; one whose pages
 play shows its place and time left there instead. Every row's separator starts at its title. A
 page row (a chapter too) is exactly two lines (decision D21): its title (its site, or its book, when it has none) on one line, truncated,
 then one short line of what it is and where it stands, with a small thumbnail as tall as the two
@@ -641,7 +641,7 @@ menu has *Re-download* and *Keep*. Swipe left is the same *Remove Download* / *R
 The list holds downloads of what is in the
 Library: removing a page from the Library, or deleting a page or folder, takes its download off
 the list too (a removed page's audio stays, ephemeral). While Apple's voice is selected nothing
-renders: queued downloads say *Waiting for an on-device voice*, with *Settings*. *Remove
+renders: queued downloads say *Needs a voice* (short, so line two keeps the folder, C130), with *Settings*. *Remove
 Download* on a page and *Remove Downloads* on a folder delete its audio and its download (a
 page's listening audio alone, never downloaded, is cleared only by its folder's *Remove
 Downloads* or Settings); the audio

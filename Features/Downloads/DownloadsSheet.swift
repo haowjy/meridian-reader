@@ -198,7 +198,7 @@ struct DownloadsList: View {
         case .fetching: return [String(localized: "Getting the article")]
         case .queued: return [voice].compactMap { $0 }
         case .paused: return [String(localized: "Paused")]
-        case .waitingForVoice: return [String(localized: "Waiting for an on-device voice")]
+        case .waitingForVoice: return [String(localized: "Needs a voice")]
         case .done, .differentVoice:
             if item.failed { return [String(localized: "Couldn’t download")] }
             return [voice, sizes[item.key].map(FileSizes.label)].compactMap { $0 }

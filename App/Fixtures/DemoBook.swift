@@ -53,7 +53,7 @@ enum DemoBook {
     ]
 
     /// The page in no folder: it plays to its end and stops.
-    static let looseArticle = Chapter(title: "Demo Loose Page", paragraphs: [
+    static let looseArticle = Chapter(title: "Demo Loose Article", paragraphs: [
         "This page is in no folder. When it ends, playback stops instead of carrying on to another page.",
         "It is here so a folder and a single page can be compared side by side.",
     ])

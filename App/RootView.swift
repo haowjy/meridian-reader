@@ -11,7 +11,10 @@ struct RootView: View {
         BrowseStartView()
             .overlay(alignment: .top) {
                 if let notice = speech.localTTS.engineCrashNotice {
-                    EngineNoticeBanner(text: notice) { speech.localTTS.dismissCrashNotice() }
+                    EngineNoticeBanner(text: notice,
+                                       onRetry: speech.localTTS.isPausedForRetry ? { speech.localTTS.retryAfterEngineStop() } : nil) {
+                        speech.localTTS.dismissCrashNotice()
+                    }
                         .padding(.horizontal, Spacing.s)
                         .transition(.slideAndFade(from: .top, reduceMotion: reduceMotion))
                 }
@@ -51,6 +54,8 @@ private struct LaunchTestHooks: ViewModifier {
 /// The ✕ fills a 44 pt square at the trailing end, so the banner is at least that tall.
 struct EngineNoticeBanner: View {
     let text: String
+    /// Shown as a Retry button when the engine is paused for retry (C129).
+    var onRetry: (() -> Void)? = nil
     let onDismiss: () -> Void
 
     var body: some View {
@@ -63,6 +68,14 @@ struct EngineNoticeBanner: View {
                 .minimumScaleFactor(0.75)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, Spacing.xs)
+            if let onRetry {
+                Button("Retry", action: onRetry)
+                    .typeStyle(.caption, weight: .semibold)
+                    .frame(minHeight: BottomChrome.minTapTarget)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Palette.accent)
+                    .accessibilityIdentifier("engineNoticeRetry")
+            }
             Button(action: onDismiss) {
                 Image(systemName: Icons.close)
                     .typeStyle(.caption, weight: .semibold)

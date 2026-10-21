@@ -22,6 +22,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 - **Library home ⋯**: Sort ›, Downloads, Settings, then [Browser] only (the tabs on screen are Favorites and Recent).
 - **Folder screen ⋯**: Sort › (hidden in a folder that keeps its own order: an imported EPUB, a followed story), Downloads, Settings, then [Favorites][Recent][Browser].
 - **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB file picker), Save from Website… (an address, saved here as a link article), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127), Follow…. Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; hidden whole in an imported EPUB or followed story.
+- **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
 - **Reader / Now Playing ⋯**: the page's options, then Downloads, Settings, then [Favorites][Recent][Website].
 - **Browser ⋯**: the page's options, then Follow…, Reload, Downloads, Settings, then [Favorites][Recent][Reader]. No New Search: a tap on the address field starts one.

@@ -34,6 +34,13 @@ enum ListeningTime {
         return max(1, Int((words / (wordsPerMinute * max(0.25, rate))).rounded(.up)))
     }
 
+    /// A row's minutes (C131): 0 for text under a minute, which `label` shows as "<1 min", so a
+    /// folder of short articles doesn't read "1 min" on every row and a longer total above them.
+    static func rowMinutes(words: Double, rate: Double) -> Int {
+        guard words > 0 else { return 0 }
+        return words < wordsPerMinute * max(0.25, rate) ? 0 : minutes(words: words, rate: rate)
+    }
+
     /// Fewer words than this is nothing to listen to (a page whose article text is hidden, or a
     /// stub): about ten seconds of speech.
     static let minimumWords = 25
@@ -58,8 +65,9 @@ enum ListeningTime {
         minutes(utf16Length: max(0, document.utf16Length - offset), rate: rate)
     }
 
-    /// A length: "9 min", "1 h", "6 h 10 min".
+    /// A length: "<1 min" (0, `rowMinutes`), "9 min", "1 h", "6 h 10 min".
     static func label(minutes: Int) -> String {
+        if minutes <= 0 { return String(localized: "<1 min") }
         let (hours, rest) = (minutes / 60, minutes % 60)
         if hours == 0 { return String(localized: "\(minutes) min") }
         return rest == 0 ? String(localized: "\(hours) h") : String(localized: "\(hours) h \(rest) min")

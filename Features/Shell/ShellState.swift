@@ -73,14 +73,8 @@ enum ShellSheet: Identifiable, Equatable {
     /// listen debug panel opened from Settings.
     var showsOverASheet: Bool { self == .listenDebug }
 
-    /// History lists browser destinations, so it belongs to the browser: presenting it from the
-    /// library leaves the library first. The others show over whatever is on screen.
-    var belongsToBrowser: Bool {
-        switch self {
-        case .history: true
-        case .settings, .share, .moveTo, .importBook, .downloads, .folderDetails, .follow, .following, .listenDebug: false
-        }
-    }
+    // Every sheet shows over whatever is on screen: History from the Library keeps the Library
+    // under it (C130); opening a page from it goes to the browser as any page does.
 }
 
 /// One use of the Move tree: what it is for, where the item is now, and what picking a place
@@ -459,7 +453,6 @@ final class ShellState {
     }
 
     func present(_ sheet: ShellSheet) {
-        if sheet.belongsToBrowser { leaveLibrary() }
         if sheet.showsOverASheet, let under = self.sheet, under != sheet {
             overSheet = sheet
         } else {

@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// ```
 /// 📁 Bonds                                       ⋯   folder: its count on the second line
-///    2 folders   3 pages
+///    2 folders   3 articles
 /// ▣  Pride and Prejudice                         ⋯   book: its place and time left
 ///    Ch 24   6 h 10 min left                ◐  ⋯   (the listening column: ◐ part-way)
 /// ▣ Coupon Basics                             ●  ⋯   page, downloaded: the accent filled ↓ badge;
@@ -40,7 +40,7 @@ import SwiftUI
 struct ListRow: View {
     enum Kind {
         /// A folder (a book or a series too): its symbol, or a book's cover when it has one, and
-        /// what is in it ("2 folders", "3 pages"; "Empty") for its second line; none (`[]`) for a
+        /// what is in it ("2 folders", "3 articles"; "Empty") for its second line; none (`[]`) for a
         /// folder whose pages play, whose second line is its place and time left.
         case folder(symbol: String = Icons.folder, count: [String], cover: Image? = nil)
         /// A saved page: its site icon (or a letter tile).

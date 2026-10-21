@@ -129,7 +129,7 @@ enum Verbs {
     static let favorites = String(localized: "Favorites")
     /// The browser's: pages visited.
     /// The visits sheet's button and title: *Recent*, as the Library's tab (C100).
-    static let history = String(localized: "Recent")
+    static let history = String(localized: "History")
     static let removeFromHistory = String(localized: "Remove from History")
     /// The start page's and the search layer's section of searches made, and its action.
     static let recentSearches = String(localized: "Recent Searches")

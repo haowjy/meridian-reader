@@ -96,11 +96,15 @@ struct LibrarySurface: View {
                               identifier: "libraryForward") {}
                 .disabled(true)
                 .toolbarSlot(1)
+            // An imported EPUB or a followed story takes nothing new (the create group is empty):
+            // ＋ stays in its slot, dimmed, instead of opening an empty menu (C130).
+            let createRows = screenMenu.createRows
             Menu {
-                MenuRows(screenMenu.createRows)
+                MenuRows(createRows)
             } label: {
                 Image(systemName: Icons.add).toolbarIconFrame()
             }
+            .disabled(createRows.isEmpty)
             .accessibilityLabel("Add")
             .accessibilityIdentifier("libraryAdd")
             .toolbarSlot(2)

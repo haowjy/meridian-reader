@@ -57,7 +57,8 @@ extension SpeechController {
         if let voice = selectedVoice, ListenLanguage.baseCode(voice.language) == ListenLanguage.baseCode(code) {
             return voice
         }
-        return VoiceCatalog.bestVoice(forLanguage: code)
+        return VoiceCatalog.bestVoice(forLanguage: code,
+                                      gender: VoiceCatalog.gender(ofKokoroVoice: localTTS.voice(for: .kokoro)))
     }
 
     var selectedVoice: AVSpeechSynthesisVoice? {

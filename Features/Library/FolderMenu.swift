@@ -39,11 +39,17 @@ struct FolderMenu: View {
     /// After *Move to…* is saved (the folder's own screen shows it where it went).
     var onMoved: () -> Void = {}
 
+    static let deleteRowID = "menuDeleteFolder"
+
     var body: some View {
         if place == .header {
-            // More ends with the create group, into this folder (C126).
-            MenuRows(blocks: [rows, LibraryCreateMenu(library: actions.library, shell: actions.shell, follow: actions.follow,
-                                                      screen: screen, folder: folder).rows])
+            // More: the folder's rows, then the create group into this folder (C126), and
+            // Delete Folder alone at the bottom, as everywhere else it is the last row (C130).
+            let all = rows
+            let delete = all.filter { $0.id == Self.deleteRowID }
+            MenuRows(blocks: [all.filter { $0.id != Self.deleteRowID },
+                              LibraryCreateMenu(library: actions.library, shell: actions.shell, follow: actions.follow,
+                                                screen: screen, folder: folder).rows, delete])
         } else {
             MenuRows(rows)
         }
@@ -103,7 +109,7 @@ struct FolderMenu: View {
                 shell.present(.folderDetails(folder.id))
             }
         default:
-            return MenuRow(id: "menuDeleteFolder", title: Verbs.deleteFolder(isBook: folder.kind == .book),
+            return MenuRow(id: Self.deleteRowID, title: Verbs.deleteFolder(isBook: folder.kind == .book),
                            icon: Icons.delete, isDestructive: true) { screen.confirmDelete([folder]) }
         }
     }
@@ -115,7 +121,7 @@ struct FolderMenu: View {
 
     /// A row's swipe, without building the menu: the menu's *Delete Folder…* (it asks first).
     static func swipe(for folder: Folder, screen: LibraryScreenState) -> MenuRow {
-        MenuRow(id: "menuDeleteFolder", title: Verbs.deleteFolder(isBook: folder.kind == .book), icon: Icons.delete,
+        MenuRow(id: Self.deleteRowID, title: Verbs.deleteFolder(isBook: folder.kind == .book), icon: Icons.delete,
                 isDestructive: true) { screen.confirmDelete([folder]) }
     }
 }

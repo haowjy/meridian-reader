@@ -96,7 +96,9 @@ private struct BarProgress: View {
         NowPlayingBar(
             title: now.lineOne,
             detail: now.isFinished ? [.finished]
-                : [ArticleRowTitle.lineTwoSource(title: now.title, source: now.source), ListeningTime.leftLabel(minutes: left)]
+                // Line two names its folder when it is in one, as Recent's rows do (C130), else its source.
+                : [articles.first?.folder?.name ?? ArticleRowTitle.lineTwoSource(title: now.title, source: now.source),
+                   ListeningTime.leftLabel(minutes: left)]
                     .compactMap { $0 }.map { DetailPart($0) },
             artwork: cover.image(for: now.articleKey, data: now.artwork),
             artworkLetter: now.artworkLetter,
@@ -148,9 +150,10 @@ private struct ResumeBar: View {
         )
     }
 
-    /// Its source (untitled, line one is already that), then the time left or the full ring and Finished.
+    /// Its folder (as Recent's rows), else its source (untitled, line one is already that), then the time left or the full ring and Finished.
     private func detail(_ progress: ListRow.Progress) -> [DetailPart] {
-        let source = ArticleRowTitle.lineTwoSource(title: article.givenTitle, source: article.source).map { [DetailPart($0)] } ?? []
+        let source = (article.folder?.name ?? ArticleRowTitle.lineTwoSource(title: article.givenTitle, source: article.source))
+            .map { [DetailPart($0)] } ?? []
         switch progress {
         case .partWay(_, let minutesLeft): return source + [DetailPart(ListeningTime.leftLabel(minutes: minutesLeft))]
         case .finished: return [.finished]

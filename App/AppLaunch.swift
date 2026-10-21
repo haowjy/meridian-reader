@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 
 /// Launch work, run once by `ReaderApp` when the first window appears: the library's launch
@@ -64,6 +65,23 @@ enum AppLaunch {
         if !library.migrateParagraphLayout().rolledBack { library.dedupe() }
         library.pruneUnsaved()
         tts.endLaunchHold()
+        Self.logAppleVoices()
+    }
+
+    /// Which Apple voices this device offers apps (C129: Siri's aren't among them), off the main
+    /// thread, into the timing log.
+    private static func logAppleVoices() {
+        Task.detached(priority: .utility) {
+            let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("en") }
+            let q: (AVSpeechSynthesisVoice) -> String = {
+                switch $0.quality { case .premium: "premium"; case .enhanced: "enhanced"; default: "default" }
+            }
+            let list = voices.map { "\($0.name)|\($0.language)|\(q($0))|\($0.gender.rawValue)" }
+            ListenTimingLog.log("apple_voices", [
+                "count": voices.count, "siri": voices.filter { $0.identifier.lowercased().contains("siri") }.count,
+                "voices": list.joined(separator: ";"),
+            ])
+        }
     }
 
     /// Kokoro crashed last session: reopen the page in Now Playing at the paragraph that was

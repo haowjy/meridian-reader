@@ -53,6 +53,11 @@ struct ListeningSettingsSection: View {
                     Text(message).foregroundStyle(Palette.destructive)
                 }
                 Text("On-device voices download once, then work offline. Swipe left on a downloaded engine to remove its download.")
+                if !VoiceCatalog.hasHighQualityVoice(forLanguage: speech.effectiveLanguageCode) {
+                    // C129: Siri's voices aren't offered to apps; better Apple voices are a download.
+                    Text("Better Apple voices (Enhanced or Premium) can be downloaded in iOS Settings > Accessibility > Spoken Content > Voices.")
+                        .accessibilityIdentifier("appleVoiceHint")
+                }
             }
             .listFooter()
         }

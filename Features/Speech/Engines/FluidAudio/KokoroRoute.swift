@@ -89,25 +89,28 @@ struct KokoroRouteSettings {
 /// Auto-recover after a crash inside a Kokoro call — a pure state machine (unit-tested) plus
 /// `recover`, the policy `FluidAudioProvider` answers the coordinator's crash hook with.
 ///
+/// C129: Kokoro never falls to another engine or voice on its own.
 /// - Any Kokoro crash turns the Core ML route off: it resumes on the ONNX route.
-/// - Core ML crash (or a pre-route marker from an older build) → stay on Kokoro/ONNX, resume.
-/// - ONNX route crash #1 → stay on Kokoro/ONNX, resume.
-/// - ONNX route crash #2 (without a healthy stretch in between) → Apple, with a clear notice.
-/// A healthy stretch (`healthyRendersToReset` ONNX calls in one session) or picking Kokoro again
-/// in Settings resets the ONNX count.
+/// - Core ML crash (or a pre-route marker from an older build) → Kokoro/ONNX, same voice, resume,
+///   no banner (the same voice and the same cached audio, so nothing the user hears changes).
+/// - ONNX route crash #1 → the same, silently, on one thread fewer (a fresh session).
+/// - ONNX route crash #2 (without a healthy stretch in between) → still Kokoro, but playback and
+///   downloads pause with a plain notice and Retry, on one thread fewer again.
+/// A healthy stretch (`healthyRendersToReset` ONNX calls in one session) or Retry resets the count.
 enum KokoroCrashRecovery {
     static let onnxCrashLimit = 2
     static let healthyRendersToReset = 40
+    /// Fewest ONNX threads a crash retry steps down to.
+    static let minimumRetryThreads = 2
 
     enum Outcome: Equatable {
-        /// Keep Kokoro selected on the ONNX route and resume where the crash happened.
+        /// Keep Kokoro selected on the ONNX route and resume where the crash happened, silently.
         case resumeOnONNX
-        /// The ONNX route crashed `onnxCrashLimit` times: switch to Apple.
-        case fallBackToApple
+        /// The ONNX route crashed `onnxCrashLimit` times: stay on Kokoro, pause until Retry.
+        case pauseForRetry
     }
 
-    static let resumedNotice = "Kokoro stopped unexpectedly; resumed on the stable route."
-    static let appleNotice = "Kokoro stopped unexpectedly twice on the stable route, so Meridian Reader switched to the Apple voice. Tap Kokoro in Settings to try again."
+    static let pausedNotice = "Kokoro stopped twice while reading aloud, so playback and downloads are paused. Tap Retry to continue with the same voice."
 
     /// `crashedRoute` nil = legacy marker (older builds only ran Core ML).
     static func onCrash(route crashedRoute: KokoroRoute?, onnxCrashCount: inout Int) -> Outcome {
@@ -117,41 +120,46 @@ enum KokoroCrashRecovery {
         case .onnxCPU:
             onnxCrashCount += 1
             if onnxCrashCount >= onnxCrashLimit {
-                onnxCrashCount = 0 // a manual retry starts a fresh count
-                return .fallBackToApple
+                onnxCrashCount = 0 // Retry starts a fresh count
+                return .pauseForRetry
             }
             return .resumeOnONNX
         }
     }
 
-    static func notice(for outcome: Outcome) -> String {
-        switch outcome {
-        case .resumeOnONNX: return resumedNotice
-        case .fallBackToApple: return appleNotice
-        }
+    /// Threads after an ONNX crash: one fewer than before, at least `minimumRetryThreads`
+    /// (a crash under memory pressure is less likely with fewer per-thread buffers).
+    static func retryThreads(after current: Int) -> Int {
+        max(minimumRetryThreads, current - 1)
     }
 
-    /// The previous process died inside a Kokoro call: never silently leave the user on Apple.
-    /// Updates the route settings (crash count, fast route off) and says where to resume.
+    /// The previous process died inside a Kokoro call: stay on Kokoro and its voice.
+    /// Updates the route settings (crash count, fast route off, threads) and says where to resume.
     /// `playing` is the session's last resume point.
     static func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?,
                         settings: KokoroRouteSettings) -> CrashRecovery {
         var onnxCount = settings.onnxCrashCount
-        let outcome = onCrash(route: crash.route.flatMap(KokoroRoute.init(rawValue:)), onnxCrashCount: &onnxCount)
+        let crashedRoute = crash.route.flatMap(KokoroRoute.init(rawValue:))
+        let outcome = onCrash(route: crashedRoute, onnxCrashCount: &onnxCount)
         settings.onnxCrashCount = onnxCount
         settings.fastGPURouteEnabled = false
+        if crashedRoute == .onnxCPU { settings.cpuThreads = retryThreads(after: settings.cpuThreads) }
+        let target = ListenResumeTarget.forCrash(article: crash.articleKey, paragraph: crash.paragraph,
+                                                 crashAt: crash.at, playing: playing)
         let recovery: CrashRecovery
         switch outcome {
         case .resumeOnONNX:
-            recovery = .stay(notice: resumedNotice, resume: ListenResumeTarget.forCrash(
-                article: crash.articleKey, paragraph: crash.paragraph, crashAt: crash.at, playing: playing))
-        case .fallBackToApple:
-            recovery = .switchAway(notice: appleNotice)
+            recovery = .stay(notice: nil, resume: target)
+        case .pauseForRetry:
+            var paused = target
+            paused?.autoPlay = false
+            recovery = .pauseForRetry(notice: pausedNotice, resume: paused)
         }
         let resume = recovery.resume
         ListenTimingLog.log("kokoro_auto_recover", [
             "route": crash.route ?? "legacy", "outcome": String(describing: outcome),
-            "onnx_crashes": onnxCount, "resume_key": resume?.articleKey.prefix(8) ?? "",
+            "onnx_crashes": onnxCount, "threads": settings.cpuThreads,
+            "resume_key": resume?.articleKey.prefix(8) ?? "",
             "resume_p": resume?.paragraph ?? -1, "auto_play": resume?.autoPlay ?? false,
         ])
         return recovery

@@ -496,3 +496,20 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 ## Jump to Audio and full screen (C128)
 
 `ReadingChrome.showsJumpToAudio(awayFromAudio:)` is the one rule for both layouts: `awayFromAudio && !hidden`. `NowPlayingSheet` shows the pill through it, so in full screen (Scroll or Pages) only `FloatingPlayButton` floats over the text, with its look, place and `floatingDuration` fade unchanged. `JumpToAudioRuleTests` checks it.
+
+## Engine stop recovery (C129)
+
+- `EngineCrashGuard.beginCall` stamps the in-flight marker with `buildStamp` (executable size and
+  mtime). A leftover marker from another build is verdict `reinstalled` and dismissed: an install
+  replacing the app mid-call (the 2026-10-20 21:06 EDT Napoleon banner) is not a crash.
+- `KokoroCrashRecovery`: Core ML crash or ONNX crash #1 gives `.stay(notice: nil)` (same voice,
+  ONNX CPU, no banner); ONNX crash #2 in a row gives `.pauseForRetry`: the coordinator sets
+  `isPausedForRetry`, `GlobalSynthQueue.isPausedForRetry` stops the render worker, the crash
+  target reopens paused, and the banner shows *Retry* (`retryAfterEngineStop`; pressing play or
+  dismissing also retries). Each ONNX crash steps `cpuThreads` down one (minimum 2). There is no
+  path from a Kokoro crash to Apple any more.
+- Live-gap Apple units stay temp files (`UnitSource.appleFallback`, deleted when played); bake
+  cache keys are `kokoro.<voice>`, so mismatched audio can't be cached.
+- `VoiceCatalog.bestVoice(forLanguage:gender:)` ranks Premium > Enhanced > default, then the
+  Kokoro voice's gender (`gender(ofKokoroVoice:)`), then region. Launch logs `apple_voices`
+  (English voices, quality, and a Siri count) to the timing log.

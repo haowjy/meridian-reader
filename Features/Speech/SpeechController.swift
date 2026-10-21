@@ -289,6 +289,8 @@ final class SpeechController {
     /// an interruption) calls `perform`.
     func userPerform(_ intent: PlaybackIntent) {
         noteUserIntent()
+        // C129: the user pressing anything but pause after the engine stopped is the Retry.
+        if localTTS.isPausedForRetry, intent != .pause { localTTS.retryAfterEngineStop() }
         perform(intent)
     }
 

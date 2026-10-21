@@ -52,29 +52,46 @@ enum VoiceCatalog {
         }
     }
 
-    /// Apple voice for speaking `code` when the user hasn't picked one for that language:
-    /// the system's voice for the exact code, else the best installed voice sharing the base
-    /// language (current region first, then quality).
+    /// Apple voice for speaking `code` when the user hasn't picked one for that language (C129):
+    /// the best installed voice, Premium before Enhanced before the default, then one whose gender
+    /// matches `gender` (the Kokoro voice's, so the live-gap fallback sounds closer), then the
+    /// exact region asked for (or the device's), never a novelty voice. Siri's voices aren't
+    /// offered to apps, so these are the Spoken Content voices.
     static func bestVoice(
         forLanguage code: String,
+        gender: AVSpeechSynthesisVoiceGender? = nil,
         from all: [AVSpeechSynthesisVoice] = AVSpeechSynthesisVoice.speechVoices()
     ) -> AVSpeechSynthesisVoice? {
-        if code.contains("-") || code.contains("_"),
-           let exact = AVSpeechSynthesisVoice(language: code.replacingOccurrences(of: "_", with: "-")) {
-            return exact
-        }
+        let wanted = canonicalLang(code)
         let base = ListenLanguage.baseCode(code)
-        let region = Locale.current.region?.identifier.lowercased()
-        let candidates = all.filter { ListenLanguage.baseCode($0.language) == base }
-        return candidates.max { a, b in
-            func score(_ v: AVSpeechSynthesisVoice) -> Int {
-                var s = qualityRank(v) * 10
-                if let region, canonicalLang(v.language).hasSuffix("-" + region) { s += 100 }
-                if isNoveltyName(v.name) { s -= 1_000 }
-                return s
-            }
-            return score(a) < score(b)
-        } ?? AVSpeechSynthesisVoice(language: code)
+        let region = wanted.contains("-") ? String(wanted.split(separator: "-").last ?? "")
+            : Locale.current.region?.identifier.lowercased()
+        let candidates = all.filter { ListenLanguage.baseCode($0.language) == base && !isNoveltyName($0.name) }
+        func score(_ v: AVSpeechSynthesisVoice) -> Int {
+            var s = qualityRank(v) * 100
+            if let gender, gender != .unspecified, v.gender == gender { s += 10 }
+            if let region, canonicalLang(v.language).hasSuffix("-" + region) { s += 5 }
+            return s
+        }
+        return candidates.max { score($0) < score($1) }
+            ?? AVSpeechSynthesisVoice(language: code.replacingOccurrences(of: "_", with: "-"))
+    }
+
+    /// Whether any Enhanced or Premium voice is installed for `code` (Settings' download hint).
+    static func hasHighQualityVoice(forLanguage code: String,
+                                    from all: [AVSpeechSynthesisVoice] = AVSpeechSynthesisVoice.speechVoices()) -> Bool {
+        let base = ListenLanguage.baseCode(code)
+        return all.contains { ListenLanguage.baseCode($0.language) == base && qualityRank($0) >= 2 }
+    }
+
+    /// A Kokoro voice id's gender: its second letter ("af_heart" female, "bm_george" male).
+    static func gender(ofKokoroVoice id: String?) -> AVSpeechSynthesisVoiceGender? {
+        guard let id, id.count >= 2 else { return nil }
+        switch id[id.index(after: id.startIndex)] {
+        case "f": return .female
+        case "m": return .male
+        default: return nil
+        }
     }
 
     static func languageName(for code: String) -> String {

@@ -43,7 +43,7 @@ enum LaunchHooks {
         guard let folder = try? library.makeFolder(name: "Big Folder", in: nil) else { return }
         for i in 1...count {
             let paragraphs = (1...3).map { "Big page \(i), paragraph \($0). A synthetic note for the timing probe." }
-            _ = try? library.save(webPage("Big Page \(i)", at: "https://example.com/big-\(i)", paragraphs: paragraphs),
+            _ = try? library.save(webPage("Big Article \(i)", at: "https://example.com/big-\(i)", paragraphs: paragraphs),
                                   placement: .folder(folder))
         }
         library.commit("big folder seed")

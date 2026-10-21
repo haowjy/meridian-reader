@@ -59,10 +59,14 @@ final class EngineCrashGuard: @unchecked Sendable {
         var at: Date
         /// `phys_footprint` when the call started, MB; nil in older markers.
         var footprintMB: Int? = nil
+        /// `EngineCrashGuard.buildStamp` of the process that wrote the marker; nil in older ones.
+        var build: String? = nil
 
         /// Whether the engine killed the process. `lastActivity`: the latest time the previous
         /// process is known to have been playing (`ListenResumePointStore`).
-        func verdict(lastActivity: Date?) -> MarkerVerdict {
+        func verdict(lastActivity: Date?, currentBuild: String? = EngineCrashGuard.buildStamp) -> MarkerVerdict {
+            // C129: installing a new build kills the running app; a call it cut off isn't a crash.
+            if let build, let currentBuild, build != currentBuild { return .reinstalled }
             if let lastActivity, lastActivity.timeIntervalSince(at) > EngineCrashGuard.callBound { return .stale }
             if phase == AppRunState.Phase.background.rawValue, let footprintMB,
                footprintMB >= EngineCrashGuard.memoryKillFootprintMB { return .memoryKill }
@@ -78,6 +82,8 @@ final class EngineCrashGuard: @unchecked Sendable {
         case memoryKill = "memory_kill"
         /// It went on long past the call's start: the call wasn't what ended it.
         case stale
+        /// Another build wrote it: an install replaced the app mid-call (C129).
+        case reinstalled
     }
 
     func beginCall(engine: SpeechEngineID, chars: Int, route: String? = nil, article: UUID? = nil,
@@ -86,6 +92,7 @@ final class EngineCrashGuard: @unchecked Sendable {
             "t": Date().timeIntervalSince1970, "engine": engine.rawValue, "chars": chars, "phase": phase.rawValue,
             "mem_mb": ProcessMemory.footprintMB,
         ]
+        if let build = Self.buildStamp { obj["build"] = build }
         if let route { obj["route"] = route }
         if let article { obj["article"] = article.uuidString }
         if let paragraph { obj["p"] = paragraph }
@@ -156,8 +163,18 @@ final class EngineCrashGuard: @unchecked Sendable {
         let t = (info["t"] as? Double).map(Date.init(timeIntervalSince1970:)) ?? Date()
         return CrashInfo(engine: engine, route: info["route"] as? String, articleKey: key,
                          paragraph: paragraph, phase: info["phase"] as? String, at: t,
-                         footprintMB: info["mem_mb"] as? Int)
+                         footprintMB: info["mem_mb"] as? Int, build: info["build"] as? String)
     }
+
+    /// Identifies the installed build: the executable's size and modification time, which every
+    /// install (even of the same version number) changes. nil when unreadable.
+    static let buildStamp: String? = {
+        guard let path = Bundle.main.executablePath,
+              let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+              let size = attrs[.size] as? NSNumber, let date = attrs[.modificationDate] as? Date
+        else { return nil }
+        return "\(size.intValue)-\(Int(date.timeIntervalSince1970))"
+    }()
 
     /// Last recorded crash (from `engine_crashes.json`), e.g. for a provider's launch step.
     var lastCrash: CrashInfo? {
@@ -180,20 +197,27 @@ final class EngineCrashGuard: @unchecked Sendable {
 /// What to do after the previous process died inside an engine's call (a provider's answer to
 /// `SpeechEngineProvider.recover(from:playing:)`).
 enum CrashRecovery: Equatable {
-    /// Keep the engine selected, show `notice`, and reopen `resume` when there is one.
-    case stay(notice: String, resume: ListenResumeTarget?)
+    /// Keep the engine selected, show `notice` (nil: a silent same-voice recovery, C129), and
+    /// reopen `resume` when there is one.
+    case stay(notice: String?, resume: ListenResumeTarget?)
+    /// Keep the engine and voice selected but pause playback and the render queue until the user
+    /// taps Retry (C129: never fall to another engine or voice); show `notice`.
+    case pauseForRetry(notice: String, resume: ListenResumeTarget?)
     /// Switch to `EngineRegistry.crashFallback` and show `notice`; picking the crashed engine
     /// again is a fresh try.
     case switchAway(notice: String)
 
-    var notice: String {
+    var notice: String? {
         switch self {
-        case .stay(let notice, _), .switchAway(let notice): return notice
+        case .stay(let notice, _): return notice
+        case .pauseForRetry(let notice, _), .switchAway(let notice): return notice
         }
     }
 
     var resume: ListenResumeTarget? {
-        if case .stay(_, let resume) = self { return resume }
-        return nil
+        switch self {
+        case .stay(_, let resume), .pauseForRetry(_, let resume): return resume
+        case .switchAway: return nil
+        }
     }
 }

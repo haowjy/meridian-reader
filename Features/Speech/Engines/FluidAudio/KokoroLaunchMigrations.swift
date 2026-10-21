@@ -42,7 +42,7 @@ struct KokoroONNXMainMigration: LaunchMigration {
         var target = ListenResumeTarget.forCrash(article: last.articleKey, paragraph: last.paragraph,
                                                  crashAt: last.at, playing: tts.resumePoints.load())
         target?.autoPlay = false
-        tts.applyLaunchRecovery(.stay(notice: KokoroCrashRecovery.resumedNotice, resume: target), crashed: .kokoro)
+        tts.applyLaunchRecovery(.stay(notice: nil, resume: target), crashed: .kokoro)
         ListenTimingLog.log("kokoro_onnx_migration", [
             "from": "apple", "resume_key": target?.articleKey.prefix(8) ?? "", "resume_p": target?.paragraph ?? -1,
         ])

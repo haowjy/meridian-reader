@@ -548,8 +548,13 @@ final class GlobalSynthQueue {
         didSet { if !isHeldForLaunch { kickWorker() } }
     }
 
+    /// The engine stopped repeatedly (C129): nothing renders until Retry.
+    var isPausedForRetry = false {
+        didSet { if !isPausedForRetry { kickWorker() } }
+    }
+
     private func kickWorker() {
-        guard worker == nil, !isPausedForProbe, !isHeldForLaunch else { return }
+        guard worker == nil, !isPausedForProbe, !isHeldForLaunch, !isPausedForRetry else { return }
         worker = Task { [weak self] in
             await self?.drain()
         }
@@ -564,7 +569,7 @@ final class GlobalSynthQueue {
             drainGrace.end()
             #endif
         }
-        while !isPausedForProbe, !isHeldForLaunch {
+        while !isPausedForProbe, !isHeldForLaunch, !isPausedForRetry {
             if let stop = await renderStep() {
                 stopReason = stop
                 return
