@@ -66,7 +66,7 @@ struct ArticleMenu: View {
         facts.inFolder = article?.folder != nil
         facts.canPlay = actions.isSaved || article?.isWaitingChapter == true
         facts.canFavorite = actions.canFavorite
-        facts.hasVoices = actions.speech.localTTS.wantsLocalBake
+        facts.hasVoices = true // C138a: every article has a voice (an Apple one too)
         facts.hasShareURL = actions.shareURL != nil
         facts.inRecent = !facts.inLibrary && article.map(LibraryQueries.isInRecent) == true
         if case .nowPlaying(let goTo) = place { facts.goToEnabled = goTo.availability == .enabled }
@@ -96,7 +96,7 @@ struct ArticleMenu: View {
                            action: actions.togglePrepare)
         case .voice:
             let tts = actions.speech.localTTS
-            let name = article.flatMap { tts.effectiveVoice(of: $0.listenKey) }.map(tts.engines.voiceName(forCacheVoice:))
+            let name = article.map { tts.voiceName(of: tts.effectiveSelection(of: $0.listenKey)) }
             return MenuRow(id: "menuVoice", title: name.map(Verbs.voiceRow) ?? Verbs.voice, icon: Icons.voice) {
                 if let article { actions.shell.present(.voice(.article(article.listenKey))) }
             }
