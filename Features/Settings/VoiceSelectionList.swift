@@ -54,7 +54,7 @@ struct VoiceSelectionList: View {
         } header: {
             SectionHeader(title: descriptor.displayName).listHeader()
         } footer: {
-            if let notice = localTTS.engineCrashNotice {
+            if let notice = localTTS.engineCrashNotice, localTTS.crashedEngineID == nil || localTTS.crashedEngineID == id {
                 Text(notice).foregroundStyle(Palette.destructive).listFooter()
             } else if case .failed(id, let message) = localTTS.synth.state {
                 Text(message).foregroundStyle(Palette.destructive).listFooter()

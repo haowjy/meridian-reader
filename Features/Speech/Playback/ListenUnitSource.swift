@@ -103,7 +103,7 @@ final class QueueUnitSource: ListenUnitSource {
 
     func chunks(paragraph: Int) -> [String] {
         guard paragraphs.indices.contains(paragraph) else { return [] }
-        return queue.chunkTexts(for: paragraphs[paragraph])
+        return queue.chunkTexts(for: paragraphs[paragraph], engineID: selection.engine.rawValue)
     }
 
     func chunkDurations(paragraph: Int) -> [TimeInterval]? {

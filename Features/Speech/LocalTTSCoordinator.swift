@@ -31,7 +31,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     let chunkPlans: ChunkPlans
     /// Called after every engine-state change and engine-voice change. `SpeechController` uses it
     /// to decide whether the live utterance moves to another engine (views never coordinate that).
-    @ObservationIgnored var onEngineChange: (() -> Void)?
     /// The listen player (set by `LocalListenEngine`): the render queue asks it which article is
     /// playing (listener priority, background bake scope).
     @ObservationIgnored weak var listenPlayer: LocalListenPlayer?
@@ -444,7 +443,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         if let persisted = state.persistedSelection {
             defaults.set(persisted.rawValue, forKey: Self.engineIDKey)
         }
-        onEngineChange?()
         synthQueue.renderTargetChanged()
         if case .ready = state {
             noteBakeMarksChanged()

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Lifecycle of the on-device engine. `LocalSynthService` holds exactly one value and changes it
-/// only in `setState(_:)`; the coordinator then persists the selection and tells `onEngineChange`.
+/// only in `setState(_:)`; the coordinator then persists the loaded engine and tells the render queue.
 enum LocalEngineState: Equatable {
     /// Apple speaks; no on-device engine is loaded or loading.
     case off

@@ -96,7 +96,8 @@ final class LocalListenEngine: ListenEngine {
                                         ?? coordinator.selection(for: request.articleID, paragraphs: document.paragraphs))
         self.source = source
         let queue = coordinator.synthQueue
-        mapper = ListenPositionMapper(document: document) { queue.chunkTexts(for: $0) }
+        let engineID = source.selection.engine.rawValue
+        mapper = ListenPositionMapper(document: document) { queue.chunkTexts(for: $0, engineID: engineID) }
         // Scrubbed to a sentence mid-paragraph: start at its synth chunk, offset into the audio.
         let start = mapper.startPoint(utf16: request.utf16Offset)
         paragraph = start.paragraph

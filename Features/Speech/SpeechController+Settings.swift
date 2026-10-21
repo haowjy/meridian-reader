@@ -84,7 +84,6 @@ extension SpeechController {
         let codeChanged = selectedLanguageCode != code
         languageAutomatic = false
         selectedLanguageCode = code
-        if codeChanged { selectedVoiceIdentifier = nil }
         languageSettingChanged()
     }
 

@@ -369,11 +369,11 @@ final class GlobalSynthQueue {
 
     // MARK: - Chunk-level live ensure (play-while-building)
 
-    /// Synth chunks of a paragraph's text for the active engine (`ChunkPlans`): what the listen
-    /// player plays chunk by chunk.
-    func chunkTexts(for text: String) -> [String] {
+    /// Synth chunks of a paragraph's text for `engineID`, the article's engine (`ChunkPlans`):
+    /// what the listen player plays chunk by chunk.
+    func chunkTexts(for text: String, engineID: String) -> [String] {
         guard let coordinator else { return [] }
-        return coordinator.chunkPlans.chunks(for: text, engineID: coordinator.cacheEngineID) ?? []
+        return coordinator.chunkPlans.chunks(for: text, engineID: engineID) ?? []
     }
 
     /// The render target changed (an engine loaded or went away, another voice): failure marks
@@ -623,7 +623,10 @@ final class GlobalSynthQueue {
         }
         let (job, index) = next
         // C138a: the article's own selection, locked by its first render. Never another voice.
-        guard let target = coordinator.lockedRenderTarget(for: job.cacheKey) else { return nil }
+        guard let target = coordinator.lockedRenderTarget(for: job.cacheKey) else {
+            // Can't happen (nextWorkUnit picked it for its target); stop rather than spin.
+            return "no_target"
+        }
         let playing = playingCacheKeys.contains(job.cacheKey)
         guard admission(isLiveRequest: hasLiveWaiters, cacheKey: job.cacheKey, isPrepareTurn: prepareTurn) == .render else {
             // Restarted by `runStateChanged`, `playbackAdvanced` (or a listener's request).
