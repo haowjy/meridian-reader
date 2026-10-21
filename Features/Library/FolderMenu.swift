@@ -48,7 +48,7 @@ struct FolderMenu: View {
             let all = rows
             let delete = all.filter { $0.id == Self.deleteRowID }
             MenuRows(blocks: [all.filter { $0.id != Self.deleteRowID },
-                              LibraryCreateMenu(library: actions.library, shell: actions.shell, follow: actions.follow,
+                              LibraryCreateMenu(library: actions.library, shell: actions.shell,
                                                 screen: screen, folder: folder).rows, delete])
         } else {
             MenuRows(rows)

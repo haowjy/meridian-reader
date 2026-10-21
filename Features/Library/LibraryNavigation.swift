@@ -89,7 +89,7 @@ extension LibraryEditBar {
 
     /// Slot 3's ＋ (C122, C126): the create group at `.edit`, its New Folder filing the selection.
     func createRows(in folder: Folder) -> [MenuRow] {
-        LibraryCreateMenu(library: library, shell: shell, follow: follow, screen: screen, folder: folder, place: .edit) {
+        LibraryCreateMenu(library: library, shell: shell, screen: screen, folder: folder, place: .edit) {
             let selected = actions.selected(in: screen)
             return selected.folders.map(LibraryItem.folder) + selected.articles.map(LibraryItem.article)
         }.rows

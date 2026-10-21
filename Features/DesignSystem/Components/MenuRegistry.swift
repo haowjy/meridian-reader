@@ -54,7 +54,7 @@ enum MenuRegistry {
         // A prepare
         case reprepare, removePrepare
         // A screen's own rows
-        case newFolder, importFile, saveFromWebsite, pasteText, follow, sort, reload, preparedAudio, settings
+        case newFolder, importFile, pasteText, follow, sort, reload, preparedAudio, settings
         // The Prepared Audio list's own ⋯ (C135)
         case deleteAllPrepared, clearListeningAudio
     }
@@ -187,13 +187,10 @@ enum MenuRegistry {
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .importFile, kind: .screen, places: [.add, .edit],
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
-        Spec(option: .saveFromWebsite, kind: .screen, places: [.add, .edit],
-             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .pasteText, kind: .screen, places: [.add, .edit],
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
-        Spec(option: .follow, kind: .screen, places: [.add, .edit, .browser],
-             applies: { !$0.isFixedOrder }, enabled: { $0.canFollow },
-             hiddenIf: "the folder keeps its own order (imported, followed)", greyIf: "browser: no web page up"),
+        Spec(option: .follow, kind: .screen, places: [.browser],
+             enabled: { $0.canFollow }, greyIf: "browser: no web page up"),
         Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen],
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .reload, kind: .screen, places: [.browser], enabled: { $0.hasWebPage }, greyIf: "no page up"),

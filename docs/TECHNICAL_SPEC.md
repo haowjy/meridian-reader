@@ -483,7 +483,7 @@ The library's item model is `Article` (it was `Page`), alongside `Folder`. Its s
 
 ## The create group (C126)
 
-`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds the one create group from `MenuRegistry` (`.newFolder`, `.importFile`, `.saveFromWebsite`, `.pasteText`, `.follow` at `.add` and `.edit`, each hidden when `isFixedOrder`). ＋ uses it as `createRows`, `FolderMenu` at `.header` appends it as a second block (`.folderNewFolder` is gone), and `LibraryEditBar` slot 3 is a ＋ `Menu` with it at `.edit`, `filing` the selection. *Save from Website…* (`LibraryScreenState.saveFromWebsite(into:)`, address alert) calls `LibraryStore.saveLink(_:in:)`: an article the library has moves into the folder and is saved; a new one is a `.link` article, fetched when it first plays or prepared audio.
+`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds the one create group from `MenuRegistry` (`.newFolder`, `.importFile`, `.pasteText` at `.add` and `.edit`, each hidden when `isFixedOrder`). ＋ uses it as `createRows`, `FolderMenu` at `.header` appends it as a second block (`.folderNewFolder` is gone), and `LibraryEditBar` slot 3 is a ＋ `Menu` with it at `.edit`, `filing` the selection. Follow… and Save from Website… left the group (C142): they are done from the browser.
 
 ## One row height in Edit and out (C123)
 
