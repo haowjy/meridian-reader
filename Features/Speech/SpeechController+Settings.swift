@@ -28,7 +28,7 @@ extension SpeechController {
     /// Engine the language picker would use: the active local engine (selected or pending),
     /// else the selected one.
     var languageEngineDescriptor: EngineDescriptor? {
-        localTTS.engines.descriptor(localTTS.activeLocalEngineID ?? localTTS.selectedEngineID)
+        localTTS.engines.descriptor(localTTS.defaultSelection.engine)
     }
 
     /// Language + engine for an article with `detected` language under the current settings.
@@ -53,17 +53,20 @@ extension SpeechController {
     /// The Apple voice that speaks `code`: the user's pick when it speaks that language, else the
     /// best installed voice for it. Apple speech and every Apple fallback of the on-device engine
     /// (live and in the render queue, `LocalTTSCoordinator.appleVoiceForArticle`) use it.
-    func appleVoice(forLanguage code: String) -> AVSpeechSynthesisVoice? {
-        if let voice = selectedVoice, ListenLanguage.baseCode(voice.language) == ListenLanguage.baseCode(code) {
+    func appleVoice(forLanguage code: String, preferred: String? = nil) -> AVSpeechSynthesisVoice? {
+        let pick = preferred.flatMap { $0.isEmpty ? nil : AVSpeechSynthesisVoice(identifier: $0) } ?? selectedVoice
+        if let voice = pick, ListenLanguage.baseCode(voice.language) == ListenLanguage.baseCode(code) {
             return voice
         }
         return VoiceCatalog.bestVoice(forLanguage: code,
                                       gender: VoiceCatalog.gender(ofKokoroVoice: localTTS.voice(for: .kokoro)))
     }
 
+    /// The Apple voice of the Settings default, when the default is an Apple voice.
     var selectedVoice: AVSpeechSynthesisVoice? {
-        guard let id = selectedVoiceIdentifier else { return nil }
-        return AVSpeechSynthesisVoice(identifier: id)
+        let d = localTTS.defaultSelection
+        guard d.isApple, !d.voice.isEmpty else { return nil }
+        return AVSpeechSynthesisVoice(identifier: d.voice)
     }
 
     // MARK: - Choosing
@@ -81,7 +84,6 @@ extension SpeechController {
         let codeChanged = selectedLanguageCode != code
         languageAutomatic = false
         selectedLanguageCode = code
-        if codeChanged { selectedVoiceIdentifier = nil }
         languageSettingChanged()
     }
 
@@ -89,16 +91,6 @@ extension SpeechController {
     /// utterance and let the bake queue / marks follow.
     private func languageSettingChanged() {
         localTTS.noteBakeMarksChanged()
-        restartUtteranceIfNeeded()
-    }
-
-    func selectVoice(identifier: String?) {
-        let changed = selectedVoiceIdentifier != identifier
-        selectedVoiceIdentifier = identifier
-        if !languageAutomatic, let identifier, let voice = AVSpeechSynthesisVoice(identifier: identifier) {
-            selectedLanguageCode = voice.language
-        }
-        guard changed else { return }
         restartUtteranceIfNeeded()
     }
 }

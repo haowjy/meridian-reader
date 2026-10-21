@@ -98,4 +98,26 @@ extension LibraryStore {
         }
         return (articleCount, books.count)
     }
+
+    /// C138a migration: voices stored before engines were part of them (a cache voice key,
+    /// "kokoro.af_heart") become selections ("local.kokoro/af_heart"); one no engine wrote is cleared.
+    @discardableResult
+    func convertVoices(_ convert: (String) -> String?) -> Int {
+        let articles = (try? context.fetch(FetchDescriptor<Article>())) ?? []
+        let folders = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
+        var count = 0
+        try? edit("convert voices") {
+            for article in articles {
+                guard let old = article.voiceID, !old.contains("/") else { continue }
+                article.voiceID = convert(old)
+                count += 1
+            }
+            for folder in folders {
+                guard let old = folder.voiceID, !old.contains("/") else { continue }
+                folder.voiceID = convert(old)
+                count += 1
+            }
+        }
+        return count
+    }
 }

@@ -113,8 +113,6 @@ final class SpeechController {
     private struct EngineBinding {
         var route: ListenRoute
         var engine: ListenEngine
-        /// Paragraph Apple is finishing before the on-device engine takes over (`EngineHandover`).
-        var handoverAfterParagraph: Int?
         /// Apple speaks a chapter that started in the background on a route that can't render
         /// there (decision D9); the on-device engine takes over once the app is in front again.
         var standsInUntilForeground = false
@@ -125,18 +123,23 @@ final class SpeechController {
 
     private func engine(for route: ListenRoute) -> ListenEngine {
         switch route {
-        case .apple: return appleEngine
+        case .apple, .appleStandIn: return appleEngine
         case .local: return localEngine
         }
     }
 
-    /// The engine `speak` picks now: the on-device engine once it is loaded and speaks this
-    /// article's language, else Apple.
-    var wantedRoute: ListenRoute {
-        guard let id = localTTS.synth.state.readyEngineID, localTTS.engines.supports(id),
-              localTTS.engines.isOnDevice(languageResolution.engineID) else { return .apple }
-        return .local(id, voice: localTTS.voice(for: id))
+    /// C138a: the route of the article with `articleID`: its own selection (locked now if it is
+    /// brand new). An on-device engine that isn't loaded starts loading; the player waits for it
+    /// and fills any gap with temporary Apple audio (C129), never another saved voice.
+    func route(for articleID: UUID, paragraphs: [String]) -> ListenRoute {
+        let selection = localTTS.selection(for: articleID, paragraphs: paragraphs)
+        guard localTTS.engines.isOnDevice(selection.engine) else { return .apple(voice: selection.voice) }
+        localTTS.loadEngineIfNeeded(selection.engine)
+        return .local(selection)
     }
+
+    /// The route of the session bound now (nil: none).
+    var boundRoute: ListenRoute? { binding?.route }
 
     // MARK: - Language
 
@@ -432,7 +435,6 @@ final class SpeechController {
             let language = self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs))
             return self.appleVoice(forLanguage: language.languageCode)?.identifier
         }
-        self.localTTS.onEngineChange = { [weak self] in self?.localEngineChanged() }
         for engine in listenEngines {
             engine.setRate(rateMultiplier)
             engine.onEvent = { [weak self, unowned engine] event in self?.handle(event, from: engine) }
@@ -547,31 +549,6 @@ final class SpeechController {
         localEngine.rekey(to: newID)
     }
 
-    /// The on-device engine changed state or voice (`LocalTTSCoordinator.onEngineChange`): move the
-    /// live utterance to the engine `speak` would pick now, when `EngineHandover` says so.
-    private func localEngineChanged() {
-        guard let bound = binding?.route, playback.phase == .playing || playback.phase == .paused,
-              binding?.standsInUntilForeground != true else { return }
-        switch EngineHandover.decide(bound: bound, wanted: wantedRoute, phase: playback.phase) {
-        case .none:
-            binding?.handoverAfterParagraph = nil
-        case .restartNow:
-            speak(fromUTF16Offset: playback.utf16Offset, startPaused: playback.phase == .paused)
-        case .atNextParagraph:
-            if binding?.handoverAfterParagraph == nil { binding?.handoverAfterParagraph = playback.playhead }
-        }
-    }
-
-    /// Apple started speaking `paragraph`: a pending handover happens here, at its start.
-    private func handOverIfDue(atParagraph paragraph: Int) {
-        guard let after = binding?.handoverAfterParagraph, paragraph > after else { return }
-        guard wantedRoute != binding?.route else {
-            binding?.handoverAfterParagraph = nil
-            return
-        }
-        speak(fromUTF16Offset: document.startUTF16Offset(forParagraph: paragraph), startPaused: false)
-    }
-
     // MARK: - Interruptions / route changes
 
     /// Calls / Siri pause (and resume if iOS says `shouldResume`); losing the headphones pauses.
@@ -606,7 +583,7 @@ final class SpeechController {
             // D9: the chapter Apple took in the background goes back to the on-device engine.
             if binding?.standsInUntilForeground == true {
                 binding?.standsInUntilForeground = false
-                localEngineChanged()
+                restartUtteranceIfNeeded()
             }
         }
         diagnostics.appPhaseChanged(phase)
@@ -674,7 +651,6 @@ final class SpeechController {
         case .position(let paragraph, _):
             let moved = paragraph != playback.playhead
             playback.handle(event)
-            handOverIfDue(atParagraph: paragraph)
             if moved { stageNextChapterIfDue() }
         case .statusChanged:
             sampleListenStatus()
@@ -704,13 +680,20 @@ final class SpeechController {
             return
         }
 
-        let route = chosen ?? wantedRoute
+        let route = chosen ?? route(for: articleID, paragraphs: document.paragraphs)
         let engine = engine(for: route)
         binding = EngineBinding(route: route, engine: engine, standsInUntilForeground: standsIn)
+        var selection: VoiceSelection?
+        var apple = effectiveAppleVoice
+        switch route {
+        case .local(let s): selection = s
+        case .apple(let voice): apple = appleVoice(forLanguage: effectiveLanguageCode, preferred: voice)
+        case .appleStandIn: break
+        }
         // The phase already says playing or paused (the intent that led here set it); the engine
         // confirms with its own events.
         engine.play(ListenPlayRequest(articleID: articleID, document: document, utf16Offset: start,
-                                      startPaused: startPaused, appleVoice: effectiveAppleVoice))
+                                      startPaused: startPaused, selection: selection, appleVoice: apple))
     }
 
     /// Played to the end (not stopped) with nothing to carry on to: the engines and the audio
@@ -743,11 +726,15 @@ final class SpeechController {
     /// in the CURRENT voice (stale old-voice units don't count).
     /// `nil` means hide marks (Apple path — no CAF bake, don't fake "not ready").
     func bakeReadyParagraphIndices(articleID: UUID, paragraphCount: Int, detectedLanguage: String? = nil) -> Set<Int>? {
-        guard let localID = localTTS.activeLocalEngineID, localTTS.engines.supports(localID),
-              let voice = localTTS.storedVoice(of: articleID) ?? localTTS.activeCacheVoice else { return nil }
-        // Article speaks with Apple (language the engine can't speak): no marks, like Apple.
+        // C138a: the article's own selection; an Apple one (or a language its engine can't speak)
+        // renders nothing ahead: no marks.
         let detected = detectedLanguage ?? (articleID == activeSessionID ? sessionDetectedLanguage : nil)
-        guard localTTS.engines.isOnDevice(languageResolution(detected: detected).engineID) else { return nil }
+        let selection = localTTS.storedSelection(of: articleID)
+            ?? (localTTS.engines.isOnDevice(languageResolution(detected: detected).engineID)
+                ? localTTS.defaultSelection : VoiceSelection(engine: .apple, voice: ""))
+        guard localTTS.engines.supports(selection.engine), localTTS.engines.isOnDevice(selection.engine),
+              let voice = localTTS.cacheVoice(of: selection) else { return nil }
+        let localID = selection.engine
         // Hide until unit count is known — empty Set would mark every HTML block not-ready.
         guard paragraphCount > 0 else { return nil }
         _ = localTTS.bakeMarksRevision

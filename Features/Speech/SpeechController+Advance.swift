@@ -99,14 +99,15 @@ extension SpeechController {
             chapterFlow.boundary = nil
             return
         }
-        speak(fromUTF16Offset: 0, startPaused: false, route: standsIn ? .apple : nil, standsIn: standsIn)
+        speak(fromUTF16Offset: 0, startPaused: false, route: standsIn ? .appleStandIn : nil, standsIn: standsIn)
     }
 
     /// Decision D9: in the background, on a route that can't render there (Core ML), no model
     /// call may start, so a chapter not rendered in full plays in Apple's voice until the app is
     /// in front again. The ONNX route renders in the background and keeps its voice.
     private func appleStandsIn(for session: SpeechSession) -> Bool {
-        guard case .local = wantedRoute, localTTS.synthQueue.runState.phase == .background,
+        guard case .local = route(for: session.id, paragraphs: session.document.paragraphs),
+              localTTS.synthQueue.runState.phase == .background,
               !localTTS.activeRouteRendersInBackground,
               let missing = localTTS.missingParagraphs(of: session.id, paragraphs: session.document.paragraphs)
         else { return false }
@@ -127,7 +128,7 @@ extension SpeechController {
     /// engine, not for audio held for unfinished library work; once per chapter.
     func stageNextChapterIfDue() {
         guard let key = playback.articleID, let folderID = playback.folderID, let library = nextChapters,
-              chapterFlow.stagedAfter != key, case .local = wantedRoute,
+              chapterFlow.stagedAfter != key, case .local = boundRoute,
               let missing = localTTS.missingParagraphs(of: key, paragraphs: playback.document.paragraphs) else { return }
         let count = playback.paragraphCount
         guard !missing.contains(where: { $0 >= playback.playhead && $0 < count - 2 }) else { return }

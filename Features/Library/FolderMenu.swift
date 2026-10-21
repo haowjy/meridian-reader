@@ -64,7 +64,7 @@ struct FolderMenu: View {
         facts.hasPreparedAudio = preparedAudio.hasPreparedAudio(folder, articles: articles)
         facts.isFixedOrder = folder.kind.isBookOrSeries
         facts.isBookOrSeries = folder.kind.isBookOrSeries
-        facts.hasVoices = actions.speech.localTTS.wantsLocalBake
+        facts.hasVoices = true // C138a: every article has a voice (an Apple one too)
         return facts
     }
 
@@ -98,8 +98,8 @@ struct FolderMenu: View {
             return removePreparedAudio
         case .folderVoice:
             let tts = actions.speech.localTTS
-            let voice = folder.voiceID ?? tts.activeCacheVoice
-            return MenuRow(id: "menuVoice", title: voice.map { Verbs.voiceRow(tts.engines.voiceName(forCacheVoice: $0)) } ?? Verbs.voice,
+            let selection = folder.voiceID.flatMap(VoiceSelection.init(stored:)) ?? tts.defaultSelection
+            return MenuRow(id: "menuVoice", title: Verbs.voiceRow(tts.voiceName(of: selection)),
                            icon: Icons.voice) { shell.present(.voice(.folder(folder.id))) }
         case .folderFavorite:
             let isFavorite = folder.isFavorite

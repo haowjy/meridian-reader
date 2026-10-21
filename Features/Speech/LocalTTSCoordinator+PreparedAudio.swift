@@ -6,15 +6,13 @@ import Foundation
 /// in bursts (`RenderAdmission`, `BackgroundRenderWatermarks`); while it is safely ahead and audio
 /// plays, a prepare's job takes the same one-thread worker (C94). Nothing here renders on its own.
 extension LocalTTSCoordinator: PrepareRendering {
-    /// The voice downloads render in, as a cache voice key: the selected on-device voice, or, while
-    /// Apple's voice is selected, the voice the default on-device engine would use.
-    var prepareVoice: String? {
-        (wantsLocalBake ? activeLocalEngineID : engines.defaultLocalEngineID).flatMap(cacheVoice(of:))
-    }
+    /// The voice a new article's prepared audio renders in (the Settings default), as a cache voice key.
+    var prepareVoice: String? { cacheVoice(of: defaultSelection) }
 
     func queuePrepare(cacheKey: UUID, paragraphs: [String]) -> PrepareQueueing {
         guard wantsLocalBake else { return .notRendering }
-        guard localLanguageAllows(paragraphs) else { return .speaksLive }
+        // C138a: an article in an Apple voice (or a language the engine can't speak) speaks live.
+        guard rendersAhead(cacheKey, paragraphs: paragraphs) else { return .speaksLive }
         guard !audioCache.held.contains(cacheKey) else { return .held }
         if missingPrepareParagraphs(cacheKey: cacheKey, paragraphs: paragraphs) == 0 { return .ready }
         startBakeIfNeeded(articleID: cacheKey, paragraphs: paragraphs)
@@ -26,22 +24,18 @@ extension LocalTTSCoordinator: PrepareRendering {
     /// It reads `bakeMarksRevision`, so a view showing it redraws as audio is rendered.
     func missingPrepareParagraphs(cacheKey: UUID, paragraphs: [String]) -> Int {
         _ = bakeMarksRevision
-        guard wantsLocalBake || prepareVoice != nil, let voice = storedVoice(of: cacheKey) ?? prepareVoice else {
-            return paragraphs.count
-        }
-        return audioCache.missingParagraphs(articleID: cacheKey, paragraphs: paragraphs, engineID: cacheEngineID,
-                                            voiceID: voice, plans: chunkPlans).count
+        let selection = peekSelection(of: cacheKey, paragraphs: paragraphs)
+        guard let voice = cacheVoice(of: selection) else { return paragraphs.count }
+        return audioCache.missingParagraphs(articleID: cacheKey, paragraphs: paragraphs,
+                                            engineID: selection.engine.rawValue, voiceID: voice, plans: chunkPlans).count
     }
 
     func renderedVoice(of key: UUID) -> String? {
         audioCache.renderedVoice(articleID: key)
     }
 
-    /// C138: the voice `key`'s prepared audio renders in: the article's own (or its book's), else
-    /// the prepare voice its first audio will take.
-    func prepareVoice(of key: UUID) -> String? {
-        storedVoice(of: key) ?? prepareVoice
-    }
+    /// C138a: the cache voice `key`'s audio is in: its own selection's, else the default's.
+    func prepareVoice(of key: UUID) -> String? { cacheVoice(of: effectiveSelection(of: key)) }
 
     /// The engine is loaded and the launch's hold over (so no job waits for either), and
     /// `cacheKey`'s job is neither in the queue nor in the pending jobs on disk.

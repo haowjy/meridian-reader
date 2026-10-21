@@ -94,7 +94,7 @@ chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
   route, the `.mlmodelc` stages. Settings shows download progress; swipe left for *Remove Download*.
 - Voices (`KokoroVoiceCatalog`): `af_heart` (default), `af_bella`, `bf_emma`, `am_puck`,
   `bm_fable`. A stored voice that isn't curated resolves to the default. A voice pack prepared audio
-  when the voice is chosen (`LocalTTSCoordinator.chooseVoice` → `EngineRegistry.prepareVoice`);
+  when the voice is chosen (`LocalTTSCoordinator.downloadVoice` → `EngineRegistry.prepareVoice`);
   only then does the voice switch. A failed prepare keeps the old voice and shows the error.
 - Previews are bundled (`Resources/VoicePreviews/voice-preview-kokoro-<id>.m4a`, ≈5 s, 24 kHz
   mono AAC), rendered on the Mac:
