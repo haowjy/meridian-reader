@@ -309,7 +309,7 @@ commas.
   Book…* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
-  default, or *Title*), *New Folder…, Import from…, Save from Website…, Paste Text…, Follow…, Prepared Audio, Settings*.
+  default, or *Title*), *New Folder…, Import from…, Paste Text…, Prepared Audio*.
 - **A folder** (`FolderScreen`, books and series included): a centred header (YouTube Music's
   album header), then subfolders first (by their order), then pages by the folder's sort. The
   header is the title and counts; a folder with details has its cover above them (below). Once
@@ -359,7 +359,7 @@ commas.
   (🗑, ⋯'s slot) as symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: the folder's own menu, then *Sort ›,
-  New Folder…, Import from…, Save from Website…, Paste Text…, Follow…, Prepared Audio, Settings*. Every ⋯ ends with *Prepared Audio,
+  New Folder…, Import from…, Paste Text…, Prepared Audio*. Every ⋯ ends with *Prepared Audio,
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view

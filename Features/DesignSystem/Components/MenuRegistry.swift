@@ -54,7 +54,7 @@ enum MenuRegistry {
         // A prepare
         case reprepare, removePrepare
         // A screen's own rows
-        case newFolder, importFile, saveFromWebsite, pasteText, follow, sort, reload, preparedAudio, settings
+        case newFolder, importFile, pasteText, follow, sort, reload, preparedAudio, settings
         // The Prepared Audio list's own ⋯ (C135)
         case deleteAllPrepared, clearListeningAudio
     }
