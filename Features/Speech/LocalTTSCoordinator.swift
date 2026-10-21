@@ -46,18 +46,17 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// resumed on the ONNX route, or switched to Apple after repeated ONNX crashes). Shown as a
     /// dismissible one-line banner and in Settings.
     private(set) var engineCrashNotice: String?
-    private var crashedEngineID: SpeechEngineID?
+    private(set) var crashedEngineID: SpeechEngineID?
     /// C129: the engine stopped repeatedly; playback and the render queue wait for Retry
     /// (`retryAfterEngineStop`). The engine and voice stay selected.
     private(set) var isPausedForRetry = false
-    /// C138: the voice the article with `key` speaks in (its own, or its book's), as a cache voice
-    /// key; nil: none yet. Set by the composition from the library (`LibraryStore.voice(ofKey:)`).
-    @ObservationIgnored var articleVoice: (UUID) -> String? = { _ in nil }
-    /// C138: the article with `key` (or its book) takes `voice` unless it has one; returns the one
-    /// it speaks in after (`LibraryStore.lockVoice`).
-    @ObservationIgnored var lockArticleVoice: (UUID, String) -> String = { $1 }
-    /// Article voices read this launch, until the library changes (`articleVoicesChanged`).
-    @ObservationIgnored private var articleVoiceMemo: [UUID: String?] = [:]
+    /// C138a: the stored selection of the article with `key` (or its book), in its stored form.
+    @ObservationIgnored var articleSelection: (UUID) -> String? = { _ in nil }
+    /// C138a: the article with `key` (or its book) takes the selection unless it has one; returns the one it has.
+    @ObservationIgnored var lockArticleSelection: (UUID, String) -> String = { $1 }
+    @ObservationIgnored var selectionMemo: [UUID: VoiceSelection?] = [:]
+    /// The Settings default: the selection a brand-new article takes on first use. Nothing else.
+    var defaultSelection = VoiceSelection(engine: .apple, voice: "")
     /// C134: `key` has a prepare record (set by the composition from the prepare list).
     @ObservationIgnored var preparedKey: (UUID) -> Bool = { _ in false }
     /// C134: listening needs `key`'s audio now (set by the composition: session, staged chapter).
@@ -116,7 +115,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
         synthQueue.attach(coordinator: self)
         synth.onStateChange = { [weak self] in self?.engineStateChanged() }
-        var initial = storedSelection()
+        loadDefaultSelection(legacyEngine: storedSelection(),
+                             legacyAppleVoice: defaults.string(forKey: SpeechController.voiceDefaultsKey))
+        // The default's engine loads at launch; an article in another engine loads its own on play.
+        var initial = defaultSelection.engine
         // What was playing, and when it was last recorded: a marker much older than that is
         // from a call the process outlived.
         let playing = resumePoints.load()
@@ -124,6 +126,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
         if let launchCrash { initial = recover(from: launchCrash, selection: initial, playing: playing) }
         if let launchEngine, engines.contains(launchEngine) {
             initial = launchEngine
+            // A launch argument (tests, debug) sets the default to that engine's voice.
+            defaultSelection = VoiceSelection(engine: launchEngine, voice: engineVoices[launchEngine] ?? "")
             if initial == crashedEngineID { engineCrashNotice = nil; crashedEngineID = nil }
         }
         start(initial)
@@ -323,61 +327,26 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Cache voice key of the active local engine (loaded or loading): what bake marks count.
     var activeCacheVoice: String? { activeLocalEngineID.flatMap(cacheVoice(of:)) }
 
-    /// What the render queue renders: the loaded on-device engine in its selected voice. nil while
-    /// none is loaded (Apple selected, a model loading, failed or deleted), and then nothing
-    /// renders: a model loads only when it is selected (`selectEngine`, launch), never because
-    /// work is queued.
-    var renderTarget: RenderTarget? {
-        guard let id = synth.state.readyEngineID, let voice = cacheVoice(of: id) else { return nil }
-        return RenderTarget(engineID: id.rawValue, cacheVoice: voice, engineVoice: engineVoices[id])
-    }
-
-    /// C138: the loaded engine in the article's own voice (one voice per article and per book).
-    /// A voice of another engine (none today) can't render here: nothing renders for it.
+    /// C138a: what renders for the article with `cacheKey`: its own selection, when that is an
+    /// on-device engine and that engine is loaded. Unlocked articles render in the default (which
+    /// they then lock: `lockedRenderTarget`). nil renders nothing; no other engine or voice is
+    /// ever substituted.
     func renderTarget(for cacheKey: UUID) -> RenderTarget? {
-        guard let base = renderTarget else { return nil }
-        guard let voice = storedVoice(of: cacheKey), voice != base.cacheVoice else { return base }
-        guard let id = synth.state.readyEngineID, let engineVoice = engineVoice(fromCacheVoice: voice, engine: id)
-        else { return nil }
-        return RenderTarget(engineID: base.engineID, cacheVoice: voice, engineVoice: engineVoice)
+        target(for: storedSelection(of: cacheKey) ?? defaultSelection)
     }
 
+    /// `renderTarget(for:)`, locking the default onto an article that had no voice yet.
     func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget? {
-        if storedVoice(of: cacheKey) == nil, let base = renderTarget {
-            let locked = lockArticleVoice(cacheKey, base.cacheVoice)
-            articleVoiceMemo[cacheKey] = .some(locked)
-        }
-        return renderTarget(for: cacheKey)
+        target(for: selection(for: cacheKey))
     }
 
-    /// The voice the article with `key` speaks in (memoized; `articleVoicesChanged` forgets).
-    func storedVoice(of key: UUID) -> String? {
-        if let memo = articleVoiceMemo[key] { return memo }
-        let voice = articleVoice(key)
-        articleVoiceMemo[key] = .some(voice)
-        return voice
-    }
+    /// The render target for `selection`; nil for Apple or when its engine isn't loaded.
+    var engineReady: Bool { synth.state.readyEngineID != nil }
 
-    /// The voice the article with `key` plays in: its own, else the one in Settings that its first
-    /// audio would take (what a menu's *Voice* row shows).
-    func effectiveVoice(of key: UUID) -> String? {
-        storedVoice(of: key) ?? activeCacheVoice ?? cacheVoice(of: engines.defaultLocalEngineID)
-    }
-
-    /// Any library edit: voices are read again when next asked.
-    func forgetArticleVoices() { articleVoiceMemo.removeAll() }
-
-    /// A voice was set from a menu: read voices again, and the queue renders in the new one.
-    func articleVoicesChanged() {
-        articleVoiceMemo.removeAll()
-        synthQueue.renderTargetChanged()
-        noteBakeMarksChanged()
-    }
-
-    /// "kokoro.af_heart" → "af_heart" for engine `id`; nil when the voice isn't that engine's.
-    func engineVoice(fromCacheVoice voice: String, engine id: SpeechEngineID) -> String? {
-        guard let prefix = engines.descriptor(id)?.onDevice?.cacheVoicePrefix, voice.hasPrefix(prefix + ".") else { return nil }
-        return String(voice.dropFirst(prefix.count + 1))
+    func target(for selection: VoiceSelection) -> RenderTarget? {
+        guard synth.state.readyEngineID == selection.engine,
+              let voice = cacheVoice(of: selection) else { return nil }
+        return RenderTarget(engineID: selection.engine.rawValue, cacheVoice: voice, engineVoice: selection.voice)
     }
 
     func appleFallbackVoice(for paragraphs: [String]) -> String? {
@@ -402,23 +371,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synth.state.readyEngineID == id || engines.isInstalled(id)
     }
 
-    func setVoice(_ voice: String, for id: SpeechEngineID) {
-        guard let d = engines.descriptor(id), voice != engineVoices[id] else { return }
-        engineVoices[id] = voice
-        defaults.set(voice, forKey: d.resolvedVoiceDefaultsKey)
-        guard activeLocalEngineID == id else { return }
-        synth.setVoice(voice, for: id)
-        synthQueue.renderTargetChanged()
-        noteBakeMarksChanged()
-        onEngineChange?()
-    }
 
-    /// User picked `voice` in Settings: prepare its files if needed (e.g. a ~0.5 MB Kokoro
-    /// pack), then switch. The article cache then re-renders in the new voice (one voice per
-    /// article, see `ArticleAudioCache`). Returns true if the voice changed.
-    @discardableResult
-    func chooseVoice(_ voice: String, for id: SpeechEngineID) async -> Bool {
-        guard let d = engines.descriptor(id), voice != engineVoices[id] else { return false }
+    /// A voice was picked (Settings default or an article's picker): prepare its files if needed
+    /// (e.g. a ~0.5 MB Kokoro pack). Selects nothing (`setDefaultSelection`, `ArticleVoiceChange`).
+    /// Returns true once the files are there.
+    func downloadVoice(_ voice: String, for id: SpeechEngineID) async -> Bool {
+        guard let d = engines.descriptor(id) else { return false }
         voiceChoiceToken &+= 1
         let token = voiceChoiceToken
         voiceDownloadError = nil
@@ -435,7 +393,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
         guard token == voiceChoiceToken else { return false }
         voiceDownloadID = nil
-        setVoice(voice, for: id)
+        engineVoices[id] = voice // the host's voice when it loads; every render names its own
         return true
     }
 
@@ -443,10 +401,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
         localLanguageGate?(paragraphs) ?? true
     }
 
-    /// Select any registered engine. Local engines download-on-select + warm, and only one
+    /// Load an on-device engine (C138a: only to speak an article in it, or the Settings default; never
+    /// to choose what an article speaks in). Local engines download on first load + warm, and only one
     /// local engine's models stay loaded (the other host is dropped). Returns once the choice has
     /// settled (loaded, failed, or replaced by another pick).
-    func selectEngine(_ id: SpeechEngineID) async {
+    func loadEngine(_ id: SpeechEngineID) async {
         guard engines.isOnDevice(id) else {
             synth.turnOff()
             return
@@ -523,7 +482,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// loads, the job waits on disk and joins the queue when the load finishes. An ephemeral
     /// page's audio starts its TTL again; Save is what marks audio saved.
     func openArticle(cacheKey: UUID, paragraphs: [String], from start: Int, isEphemeral: Bool) {
-        guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
+        guard !paragraphs.isEmpty, rendersAhead(cacheKey, paragraphs: paragraphs) else { return }
         focusCacheKey = cacheKey
         guard usesLocalEngine else {
             pendingBakes.enqueuePending(articleID: cacheKey, paragraphs: paragraphs, priorityStart: max(0, start))
@@ -544,7 +503,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// would overwrite before that work reads it.
     @discardableResult
     func stageNextChapter(cacheKey: UUID, after playing: UUID, paragraphs: [String]) -> Bool {
-        guard !paragraphs.isEmpty, wantsLocalBake, usesLocalEngine, localLanguageAllows(paragraphs),
+        guard !paragraphs.isEmpty, usesLocalEngine, rendersAhead(cacheKey, paragraphs: paragraphs),
               !audioCache.held.contains(cacheKey) else { return false }
         synthQueue.stageNext(cacheKey: cacheKey, after: playing, paragraphs: paragraphs,
                              upTo: Self.stagedChapterParagraphs,
@@ -556,7 +515,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// down, behind what is queued (#1 when nothing is). A job already queued, the one playing
     /// included, keeps its place and plan and just turns saved.
     func startBakeIfNeeded(articleID: UUID, paragraphs: [String]) {
-        guard !paragraphs.isEmpty, wantsLocalBake, localLanguageAllows(paragraphs) else { return }
+        guard !paragraphs.isEmpty, rendersAhead(articleID, paragraphs: paragraphs) else { return }
+        loadEngineIfNeeded(peekSelection(of: articleID, paragraphs: paragraphs).engine)
         audioCache.markSaved(cacheKey: articleID)
         pendingBakes.enqueuePending(articleID: articleID, paragraphs: paragraphs, priorityStart: 0)
         // Still loading: the job joins the queue when the load finishes.
@@ -640,8 +600,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// An on-device engine is loaded or loading: audio renders ahead (Apple renders nothing ahead).
-    var wantsLocalBake: Bool { activeLocalEngineID != nil }
+    /// C138a: this device has an on-device engine, so articles in its voices render ahead (an
+    /// article in an Apple voice renders nothing ahead: `rendersAhead`).
+    var wantsLocalBake: Bool { engines.localDescriptors.contains { engines.supports($0.id) } }
 
     /// Persisted pending jobs → queue, once the engine is loaded and the launch hold is over. The
     /// focused (active) article stays #1; see `GlobalSynthQueue.adoptPending`. A job for audio
@@ -649,7 +610,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private func drainPendingIntoQueue() {
         guard usesLocalEngine, !isHeldForLaunch else { return }
         let pending = pendingBakes.pendingJobs()
-            .filter { localLanguageAllows($0.paragraphs) && !audioCache.held.contains($0.articleID) }
+            .filter { rendersAhead($0.articleID, paragraphs: $0.paragraphs) && !audioCache.held.contains($0.articleID) }
         guard !pending.isEmpty else { return }
         ListenDebugLog.shared.append("adopting \(pending.count) saved bake job(s)")
         synthQueue.adoptPending(pending.map { job in

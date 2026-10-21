@@ -91,7 +91,9 @@ final class LocalListenEngine: ListenEngine {
         let generation = playGeneration
         document = request.document
         let source = QueueUnitSource(coordinator: coordinator, articleID: request.articleID,
-                                     paragraphs: document.paragraphs)
+                                     paragraphs: document.paragraphs,
+                                     selection: request.selection
+                                        ?? coordinator.selection(for: request.articleID, paragraphs: document.paragraphs))
         self.source = source
         let queue = coordinator.synthQueue
         mapper = ListenPositionMapper(document: document) { queue.chunkTexts(for: $0) }

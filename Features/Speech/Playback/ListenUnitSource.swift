@@ -56,20 +56,21 @@ enum RenderWorkerStatus: Equatable {
 final class QueueUnitSource: ListenUnitSource {
     private(set) var articleID: UUID
     let paragraphs: [String]
-    /// The engine and voice of the audio this play uses: the render target when playback started
-    /// (an engine or voice change restarts playback with a new source). nil: no engine is loaded.
-    private let target: RenderTarget?
+    /// C138a: the article's engine and voice. Every file this play reads or asks for is in it;
+    /// nil target: its engine isn't loaded (yet), and nothing plays but the C129 gap fill.
+    let selection: VoiceSelection
+    private var target: RenderTarget? { coordinator.target(for: selection) }
     /// Apple voice for fallback renders: the one the render queue falls back to for this article.
     private let appleVoiceID: String?
     private let coordinator: LocalTTSCoordinator
     private var queue: GlobalSynthQueue { coordinator.synthQueue }
     private var cache: ArticleAudioCache { coordinator.audioCache }
 
-    init(coordinator: LocalTTSCoordinator, articleID: UUID, paragraphs: [String]) {
+    init(coordinator: LocalTTSCoordinator, articleID: UUID, paragraphs: [String], selection: VoiceSelection) {
         self.coordinator = coordinator
         self.articleID = articleID
         self.paragraphs = paragraphs
-        self.target = coordinator.lockedRenderTarget(for: articleID)
+        self.selection = selection
         self.appleVoiceID = coordinator.appleFallbackVoice(for: paragraphs)
     }
 
@@ -79,7 +80,10 @@ final class QueueUnitSource: ListenUnitSource {
     var engineName: String { coordinator.synth.engineShortName }
     var rendersInBackground: Bool { coordinator.synth.rendersInBackground }
 
-    func prepare() async throws { try await coordinator.synth.prepare() }
+    func prepare() async throws {
+        _ = await coordinator.awaitEngine(for: articleID)
+        try await coordinator.synth.prepare()
+    }
 
     func renderedParagraph(_ paragraph: Int) -> RenderedParagraph? {
         guard let target,

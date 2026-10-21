@@ -44,18 +44,17 @@ struct ArticleVoiceChange {
     /// The articles that speak in this voice: the article, or every chapter.
     var articles: [Article] { library.articlesSpeaking(in: owner) }
 
-    /// Its own voice, nil before it has audio.
-    var ownVoice: String? {
-        switch owner {
+    /// Its own selection (engine + voice), nil before it has audio.
+    var ownSelection: VoiceSelection? {
+        let stored: String? = switch owner {
         case .article(let a): a.voiceID
         case .folder(let f): f.voiceID
         }
+        return stored.flatMap(VoiceSelection.init(stored:))
     }
 
-    /// The voice it plays in: its own, else the one in Settings its first audio takes.
-    var voice: String? {
-        ownVoice ?? tts.activeCacheVoice ?? tts.cacheVoice(of: tts.engines.defaultLocalEngineID)
-    }
+    /// The selection it plays in: its own, else the Settings default its first audio takes.
+    var selection: VoiceSelection { ownSelection ?? tts.defaultSelection }
 
     var isBook: Bool {
         if case .folder = owner { return true }
@@ -87,26 +86,32 @@ struct ArticleVoiceChange {
         return cost
     }
 
-    /// Picks `voice` (an engine voice id, "af_bella") of the engine `descriptor`: downloads its
-    /// files if needed, then sets it and remakes the audio. Throws when the download fails.
-    func apply(_ engineVoice: String, of descriptor: EngineDescriptor) async throws {
-        guard let cacheVoice = descriptor.cacheVoiceID(engineVoice: engineVoice), cacheVoice != ownVoice else { return }
-        try await tts.engines.prepareVoice(engineVoice, for: descriptor.id)
+    /// C138a: picks `selection` (any engine's voice): downloads its files if needed, then sets
+    /// it and remakes the audio. Throws when the download fails.
+    func apply(_ selection: VoiceSelection) async throws {
+        guard selection != ownSelection else { return }
+        if !selection.isApple {
+            guard await tts.downloadVoice(selection.voice, for: selection.engine) else {
+                throw CocoaError(.fileReadUnknown)
+            }
+        }
         let keys = articles.map(\.listenKey)
         // Never two voices in one listen: what plays of it stops at once.
         for key in keys { speech.stopIfPlaying(key) }
         switch owner {
-        case .article(let a): library.setVoice(cacheVoice, of: a)
-        case .folder(let f): library.setVoice(cacheVoice, of: f)
+        case .article(let a): library.setVoice(selection.stored, of: a)
+        case .folder(let f): library.setVoice(selection.stored, of: f)
         }
         tts.articleVoicesChanged()
+        if !selection.isApple { tts.loadEngineIfNeeded(selection.engine) }
         for key in keys {
-            if preparedAudio.hasRecord(for: key) {
-                preparedAudio.reprepare(article: key)
-            } else if tts.audioCache.bytes(for: key) > 0 {
+            let prepared = preparedAudio.hasRecord(for: key)
+            // An Apple voice renders nothing ahead: its old audio can't be remade, so it goes.
+            if (selection.isApple || !prepared), tts.audioCache.bytes(for: key) > 0 {
                 try? tts.clearListenAudio(for: key)
             }
+            if prepared { preparedAudio.reprepare(article: key) }
         }
-        ListenDebugLog.shared.append("C138 voice \(cacheVoice) for \(keys.count) article(s)")
+        ListenDebugLog.shared.append("C138a voice \(selection) for \(keys.count) article(s)")
     }
 }

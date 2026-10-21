@@ -3,7 +3,7 @@ import Foundation
 /// What the render queue renders: the on-device engine that is loaded and the voice it speaks in,
 /// as `ArticleAudioCache` keys (`engineID` "local.kokoro", `cacheVoice` "kokoro.af_heart"). Every
 /// render, readiness check and publish of the queue reads it from the one owner
-/// (`SynthQueueContext.renderTarget`), so a render made for one voice is never filed under another.
+/// (`SynthQueueContext.renderTarget(for:)`), so a render made for one voice is never filed under another.
 struct RenderTarget: Equatable {
     var engineID: String
     var cacheVoice: String
@@ -15,15 +15,16 @@ struct RenderTarget: Equatable {
 @MainActor
 protocol SynthQueueContext: AnyObject {
     var audioCache: ArticleAudioCache { get }
-    /// What renders now; nil while no on-device engine is ready (Apple selected, a model loading,
-    /// failed or deleted). The queue parks while it is nil: it never loads a model itself.
-    var renderTarget: RenderTarget? { get }
-    /// C138: what renders for `cacheKey`: the loaded engine in the article's own voice (the
-    /// voice its audio is in, or its book's), else in `renderTarget`'s. nil while no engine is ready.
+    /// An on-device engine is loaded. The queue parks while none is: it never loads a model itself.
+    var engineReady: Bool { get }
+    /// C138a: what renders for `cacheKey`: its own selection (engine + voice), only when that
+    /// engine is the one loaded. nil: nothing renders for it now. No other voice is substituted.
     func renderTarget(for cacheKey: UUID) -> RenderTarget?
     /// `renderTarget(for:)`, and an article with no voice yet takes that voice now (its first audio
     /// is about to render).
     func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget?
+    /// Load the engine the article with `cacheKey` speaks in and wait; false: it can't load.
+    func awaitEngine(for cacheKey: UUID) async -> Bool
     /// `ArticleAudioCache` engine key of the active local engine (loaded or loading): the plan
     /// the listen player cuts paragraphs by.
     var cacheEngineID: String { get }
@@ -48,8 +49,8 @@ protocol SynthQueueContext: AnyObject {
 }
 
 extension SynthQueueContext {
-    func renderTarget(for cacheKey: UUID) -> RenderTarget? { renderTarget }
     func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget? { renderTarget(for: cacheKey) }
+    func awaitEngine(for cacheKey: UUID) async -> Bool { false }
     var activeRouteRendersInBackground: Bool { false }
     var playingCacheKey: UUID? { nil }
 }
