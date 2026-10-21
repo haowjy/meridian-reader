@@ -109,6 +109,8 @@ enum AppComposition {
                                        fill: { await follow.fill($0, priority: .background) },
                                        needsAudio: { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 })
         tts.onRenderStateChange = { [weak downloads] in downloads?.scheduleCheck() }
+        tts.preparedKey = { [weak downloads] key in downloads?.hasRecord(for: key) ?? false }
+        tts.listeningNeedsKey = { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 }
         library.editStored = { [weak downloads] in downloads?.followLibrary() }
         return downloads
     }

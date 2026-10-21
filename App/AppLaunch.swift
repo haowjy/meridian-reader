@@ -64,6 +64,7 @@ enum AppLaunch {
         // save: both run again next launch).
         if !library.migrateParagraphLayout().rolledBack { library.dedupe() }
         library.pruneUnsaved()
+        library.retainRecent()
         tts.endLaunchHold()
         Self.logAppleVoices()
     }

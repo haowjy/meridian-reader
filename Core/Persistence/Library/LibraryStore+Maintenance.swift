@@ -112,7 +112,9 @@ extension LibraryStore {
         guard let current = order.firstIndex(where: { $0.key == place }), current > 2 else { return 0 }
         var trimmed = 0
         for article in order[..<(current - 2)] where article.finishedAt != nil {
-            guard let key = article.key, audio.audioCache.hasCache(for: key), !audio.audioCache.held.contains(key) else { continue }
+            // C134: prepared audio is never trimmed; only audio from listening is.
+            guard let key = article.key, audio.audioCache.hasCache(for: key), !audio.audioCache.held.contains(key),
+                  !audio.isPrepared(key) else { continue }
             try? audio.clearListenAudio(for: key)
             trimmed += 1
         }

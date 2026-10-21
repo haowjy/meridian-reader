@@ -59,12 +59,19 @@ struct DownloadsList: View {
     @Environment(\.speechController) private var speech
     /// Bytes on disk of each downloaded page, by its key (measured off the main actor).
     @State private var sizes: [UUID: Int64] = [:]
+    /// From Listening (C135): articles with audio made while listening, not prepared, newest
+    /// played first, with their sizes.
+    @State private var listening: [UUID] = []
+    @State private var listeningSizes: [UUID: Int64] = [:]
+    @State private var confirmingDeleteAll = false
+    @State private var confirmingClear = false
 
     var body: some View {
         let overview = downloads.pageOverview
         let records = downloads.overview.queued
+        let revision = speech.localTTS.audioCache.contentRevision
         List {
-            if overview.isEmpty {
+            if overview.isEmpty && listening.isEmpty {
                 Section {
                     EmptyState(String(localized: "Nothing Downloaded"), symbol: Icons.downloads,
                                description: Text("Download an article from its \(Text.symbol(Icons.more)) in the Library, or a folder with \(Text.symbol(Icons.download)) on its screen. Its audio is made ahead of time, so it plays offline."))
@@ -99,6 +106,23 @@ struct DownloadsList: View {
                     }
                 }
             }
+            if !listening.isEmpty {
+                let items = listening.map { DownloadArticles.Item(recordID: $0, key: $0, status: .done, voice: nil) }
+                Section {
+                    ForEach(items) { item in listeningRow(item) }
+                        .listRowInsets(EdgeInsets())
+                        .listCard()
+                } header: {
+                    SectionHeader(title: String(localized: "From Listening"), count: items.count)
+                        .listHeader()
+                        .accessibilityIdentifier("preparedListeningHeader")
+                } footer: {
+                    let total = listening.compactMap { listeningSizes[$0] }.reduce(0, +)
+                    Text(String(localized: "Audio made while you listen. It’s cleared once its article leaves the last \(LibraryStore.recentLimit) in Recent.")
+                         + (total > 0 ? " " + String(localized: "\(FileSizes.label(total)) on this iPhone.") : ""))
+                        .listFooter()
+                }
+            }
             if !overview.differentVoice.isEmpty {
                 section(overview.differentVoice,
                         header: SectionHeader(title: String(localized: "Different Voice"), count: overview.differentVoice.count),
@@ -115,6 +139,83 @@ struct DownloadsList: View {
         .navigationTitle(Verbs.downloads)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: overview.done.map(\.key)) { sizes = await measure(overview.done.map(\.key)) }
+        .task(id: "\(revision)-\(downloads.records.count)") { await loadListening() }
+        .toolbar {
+            let rows = listMenuRows(hasPrepared: !overview.isEmpty)
+            if !rows.isEmpty {
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu { MenuRows(rows) } label: { Image(systemName: Icons.more) }
+                        .accessibilityLabel(Verbs.more)
+                        .accessibilityIdentifier("preparedMore")
+                }
+            }
+        }
+        .alert(String(localized: "Delete \(downloads.heldArticleKeys.count) articles and their prepared audio? This can’t be undone."),
+               isPresented: $confirmingDeleteAll) {
+            Button(Verbs.delete, role: .destructive) {
+                shell.attempt(String(localized: "Couldn’t delete the articles")) { try downloads.deleteAll() }
+            }
+            .accessibilityIdentifier("preparedDeleteAllConfirm")
+            Button(Verbs.cancel, role: .cancel) {}
+        }
+        .alert(String(localized: "Clear the audio from listening? The articles stay."), isPresented: $confirmingClear) {
+            Button(Verbs.clear, role: .destructive) { clearListening() }
+            Button(Verbs.cancel, role: .cancel) {}
+        }
+    }
+
+    // MARK: - From Listening (C135)
+
+    /// The list's ⋯: *Delete All…* over Prepared, *Clear Audio From Listening…* over From
+    /// Listening, each only while its section has rows (`MenuRegistry`).
+    private func listMenuRows(hasPrepared: Bool) -> [MenuRow] {
+        var facts = MenuRegistry.Facts()
+        facts.hasPrepared = hasPrepared && !downloads.heldArticleKeys.isEmpty
+        facts.hasListeningAudio = !listening.isEmpty
+        return MenuRegistry.rows(.screen, at: .downloads, facts) { option in
+            if option == .deleteAllPrepared {
+                return MenuRow(id: "preparedDeleteAll", title: Verbs.deleteAllPrepared, icon: Icons.delete,
+                               isDestructive: true) { confirmingDeleteAll = true }
+            }
+            return MenuRow(id: "preparedClearListening", title: Verbs.clearListeningAudio, icon: Icons.delete,
+                           isDestructive: true) { confirmingClear = true }
+        }
+    }
+
+    private func listeningRow(_ item: DownloadArticles.Item) -> some View {
+        let article = library.article(key: item.key)
+        let title = article?.lineOne ?? ""
+        let kind: ListRow.Kind = .article(artwork: article?.artworkImage, letter: article?.artworkLetter ?? String(title.prefix(1)))
+        let place = article.flatMap { $0.folder?.name ?? ArticleRowTitle.lineTwoSource(title: $0.givenTitle, source: $0.byline) }
+        let menu = DownloadMenu(item: item, downloads: downloads, library: library, isListeningAudio: true,
+                                needsAudio: speech.localTTS.listeningNeedsKey)
+        // No accent ↓: that mark is for prepared audio only (C135).
+        return ListRow(kind: kind, title: title, subtitle: place,
+                       details: [listeningSizes[item.key].map(FileSizes.label)].compactMap { $0 },
+                       menu: AnyView(menu), showsListening: false)
+            .opensOnTap { open(article) }
+            .contextMenu { AnyView(menu) }
+            .swipeActions(edge: .trailing) { menu.removeRow.swipeButton(role: .destructive) }
+            .accessibilityIdentifier("listeningAudioRow")
+    }
+
+    /// Articles in the Library or Recent with audio on disk that no prepare record holds, newest
+    /// played first.
+    private func loadListening() async {
+        let held = Set(downloads.heldArticleKeys)
+        let keys = speech.localTTS.audioCache.cachedArticleKeys().filter { !held.contains($0) }
+        let articles = keys.compactMap(library.article(key:))
+            .sorted { ($0.lastPlayedAt ?? .distantPast) > ($1.lastPlayedAt ?? .distantPast) }
+        listening = articles.compactMap(\.key)
+        listeningSizes = await measure(listening)
+    }
+
+    private func clearListening() {
+        let needs = speech.localTTS.listeningNeedsKey
+        for key in listening where !needs(key) {
+            if let article = library.article(key: key) { library.deleteDownloads(article) }
+        }
+        Task { await loadListening() }
     }
 
     // MARK: - Sections

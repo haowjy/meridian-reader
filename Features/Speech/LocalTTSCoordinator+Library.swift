@@ -3,6 +3,9 @@ import Foundation
 /// What the library's changes do to audio (`LibraryAudioEffects`): the files, the render queue,
 /// the saved bake jobs and the crash-resume target move together.
 extension LocalTTSCoordinator: LibraryAudioEffects {
+    func isPrepared(_ key: UUID) -> Bool { preparedKey(key) }
+    func listeningNeeds(_ key: UUID) -> Bool { listeningNeedsKey(key) }
+
     /// The queue lets the key go before its files do; a delete that fails keeps the saved job.
     func clearListenAudio(for articleID: UUID) throws {
         synthQueue.remove(cacheKey: articleID)

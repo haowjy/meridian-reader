@@ -730,7 +730,8 @@ final class SpeechController {
         audioSession.deactivate()
         localTTS.synthQueue.unstage()
         // Books and series don't bake whole (D7): only the chapter playing and the next render.
-        if restartBake, !isChapter, let articleID, !paragraphs.isEmpty {
+        // C134: only for prepared audio; audio from listening isn't filled in whole.
+        if restartBake, !isChapter, let articleID, !paragraphs.isEmpty, localTTS.preparedKey(articleID) {
             // Return-to-top gap fill so any paragraphs above the listen playhead still bake.
             localTTS.startBakeIfNeeded(articleID: articleID, paragraphs: paragraphs)
         }

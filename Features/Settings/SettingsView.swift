@@ -173,12 +173,15 @@ private struct BrowsingSettingsSection: View {
     }
 }
 
-/// Settings › Downloads & Storage: the Downloads list, and how much listening audio is kept.
+/// Settings › Prepared Audio & Storage (C134): the Prepared Audio list, and the audio kept on
+/// this iPhone in two figures: prepared (chosen, never cleared automatically) and from listening
+/// (cleared once its article leaves Recent).
 private struct StorageSettingsSection: View {
     let speech: SpeechController
 
     @Environment(DownloadCenter.self) private var downloads
-    @State private var audioBytes: Int64?
+    @State private var preparedBytes: Int64?
+    @State private var listeningBytes: Int64?
 
     var body: some View {
         let overview = downloads.overview
@@ -188,25 +191,39 @@ private struct StorageSettingsSection: View {
                             accessibilityID: "settingsDownloads") {
                 DownloadsList()
             }
-            SymbolRow(String(localized: "Listening Audio"), symbol: Icons.storage) {
-                Text(audioBytes.map(FileSizes.label) ?? "…")
-                    .typeStyle(.row)
-                    .monospacedDigit()
-                    .foregroundStyle(Palette.secondaryInk)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("settingsAudioSize")
+            sizeRow(String(localized: "Prepared Audio"), bytes: preparedBytes, id: "settingsPreparedSize")
+            sizeRow(String(localized: "Audio From Listening"), bytes: listeningBytes, id: "settingsAudioSize")
         } header: {
-            SectionHeader(title: String(localized: "Downloads & Storage")).listHeader()
+            SectionHeader(title: String(localized: "Prepared Audio & Storage")).listHeader()
         } footer: {
-            Text("Listening audio is kept on this iPhone for articles you saved or downloaded; audio for articles you only opened is cleared after a while.")
+            Text("Prepared audio stays until you delete it. Audio from listening is cleared once its article leaves the last \(LibraryStore.recentLimit) in Recent.")
                 .listFooter()
         }
         .listCard()
         .task {
-            let root = speech.localTTS.audioCache.root
-            audioBytes = await Task.detached(priority: .utility) { FileSizes.allocatedBytes(at: root) }.value
+            let cache = speech.localTTS.audioCache
+            let held = Set(downloads.heldArticleKeys)
+            let dirs = cache.cachedArticleKeys().map { (held.contains($0), cache.directory(for: $0)) }
+            let (p, l) = await Task.detached(priority: .utility) {
+                dirs.reduce((Int64(0), Int64(0))) { sum, d in
+                    let bytes = FileSizes.allocatedBytes(at: d.1)
+                    return d.0 ? (sum.0 + bytes, sum.1) : (sum.0, sum.1 + bytes)
+                }
+            }.value
+            preparedBytes = p
+            listeningBytes = l
         }
+    }
+
+    private func sizeRow(_ title: String, bytes: Int64?, id: String) -> some View {
+        SymbolRow(title, symbol: Icons.storage) {
+            Text(bytes.map(FileSizes.label) ?? "…")
+                .typeStyle(.row)
+                .monospacedDigit()
+                .foregroundStyle(Palette.secondaryInk)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(id)
     }
 }
 

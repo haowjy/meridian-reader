@@ -111,6 +111,18 @@ final class ArticleAudioCache {
         fileManager.fileExists(atPath: indexURL(for: articleID).path)
     }
 
+    /// Every article with saved audio (an index on disk), by key (C134 retention, the Prepared
+    /// Audio list's From Listening section).
+    func cachedArticleKeys() -> [UUID] {
+        let dirs = (try? fileManager.contentsOfDirectory(atPath: root.path)) ?? []
+        return dirs.compactMap(UUID.init(uuidString:)).filter(hasCache(for:))
+    }
+
+    /// Bytes on disk of `articleID`'s audio.
+    func bytes(for articleID: UUID) -> Int64 {
+        FileSizes.allocatedBytes(at: directory(for: articleID), fileManager: fileManager)
+    }
+
     /// The article has a cache directory, with or without an index.
     func hasDirectory(for articleID: UUID) -> Bool {
         fileManager.fileExists(atPath: directory(for: articleID).path)

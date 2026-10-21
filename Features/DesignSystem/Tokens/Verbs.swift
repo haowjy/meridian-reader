@@ -51,6 +51,10 @@ enum Verbs {
     /// every download (P8). A voice model's in Settings (its swipe): the model deleted, to be
     /// downloaded again before the engine speaks.
     static let removeDownload = String(localized: "Remove Download")
+    /// The Prepared Audio list's row action (C135): the audio only, never the article.
+    static let deleteAudio = String(localized: "Delete Audio")
+    static let deleteAllPrepared = String(localized: "Delete All…")
+    static let clearListeningAudio = String(localized: "Clear Audio From Listening…")
     /// A folder's, in its menu and in the Downloads list: its download off and gone, and
     /// *Remove Download* for each of its pages.
     static let removeDownloads = String(localized: "Remove Downloads")
@@ -174,6 +178,8 @@ enum Verbs {
     /// Where an imported book goes: the import sheet's section and the picker it opens.
     static let addTo = String(localized: "Add to")
     static let cancel = String(localized: "Cancel")
+    static let delete = String(localized: "Delete")
+    static let clear = String(localized: "Clear")
     static let save = String(localized: "Save")
     static let edit = String(localized: "Edit")
 

@@ -13,6 +13,10 @@ struct DownloadMenu: View {
     let item: DownloadArticles.Item
     let downloads: DownloadCenter
     let library: LibraryStore
+    /// A From Listening row: only *Delete Audio* (C135).
+    var isListeningAudio = false
+    /// Listening needs this audio now (the playing article): *Delete Audio* leaves it.
+    var needsAudio: (UUID) -> Bool = { _ in false }
 
     var body: some View {
         MenuRows(rows)
@@ -24,6 +28,7 @@ struct DownloadMenu: View {
         var facts = MenuRegistry.Facts()
         facts.isQueued = item.status.fraction != nil
         facts.isOtherVoice = otherVoice != nil
+        facts.isListeningAudio = isListeningAudio
         return MenuRegistry.rows(.download, at: .downloads, facts) { option in
             switch option {
             case .redownload:
@@ -41,8 +46,15 @@ struct DownloadMenu: View {
     /// *Remove Download* for a page, *Remove Downloads* for a folder, as their own menus say; the
     /// row's swipe too.
     var removeRow: MenuRow {
-        MenuRow(id: "menuRemoveDownload", title: Verbs.removeDownload, icon: Icons.removeDownload, isDestructive: true) {
-            if let article = library.article(key: item.key) { downloads.deleteDownloads(of: article) } else { downloads.remove(item.recordID) }
+        MenuRow(id: "menuDeleteAudio", title: Verbs.deleteAudio, icon: Icons.delete, isDestructive: true) {
+            if isListeningAudio {
+                // Only the audio; the article stays (C135).
+                if !needsAudio(item.key), let article = library.article(key: item.key) { library.deleteDownloads(article) }
+            } else if let article = library.article(key: item.key) {
+                downloads.deleteDownloads(of: article)
+            } else {
+                downloads.remove(item.recordID)
+            }
         }
     }
 }

@@ -50,6 +50,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// C129: the engine stopped repeatedly; playback and the render queue wait for Retry
     /// (`retryAfterEngineStop`). The engine and voice stay selected.
     private(set) var isPausedForRetry = false
+    /// C134: `key` has a prepare record (set by the composition from the prepare list).
+    @ObservationIgnored var preparedKey: (UUID) -> Bool = { _ in false }
+    /// C134: listening needs `key`'s audio now (set by the composition: session, staged chapter).
+    @ObservationIgnored var listeningNeedsKey: (UUID) -> Bool = { _ in false }
     /// The notice `playbackReachedUnrendered` shows while paused for retry.
     @ObservationIgnored private var retryNotice: String?
     /// The crash this launch found (the engine killed the previous process inside a call).

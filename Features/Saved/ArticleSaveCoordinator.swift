@@ -40,7 +40,7 @@ struct ArticleSaveCoordinator {
                 isLivePlayback: live
             )
         }
-        tts.startBakeIfNeeded(articleID: key, paragraphs: readerArticle.document.paragraphs)
+        // C134: saving keeps the text; audio renders only while listening, or when prepared.
         return key
     }
 }

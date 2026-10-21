@@ -50,12 +50,9 @@ final class DownloadCenter {
     }
 
     private(set) var records: [DownloadRecord] {
-        didSet { store.save(records); audioKnown = [:] }
+        didSet { store.save(records) }
     }
-    private(set) var active: Active? { didSet { audioKnown = [:] } }
-    /// Pages known to have audio on disk (`hasDownloads`), so a menu asks the disk once per page
-    /// until a download changes (C98).
-    @ObservationIgnored private var audioKnown: [UUID: Bool] = [:]
+    private(set) var active: Active?
 
     @ObservationIgnored let library: LibraryStore
     @ObservationIgnored private let rendering: any DownloadRendering
@@ -188,16 +185,16 @@ final class DownloadCenter {
     }
 
     /// Something of `folder` is downloading or has audio kept: its *Remove Downloads* can run.
-    /// Cached per page (`audioKnown`), cleared whenever a download changes.
     func hasDownloads(_ folder: Folder, articles: [Article]) -> Bool {
         if isQueued(.folder(folder.id)) { return true }
-        return articles.contains { article in
-            let key = article.listenKey
-            if let known = audioKnown[key] { return known }
-            let has = library.hasDownloads(article)
-            audioKnown[key] = has
-            return has
-        }
+        // Read fresh (C134): audio from listening appears without the list changing, so a memo
+        // kept per list change went stale. `hasCache` is one file-exists check per page.
+        return articles.contains { library.hasDownloads($0) }
+    }
+
+    /// Some download holds `key` (any state): its audio is prepared, never auto-cleared (C134).
+    func hasRecord(for key: UUID) -> Bool {
+        records.contains { $0.entries.contains { $0.key == key } }
     }
 
     /// The folder's Download toggle is on: its pages download, and so do the ones added later.
@@ -495,6 +492,24 @@ final class DownloadCenter {
         let keys = library.articles(in: folder).map(\.listenKey)
         forget(keys)
         purgeAudio(keys)
+        advance()
+    }
+
+    /// Every article any download holds, in list order, once each (C135, *Delete All…*).
+    var heldArticleKeys: [UUID] {
+        var seen = Set<UUID>()
+        return records.flatMap { $0.entries.map(\.key) }.filter { seen.insert($0).inserted }
+    }
+
+    /// *Delete All…* (C135): in-flight work stops first, every download goes, then every article
+    /// they held is deleted from the Library with its audio (chapters leave their book; folders
+    /// stay). Playback of a deleted article stops (`LibraryStore.deleteWithoutSaving`).
+    func deleteAll() throws {
+        let keys = heldArticleKeys
+        if active != nil { stopActive() }
+        requeued = [:]
+        records = []
+        try library.deleteAll(keys.compactMap(library.article(key:)))
         advance()
     }
 

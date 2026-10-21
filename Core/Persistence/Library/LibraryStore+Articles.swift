@@ -72,6 +72,7 @@ extension LibraryStore {
         article.removedAt = nil
         commit("record playback")
         trimChapterAudio(behind: article)
+        retainRecent() // Recent changed (C134)
         return article
     }
 
@@ -125,6 +126,7 @@ extension LibraryStore {
         applyStart(article, at: at)
         commit("playback started")
         trimChapterAudio(behind: article)
+        retainRecent() // Recent changed (C134)
     }
 
     /// The listening position, written as it moves.
@@ -252,6 +254,13 @@ extension LibraryStore {
         movePlaceOff(article)
         log("delete \(Self.short(article.key))")
         context.delete(article)
+    }
+
+    /// *Delete All…* in Prepared Audio (C135): every one of `articles` deleted, with its audio, in
+    /// one save. Playback of any of them stops. Folders stay.
+    func deleteAll(_ articles: [Article]) throws {
+        guard !articles.isEmpty else { return }
+        try edit("delete all prepared") { for article in articles { deleteWithoutSaving(article) } }
     }
 
     /// *Remove Downloads*: the page's audio only; the page stays saved.

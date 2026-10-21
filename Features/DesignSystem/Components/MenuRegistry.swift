@@ -55,6 +55,8 @@ enum MenuRegistry {
         case redownload, keep, removeDownload
         // A screen's own rows
         case newFolder, importFile, saveFromWebsite, pasteText, follow, sort, reload, downloads, settings
+        // The Prepared Audio list's own ⋯ (C135)
+        case deleteAllPrepared, clearListeningAudio
     }
 
     /// The item's state as a menu needs it: plain values its host already has (no fetch, no disk).
@@ -82,6 +84,11 @@ enum MenuRegistry {
         // A download
         var isQueued = false
         var isOtherVoice = false
+        /// A row of From Listening: audio made while listening, not prepared (C135).
+        var isListeningAudio = false
+        // The Prepared Audio list
+        var hasPrepared = false
+        var hasListeningAudio = false
         // A screen
         var hasWebPage = false
         /// *Follow…* can run (the browser: a web page is up).
@@ -158,8 +165,10 @@ enum MenuRegistry {
         Spec(option: .deleteFolder, kind: .folder, places: folderPlaces),
 
         // A download. Its ↓ mark pauses and resumes.
-        Spec(option: .redownload, kind: .download, places: [.downloads], enabled: { !$0.isQueued }, greyIf: "still downloading"),
-        Spec(option: .keep, kind: .download, places: [.downloads], enabled: { $0.isOtherVoice }, greyIf: "its audio is in the current voice"),
+        Spec(option: .redownload, kind: .download, places: [.downloads], applies: { !$0.isListeningAudio },
+             enabled: { !$0.isQueued }, hiddenIf: "audio from listening", greyIf: "still preparing"),
+        Spec(option: .keep, kind: .download, places: [.downloads], applies: { !$0.isListeningAudio },
+             enabled: { $0.isOtherVoice }, hiddenIf: "audio from listening", greyIf: "its audio is in the current voice"),
         Spec(option: .removeDownload, kind: .download, places: [.downloads]),
 
         // A screen's own rows (＋ has New Folder and Import Book; the address field starts a search).
@@ -182,6 +191,11 @@ enum MenuRegistry {
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .reload, kind: .screen, places: [.browser], enabled: { $0.hasWebPage }, greyIf: "no page up"),
         Spec(option: .downloads, kind: .screen, places: panelPlaces),
+        // The Prepared Audio list's ⋯: each only while its section has rows.
+        Spec(option: .deleteAllPrepared, kind: .screen, places: [.downloads], applies: { $0.hasPrepared },
+             hiddenIf: "nothing prepared"),
+        Spec(option: .clearListeningAudio, kind: .screen, places: [.downloads], applies: { $0.hasListeningAudio },
+             hiddenIf: "no audio from listening"),
         Spec(option: .settings, kind: .screen, places: panelPlaces),
     ]
 
