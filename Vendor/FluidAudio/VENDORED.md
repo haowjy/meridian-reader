@@ -31,3 +31,11 @@ calls). The Debug `-O` patch still matters for Kokoro. Reader's `-nanoProbe` lau
   crash attribution. E5RT runs Core ML on its own queue, so a libBNNS crash report doesn't show which
   model was running; Reader installs a handler that atomically writes `ListenTiming/coreml_breadcrumb.json`
   and reports it with `engine_crash_detected` on the next launch.
+
+## Context-aware heteronyms (2026-10-20, Reader C132)
+- `Sources/FluidAudio/TTS/KokoroAne/CPUFrontend/KokoroHeteronyms.swift` (new) + `KokoroAneCPUFrontend`:
+  `us_lexicon_cache.json` keeps only Misaki's `DEFAULT` per word. The frontend now loads the app's
+  `Resources/KokoroHeteronyms.json` (the 639 us_gold words whose part-of-speech variants differ),
+  tags each normalized sentence with `NLTagger(.lexicalClass)` (only when it holds one of those
+  words) and passes the chosen IPA through the phonemizer's custom lexicon via placeholder words.
+  Past forms: `read`/`reread` after an auxiliary, `wound` as a verb, `used to`.

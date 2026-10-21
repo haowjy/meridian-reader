@@ -30,13 +30,19 @@ public actor KokoroAneCPUFrontend {
     private var vocab: KokoroAneVocab?
     private var phonemizer: KokoroAneEnglishPhonemizer?
     private var g2p: KokoroSwiftG2P?
+    /// Context-aware heteronyms (C132); nil when the JSON isn't bundled.
+    private var heteronyms: KokoroHeteronyms?
+    private let heteronymsURL: URL?
+    /// Time spent tagging heteronyms since launch (diagnostics).
+    public private(set) var heteronymSeconds: Double = 0
     private var oovCache: [String: [String]] = [:]
     private let lexiconCache = LexiconAssetCache()
     /// OOV words resolved by the Swift BART since launch (diagnostics).
     public private(set) var oovWordCount = 0
 
     /// Defaults: `<TTS cache>/Models/kokoro-82m-coreml/ANE` and `<TTS cache>/Models/kokoro`.
-    public init(repoDirectory: URL? = nil, kokoroDirectory: URL? = nil) throws {
+    public init(repoDirectory: URL? = nil, kokoroDirectory: URL? = nil, heteronymsURL: URL? = nil) throws {
+        self.heteronymsURL = heteronymsURL ?? Bundle.main.url(forResource: "KokoroHeteronyms", withExtension: "json")
         self.repoDirectory = try repoDirectory ?? Self.defaultRepoDirectory()
         self.kokoroDirectory = try kokoroDirectory ?? Self.defaultKokoroDirectory()
     }
@@ -103,6 +109,10 @@ public actor KokoroAneCPUFrontend {
         try await lexiconCache.ensureLoaded(kokoroDirectory: kokoroDirectory, allowedTokens: allowedTokens)
         let maps = await lexiconCache.lexicons()
         g2p = try KokoroSwiftG2P(kokoroDirectory: kokoroDirectory)
+        if let heteronymsURL {
+            heteronyms = KokoroHeteronyms(url: heteronymsURL, allowedTokens: allowedTokens)
+            if heteronyms == nil { Self.logger.warning("KokoroHeteronyms.json unreadable; one pronunciation per word") }
+        }
         vocab = v
         phonemizer = KokoroAneEnglishPhonemizer(
             wordToPhonemes: maps.word,
@@ -118,7 +128,17 @@ public actor KokoroAneCPUFrontend {
         let fallback: @Sendable (String) async -> [String]? = { [self] word in
             await self.oov(word)
         }
-        return try await phonemizer.phonemize(normalized, fallback: fallback)
+        guard let heteronyms else { return try await phonemizer.phonemize(normalized, fallback: fallback) }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let (tagged, overrides) = heteronyms.annotate(normalized)
+        heteronymSeconds += CFAbsoluteTimeGetCurrent() - t0
+        guard !overrides.isEmpty else { return try await phonemizer.phonemize(normalized, fallback: fallback) }
+        let perSentence = KokoroAneEnglishPhonemizer(
+            wordToPhonemes: phonemizer.wordToPhonemes,
+            caseSensitiveWordToPhonemes: phonemizer.caseSensitiveWordToPhonemes,
+            customLexicon: overrides,
+            allowedPunctuation: phonemizer.allowedPunctuation)
+        return try await perSentence.phonemize(tagged, fallback: fallback)
     }
 
     private func oov(_ word: String) -> [String]? {
