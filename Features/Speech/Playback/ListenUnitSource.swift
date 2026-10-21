@@ -69,7 +69,7 @@ final class QueueUnitSource: ListenUnitSource {
         self.coordinator = coordinator
         self.articleID = articleID
         self.paragraphs = paragraphs
-        self.target = coordinator.renderTarget
+        self.target = coordinator.lockedRenderTarget(for: articleID)
         self.appleVoiceID = coordinator.appleFallbackVoice(for: paragraphs)
     }
 

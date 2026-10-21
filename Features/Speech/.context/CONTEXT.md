@@ -57,9 +57,11 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 - **Per-tick cost.** The live offset changes several times a second. Read it only in leaf views
   (`PlayheadReader`, the Now Playing bar's progress, Now Playing's sentence underline); reading it
   in a screen's body redraws the screen on every tick.
-- **One render target.** The render queue renders only for `LocalTTSCoordinator.renderTarget`
-  (the loaded engine in its selected voice), read at each step; no job, pending job or entry
-  point carries a voice. Code that renders, checks readiness or files audio reads the target;
+- **One render target per article (C138).** The render queue renders only for
+  `LocalTTSCoordinator.renderTarget(for: key)`: the loaded engine in the article's own voice
+  (`Article.voiceID`, its book's `Folder.voiceID`), else the selected voice, which the article
+  takes as its first audio renders (`lockedRenderTarget`). Read at each step; no job, pending job
+  or entry point carries a voice. Code that renders, checks readiness or files audio reads the target;
   code that changes the engine's state or voice tells the queue (`renderTargetChanged`, from
   `engineStateChanged` and `setVoice`). With no target the queue parks: nothing may build a host
   for it, a model loads only when it is selected.

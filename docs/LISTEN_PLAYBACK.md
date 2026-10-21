@@ -560,12 +560,27 @@ highlight and the paragraph picker stay fine-grained.
   missing. The render queue's work and job completion, the voice-switch cleanup, Prepared Audio,
   staging the next chapter and Apple standing in (D9) all ask it; the bake marks show
   `readyIndices`.
-- **One voice per article.** The index's top-level `engineID` / `voiceID` is the target voice.
-  After a voice or engine switch, the first new-voice write retargets the index; older entries
-  stay, stamped stale. Ready / missing counts look only at the target voice, so the queue
-  re-renders the article, while playback uses the stale CAF until each paragraph is replaced
-  (`playableAudioURL`). When nothing is missing in the new voice (the rule above),
-  `finalizeVoiceSwitch` deletes the leftovers. Queued jobs carry no voice, so after a switch they render in the new one.
+- **One voice per article, and per book (C138).** Each article stores the voice its audio is in
+  (`Article.voiceID`, a cache voice key such as `kokoro.af_heart`); a book or series chapter
+  speaks in its folder's (`Folder.voiceID`), so a book never changes voice between chapters.
+  The voice is set when its first audio is about to render (`LocalTTSCoordinator.lockedRenderTarget`,
+  from the render queue's step and the listen player's source): the voice selected in Settings
+  then. Changing the voice in Settings only affects articles and books with no audio yet. The
+  render queue renders each job in its article's voice (`renderTarget(for:)`; the host switches
+  voice per chunk, `ChunkRenderRequest.voice`), and readiness, bake marks, Prepared Audio and
+  the listen player all ask in that voice. Playback plays only CAFs in the article's voice
+  (`playableAudioURL` no longer falls back to another voice's file), so voices never mix.
+  The index's top-level `engineID` / `voiceID` is still the voice of its last write; entries of
+  another voice are stamped and never count or play; once nothing is missing in the article's
+  voice, `finalizeVoiceSwitch` deletes them.
+- **Changing an article's or book's voice** (its menu's *Voice: Heart*, `ArticleVoiceChange`):
+  downloads the voice's files if needed, stops playback of it if it is playing (it plays again
+  all in the new voice), stores the voice, then prepared audio renders again (Prepare Again; the
+  old files go once the new audio is whole) and audio from listening is cleared. The picker asks
+  first with the sizes.
+- **Migration (C138, once, `AppComposition.adoptArticleVoices`):** an article with audio takes the
+  voice most of its paragraphs are in (`ArticleAudioCache.renderedVoice`); a book, the voice most
+  of its chapters' audio is in; articles with no audio get none.
 - **Language gate.** An article in a language the engine doesn't speak plays with Apple and is
   kept out of the on-device queue (`LocalTTSCoordinator.localLanguageGate`).
 
@@ -806,5 +821,5 @@ engine crash guard's marker (`EngineCrashGuardTests`).
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
 - **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
-- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio From Listening…** (that audio only), each shown only when its section has rows.
+- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice (C138). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio From Listening…** (that audio only), each shown only when its section has rows.
 - **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

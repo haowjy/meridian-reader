@@ -7,6 +7,8 @@ import Foundation
 struct RenderTarget: Equatable {
     var engineID: String
     var cacheVoice: String
+    /// The engine's own voice id ("af_heart") the host speaks in for this audio; nil: the host's own.
+    var engineVoice: String? = nil
 }
 
 /// What `GlobalSynthQueue` needs from its owner. `LocalTTSCoordinator` in the app; a fake in tests.
@@ -16,6 +18,12 @@ protocol SynthQueueContext: AnyObject {
     /// What renders now; nil while no on-device engine is ready (Apple selected, a model loading,
     /// failed or deleted). The queue parks while it is nil: it never loads a model itself.
     var renderTarget: RenderTarget? { get }
+    /// C138: what renders for `cacheKey`: the loaded engine in the article's own voice (the
+    /// voice its audio is in, or its book's), else in `renderTarget`'s. nil while no engine is ready.
+    func renderTarget(for cacheKey: UUID) -> RenderTarget?
+    /// `renderTarget(for:)`, and an article with no voice yet takes that voice now (its first audio
+    /// is about to render).
+    func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget?
     /// `ArticleAudioCache` engine key of the active local engine (loaded or loading): the plan
     /// the listen player cuts paragraphs by.
     var cacheEngineID: String { get }
@@ -40,6 +48,8 @@ protocol SynthQueueContext: AnyObject {
 }
 
 extension SynthQueueContext {
+    func renderTarget(for cacheKey: UUID) -> RenderTarget? { renderTarget }
+    func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget? { renderTarget(for: cacheKey) }
     var activeRouteRendersInBackground: Bool { false }
     var playingCacheKey: UUID? { nil }
 }

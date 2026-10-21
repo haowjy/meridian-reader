@@ -27,6 +27,8 @@ struct ShellSheetView: View {
             PreparedAudioSheet()
         case .folderDetails(let id):
             FolderDetailsSheet(folderID: id)
+        case .voice(let target):
+            VoicePickerSheet(target: target)
         case .follow(let flow):
             FollowSheet(flow: flow)
         case .following(let id):

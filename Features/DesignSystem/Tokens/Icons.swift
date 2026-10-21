@@ -160,8 +160,10 @@ enum Icons {
     static let reprepare = "arrow.uturn.down.circle"
     /// *Resume* a paused prepare (not Prepare's arrow, nor listening's ▶).
     static let resume = "playpause.fill"
-    /// Keep a prepare made with another voice.
+    /// Keep (a design-system preview's pill).
     static let keep = "pin"
+    /// *Voice: Heart*, an article's or a book's voice (C138).
+    static let voice = "person.wave.2"
 
     // MARK: Settings and reading
 

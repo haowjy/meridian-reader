@@ -114,16 +114,25 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
     /// and that audio is still there, in a voice the prepare accepts. What a row's Prepared
     /// mark and a folder's Prepare button ask (`PrepareOverview.isPrepared`).
     func hasPrepared(_ key: UUID, current: String?, voiceOf: (UUID) -> String?) -> Bool {
+        hasPrepared(key, currentOf: { _ in current }, voiceOf: voiceOf)
+    }
+
+    /// C138: `currentOf` is the voice each page renders in (its own, or its book's).
+    func hasPrepared(_ key: UUID, currentOf: (UUID) -> String?, voiceOf: (UUID) -> String?) -> Bool {
         guard entries.contains(where: { $0.key == key && $0.state == .done }), let voice = voiceOf(key) else { return false }
-        return accepts(voice, current: current)
+        return accepts(voice, current: currentOf(key))
     }
 
     /// A voice some of its done pages' audio is in that the prepare doesn't accept (the first by
     /// name), which puts it under *Different voice*; nil when every done page's audio, where it
     /// has any, is in an accepted voice.
     func otherVoice(current: String?, voiceOf: (UUID) -> String?) -> String? {
-        entries.filter { $0.state == .done }.compactMap { voiceOf($0.key) }
-            .filter { !accepts($0, current: current) }.sorted().first
+        otherVoice(currentOf: { _ in current }, voiceOf: voiceOf)
+    }
+
+    func otherVoice(currentOf: (UUID) -> String?, voiceOf: (UUID) -> String?) -> String? {
+        entries.filter { $0.state == .done }.compactMap { e in voiceOf(e.key).map { (e.key, $0) } }
+            .filter { !accepts($0.1, current: currentOf($0.0)) }.map(\.1).sorted().first
     }
 
     /// Every page back in the queue (*Prepare Again*, Prepare asked for again): a folder's toggle

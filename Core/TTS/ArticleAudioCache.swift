@@ -184,15 +184,10 @@ final class ArticleAudioCache {
         return directory(for: articleID).appendingPathComponent(entry.file)
     }
 
-    /// Playback: the current engine/voice's CAF, else a stale one (older voice/engine) until the
-    /// paragraph is re-rendered — so a voice switch never makes baked audio unplayable.
+    /// Playback: the CAF in the article's voice only (C138). An older voice's file waiting to be
+    /// replaced never plays: an article never mixes voices; the paragraph renders in its voice.
     func playableAudioURL(articleID: UUID, paragraphIndex: Int, engineID: String, voiceID: String) -> URL? {
-        if let exact = audioURL(articleID: articleID, paragraphIndex: paragraphIndex,
-                                engineID: engineID, voiceID: voiceID) {
-            return exact
-        }
-        guard let entry = entry(articleID: articleID, paragraphIndex: paragraphIndex) else { return nil }
-        return directory(for: articleID).appendingPathComponent(entry.file)
+        audioURL(articleID: articleID, paragraphIndex: paragraphIndex, engineID: engineID, voiceID: voiceID)
     }
 
     /// Paragraph indices with a usable CAF for this engine/voice (stale units excluded).

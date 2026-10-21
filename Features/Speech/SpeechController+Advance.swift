@@ -114,7 +114,7 @@ extension SpeechController {
     }
 
     private func isRendered(_ key: UUID, paragraph: Int, of count: Int) -> Bool {
-        guard count > paragraph, let target = localTTS.renderTarget else { return false }
+        guard count > paragraph, let target = localTTS.renderTarget(for: key) else { return false }
         return localTTS.audioCache.readyIndices(articleID: key, paragraphCount: count, engineID: target.engineID,
                                                 voiceID: target.cacheVoice).contains(paragraph)
     }
