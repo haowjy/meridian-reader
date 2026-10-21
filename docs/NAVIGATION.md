@@ -349,7 +349,7 @@ commas.
   A followed story's status line sits between the details and the row. It plays
   its own pages (not its subfolders') in the order shown, page to page, link pages skipped (a
   followed story's stop playback, below).
-  **Edit** (top right), or *Select* in a row's
+  **Edit** (top right; the rows stay the same component at the same 56 pt height, only their ⋯ goes, C123), or *Select* in a row's
   menu (Edit with that row selected), puts check circles on the rows, and drag handles
   (pages only when the sort is *Manual*); the toolbar keeps its five slots and shows
   *Move to…* (📁, slot 1), *Mark as Finished* (●, the listening ring made full, the middle),

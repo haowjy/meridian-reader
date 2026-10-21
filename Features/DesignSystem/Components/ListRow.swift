@@ -158,7 +158,9 @@ struct ListRow: View {
         .background { if menu == nil { menuAnchor } }
         .padding(.leading, Spacing.m)
         .padding(.trailing, menu != nil ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
-        .padding(.vertical, Spacing.xs)
+        // One height in Edit and out (C123): the ⋯'s 44 pt square plus this padding is the 56 pt
+        // minimum, so a row doesn't shrink when Edit takes its ⋯ away.
+        .padding(.vertical, Self.verticalPadding)
         .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: RowHeight.content))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
@@ -175,6 +177,9 @@ struct ListRow: View {
 
     /// The ⋯'s size at the default text size; it grows like a toolbar glyph.
     static let moreGlyphSize: CGFloat = 20
+
+    /// Above and below the content: what the 44 pt ⋯ leaves of the 56 pt row (6 pt).
+    static let verticalPadding = (RowHeight.content - BottomChrome.minTapTarget) / 2
 
     /// Trailing padding that centres the 44 pt trailing column on the toolbar's ⋯ slot, for a
     /// row `rowWidth` wide in a list at the page margin: the toolbar row is wider by the

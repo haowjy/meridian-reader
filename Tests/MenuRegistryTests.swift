@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import MeridianReader
 
@@ -59,5 +60,24 @@ final class MenuRegistryTests: XCTestCase {
         XCTAssertEqual(Set(R.specs.map(\.option)), Set(R.Option.allCases))
         XCTAssertFalse(R.table.isEmpty)
         try? R.table.write(toFile: "/tmp/menu-table.md", atomically: true, encoding: .utf8)
+    }
+}
+
+/// Rows in Edit (no ⋯) and out (with ⋯) are one component, `ListRow`, at one height (C123).
+@MainActor
+final class ListRowHeightTests: XCTestCase {
+    private func height(_ row: ListRow) -> CGFloat {
+        let host = UIHostingController(rootView: row.frame(width: 390))
+        return host.sizeThatFits(in: CGSize(width: 390, height: 1000)).height
+    }
+
+    func testEditAndNormalRowsAreTheSameHeight() {
+        let menu = AnyView(Button("Play", systemImage: Icons.play) {})
+        for kind: ListRow.Kind in [.folder(count: ["4 articles"]), .folder(count: [])] {
+            let normal = height(ListRow(kind: kind, title: "Bonds", subtitle: "1 min", menu: menu))
+            let editing = height(ListRow(kind: kind, title: "Bonds", subtitle: "1 min", menu: nil))
+            XCTAssertEqual(normal, editing, accuracy: 0.5, "\(kind): normal \(normal), Edit \(editing)")
+            XCTAssertEqual(normal, RowHeight.content, accuracy: 0.5, "the 56 pt row")
+        }
     }
 }

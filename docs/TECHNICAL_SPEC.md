@@ -484,3 +484,7 @@ The library's item model is `Article` (it was `Page`), alongside `Folder`. Its s
 ## The create group (C126)
 
 `LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds the one create group from `MenuRegistry` (`.newFolder`, `.importFile`, `.saveFromWebsite`, `.paste`, `.follow` at `.add` and `.edit`, each hidden when `isFixedOrder`; `.paste` greyed unless `Facts.canPaste`, from `UIPasteboard.hasURLs`/`hasStrings`, which read no contents). ＋ uses it as `createRows`, `FolderMenu` at `.header` appends it as a second block (`.folderNewFolder` is gone), and `LibraryEditBar` slot 3 is a ＋ `Menu` with it at `.edit`, `filing` the selection. *Save from Website…* (`LibraryScreenState.saveFromWebsite(into:)`, address alert) and *Paste* call `LibraryStore.saveLink(_:in:)`: an article the library has moves into the folder and is saved; a new one is a `.link` article, fetched when it first plays or downloads. Pasting copied articles waits on C125's shared membership.
+
+## One row height in Edit and out (C123)
+
+Library rows are one component, `ListRow`, in Edit and out; Edit only drops the ⋯ (`menu: nil`). Its vertical padding is `ListRow.verticalPadding`, (56 − 44) / 2 = 6 pt, so the ⋯'s 44 pt square fills the 56 pt `RowHeight.content` exactly and a row is 56 pt either way (it was 60 with ⋯, 56 in Edit). `ListRowHeightTests` checks both heights.
