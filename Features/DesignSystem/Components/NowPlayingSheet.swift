@@ -12,10 +12,9 @@ import SwiftUI
 /// │ `text`: dimmed, SPOKEN in full ink   │ <- fills the sheet, under the header and the band;
 /// │         dimmed                       │   follows the audio
 /// │            ( Jump to Audio )         │ <- after you scroll away, bars up only (C128)
-/// │ +-- `player` (title + scrub card) --+│ <- title, time left, scrub row and speed
-/// │ [<>] ( article address capsule     ) │ <- `field`: swap button + address capsule
 /// │ `controls`: status notes             │
 /// │ [🔖] [⏮] (⏸) [⏭] [⋯]                │ <- 🔖 and ⋯ where the Reader has them
+/// │ +-- `player` (title + scrub card) --+│ <- title, time left, scrub row and speed
 /// └──────────────────────────────────────┘
 /// ```
 ///

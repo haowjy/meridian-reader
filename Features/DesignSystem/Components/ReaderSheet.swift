@@ -9,9 +9,8 @@ import SwiftUI
 /// │ `banner` (the ^ hint, while on)      │   underneath; `textAppearance` (Aa), `accessory` (^)
 /// │ ... `text`: ReadingHeading, then the │ <- fills the sheet, running under the header and
 /// │   text in the reading theme ...      │   the band
-/// │ +-- `player` (title + time card) ---+│ <- article info; scrub row when playing
-/// │ [<>] ( article address capsule     ) │ <- `field`: swap button + address capsule
 /// │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]   │ <- this page's own play button over slots 2–4
+/// │ +-- `player` (title + time card) ---+│ <- article info; scrub row when playing
 /// └──────────────────────────────────────┘
 /// ```
 ///
