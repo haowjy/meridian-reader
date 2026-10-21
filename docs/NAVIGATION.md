@@ -811,7 +811,7 @@ stylesheets are left out), and an extracted title drops a trailing site name ("S
 │ … text dimmed; the spoken paragraph  │
 │   highlighted in full ink, the       │
 │   sentence underlined …              │
-│            ( Jump to Audio )         │ ← after you scroll away
+│            ( Jump to Audio )         │ ← after you scroll away, bars up only (C128)
 │ Preparing next…                      │ ← status notes, above the scrubber
 │ ( ━━━━━●━━━━░░░░──           1× )    │ ← the scrub capsule, the speed at its end
 │ [🔖]  [⏮]  (⏸)  [⏭]  [ ⋯ ]          │ ← 🔖 and ⋯ as in the Reader; the round ⏸ / ▶
@@ -949,8 +949,10 @@ Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter pr
 - **At the top**, a pull down in full screen rubber-bands and brings the bars back, never closing
   the sheet; a pull that begins with the bars showing closes it as usual, and while it pulls the
   sheet it never hides or shows the bars.
-- *Jump to Audio* sits just above the bottom band while the bars show, and near the screen's foot
-  in full screen, clear of the home indicator and the floating ▶ (above Pages' footer).
+- *Jump to Audio* shows only with the bars up, just above the bottom band, and only while the
+  text is away from the audio. It never shows in full screen, in Scroll or Pages: there the
+  floating ▶ (unchanged: bottom right, fades after 3 s) is the only control over the text (C128,
+  one rule, `ReadingChrome.showsJumpToAudio`).
 
 ### Pages (the Reader and Now Playing)
 

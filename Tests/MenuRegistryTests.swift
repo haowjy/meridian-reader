@@ -89,3 +89,19 @@ final class PastedTextTitleTests: XCTestCase {
         XCTAssertEqual(LibraryStore.defaultTitle(for: String(repeating: "a", count: 120)).count, 80)
     }
 }
+
+/// Jump to Audio's one rule (C128): bars up and away from the audio; never in full screen.
+@MainActor
+final class JumpToAudioRuleTests: XCTestCase {
+    func testJumpShowsOnlyWithTheBarsUp() {
+        let chrome = ReadingChrome()
+        XCTAssertTrue(chrome.showsJumpToAudio(awayFromAudio: true), "bars up, away")
+        XCTAssertFalse(chrome.showsJumpToAudio(awayFromAudio: false), "bars up, on the audio")
+        chrome.dragBegan(); chrome.dragged(by: -ReadingChrome.hideDistance - 1)
+        XCTAssertTrue(chrome.hidden, "full screen")
+        XCTAssertFalse(chrome.showsJumpToAudio(awayFromAudio: true), "full screen: never")
+        XCTAssertTrue(chrome.floatingControl, "the floating play / pause shows as before")
+        chrome.tappedCentre()
+        XCTAssertTrue(chrome.showsJumpToAudio(awayFromAudio: true), "bars back: Jump again")
+    }
+}

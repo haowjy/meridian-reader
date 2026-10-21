@@ -82,6 +82,13 @@ final class ReadingChrome {
         }
     }
 
+    /// Jump to Audio's one rule, Scroll and Pages alike (C128): only with the bars up, and only
+    /// while the text is away from the audio (`awayFromAudio`). Never in full screen, where the
+    /// floating play / pause is the only control over the text.
+    func showsJumpToAudio(awayFromAudio: Bool) -> Bool {
+        awayFromAudio && !hidden
+    }
+
     /// The bars come back (over the text: nothing moves).
     func show() {
         guard hidden else { return }

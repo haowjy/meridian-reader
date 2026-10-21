@@ -11,7 +11,7 @@ import SwiftUI
 /// │ `banner` (the ☝︎ hint, while on)     │   where it plays from and shrinks it; Aa, `accessory`
 /// │ `text`: [▣ title, site  N min left]  │ ← fills the sheet, under the header and the band;
 /// │  dimmed, SPOKEN in full ink, dimmed  │   follows the audio; the title card scrolls with it
-/// │            ( Jump to Audio )         │ ← after you scroll away, floating over the text
+/// │            ( Jump to Audio )         │ ← after you scroll away, bars up only (C128)
 /// │ `controls`: status notes,            │
 /// │ ( scrubber ─────────────●───   1× )  │ ← the scrub capsule, speed at its end
 /// │ [🔖] [⏮] (⏸) [⏭] [⋯]                 │ ← 🔖 and ⋯ where the Reader has them
@@ -19,7 +19,7 @@ import SwiftUI
 /// ```
 ///
 /// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
-/// `playState` / `onPlayPause`, and Jump to Audio drops to the screen's foot. The pill, the
+/// `playState` / `onPlayPause`, the only control over the text then; Jump to Audio shows only with the bars up (C128). The pill, the
 /// grabber and a pull down shrink it (`onCollapse`, after it has gone). `floating` floats just
 /// above the bottom band (a toast), as in the Reader.
 struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Banner: View, Controls: View,
@@ -77,15 +77,16 @@ struct NowPlayingSheet<Reading: View, TextAppearance: View, Accessory: View, Ban
     /// Floats over the text, so the text keeps running under it. No arrow: the spoken sentence
     /// may be above or below. Inverted: an ink pill with the page's colour for its text.
     private var jumpToAudio: some View {
-        ZStack {
-            if showsJumpToAudio {
+        let shows = chrome.showsJumpToAudio(awayFromAudio: showsJumpToAudio)
+        return ZStack {
+            if shows {
                 PillButton("Jump to Audio", style: .inverted, size: .compact, action: onJumpToAudio)
                     .overTextShadow()
                     .accessibilityIdentifier("nowPlayingJumpToAudio")
                     .transition(.opacity)
             }
         }
-        .animation(Motion.snappy, value: showsJumpToAudio)
+        .animation(Motion.snappy, value: shows)
     }
 }
 

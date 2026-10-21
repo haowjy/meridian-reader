@@ -157,6 +157,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                 .ignoresSafeArea(.container, edges: .bottom)
             // Pages mode is for reading: nothing floats over its text while the bars are hidden
             // (C108); with them shown, Jump to Audio sits above the band as in Scroll (C111).
+            // Jump's own rule is `ReadingChrome.showsJumpToAudio` (C128): bars up only, both modes.
             if appearance.layout != .pages || !hidden {
                 overText
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)

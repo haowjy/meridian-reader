@@ -492,3 +492,7 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 ## Paste Text (C127)
 
 *Paste Text…* opens `PasteTextSheet` (`LibraryScreenState.pasteText(into:)`, prefilled from `UIPasteboard.general.string` when `hasStrings`). *Save* calls `LibraryStore.saveText(title:text:in:)`: a new `.saved` article with no web address (`ArticleOrigin.book`, locator `text:<key>`, byline "Pasted text"), one `<p>` per line, its listen paragraphs built as any article's, at the end of the folder. A blank title becomes `LibraryStore.defaultTitle(for:)`: the first line up to its first sentence end, at most 80 characters.
+
+## Jump to Audio and full screen (C128)
+
+`ReadingChrome.showsJumpToAudio(awayFromAudio:)` is the one rule for both layouts: `awayFromAudio && !hidden`. `NowPlayingSheet` shows the pill through it, so in full screen (Scroll or Pages) only `FloatingPlayButton` floats over the text, with its look, place and `floatingDuration` fade unchanged. `JumpToAudioRuleTests` checks it.
