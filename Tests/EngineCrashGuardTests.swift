@@ -57,8 +57,11 @@ final class EngineStopRecoveryTests: XCTestCase {
         XCTAssertEqual(settings.cpuThreads, 4)
         let second = KokoroCrashRecovery.recover(from: crash, playing: nil, settings: settings)
         guard case .pauseForRetry = second else { return XCTFail("\(second)") }
-        XCTAssertEqual(second.notice, KokoroCrashRecovery.pausedNotice)
-        XCTAssertFalse(second.notice!.contains("Apple"))
+        // Amended C129: no banner up front (playback goes on through rendered audio), and the
+        // resume target still plays; the notice shows only at unrendered audio.
+        XCTAssertNil(second.notice)
+        guard case .pauseForRetry(let notice, _) = second else { return XCTFail() }
+        XCTAssertFalse(notice.contains("Apple"))
         XCTAssertEqual(settings.cpuThreads, 3)
         XCTAssertEqual(KokoroCrashRecovery.retryThreads(after: 2), 2)
     }

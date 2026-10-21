@@ -503,10 +503,12 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
   mtime). A leftover marker from another build is verdict `reinstalled` and dismissed: an install
   replacing the app mid-call (the 2026-10-20 21:06 EDT Napoleon banner) is not a crash.
 - `KokoroCrashRecovery`: Core ML crash or ONNX crash #1 gives `.stay(notice: nil)` (same voice,
-  ONNX CPU, no banner); ONNX crash #2 in a row gives `.pauseForRetry`: the coordinator sets
-  `isPausedForRetry`, `GlobalSynthQueue.isPausedForRetry` stops the render worker, the crash
-  target reopens paused, and the banner shows *Retry* (`retryAfterEngineStop`; pressing play or
-  dismissing also retries). Each ONNX crash steps `cpuThreads` down one (minimum 2). There is no
+  ONNX CPU, no banner); ONNX crash #2 in a row gives `.pauseForRetry` (amended): the coordinator sets
+  `isPausedForRetry` and `GlobalSynthQueue.isPausedForRetry` stops the render worker (downloads,
+  render-ahead); playback goes on through rendered audio. `LocalListenPlayer`'s producer stops at
+  the first chunk not ready (`held_for_retry`), lets the buffer drain, then the engine pauses and
+  `playbackReachedUnrendered` shows the banner with *Retry* (`retryAfterEngineStop`: fresh host
+  via `reloadEngine`, then the queue resumes; pressing play or dismissing also retries). Each ONNX crash steps `cpuThreads` down one (minimum 2). There is no
   path from a Kokoro crash to Apple any more.
 - Live-gap Apple units stay temp files (`UnitSource.appleFallback`, deleted when played); bake
   cache keys are `kokoro.<voice>`, so mismatched audio can't be cached.

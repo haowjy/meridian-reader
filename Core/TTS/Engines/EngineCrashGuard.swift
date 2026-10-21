@@ -200,8 +200,9 @@ enum CrashRecovery: Equatable {
     /// Keep the engine selected, show `notice` (nil: a silent same-voice recovery, C129), and
     /// reopen `resume` when there is one.
     case stay(notice: String?, resume: ListenResumeTarget?)
-    /// Keep the engine and voice selected but pause playback and the render queue until the user
-    /// taps Retry (C129: never fall to another engine or voice); show `notice`.
+    /// Keep the engine and voice selected; the render queue (downloads, render-ahead) waits for
+    /// Retry, playback goes on through rendered audio and pauses where there is none, showing
+    /// `notice` then (C129: never fall to another engine or voice).
     case pauseForRetry(notice: String, resume: ListenResumeTarget?)
     /// Switch to `EngineRegistry.crashFallback` and show `notice`; picking the crashed engine
     /// again is a fresh try.
@@ -210,7 +211,8 @@ enum CrashRecovery: Equatable {
     var notice: String? {
         switch self {
         case .stay(let notice, _): return notice
-        case .pauseForRetry(let notice, _), .switchAway(let notice): return notice
+        case .pauseForRetry: return nil // shown only once playback reaches unrendered audio
+        case .switchAway(let notice): return notice
         }
     }
 

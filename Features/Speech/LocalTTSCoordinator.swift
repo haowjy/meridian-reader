@@ -50,6 +50,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// C129: the engine stopped repeatedly; playback and the render queue wait for Retry
     /// (`retryAfterEngineStop`). The engine and voice stay selected.
     private(set) var isPausedForRetry = false
+    /// The notice `playbackReachedUnrendered` shows while paused for retry.
+    @ObservationIgnored private var retryNotice: String?
     /// The crash this launch found (the engine killed the previous process inside a call).
     private(set) var launchCrash: EngineCrashGuard.CrashInfo?
     /// Article + paragraph to resume after a crash, handed to the UI once (`takePendingResume`);
@@ -152,8 +154,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
         case .stay(_, let resume):
             pendingResume = resume
             return engine
-        case .pauseForRetry(_, let resume):
+        case .pauseForRetry(let notice, let resume):
             pendingResume = resume
+            retryNotice = notice
             isPausedForRetry = true
             synthQueue.isPausedForRetry = true
             return engine
@@ -197,13 +200,26 @@ final class LocalTTSCoordinator: SynthQueueContext {
         if isPausedForRetry { retryAfterEngineStop() } else { engineCrashNotice = nil }
     }
 
-    /// The banner's Retry (or pressing play): render and play again with the same engine and voice.
+    /// While paused for retry, playback reached a spot with no rendered audio and paused there:
+    /// now the banner with Retry shows.
+    func playbackReachedUnrendered() {
+        guard isPausedForRetry else { return }
+        engineCrashNotice = retryNotice ?? KokoroCrashRecovery.pausedNotice
+        ListenTimingLog.log("engine_retry_needed", ["engine": selectedEngineID.rawValue])
+    }
+
+    /// The banner's Retry (or pressing play): a fresh engine session with the same engine and
+    /// voice, then rendering and downloads go on.
     func retryAfterEngineStop() {
         engineCrashNotice = nil
         guard isPausedForRetry else { return }
         isPausedForRetry = false
-        synthQueue.isPausedForRetry = false
         ListenTimingLog.log("engine_retry", ["engine": selectedEngineID.rawValue])
+        let id = selectedEngineID
+        Task { [weak self] in
+            await self?.reloadEngine(id)
+            self?.synthQueue.isPausedForRetry = false
+        }
     }
 
     /// Launch: until `endLaunchHold`, the render queue adopts no saved bake job and renders

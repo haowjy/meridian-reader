@@ -58,6 +58,12 @@ final class LocalListenEngine: ListenEngine {
             self.coordinator.synthQueue.playbackAdvanced()
         }
         player.onStarved = { [weak self] in self?.updateGapGrace() }
+        player.rendersPausedForRetry = { [weak coordinator] in coordinator?.isPausedForRetry ?? false }
+        player.onNeedsRetry = { [weak self] in
+            guard let self else { return }
+            self.pause()
+            self.coordinator.playbackReachedUnrendered()
+        }
         player.onFinished = { [weak self] in
             self?.stopClock()
             self?.onEvent?(.finished)

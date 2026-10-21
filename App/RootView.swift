@@ -12,7 +12,7 @@ struct RootView: View {
             .overlay(alignment: .top) {
                 if let notice = speech.localTTS.engineCrashNotice {
                     EngineNoticeBanner(text: notice,
-                                       onRetry: speech.localTTS.isPausedForRetry ? { speech.localTTS.retryAfterEngineStop() } : nil) {
+                                       onRetry: speech.localTTS.isPausedForRetry ? { speech.localTTS.retryAfterEngineStop(); speech.userPerform(.resume) } : nil) {
                         speech.localTTS.dismissCrashNotice()
                     }
                         .padding(.horizontal, Spacing.s)

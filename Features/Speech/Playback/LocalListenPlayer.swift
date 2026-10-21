@@ -52,6 +52,12 @@ final class LocalListenPlayer {
     var onFinished: (() -> Void)?
     /// The player ran dry with more to come: it waits for the next unit.
     var onStarved: (() -> Void)?
+    /// C129: rendering is paused for Retry (the engine stopped twice); nothing new renders.
+    var rendersPausedForRetry: () -> Bool = { false }
+    /// Playback reached audio not rendered while rendering is paused: the player paused there.
+    var onNeedsRetry: (() -> Void)?
+    /// The producer stopped at unrendered audio (paused for retry); pause when the buffer drains.
+    private var heldForRetry = false
     /// Sub-paragraph start: how far into the first unit of this play/seek to begin, as a
     /// fraction of its synth chunk. Consumed by the first enqueue of the start paragraph.
     private var pendingStartFraction: Double = 0
@@ -187,6 +193,7 @@ final class LocalListenPlayer {
     }
 
     func pause() {
+        heldForRetry = false
         starvedAt = nil
         speakRequestedAt = nil
         state = .paused
@@ -274,6 +281,11 @@ final class LocalListenPlayer {
     /// producer task cannot leave the session awaitingMore forever.
     private func handleStarved() {
         ListenDebugLog.shared.append("starved nextProduce=\(nextProduceIndex) c\(nextProduceChunk) buf=\(player.bufferedCount) epoch=\(epoch)")
+        if heldForRetry {
+            heldForRetry = false
+            onNeedsRetry?()
+            return
+        }
         if starvedAt == nil, state == .playing { starvedAt = ListenTimingLog.now() }
         ensureProducerRunning()
         armStarveWatchdog()
@@ -352,6 +364,13 @@ final class LocalListenPlayer {
                     continue
                 }
                 let k = min(nextProduceChunk, chunks.count - 1)
+                // C129: rendering paused for Retry and this isn't rendered: play what is queued,
+                // then pause here (never Apple instead).
+                if rendersPausedForRetry(), !source.isChunkReady(paragraph: index, chunk: k) {
+                    ListenTimingLog.log("held_for_retry", ["p": index, "c": k, "buffered": player.bufferedCount])
+                    if player.bufferedCount == 0 { onNeedsRetry?() } else { heldForRetry = true }
+                    return
+                }
                 if projectsUnderrun(source, index: index, chunk: k, chunks: chunks) {
                     await fallbackToApple(source, index: index, fromChunk: k, error: RenderFellBehind(), epoch: e)
                     continue

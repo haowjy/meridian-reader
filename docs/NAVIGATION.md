@@ -249,7 +249,7 @@ name, each row showing where it is below the folder (its site when it is in the 
 the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. Favorites
 are the starred items in the Library. Recent is everything you opened or started (C104); *History* (🕘 in the band,
-a big button in the ⋯) is the browser's pages visited: one name per concept. From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as Recent does (C130). In an imported EPUB or followed story ＋ is dimmed (nothing can be added, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
+a big button in the ⋯) is the browser's pages visited: one name per concept. From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as Recent does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
 Recent and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
