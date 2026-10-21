@@ -84,4 +84,4 @@ its last page (reloaded). A fresh install opens the Library.
 - Cloud voices.
 - Tags, highlights.
 
-| W1 | Item wording (C120): items are *articles* in every count, empty state and message ("3 articles"); in a folder imported from an EPUB they are *chapters*. Never "pages" for items. The Recent tab lists only started articles and chapters, never folders, and ＋ on the Library home has *New Folder…* (C119). |
+| W1 | Item wording (C120): items are *articles* in every count, empty state and message ("3 articles"); in a folder imported from an EPUB they are *chapters*. Never "pages" for items. The Recent tab lists only started articles and chapters, never folders, and ＋ on the Library home has *New Folder…* (C119). *New Folder…* is the one name everywhere: ＋, a folder header's More, Edit's bar (which files the selection into it) and Move to…; it is hidden in an imported EPUB or followed story (C122). |

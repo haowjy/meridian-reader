@@ -5,7 +5,7 @@ import SwiftUI
 /// sheet's *Add to* pushes the same list, `MoveTreeList`). The whole tree as
 /// one indented list, like Safari's bookmark-folder picker; one tap files, ✓ marks the current
 /// place. *New Folder* makes one at the top level; a folder's
-/// long-press, *New Folder Inside*, makes one in it; either way what is being filed goes into the
+/// long-press, *New Folder*, makes one in it; either way what is being filed goes into the
 /// new folder. Every folder is a destination, books and series too (decision D19); a folder being
 /// moved, and everything inside it, can't be picked. The tree closes once what was
 /// picked is saved; a pick or a new folder that can't be saved leaves it up, with the toast over
@@ -15,7 +15,7 @@ import SwiftUI
 /// Move to…                                    ✕
 ///  ＋ New Folder
 ///  Library (no folder)
-///  📁 Fiction                                 ✓   ← long-press: New Folder Inside
+///  📁 Fiction                                 ✓   ← long-press: New Folder
 ///      📕 Pride and Prejudice
 /// ```
 struct MoveTreeSheet: View {
@@ -48,7 +48,7 @@ struct MoveTreeSheet: View {
 
 /// The Move tree's list, for the sheet above and for the import sheet's *Add to*, which pushes it.
 /// `pick` gets the folder tapped, or nil for the top level; `pickNewFolder` the name given to *New
-/// Folder* (or *New Folder Inside*) and where it goes, for the caller to make the folder and pick
+/// Folder* (or *New Folder*) and where it goes, for the caller to make the folder and pick
 /// it (`MoveRequest.pickNewFolder`, `BookImportFlow.chooseNewFolder`).
 struct MoveTreeList: View {
     /// Marked ✓.
@@ -90,7 +90,7 @@ struct MoveTreeList: View {
                           isCurrent: current == .folder(folder.id),
                           isEnabled: !isMoving(folder), id: "moveFolder") { pick(folder) }
                         .contextMenu {
-                            Button(Verbs.newFolderInside, systemImage: Icons.newFolder) { name(in: folder) }
+                            Button(Verbs.newFolder, systemImage: Icons.newFolder) { name(in: folder) }
                                 .accessibilityIdentifier("moveNewFolderInside")
                                 .menuAvailability(MenuAvailability(when: !isMoving(folder)))
                         }
@@ -139,7 +139,7 @@ struct MoveTreeList: View {
         naming = true
     }
 
-    /// *New Folder* / *New Folder Inside*: a folder named `name` ("New Folder" when blank) in
+    /// *New Folder*: a folder named `name` ("New Folder" when blank) in
     /// `parent`, or nil when it can't be saved, once the toast has said so.
     @MainActor
     @discardableResult
@@ -157,7 +157,7 @@ extension MoveRequest {
         shell.sheet = nil
     }
 
-    /// *New Folder* / *New Folder Inside*: a folder named `name` ("New Folder" when blank) in
+    /// *New Folder*: a folder named `name` ("New Folder" when blank) in
     /// `parent`, then picked. A folder that can't be saved files nothing and leaves the tree up;
     /// the toast says so.
     @MainActor

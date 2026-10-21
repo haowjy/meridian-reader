@@ -133,7 +133,7 @@ final class BookImportFlow: Identifiable {
         destinationID = folder?.id
     }
 
-    /// The Move tree's *New Folder* / *New Folder Inside*: the folder is made, then chosen. One
+    /// The Move tree's *New Folder*: the folder is made, then chosen. One
     /// that can't be saved chooses nothing and leaves the tree up; the toast says so.
     func chooseNewFolder(named name: String, in parent: Folder?, shell: ShellState) {
         guard let folder = MoveTreeList.makeFolder(named: name, in: parent, library: library, shell: shell) else { return }

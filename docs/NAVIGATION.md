@@ -324,6 +324,8 @@ commas.
            Download                        More
   ```
 
+  The ▶ is a 56 pt disc (C124), its glyph scaled with it; the middles of the three controls'
+  symbols line up (the captions hang below), and the header's lines sit close.
   The big ▶ is the folder's *Continue* (its place, or the first page; ⏸ while one of its pages is
   what you hear: tap pauses). *More* opens the folder's own menu, the same as its row's ⋯ and
   the top of its screen's ⋯ ("Menus", below). **Download** is the folder's Download toggle (F7): an outline ↓ while it isn't
@@ -350,11 +352,13 @@ commas.
   **Edit** (top right), or *Select* in a row's
   menu (Edit with that row selected), puts check circles on the rows, and drag handles
   (pages only when the sort is *Manual*); the toolbar keeps its five slots and shows
-  *Move to…* (📁, slot 1), *Mark as Finished* (●, the listening ring made full, the middle) and *Remove* (🗑, ⋯'s slot) as
-  symbols for the selection. *Remove* takes the selected pages out of the
+  *Move to…* (📁, slot 1), *Mark as Finished* (●, the listening ring made full, the middle),
+  *New Folder…* (📁+, slot 4: makes a folder here and files the selection into it, like Files'
+  *New Folder with Items*; hidden in an imported EPUB or followed story, C122) and *Remove*
+  (🗑, ⋯'s slot) as symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: the folder's own menu, then *Sort ›,
-  New Folder Inside…, Import EPUB…, Follow…, Downloads, Settings*. Every ⋯ ends with *Downloads,
+  New Folder…, Import EPUB…, Follow…, Downloads, Settings*. Every ⋯ ends with *Downloads,
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view

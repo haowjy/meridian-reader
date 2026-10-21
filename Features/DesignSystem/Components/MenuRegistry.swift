@@ -39,6 +39,8 @@ enum MenuRegistry {
         case downloads
         /// The Library's ＋ (the home or a folder's screen).
         case add
+        /// A folder screen's bottom bar in Edit.
+        case edit
     }
 
     /// Every option, in menu order within its kind.
@@ -48,7 +50,7 @@ enum MenuRegistry {
              removeFromRecent, stopListening, removeFromHistory
         // A folder, book or series
         case continueFolder, playFromStart, folderDownload, removeDownloads, folderFavorite, folderMove,
-             editDetails, deleteFolder
+             editDetails, deleteFolder, folderNewFolder
         // A download
         case redownload, keep, removeDownload
         // A screen's own rows
@@ -149,6 +151,9 @@ enum MenuRegistry {
         Spec(option: .folderDownload, kind: .folder, places: [.row, .tile],
              enabled: { $0.downloadIsOn || $0.hasDownloads || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
         Spec(option: .removeDownloads, kind: .folder, places: [.header], enabled: { $0.hasDownloads }, greyIf: "nothing downloaded or downloading"),
+        // Its screen's More makes a subfolder in it (C122); never in a folder that keeps its own order.
+        Spec(option: .folderNewFolder, kind: .folder, places: [.header],
+             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .folderFavorite, kind: .folder, places: folderPlaces),
         Spec(option: .folderMove, kind: .folder, places: folderPlaces),
         Spec(option: .editDetails, kind: .folder, places: folderPlaces),
@@ -161,7 +166,9 @@ enum MenuRegistry {
 
         // A screen's own rows (＋ has New Folder and Import Book; the address field starts a search).
         // ＋ makes things in the screen on top; the ⋯ panels keep only Sort, Reload and the tail.
-        Spec(option: .newFolder, kind: .screen, places: [.add]),
+        // ＋ and Edit's bar make a folder in the folder on screen (C122); Edit's files the selection in it.
+        Spec(option: .newFolder, kind: .screen, places: [.add, .edit],
+             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .importFile, kind: .screen, places: [.add]),
         Spec(option: .follow, kind: .screen, places: [.add, .browser],
              enabled: { $0.canFollow }, greyIf: "browser: no web page up"),

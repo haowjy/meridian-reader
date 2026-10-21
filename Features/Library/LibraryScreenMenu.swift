@@ -46,14 +46,16 @@ struct LibraryScreenMenu {
         return MenuContext(screen: screenRows, tiles: folder == nil ? [browser] : MenuContext.tiles(shell, last: browser))
     }
 
-    /// ＋: *New Folder…* (*New Folder Inside…* in a folder), *Import EPUB…* and *Follow…*, into the
+    /// ＋: *New Folder…* (*New Folder…* in a folder), *Import EPUB…* and *Follow…*, into the
     /// screen on top (`MenuRegistry`, place `.add`).
     var createRows: [MenuRow] {
         let folder = topFolder
-        return MenuRegistry.rows(.screen, at: .add, .init()) { option in
+        var facts = MenuRegistry.Facts()
+        facts.isFixedOrder = folder?.kind.isBookOrSeries == true
+        return MenuRegistry.rows(.screen, at: .add, facts) { option in
             switch option {
             case .newFolder:
-                return MenuRow(id: "moreNewFolder", title: folder == nil ? Verbs.newFolder : Verbs.newFolderInside,
+                return MenuRow(id: "moreNewFolder", title: Verbs.newFolder,
                                icon: Icons.newFolder) { [screen] in screen.makeFolder(in: folder) }
             case .importFile:
                 return MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.importFile) { [library, shell] in

@@ -50,6 +50,7 @@ struct FolderMenu: View {
         facts.hasArticles = !articles.isEmpty
         facts.downloadIsOn = downloads.isOn(folder)
         facts.hasDownloads = downloads.hasDownloads(folder, articles: articles)
+        facts.isFixedOrder = folder.kind.isBookOrSeries
         return facts
     }
 
@@ -81,6 +82,8 @@ struct FolderMenu: View {
             }
         case .removeDownloads:
             return removeDownloads
+        case .folderNewFolder:
+            return MenuRow(id: "menuNewFolder", title: Verbs.newFolder, icon: Icons.newFolder) { screen.makeFolder(in: folder) }
         case .folderFavorite:
             let isFavorite = folder.isFavorite
             return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,

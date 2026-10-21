@@ -52,7 +52,8 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     private var sideWidth: CGFloat { BottomChrome.grown(scaledSideWidth, from: 76) }
 
     var body: some View {
-        VStack(spacing: Spacing.s) {
+        // Tight (C124): title, details and the action row sit close.
+        VStack(spacing: Spacing.xs) {
             if case .detailed(let cover) = style {
                 ArtworkTile(image: cover, letter: title, size: coverWidth, isCover: true)
                     .floatingShadow(opacity: 0.15)
@@ -82,7 +83,6 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
         ActionButtonRow { fit in
             actionControls(actions, captions: fit != .icon)
         }
-        .padding(.top, Spacing.xs)
     }
 
     private func actionControls(_ actions: FolderHeaderActions, captions: Bool) -> some View {
@@ -97,7 +97,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
             .accessibilityValue(downloadValue(actions))
             .accessibilityIdentifier("folderDownload")
             .background { anchor(.download) }
-            PlayStateButton(state: actions.play, look: .disc, action: actions.onPlay)
+            PlayStateButton(state: actions.play, look: .headerDisc, action: actions.onPlay)
                 .accessibilityIdentifier("folderContinue")
             Menu { more } label: {
                 sideLabel(Verbs.more, shown: captions) {
@@ -163,20 +163,33 @@ private struct CentredSidesLayout: Layout {
         [subviews.first, subviews.last].compactMap { $0?.sizeThatFits(.unspecified).width }.reduce(minSide, max)
     }
 
+    /// The row's centre line: the disc's middle, and the middle of each side's 44 pt glyph (its
+    /// caption hangs below), so the three line up however tall the captions are (C124).
+    private func centreLine(_ subviews: Subviews) -> CGFloat {
+        max(subviews[1].sizeThatFits(.unspecified).height, BottomChrome.minTapTarget) / 2
+    }
+
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard subviews.count == 3 else { return .zero }
         let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let line = centreLine(subviews)
+        let sideBottom = [sizes[0], sizes[2]].map { line - BottomChrome.minTapTarget / 2 + $0.height }.max() ?? 0
         return CGSize(width: 2 * side(subviews) + sizes[1].width + 2 * spacing,
-                      height: sizes.map(\.height).max() ?? 0)
+                      height: max(sizes[1].height, sideBottom))
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard subviews.count == 3 else { return }
         let side = side(subviews)
         let centre = subviews[1].sizeThatFits(.unspecified)
+        let line = bounds.minY + centreLine(subviews)
         let xs = [bounds.midX - centre.width / 2 - spacing - side / 2, bounds.midX, bounds.midX + centre.width / 2 + spacing + side / 2]
-        for (subview, x) in zip(subviews, xs) {
-            subview.place(at: CGPoint(x: x, y: bounds.midY), anchor: .center, proposal: .unspecified)
+        for (index, (subview, x)) in zip(subviews, xs).enumerated() {
+            if index == 1 {
+                subview.place(at: CGPoint(x: x, y: line), anchor: .center, proposal: .unspecified)
+            } else {
+                subview.place(at: CGPoint(x: x, y: line - BottomChrome.minTapTarget / 2), anchor: .top, proposal: .unspecified)
+            }
         }
     }
 }

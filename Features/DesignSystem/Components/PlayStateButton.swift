@@ -49,6 +49,8 @@ struct PlayStateButton: View {
         /// `disc` at `BottomChrome.floatingDiscSize`: the play / pause floating over a reading
         /// sheet in full screen.
         case floatingDisc
+        /// `disc` at `BottomChrome.headerDiscSize`: a folder header's centre control.
+        case headerDisc
     }
 
     let state: PlayState
@@ -71,6 +73,9 @@ struct PlayStateButton: View {
         case .pill(let title, let detail, let expands, let fit): pill(title, detail: detail, expands: expands, fit: fit)
         case .disc:
             PlayStateDisc(state: state, size: BottomChrome.transportDiscSize, glyphSize: BottomChrome.transportDiscGlyph,
+                          action: action)
+        case .headerDisc:
+            PlayStateDisc(state: state, size: BottomChrome.headerDiscSize, glyphSize: BottomChrome.headerDiscGlyph,
                           action: action)
         case .floatingDisc:
             PlayStateDisc(state: state, size: BottomChrome.floatingDiscSize, glyphSize: BottomChrome.floatingDiscGlyph,

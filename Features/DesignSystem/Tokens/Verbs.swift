@@ -111,7 +111,6 @@ enum Verbs {
     // MARK: Screens
 
     static let newFolder = String(localized: "New Folder…")
-    static let newFolderInside = String(localized: "New Folder Inside…")
     static let importBook = String(localized: "Import EPUB…")
     /// A story's table of contents, read into a folder of chapters.
     static let follow = String(localized: "Follow…")

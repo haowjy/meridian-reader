@@ -21,6 +21,8 @@ final class LibraryScreenState {
     /// Where a new folder goes.
     struct NewFolder {
         var parent: Folder?
+        /// Edit's selection, filed into the new folder once it is made (Files' "New Folder with Items").
+        var items: [LibraryItem] = []
     }
 
     private(set) var editing: Editing?
@@ -106,9 +108,9 @@ final class LibraryScreenState {
         renaming = folder
     }
 
-    func makeFolder(in parent: Folder?) {
+    func makeFolder(in parent: Folder?, with items: [LibraryItem] = []) {
         newFolderName = ""
-        newFolder = NewFolder(parent: parent)
+        newFolder = NewFolder(parent: parent, items: items)
     }
 }
 
@@ -191,8 +193,12 @@ private struct LibraryDialogs: ViewModifier {
             .newFolderAlert(isPresented: Binding(get: { state.newFolder != nil },
                                                  set: { if !$0 { state.newFolder = nil } }),
                             name: $state.newFolderName) {
-                if let target = state.newFolder {
-                    MoveTreeList.makeFolder(named: state.newFolderName, in: target.parent, library: library, shell: shell)
+                if let target = state.newFolder,
+                   let made = MoveTreeList.makeFolder(named: state.newFolderName, in: target.parent, library: library, shell: shell),
+                   !target.items.isEmpty {
+                    if shell.attempt(String(localized: "Couldn’t move into the folder"), { try library.move(target.items, to: made) }) != nil {
+                        state.selection = []
+                    }
                 }
             }
     }
