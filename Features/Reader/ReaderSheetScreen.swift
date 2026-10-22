@@ -97,6 +97,7 @@ struct ReaderSheetScreen: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     SaveToggleButton(isSaved: actions.isSaved, identifier: "readerBookmark",
                                      onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
+                        .frame(width: BottomChrome.minTapTarget)
                 }
                 // Scrub track (thin, no capsule, full width)
                 readerScrubTrack(palette: palette)
