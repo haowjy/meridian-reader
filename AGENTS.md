@@ -22,9 +22,6 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 - **A change is verified by probing the real app and an AI review.** Run it on the Simulator or
   the phone, drive the flows the change touches, look at the result (screenshots, the unified log,
   `ListenTiming`), then have the diff reviewed. Tests passing is not the evidence.
-- **Screenshots and probe output never go in the repo.** Write them to the Meridian work folder,
-  `~/.meridian/context/idle-chamber-crossroads/work/screenshots/<topic>/` (e.g. `xcrun simctl io
-  <device> screenshot <that path>/<name>.png`), and link them from the PR body.
 - **All automated tests together run in under 60 seconds** of sequential time on the Simulator
   (unit and UI, `test-without-building` wall clock: about 5 s and 35 s; without
   `-collect-test-diagnostics never`, xcodebuild can sit minutes in `simctl diagnose` after the
