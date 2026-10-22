@@ -67,3 +67,27 @@ fastlane/test_output
 .env
 .env.*
 !.env.example
+
+# Editor / agent config (local) — mirrors meridian-flow
+.vscode/settings.json
+.claude/*
+!.claude/settings.json
+.cursor
+.pi
+.codex
+.codex-local/
+.opencode
+
+# Meridian / Mars (mars.toml and meridian.toml are committed)
+mars.local.toml
+mars.lock
+.mars/
+
+# Stray screenshots
+/*.png
+
+# iOS release / signing (local only)
+*.p8
+*.cer
+*.xcarchive
+ExportOptions.local.plist
