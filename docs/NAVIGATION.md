@@ -753,9 +753,9 @@ synthesis").
   the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
 - **The player card** sits below the toolbar and shows the artwork tile, the article
-  title (one line, clipped) and the time detail (*9 min*, *6 min left*, *Finished*). While the
-  article has not yet started the scrub row inside it is empty; it fills with the scrubber and
-  speed once Listen starts and Now Playing takes over.
+  title (one line, clipped), the time detail (*9 min*, *6 min left*, *Finished*), a scrub track
+  at position 0 and the speed control. The track and speed match Now Playing's card so the two
+  screens are the same height; Listen fills the track with progress and Now Playing takes over.
 - **Listen** reads *▶ **Listen** 9 min*, *▶ **Continue** 6 min left* for an article part-way through
   (at the playback speed, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
   at large text sizes), or *▶ Listen Again* for a finished one. It starts at the article's saved spot, makes the article what you

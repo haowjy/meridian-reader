@@ -82,8 +82,7 @@ struct ReaderSheetScreen: View {
             if let nowPlaying = speech.nowPlaying, nowPlaying.articleKey != readerArticle.id {
                 NowPlayingBarView(speech: speech)
             }
-            ReadingPlayerCard(title: playerTitle, timeDetail: timeDetail, artworkLetter: playerLetter) { EmptyView() }
-                .environment(\.readingPalette, palette)
+            readerPlayerCard(title: playerTitle, timeDetail: timeDetail, letter: playerLetter, palette: palette)
         } more: {
             MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
         } floating: {
@@ -155,6 +154,23 @@ struct ReaderSheetScreen: View {
         }
         return (Verbs.listen,
                 ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)))
+    }
+
+    /// The player card with a scrub row at position 0 and the speed control, matching Now
+    /// Playing's card layout before Listen starts. The track is idle (no fill, thumb at the
+    /// start); the speed button is functional.
+    private func readerPlayerCard(title: String, timeDetail: String?, letter: String, palette: ReadingPalette) -> some View {
+        let paragraphs = readerArticle.document.paragraphs
+        return ReadingPlayerCard(title: title, timeDetail: timeDetail, artworkLetter: letter) {
+            if !paragraphs.isEmpty {
+                let map = ReaderScrubMap(paragraphs: paragraphs, sentences: false)
+                ReaderScrubRow(map: map, position: 0, onScrubPreview: { _ in },
+                               onScrubCommit: { _ in }, isCapsule: false) {
+                    SpeedButton(speech: speech)
+                }
+            }
+        }
+        .environment(\.readingPalette, palette)
     }
 
     // MARK: - Actions
