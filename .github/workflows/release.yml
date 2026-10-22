@@ -1,12 +1,16 @@
 # Meridian Reader — release workflow
 #
 # Manual dispatch only. Builds a Release archive, uploads to TestFlight or
-# submits to the App Store, and cuts a GitHub Release with the CHANGELOG notes.
+# submits to the App Store, and cuts a GitHub Release with the release notes.
 #
 # Inputs:
-#   version   — semver string, e.g. 1.0.0 (must be > every existing v* tag)
+#   version   — semver string, e.g. 0.1.0 (must be > every existing v* tag)
 #   target    — TestFlight | App Store submit | GitHub Release only
 #   dry_run   — if true, stop before upload/tag/release and print what would happen
+#
+# Release notes come from release-notes/<version>.md (plain bullets).
+# The workflow generates Resources/WhatsNew.json for the in-app sheet,
+# and uses the same text for the GitHub Release body.
 #
 # Secrets (add in Settings → Secrets and variables → Actions):
 #   ASC_KEY_ID        — App Store Connect API Key ID
@@ -22,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version (semver, e.g. 1.0.0)"
+        description: "Version (semver, e.g. 0.1.0)"
         required: true
         type: string
       target:
@@ -82,41 +86,25 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_ENV"
 
-      # ── Validate CHANGELOG ──────────────────────────────────────────
-      - name: Check CHANGELOG has a section for this version or Unreleased
+      # ── Validate release notes ──────────────────────────────────────
+      - name: Check release notes exist
         run: |
-          # The workflow will create the version section from Unreleased if needed.
-          # For now, just verify CHANGELOG.md exists and has content under Unreleased.
-          if ! grep -q '## Unreleased' CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no ## Unreleased section"
+          NOTES="release-notes/${{ inputs.version }}.md"
+          if [ ! -f "$NOTES" ]; then
+            echo "::error::$NOTES not found — add release notes before running the workflow"
             exit 1
           fi
-          # Check there's at least one bullet
-          SECTION=$(sed -n '/^## Unreleased/,/^## \[/p' CHANGELOG.md | grep -c '^\- ' || true)
-          if [ "$SECTION" -eq 0 ]; then
-            echo "::error::CHANGELOG.md Unreleased section has no entries"
+          if [ ! -s "$NOTES" ]; then
+            echo "::error::$NOTES is empty"
             exit 1
           fi
 
       # ── Extract release notes ────────────────────────────────────────
-      - name: Extract release notes and generate WhatsNew.json
+      - name: Generate WhatsNew.json and plain-text notes
         run: |
-          # Create the versioned section in CHANGELOG for the script
-          python3 scripts/whats-new.py "${{ inputs.version }}" || {
-            # If no version section exists, insert one from Unreleased.
-            # BSD sed doesn't expand \n in replacements, so use Python.
-            DATE=$(date +%Y-%m-%d)
-            python3 -c "
-          import pathlib, re
-          p = pathlib.Path('CHANGELOG.md')
-          text = p.read_text()
-          text = text.replace('## Unreleased', '## Unreleased\n\n## [${{ inputs.version }}] - $DATE', 1)
-          p.write_text(text)
-          "
-            python3 scripts/whats-new.py "${{ inputs.version }}"
-          }
+          python3 scripts/whats-new.py "${{ inputs.version }}"
 
-          # Also extract plain-text notes for the GitHub Release
+          # Plain-text notes for the GitHub Release
           python3 -c "
           import json, pathlib
           data = json.loads(pathlib.Path('Resources/WhatsNew.json').read_text())
@@ -235,13 +223,19 @@ jobs:
           echo ""
           echo "The build may take 5–30 minutes to process before it appears."
 
+      # ── TestFlight / App Store What to Test ──────────────────────────
+      # The ASC API can set What to Test (testFlightBetaAppLocalizations) and
+      # What's New (appStoreVersionLocalizations) after upload, but the build
+      # must finish processing first (5–30 min polling). For now, paste
+      # release_notes.txt manually in App Store Connect after the build appears.
+
       # ── Commit version bump, tag, GitHub Release ─────────────────────
       - name: Commit version bump
         if: ${{ !inputs.dry_run }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add project.yml Resources/WhatsNew.json CHANGELOG.md
+          git add project.yml Resources/WhatsNew.json
           git commit -m "release: v${{ inputs.version }}" || echo "No changes to commit"
           git push origin HEAD:main
 
