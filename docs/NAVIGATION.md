@@ -718,8 +718,9 @@ row) opens Now Playing instead.
 
 **The two sheets share their chrome** (decision D24), so Listen turns the Reader into Now Playing
 with nothing moving but what has to: the same top bar (`SheetTopBar`: the close pill at the top
-left, **Aa** then ☝︎ at the top right, at the article margin), a control row above the player card
-(title, time left, scrub row), 🔖 in slot 1 and ⋯ in slot 5 of the control row, the same
+left, **Aa** then ☝︎ at the top right, at the article margin), one shared bottom band
+(`ReadingBottomBand`: control row above the player card, on the same material as the Library and
+Browser), 🔖 in slot 1 and ⋯ in slot 5 of the control row, the same
 ⋯ menu (Now Playing adds *Go to*), and the same colours and type (the reading theme, below). They
 differ where the job does: Now Playing's middle slots are the transport (⏮, the round ⏸ / ▶, ⏭)
 where the Reader has Listen, it has the scrub row in the player card with the speed, and its text

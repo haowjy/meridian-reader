@@ -65,13 +65,7 @@ struct NowPlayingSheet<Player: View, Reading: View, TextAppearance: View, Access
         } content: {
             text
         } band: {
-            VStack(spacing: BottomChrome.rowSpacing) {
-                controls
-                player
-            }
-            .readerScrubBubble()
-            .bottomChromeBand()
-            .overlay(alignment: .top) { floating }
+            ReadingBottomBand { controls } player: { player } floating: { floating }
         } overText: {
             ZStack(alignment: .bottom) {
                 jumpToAudio

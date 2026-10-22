@@ -13,8 +13,9 @@ import SwiftUI
 /// └───────────────────────────────── home indicator ┘    ⋯ always slot 5
 /// ```
 ///
-/// The reader keeps its own band (a `BottomToolbarSpanLayout` row over the player card, C143) and Now
-/// Playing a five-slot transport, on the same grid.
+/// The Reader and Now Playing share one band (`ReadingBottomBand`): the control row (a
+/// `BottomToolbarSpanLayout` pill in the Reader, C143; a five-slot transport in Now Playing)
+/// above the player card, on the same grid and material.
 enum BottomChrome {
     /// Horizontal margin of the band's content.
     static let horizontalMargin = Spacing.bandMargin
@@ -236,6 +237,25 @@ extension View {
     /// The slot (0-based) this item takes in a `BottomToolbarLayout` row.
     func toolbarSlot(_ index: Int) -> some View {
         layoutValue(key: ToolbarSlotKey.self, value: index)
+    }
+}
+
+/// The bottom band shared by the Reader and Now Playing: the control row above the player card,
+/// on the same BottomChrome material as the Library and Browser. Spacing is even (`Spacing.xs`
+/// above, between and below) and the card carries no shadow of its own.
+struct ReadingBottomBand<Controls: View, Player: View, Floating: View>: View {
+    @ViewBuilder var controls: Controls
+    @ViewBuilder var player: Player
+    @ViewBuilder var floating: Floating
+
+    var body: some View {
+        VStack(spacing: Spacing.xs) {
+            controls
+            player
+        }
+        .readerScrubBubble()
+        .bottomChromeBand(bottomPadding: Spacing.xs)
+        .overlay(alignment: .top) { floating }
     }
 }
 

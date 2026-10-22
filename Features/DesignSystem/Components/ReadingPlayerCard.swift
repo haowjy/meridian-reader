@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The floating player card in the Reader and Now Playing bottom chrome: the article's artwork,
-/// title, optional time-left detail and an optional scrub row.
+/// The player card in the Reader and Now Playing bottom chrome: the article's artwork, title,
+/// optional time-left detail and an optional scrub row, on the reading page's card colour. Sits
+/// inside `ReadingBottomBand`; no shadow of its own (the band's material is the surface).
 ///
 /// ```
 /// ╭─────────────────────────────────────────────╮
@@ -9,9 +10,6 @@ import SwiftUI
 /// │ [-- scrubber, full width -------*---]   1x  │  <- `scrub` bare row; EmptyView in Reader
 /// ╰─────────────────────────────────────────────╯
 /// ```
-///
-/// Floating card (`floatingShadow`) in the reading page's card material. Pass `EmptyView()` for
-/// `scrub` when not playing; with a scrub row (its own full-width row, C143) the card lifts the control row so play sits near 81% down.
 struct ReadingPlayerCard<Scrub: View>: View {
     let title: String
     var timeDetail: String?
@@ -53,7 +51,6 @@ struct ReadingPlayerCard<Scrub: View>: View {
             let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
             if let reading { shape.fill(reading.card) } else { shape.fill(.regularMaterial) }
         }
-        .floatingShadow(opacity: 0.14)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("readingPlayerCard")
     }

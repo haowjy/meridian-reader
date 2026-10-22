@@ -63,7 +63,7 @@ struct ReaderSheet<Player: View, Reading: View, More: View, TextAppearance: View
         } content: {
             text
         } band: {
-            VStack(spacing: BottomChrome.rowSpacing) {
+            ReadingBottomBand {
                 BottomToolbarSpanLayout {
                     saveButton
                     PlayStateButton(state: listenState,
@@ -73,10 +73,11 @@ struct ReaderSheet<Player: View, Reading: View, More: View, TextAppearance: View
                     more
                         .foregroundStyle(palette.ink)
                 }
+            } player: {
                 player
+            } floating: {
+                floating
             }
-            .bottomChromeBand()
-            .overlay(alignment: .top) { floating }
         } overText: {
             FloatingPlayButton(state: listenState, action: onListen)
         }
