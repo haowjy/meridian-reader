@@ -1,28 +1,37 @@
 import SwiftUI
 
 /// Shared card constants for `NowPlayingBar` and `ReadingPlayerCard`: artwork size, progress
-/// height and the card surface (background, radius).
+/// height and the card surface (background, radius, shadow).
 enum PlayerCard {
     static let artworkSize: CGFloat = 40
-    static let progressHeight: CGFloat = ProgressLine.barHeight
+    /// Matches `ScrubTrack`'s base track height (4 pt).
+    static let progressHeight: CGFloat = 4
+    static let shadowOpacity = 0.14
 }
 
 extension View {
-    /// The card surface both player cards share: the reading page's card colour, or a material
-    /// on surfaces outside the reader.
-    func playerCardSurface() -> some View {
-        modifier(PlayerCardSurface())
+    /// The card surface both player cards share: the reading palette's card fill (injecting
+    /// `ReadingPalette.app` when no palette is set, so the fill, tile and progress colours are the
+    /// same on every surface), `Radius.card` corners and a floating shadow.
+    func playerCardSurface(shadowOpacity: Double = PlayerCard.shadowOpacity) -> some View {
+        modifier(PlayerCardSurface(shadowOpacity: shadowOpacity))
     }
 }
 
 private struct PlayerCardSurface: ViewModifier {
+    let shadowOpacity: Double
     @Environment(\.readingPalette) private var reading
 
+    private var palette: ReadingPalette { reading ?? .app }
+
     func body(content: Content) -> some View {
-        content.background {
-            let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-            if let reading { shape.fill(reading.card) } else { shape.fill(.regularMaterial) }
-        }
+        content
+            .environment(\.readingPalette, palette)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .fill(palette.card)
+            )
+            .floatingShadow(opacity: shadowOpacity)
     }
 }
 

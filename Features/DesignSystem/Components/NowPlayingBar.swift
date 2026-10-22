@@ -126,8 +126,7 @@ struct NowPlayingBar: View {
         }
         .padding(.leading, Spacing.s)
         .padding(.vertical, Spacing.xs)
-        .playerCardSurface()
-        .floatingShadow(opacity: isPlaceholder ? Self.placeholderShadowOpacity : 0.14)
+        .playerCardSurface(shadowOpacity: isPlaceholder ? Self.placeholderShadowOpacity : PlayerCard.shadowOpacity)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .contextMenu { if let menu { menu } }
         .accessibilityElement(children: .contain)
