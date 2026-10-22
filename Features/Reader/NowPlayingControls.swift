@@ -21,7 +21,7 @@ struct NowPlayingControls: View {
     var body: some View {
         VStack(spacing: BottomChrome.rowSpacing) {
             notes
-            ListenControllerView(leading: save, trailing: more, speech: speech)
+            ListenTransportView(leading: save, trailing: more, speech: speech)
         }
     }
 

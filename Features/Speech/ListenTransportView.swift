@@ -5,7 +5,7 @@ import SwiftUI
 /// `leading` is Now Playing's 🔖 and `trailing` its ⋯, in the Reader's slots. A sideways swipe on
 /// the row skips a paragraph; with developer options on, a long-press on play / pause opens
 /// Listen debug.
-struct ListenControllerView: View {
+struct ListenTransportView: View {
     var leading: AnyView? = nil
     var trailing: AnyView? = nil
 

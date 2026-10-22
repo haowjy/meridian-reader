@@ -718,8 +718,9 @@ row) opens Now Playing instead.
 
 **The two sheets share their chrome** (decision D24), so Listen turns the Reader into Now Playing
 with nothing moving but what has to: the same top bar (`SheetTopBar`: the close pill at the top
-left, **Aa** then ☝︎ at the top right, at the article margin), a player card (title, time left,
-scrub row) above the address field row, 🔖 in slot 1 and ⋯ in slot 5 of the bottom row, the same
+left, **Aa** then ☝︎ at the top right, at the article margin), one shared bottom band
+(`ReadingBottomBand`: control row above the player card, on the same material as the Library and
+Browser), 🔖 in slot 1 and ⋯ in slot 5 of the control row, the same
 ⋯ menu (Now Playing adds *Go to*), and the same colours and type (the reading theme, below). They
 differ where the job does: Now Playing's middle slots are the transport (⏮, the round ⏸ / ▶, ⏭)
 where the Reader has Listen, it has the scrub row in the player card with the speed, and its text
@@ -733,10 +734,9 @@ follows the audio (the Reader's sits under a heading and never moves by itself).
 │ ( ‹ Browser )             (Aa) (☝︎)  │ ← the pill names what is underneath
 │ example.org  9 min                   │ ← source and length (title is in the player card)
 │ … text in the reading theme …        │
+│ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own ▶, a pill over slots 2–4
 │ ╭ [art] Notes on Tides          9 min ╮ │ ← player card: artwork, title, time
 │ ╰─────────────────────────────────────╯ │   (no scrub before Listen)
-│ [<>] ( article-address capsule     ) │ ← address field row
-│ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own ▶, a pill over slots 2–4
 └──────────────────────────────────────┘
 ```
 
@@ -752,13 +752,10 @@ synthesis").
 - **A sheet over the surface that opened it** (`ReaderSheetScreen`, `ShellState.reader`). From
   the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
-- **The player card** sits above the address field row and shows the artwork tile, the article
-  title (one line, clipped) and the time detail (*9 min*, *6 min left*, *Finished*). While the
-  article has not yet started the scrub row inside it is empty; it fills with the scrubber and
-  speed once Listen starts and Now Playing takes over.
-- **The address field row** (swap button + the article's URL or source in a capsule) sits between
-  the player card and the toolbar. The swap button opens the Library when the browser is in front,
-  or returns to the browser when the Library is.
+- **The player card** sits below the toolbar and shows the artwork tile, the article
+  title (one line, clipped), the time detail (*9 min*, *6 min left*, *Finished*), a scrub track
+  at position 0 and the speed control. The track and speed match Now Playing's card so the two
+  screens are the same height; Listen fills the track with progress and Now Playing takes over.
 - **Listen** reads *▶ **Listen** 9 min*, *▶ **Continue** 6 min left* for an article part-way through
   (at the playback speed, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
   at large text sizes), or *▶ Listen Again* for a finished one. It starts at the article's saved spot, makes the article what you
@@ -816,11 +813,10 @@ synthesis").
 │   highlighted in full ink, the       │
 │   sentence underlined …              │
 │            ( Jump to Audio )         │ ← after you scroll away, bars up only (C128)
-│ ╭ [art] Title              9 min ──╮ │ ← player card: artwork, title, time left
-│ ╰ ━━━━━●━━━━░░░░──          1×   ╯ │   scrub row + speed at its end
-│ [<>] ( article-address capsule     ) │ ← address field row
 │ Preparing next…                      │ ← status notes, above the transport
 │ [🔖]  [⏮]  (⏸)  [⏭]  [ ⋯ ]          │ ← 🔖 and ⋯ as in the Reader; the round ⏸ / ▶
+│ ╭ [art] Title              9 min ──╮ │ ← player card: artwork, title, time left
+│ ╰ ━━━━━●━━━━░░░░──          1×   ╯ │   scrub row + speed at its end
 └──────────────────────────────────────┘
 ```
 
@@ -840,7 +836,7 @@ synthesis").
   colour for its text; the scrub row, the bubble, the jump hint, the ⋯ panel and the speed popover
   take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on the
   same reading article, in both, so everything below applies to it too.
-- **The player card** (`ReadingPlayerCard`, in the band above the address field row) shows the
+- **The player card** (`ReadingPlayerCard`, below the transport row in the band) shows the
   artwork tile, the title (`ArticleRowTitle.lineOne`: the title; for an article without one its
   site) and the time left (*9 min left*; *Finished* at the end). The scrub row runs inside it;
   the speed control sits at its trailing end.
@@ -875,12 +871,12 @@ synthesis").
 - **At the end** it stays on the article: the text stays, all of it in full ink, the player card
   says "◉ Finished" where the time left was (the Reader shows the article's length), and ▶
   plays the article again.
-- **Controls** (the band): the player card (scrub row + speed), the address field row (swap
-  button + URL capsule), optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the browser's
-  five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭ under 🕘, ⋯ under ⋯). ▶︎ / ⏸ is a
-  64 pt round button (accent fill, dark glyph; fixed size, like the toolbar glyphs). The row stays
-  44 pt, so every slot sits where it does on the other surfaces; the disc overhangs it. ⏮ ⏭ and
-  headphone / lock-screen skips are paragraph skips (D4). A sideways swipe on the row skips too.
+- **Controls** (the band): optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the browser's
+  five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭ under 🕘, ⋯ under ⋯), then the player
+  card (scrub row + speed). ▶︎ / ⏸ is a 52 pt round button (accent fill, dark glyph; fixed size,
+  like the toolbar glyphs). The row stays 44 pt, so every slot sits where it does on the other
+  surfaces; the disc overhangs it. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
+  (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", Apple-fallback / language notes, the
   developer-only Debug chip) sit **above** the transport row so appearing text never pushes it.
 - **⋯**: the article's menu ("Menus", above) for the article you hear, with *Go to <name>* first (when

@@ -1,17 +1,17 @@
 import SwiftUI
 
-/// The floating player card in the Reader and Now Playing bottom chrome: the article's artwork,
-/// title, optional time-left detail and an optional scrub row.
+/// The player card in the Reader and Now Playing bottom chrome: the article's artwork, title,
+/// optional time-left detail and an optional scrub row, on the reading page's card colour. Sits
+/// inside `ReadingBottomBand`; no shadow of its own (the band's material is the surface). The
+/// scrub area always reserves `fieldControlSize` height so the card is the same size in both
+/// screens, whether the scrub row is a live bar, a placeholder or empty.
 ///
 /// ```
 /// ╭─────────────────────────────────────────────╮
 /// │ [art]  Notes on Tides          9 min left   │  <- title + time (trailing)
-/// │        [-- scrubber ------*---] 1x           │  <- `scrub` bare row; EmptyView in Reader
+/// │ [-- scrubber, full width -------*---]   1x  │  <- `scrub` bare row; EmptyView in Reader
 /// ╰─────────────────────────────────────────────╯
 /// ```
-///
-/// Floating card (`floatingShadow`) in the reading page's card material. Pass `EmptyView()` for
-/// `scrub` when not playing; with a scrub row the card is approximately 66 pt tall.
 struct ReadingPlayerCard<Scrub: View>: View {
     let title: String
     var timeDetail: String?
@@ -26,34 +26,36 @@ struct ReadingPlayerCard<Scrub: View>: View {
     private var palette: ReadingPalette { reading ?? .app }
 
     var body: some View {
-        HStack(alignment: .center, spacing: Spacing.s) {
-            ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter,
-                        size: Self.artworkSize)
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                HStack(spacing: Spacing.xs) {
-                    Text(title)
-                        .typeStyle(.row, weight: .semibold)
-                        .foregroundStyle(palette.ink)
+        // C143: the scrubber gets its own full-width row under the title line, a bigger target that
+        // also lifts the control row above the card to where the thumb rests.
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(alignment: .center, spacing: Spacing.s) {
+                ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter,
+                            size: Self.artworkSize)
+                Text(title)
+                    .typeStyle(.row, weight: .semibold)
+                    .foregroundStyle(palette.ink)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let timeDetail {
+                    Text(timeDetail)
+                        .typeStyle(.caption)
+                        .foregroundStyle(palette.secondaryInk)
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if let timeDetail {
-                        Text(timeDetail)
-                            .typeStyle(.caption)
-                            .foregroundStyle(palette.secondaryInk)
-                            .lineLimit(1)
-                            .fixedSize()
-                    }
+                        .fixedSize()
                 }
+            }
+            ZStack(alignment: .leading) {
+                Color.clear.frame(height: BottomChrome.fieldControlSize)
                 scrub
             }
         }
         .padding(.horizontal, Spacing.s)
-        .padding(.vertical, Spacing.xxs)
+        .padding(.vertical, Spacing.xs)
         .background {
             let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
             if let reading { shape.fill(reading.card) } else { shape.fill(.regularMaterial) }
         }
-        .floatingShadow(opacity: 0.14)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("readingPlayerCard")
     }

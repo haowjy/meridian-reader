@@ -287,7 +287,7 @@ private struct FollowMessage<Actions: View>: View {
         VStack(spacing: Spacing.s) {
             if let symbol {
                 Image(systemName: symbol)
-                    .font(.largeTitle)
+                    .tileSymbol()
                     .foregroundStyle(Palette.secondaryInk)
             } else {
                 ProgressView()

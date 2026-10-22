@@ -13,8 +13,9 @@ import SwiftUI
 /// └───────────────────────────────── home indicator ┘    ⋯ always slot 5
 /// ```
 ///
-/// The reader keeps its own band (field rows over a `BottomToolbarSpanLayout` row) and Now
-/// Playing a five-slot transport, on the same grid.
+/// The Reader and Now Playing share one band (`ReadingBottomBand`): the control row (a
+/// `BottomToolbarSpanLayout` pill in the Reader, C143; a five-slot transport in Now Playing)
+/// above the player card, on the same grid and material.
 enum BottomChrome {
     /// Horizontal margin of the band's content.
     static let horizontalMargin = Spacing.bandMargin
@@ -40,9 +41,9 @@ enum BottomChrome {
     /// Now Playing's round play / pause in the transport's centre slot. Fixed like the toolbar
     /// glyphs (the large content viewer shows it at large text sizes). The row stays
     /// `rowHeight`; the disc reaches past it above and below by half the difference.
-    static let transportDiscSize: CGFloat = 64
+    static let transportDiscSize: CGFloat = 52
     /// The glyph inside the transport disc.
-    static let transportDiscGlyph: CGFloat = 26
+    static let transportDiscGlyph: CGFloat = 21
     /// A folder header's play / pause between Prepare and More (C124): smaller than the
     /// transport's, its glyph in the same proportion.
     static let headerDiscSize: CGFloat = 56
@@ -236,6 +237,25 @@ extension View {
     /// The slot (0-based) this item takes in a `BottomToolbarLayout` row.
     func toolbarSlot(_ index: Int) -> some View {
         layoutValue(key: ToolbarSlotKey.self, value: index)
+    }
+}
+
+/// The bottom band shared by the Reader and Now Playing: the control row above the player card,
+/// on the same BottomChrome material as the Library and Browser. Spacing is even (`Spacing.xs`
+/// above, between and below) and the card carries no shadow of its own.
+struct ReadingBottomBand<Controls: View, Player: View, Floating: View>: View {
+    @ViewBuilder var controls: Controls
+    @ViewBuilder var player: Player
+    @ViewBuilder var floating: Floating
+
+    var body: some View {
+        VStack(spacing: Spacing.xs) {
+            controls
+            player
+        }
+        .readerScrubBubble()
+        .bottomChromeBand(bottomPadding: Spacing.xs)
+        .overlay(alignment: .top) { floating }
     }
 }
 

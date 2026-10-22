@@ -12,10 +12,9 @@ import SwiftUI
 /// │ `text`: dimmed, SPOKEN in full ink   │ <- fills the sheet, under the header and the band;
 /// │         dimmed                       │   follows the audio
 /// │            ( Jump to Audio )         │ <- after you scroll away, bars up only (C128)
-/// │ +-- `player` (title + scrub card) --+│ <- title, time left, scrub row and speed
-/// │ [<>] ( article address capsule     ) │ <- `field`: swap button + address capsule
 /// │ `controls`: status notes             │
 /// │ [🔖] [⏮] (⏸) [⏭] [⋯]                │ <- 🔖 and ⋯ where the Reader has them
+/// │ +-- `player` (title + scrub card) --+│ <- title, time left, scrub row and speed
 /// └──────────────────────────────────────┘
 /// ```
 ///
@@ -23,7 +22,7 @@ import SwiftUI
 /// `playState` / `onPlayPause`, the only control over the text then; Jump to Audio shows only with the bars up (C128). The pill, the
 /// grabber and a pull down shrink it (`onCollapse`, after it has gone). `floating` floats just
 /// above the bottom band (a toast), as in the Reader.
-struct NowPlayingSheet<Player: View, Field: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
+struct NowPlayingSheet<Player: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
                        Controls: View, Floating: View>: View {
     /// The book, series or folder the page lives in, else the Library or its site.
     let playingFrom: String
@@ -43,10 +42,8 @@ struct NowPlayingSheet<Player: View, Field: View, Reading: View, TextAppearance:
     /// Under the top bar, in the header (the ☝︎ hint), as in the Reader.
     @ViewBuilder var banner: Banner
     @ViewBuilder var text: Reading
-    /// Article info card (title, time, scrub row) above the field row.
+    /// Article info card (title, time, scrub row) below the transport row.
     @ViewBuilder var player: Player
-    /// The field row (swap button + address capsule).
-    @ViewBuilder var field: Field
     /// Status notes and the transport row in the bottom band.
     @ViewBuilder var controls: Controls
     /// Floats just above the bottom band, as in the Reader (a toast).
@@ -68,14 +65,7 @@ struct NowPlayingSheet<Player: View, Field: View, Reading: View, TextAppearance:
         } content: {
             text
         } band: {
-            VStack(spacing: BottomChrome.rowSpacing) {
-                player
-                field
-                controls
-            }
-            .readerScrubBubble()
-            .bottomChromeBand()
-            .overlay(alignment: .top) { floating }
+            ReadingBottomBand { controls } player: { player } floating: { floating }
         } overText: {
             ZStack(alignment: .bottom) {
                 jumpToAudio
@@ -186,17 +176,6 @@ struct NowPlayingSheetGallery: View {
                                onScrubPreview: { _ in }, onScrubCommit: { _ in }, isCapsule: false) {
                     Text("1x").typeStyle(.caption).foregroundStyle(palette.ink).fieldTextFrame()
                 }
-            }
-        } field: {
-            BandFieldRow(swap: BandSwap(systemImage: Icons.library, label: Verbs.library, hint: "",
-                                        identifier: "fieldSwap", action: {})) {
-                Text("gutenberg.org/pride-and-prejudice/chapter-12")
-                    .typeStyle(.caption)
-                    .foregroundStyle(palette.secondaryInk)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .bottomChromeField()
             }
         } controls: {
             if let note {

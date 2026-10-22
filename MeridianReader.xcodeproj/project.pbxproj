@@ -14,7 +14,6 @@
 		01FBF081ECC531DA1838AD38 /* EngineLatencyProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 877A89CD33C5DA99BC9B237E /* EngineLatencyProbe.swift */; };
 		02026A3FE4071B9E2A6FA8DE /* ArticleActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A2E5161392EA4234F1C54 /* ArticleActions.swift */; };
 		033A935B299C5B1FE9323EAF /* BrowseHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7B0EBFAF6F5EF805B72977 /* BrowseHistoryView.swift */; };
-		033FA2B153A4B14172D0FA95 /* ListenControllerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386CC3400CFB3DA5B5BBB021 /* ListenControllerView.swift */; };
 		063863EA674848D17C46CBEA /* ExtractorEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB20CD84C206E2A2EE897839 /* ExtractorEnvironment.swift */; };
 		06855E65856DE98FB62239E1 /* EmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF387EC0F98CC926863E98EA /* EmptyState.swift */; };
 		069A3DF5CB732F3E5804C928 /* KokoroRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3559B0329B50693785E81B8F /* KokoroRoute.swift */; };
@@ -279,6 +278,7 @@
 		C86468656097352940F92E1A /* ReaderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4E53653779A7EC625BE448 /* ReaderSheet.swift */; };
 		C88F4A2ADD2A404ED00472EE /* MenuRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6699FCCDCEC663DF47C259B /* MenuRegistry.swift */; };
 		C8DF5C91F0B96AFC6B43C3B1 /* ReaderArticle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF25467B1F1714659ABB2EA3 /* ReaderArticle.swift */; };
+		CAE575BD83FA01EB228C9836 /* ListenTransportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B61BFE841BDF6FD6E71A6C /* ListenTransportView.swift */; };
 		CB4E0A08FF46D93B8FC24EF0 /* KokoroHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9FB60A8054F73CCF99C94C /* KokoroHost.swift */; };
 		CB82C5A06288F00023FDE26C /* LocalEngineState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 165855906CA15DD60E60E04F /* LocalEngineState.swift */; };
 		CC71C39BB7BE8C4522880628 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A7C03D4520A1482F385C1C1 /* SectionHeader.swift */; };
@@ -442,7 +442,6 @@
 		34DF68AAD619734520070F5F /* TokensGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokensGallery.swift; sourceTree = "<group>"; };
 		3559B0329B50693785E81B8F /* KokoroRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroRoute.swift; sourceTree = "<group>"; };
 		3673FA3644E64C3A86E798C1 /* Toast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Toast.swift; sourceTree = "<group>"; };
-		386CC3400CFB3DA5B5BBB021 /* ListenControllerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenControllerView.swift; sourceTree = "<group>"; };
 		3A51B53E9B2DC50668D261A5 /* CoreMLBreadcrumbFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreMLBreadcrumbFile.swift; sourceTree = "<group>"; };
 		3A563020CF55E8F6F40E88CC /* EPUBSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBSource.swift; sourceTree = "<group>"; };
 		3B2992A2ACAFB8E1023F0095 /* ArticleMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleMenu.swift; sourceTree = "<group>"; };
@@ -670,6 +669,7 @@
 		E106CE193D53C1C3A4B78ED5 /* voice-preview-kokoro-bm_fable.m4a */ = {isa = PBXFileReference; path = "voice-preview-kokoro-bm_fable.m4a"; sourceTree = "<group>"; };
 		E11E65B37077B3E4FF27F853 /* AppleFallbackRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleFallbackRenderer.swift; sourceTree = "<group>"; };
 		E1A17BF4A9820898D5D51848 /* LibraryStore+Follow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryStore+Follow.swift"; sourceTree = "<group>"; };
+		E1B61BFE841BDF6FD6E71A6C /* ListenTransportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenTransportView.swift; sourceTree = "<group>"; };
 		E1E9EE8DE693A563EBB37961 /* BakeConditions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BakeConditions.swift; sourceTree = "<group>"; };
 		E2A5C9144F982FF6E57C49A9 /* PlayedNotSavedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayedNotSavedTests.swift; sourceTree = "<group>"; };
 		E3015ED4CFBD5A0CCFD025A0 /* PrepareOverviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrepareOverviewTests.swift; sourceTree = "<group>"; };
@@ -1350,11 +1350,11 @@
 				CA91FB0A534BE39757ACA318 /* ChunkPlaybackQueue.swift */,
 				877A89CD33C5DA99BC9B237E /* EngineLatencyProbe.swift */,
 				7F2EBDAEA5A6CBE28EB592CD /* LaunchMigration.swift */,
-				386CC3400CFB3DA5B5BBB021 /* ListenControllerView.swift */,
 				A7A14C91D4840D6F1622E30C /* ListenDebugPanel.swift */,
 				E34FCDBCEFBE4304029D2B80 /* ListenDebugSnapshot.swift */,
 				2D2014C2F21A9EE4D1229891 /* ListenDiagnostics.swift */,
 				CA4F7AF5855EAF6641000F9E /* ListeningProgressRecorder.swift */,
+				E1B61BFE841BDF6FD6E71A6C /* ListenTransportView.swift */,
 				165855906CA15DD60E60E04F /* LocalEngineState.swift */,
 				B5056AFF33D29F06005C6FED /* LocalSynthService.swift */,
 				2CA6424EDA81D18627F24509 /* LocalTTSCoordinator.swift */,
@@ -1780,7 +1780,6 @@
 				FF3FC05AA671F74AC7DDBC6F /* ListRow.swift in Sources */,
 				5B4B6AAE80EF251F38A44934 /* ListenAudioSession.swift in Sources */,
 				296F82E45D0BA61843533C87 /* ListenContentNormalizer.swift in Sources */,
-				033FA2B153A4B14172D0FA95 /* ListenControllerView.swift in Sources */,
 				337F7F3CFCD9DF58FAAB2EE3 /* ListenDebugLog.swift in Sources */,
 				9A762A67DD12DE6EAED92801 /* ListenDebugPanel.swift in Sources */,
 				D0D43834347B25BB8D1F317D /* ListenDebugSnapshot.swift in Sources */,
@@ -1792,6 +1791,7 @@
 				63BFE7539228880AF1CADD9E /* ListenResumePoint.swift in Sources */,
 				5EB7A1FEAA9D6B46960DA39C /* ListenSpot.swift in Sources */,
 				13CDAC716ADC986D27EECF1C /* ListenTimingLog.swift in Sources */,
+				CAE575BD83FA01EB228C9836 /* ListenTransportView.swift in Sources */,
 				70D18067683DBB9C3ABE78D3 /* ListenUnitSource.swift in Sources */,
 				BAEF60B96C871EAC3064DC58 /* ListeningProgressRecorder.swift in Sources */,
 				62F8D035CCB30BB7DB1B1383 /* ListeningSettings.swift in Sources */,
