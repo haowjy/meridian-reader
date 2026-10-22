@@ -100,10 +100,16 @@ jobs:
         run: |
           # Create the versioned section in CHANGELOG for the script
           python3 scripts/whats-new.py "${{ inputs.version }}" || {
-            # If no version section exists, extract from Unreleased
-            # Temporarily create a version section from Unreleased
+            # If no version section exists, insert one from Unreleased.
+            # BSD sed doesn't expand \n in replacements, so use Python.
             DATE=$(date +%Y-%m-%d)
-            sed -i '' "s/^## Unreleased$/## Unreleased\n\n## [${{ inputs.version }}] - $DATE/" CHANGELOG.md
+            python3 -c "
+          import pathlib, re
+          p = pathlib.Path('CHANGELOG.md')
+          text = p.read_text()
+          text = text.replace('## Unreleased', '## Unreleased\n\n## [${{ inputs.version }}] - $DATE', 1)
+          p.write_text(text)
+          "
             python3 scripts/whats-new.py "${{ inputs.version }}"
           }
 
@@ -143,8 +149,9 @@ jobs:
           echo "Using $XCODE"
           sudo xcode-select -s "$XCODE"
 
-      # ── Build archive ───────────────────────────────────────────────
+      # ── Build archive (skipped for GitHub Release only) ──────────────
       - name: Write ASC API key
+        if: ${{ inputs.target != 'GitHub Release only' }}
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -153,6 +160,7 @@ jobs:
           echo "$ASC_KEY_P8" > ~/private_keys/"AuthKey_${ASC_KEY_ID}.p8"
 
       - name: Archive
+        if: ${{ inputs.target != 'GitHub Release only' }}
         run: |
           xcodebuild archive \
             -project MeridianReader.xcodeproj \
@@ -169,24 +177,15 @@ jobs:
 
       # ── Export IPA ───────────────────────────────────────────────────
       - name: Write ExportOptions.plist
+        if: ${{ inputs.target != 'GitHub Release only' }}
         run: |
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store-connect</string>
-            <key>destination</key>
-            <string>upload</string>
-            <key>teamID</key>
-            <string>JMYU8K3WZN</string>
-          </dict>
-          </plist>
-          PLIST
+          plutil -create xml1 "$RUNNER_TEMP/ExportOptions.plist"
+          plutil -insert method -string app-store-connect "$RUNNER_TEMP/ExportOptions.plist"
+          plutil -insert destination -string upload "$RUNNER_TEMP/ExportOptions.plist"
+          plutil -insert teamID -string JMYU8K3WZN "$RUNNER_TEMP/ExportOptions.plist"
 
       - name: Export
+        if: ${{ inputs.target != 'GitHub Release only' }}
         run: |
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/MeridianReader.xcarchive" \
@@ -213,15 +212,11 @@ jobs:
           echo "Archive: $RUNNER_TEMP/MeridianReader.xcarchive"
           echo "IPA:     $(find "$RUNNER_TEMP/export" -name '*.ipa' 2>/dev/null || echo 'none')"
 
-      # ── Upload to App Store Connect ──────────────────────────────────
-      - name: Upload to App Store Connect
-        if: ${{ !inputs.dry_run && inputs.target != 'GitHub Release only' }}
-        run: |
-          xcrun altool --upload-app \
-            --type ios \
-            --file "$RUNNER_TEMP/export/MeridianReader.ipa" \
-            --apiKey ${{ secrets.ASC_KEY_ID }} \
-            --apiIssuer ${{ secrets.ASC_ISSUER_ID }}
+      # ── Upload note ────────────────────────────────────────────────
+      # The Export step's ExportOptions.plist has method=app-store-connect and
+      # destination=upload, so xcodebuild -exportArchive uploads the build to
+      # App Store Connect inline. No separate upload step is needed (altool was
+      # removed in Xcode 16).
 
       # ── Submit for App Review (App Store submit only) ─────────────────
       # After upload, the build processes on ASC's side (5–30 min). A submission

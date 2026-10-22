@@ -7,7 +7,7 @@ struct RootView: View {
     @Environment(\.speechController) private var speech
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showsWhatsNew = false
-    private let whatsNewStore = WhatsNewStore()
+    @State private var whatsNewStore = WhatsNewStore()
 
     var body: some View {
         BrowseStartView()
