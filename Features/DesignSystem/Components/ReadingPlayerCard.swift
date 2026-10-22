@@ -1,5 +1,40 @@
 import SwiftUI
 
+/// Shared card constants for `NowPlayingBar` and `ReadingPlayerCard`: artwork size, progress
+/// height and the card surface (background, radius, shadow).
+enum PlayerCard {
+    static let artworkSize: CGFloat = 40
+    /// Matches `ScrubTrack`'s base track height (4 pt).
+    static let progressHeight: CGFloat = 4
+    static let shadowOpacity = 0.14
+}
+
+extension View {
+    /// The card surface both player cards share: the reading palette's card fill (injecting
+    /// `ReadingPalette.app` when no palette is set, so the fill, tile and progress colours are the
+    /// same on every surface), `Radius.card` corners and a floating shadow.
+    func playerCardSurface(shadowOpacity: Double = PlayerCard.shadowOpacity) -> some View {
+        modifier(PlayerCardSurface(shadowOpacity: shadowOpacity))
+    }
+}
+
+private struct PlayerCardSurface: ViewModifier {
+    let shadowOpacity: Double
+    @Environment(\.readingPalette) private var reading
+
+    private var palette: ReadingPalette { reading ?? .app }
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.readingPalette, palette)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .fill(palette.card)
+            )
+            .floatingShadow(opacity: shadowOpacity)
+    }
+}
+
 /// The player card in the Reader and Now Playing bottom chrome: the article's artwork, title,
 /// optional time-left detail and an optional scrub row, on the reading page's card colour. Sits
 /// inside `ReadingBottomBand`; no shadow of its own (the band's material is the surface). The
@@ -19,19 +54,15 @@ struct ReadingPlayerCard<Scrub: View>: View {
     var artworkLetter: String = ""
     @ViewBuilder var scrub: Scrub
 
-    static var artworkSize: CGFloat { 40 }
-
     @Environment(\.readingPalette) private var reading
 
     private var palette: ReadingPalette { reading ?? .app }
 
     var body: some View {
-        // C143: the scrubber gets its own full-width row under the title line, a bigger target that
-        // also lifts the control row above the card to where the thumb rests.
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(alignment: .center, spacing: Spacing.s) {
                 ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter,
-                            size: Self.artworkSize)
+                            size: PlayerCard.artworkSize)
                 Text(title)
                     .typeStyle(.row, weight: .semibold)
                     .foregroundStyle(palette.ink)
@@ -52,10 +83,7 @@ struct ReadingPlayerCard<Scrub: View>: View {
         }
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.xs)
-        .background {
-            let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-            if let reading { shape.fill(reading.card) } else { shape.fill(.regularMaterial) }
-        }
+        .playerCardSurface()
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("readingPlayerCard")
     }

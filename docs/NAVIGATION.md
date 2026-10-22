@@ -78,7 +78,8 @@ start on the browser unless `-restoreSurface`.
 
 ```
 ╭ [art] Now playing title              ⏸ ╮   ← the Now Playing bar alone, full width, always
-╰ site   N min left ━━━━━━───────────────╯     there; ⏸ over ⋯'s slot
+│ [━━━━━━━━━━━━━━━━───────────────────── ]│     there; ⏸ over ⋯'s slot; groove progress line
+╰─────────────────────────────────────────╯
 [📚]( 📄 address …                   🎧 )   ← the swap, then the field; 📄 / 🎧 on readable
                                                 pages; 🎤 only while searching
 [ ‹ ]   [ › ]   [ 🔖 ]   [ 🕘 ]   [ ⋯ ]    ← 5 equal slots, the Library's roles slot for slot
@@ -211,12 +212,16 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   save it or listen to it again (🎧, the Reader's Listen). There is one article per address: saving
   a favorite saves it in place. 🔖 = saved, ☆ = favorite.
 - **The Now Playing bar** (`BandNowPlayingBar` / `NowPlayingBarView` → `NowPlayingBar`) is the
-  one thing that shows what you hear: a floating card 8 pt above the field capsule with the article's
-  artwork (favicon or a letter tile), its title (its site, or its book, when it has none), the site and the time left (two parts set apart
-  by space, the time in lighter ink; at the playback speed, written as rows write it: "9 min left",
-  "6 h 10 min left"), a thin progress line along its bottom edge, and
-  play/pause centered over the ⋯ slot. It looks the same on the browser, the start page, the
-  Library and the Reader sheet. At the end of an article it stays, reading ◉ Finished, and ▶ plays
+  one thing that shows what you hear: a floating card on the same `PlayerCard` surface as the
+  Reader / Now Playing card (`ReadingPlayerCard`) — same reading-palette card fill, tile colours,
+  radius, shadow and progress track — 8 pt above the field capsule, with the article's artwork at
+  the shared 40 pt tile size, its title (its site, or its book, when it has none), the site and
+  the time left (two parts set apart by space, the time in lighter ink; at the playback speed,
+  written as rows write it: "9 min left", "6 h 10 min left"), a groove progress line (4 pt,
+  matching the scrub track) inside the card, and play/pause centered over the ⋯ slot. The surface
+  injects `ReadingPalette.app` when no reading palette is set, so the card, tile and track render
+  the same colours on every surface. It looks the same on the browser, the start page, the Library
+  and the Reader sheet. At the end of an article it stays, reading ◉ Finished, and ▶ plays
   the article again. Tap or swipe up → Now Playing; long-press → the article's menu ("Menus", below;
   its *Remove from Library* stops the article you hear, as anywhere else), then *Stop Listening*
   (unloads the article; dimmed on the article played last, which nothing has loaded).

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- C146: the Library and Browser mini player is now the same card as the Reader and Now Playing player card: same fill, grey cover tile, 40 pt tile, 12 pt inset, one soft shadow, 4 pt progress line in the scrubber's colours.
 - C145: Reader and Now Playing share one bottom band: same control row and player card at the same positions, one shadow (the card's own shadow removed), even 8 pt spacing, and the Reader card shows the scrubber and speed before Listen.
 - C144: visual audit — transport disc 64→52 pt so Now Playing's controls match the app's lightweight chrome; skip icons switched to outline weight to match bookmark and ⋯; ad-hoc radii and padding aligned to design system tokens.
 - C143: Reader and Now Playing thumb layout: no address row; the control row moves up so play sits where the thumb rests, the player card below it.

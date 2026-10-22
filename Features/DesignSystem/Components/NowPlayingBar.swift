@@ -1,13 +1,14 @@
 import SwiftUI
 
 /// What you hear, on every surface except Now Playing: a floating card above the bottom band's
-/// field capsule.
+/// field capsule, built on the same `PlayerCard` surface as `ReadingPlayerCard`.
 ///
 /// ```
 /// ╭──────────────────────────────────────────╮
 /// │ [art]  Chapter 12: Hunsford            ⏸ │   ⏸ / ▶ centred over the ⋯ slot
 /// │        Pride and Prejudice   9 min left  │
-/// ╰━━━━━━━━━━━━━━━━━━━━━━━━──────────────────╯   progress along the bottom edge
+/// │ [━━━━━━━━━━━━━━━━───────────────────────]│   groove progress line
+/// ╰─────────────────────────────────────────╯
 /// ```
 ///
 /// Tap or swipe up opens (`onOpen`); long-press shows `menu` (the page's own menu, then Stop
@@ -41,8 +42,6 @@ struct NowPlayingBar: View {
     /// The bar's width: it spans a full toolbar row, so ⏸ sits over ⋯'s slot.
     @State private var width: CGFloat = 0
     @Environment(\.readingPalette) private var reading
-
-    static let artworkSize: CGFloat = 36
 
     init(title: String, detail: [DetailPart], artwork: Image? = nil, artworkLetter: String = "", progress: Double,
          state: PlayState, sleepTimerSet: Bool = false, identifier: String = "nowPlayingBar", onOpen: @escaping () -> Void, onPlayPause: @escaping () -> Void,
@@ -79,61 +78,55 @@ struct NowPlayingBar: View {
     }
 
     var body: some View {
-        HStack(spacing: Spacing.s) {
+        VStack(spacing: Spacing.xxs) {
             HStack(spacing: Spacing.s) {
-                artworkTile
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title)
-                        .typeStyle(.row, weight: .semibold)
-                        .foregroundStyle(isPlaceholder ? quietInk : reading?.ink ?? Palette.ink)
-                        .lineLimit(1)
-                    HStack(spacing: Spacing.xxs) {
-                        if sleepTimerSet {
-                            Image(systemName: Icons.sleepTimer)
-                                .accessibilityLabel("Sleep timer set")
+                HStack(spacing: Spacing.s) {
+                    artworkTile
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(title)
+                            .typeStyle(.row, weight: .semibold)
+                            .foregroundStyle(isPlaceholder ? quietInk : reading?.ink ?? Palette.ink)
+                            .lineLimit(1)
+                        HStack(spacing: Spacing.xxs) {
+                            if sleepTimerSet {
+                                Image(systemName: Icons.sleepTimer)
+                                    .accessibilityLabel("Sleep timer set")
+                            }
+                            DetailLine(parts: detail)
                         }
-                        DetailLine(parts: detail)
+                        .typeStyle(.caption)
+                        .foregroundStyle(isPlaceholder ? quietInk : reading?.secondaryInk ?? Palette.secondaryInk)
                     }
-                    .typeStyle(.caption)
-                    .foregroundStyle(isPlaceholder ? quietInk : reading?.secondaryInk ?? Palette.secondaryInk)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onOpen)
-            .gesture(DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance).onEnded { v in
-                if v.translation.height < -SwipeGesturePolicy.verticalMinimumDistance { onOpen() }
-            })
-            .allowsHitTesting(!isPlaceholder)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(isPlaceholder ? [] : .isButton)
-            .accessibilityHint(isPlaceholder ? "" : "Opens Now Playing")
-            .accessibilityAction(.default, onOpen)
-            .accessibilityIdentifier(identifier + "Open")
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onOpen)
+                .gesture(DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance).onEnded { v in
+                    if v.translation.height < -SwipeGesturePolicy.verticalMinimumDistance { onOpen() }
+                })
+                .allowsHitTesting(!isPlaceholder)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(isPlaceholder ? [] : .isButton)
+                .accessibilityHint(isPlaceholder ? "" : "Opens Now Playing")
+                .accessibilityAction(.default, onOpen)
+                .accessibilityIdentifier(identifier + "Open")
 
-            PlayStateButton(state: state, action: onPlayPause)
-                .disabled(isPlaceholder)
-                .opacity(isPlaceholder ? Palette.disabledOpacity : 1)
-                .accessibilityHidden(isPlaceholder)
-                .accessibilityIdentifier(identifier + "PlayPause")
-        }
-        .padding(.leading, Spacing.xs)
-        .padding(.trailing, Self.trailingPadding(rowWidth: width))
-        .padding(.vertical, Spacing.xs)
-        .background { background }
-        .overlay(alignment: .bottom) {
-            if !isPlaceholder {
-                GeometryReader { g in
-                    (reading?.accent ?? Palette.accent)
-                        .frame(width: g.size.width * min(max(0, progress), 1), height: 3)
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+                PlayStateButton(state: state, action: onPlayPause)
+                    .disabled(isPlaceholder)
+                    .opacity(isPlaceholder ? Palette.disabledOpacity : 1)
+                    .accessibilityHidden(isPlaceholder)
+                    .accessibilityIdentifier(identifier + "PlayPause")
             }
+            .padding(.trailing, Self.trailingPadding(rowWidth: width))
+
+            ProgressLine(fraction: progress, height: PlayerCard.progressHeight, track: .groove)
+                .padding(.trailing, Spacing.s)
+                .opacity(isPlaceholder ? 0 : 1)
+                .accessibilityHidden(true)
         }
-        .floatingShadow(opacity: isPlaceholder ? Self.placeholderShadowOpacity : 0.14)
+        .padding(.leading, Spacing.s)
+        .padding(.vertical, Spacing.xs)
+        .playerCardSurface(shadowOpacity: isPlaceholder ? Self.placeholderShadowOpacity : PlayerCard.shadowOpacity)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .contextMenu { if let menu { menu } }
         .accessibilityElement(children: .contain)
@@ -143,24 +136,13 @@ struct NowPlayingBar: View {
 
     private var quietInk: Color { reading?.tertiaryInk ?? Palette.tertiaryInk }
 
-    /// The bar material; on the reading page, its card.
-    @ViewBuilder
-    private var background: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-        if let reading {
-            shape.fill(reading.card)
-        } else {
-            shape.fill(.regularMaterial)
-        }
-    }
-
     /// The placeholder sits flatter than a live card.
     private static let placeholderShadowOpacity = 0.05
 
     @ViewBuilder
     private var artworkTile: some View {
         if isPlaceholder {
-            ArtworkTile(letter: " ", size: Self.artworkSize)
+            ArtworkTile(letter: " ", size: PlayerCard.artworkSize)
                 .overlay {
                     Image(systemName: Icons.playing)
                         .font(.caption)
@@ -168,7 +150,7 @@ struct NowPlayingBar: View {
                         .accessibilityHidden(true)
                 }
         } else {
-            ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: Self.artworkSize)
+            ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: PlayerCard.artworkSize)
         }
     }
 }
