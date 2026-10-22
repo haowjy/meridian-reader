@@ -130,6 +130,9 @@ struct ReaderSheetGallery: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {})
+                        .frame(width: BottomChrome.minTapTarget)
+                        // Hug the trailing content edge (scrubber end) while keeping the 44 pt hit area.
+                        .padding(.trailing, -(BottomChrome.minTapTarget - BottomChrome.iconSize) / 2)
                 }
                 ScrubTrack(value: 0).frame(height: 20)
                 NowPlayingTransport(state: state, canSkipBack: false, canSkipForward: false,
