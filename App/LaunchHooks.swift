@@ -82,6 +82,7 @@ enum LaunchHooks {
         if let funds = save("Money Market Funds", slug: "funds", in: finance) { try? library.setFinished([funds], true) }
         _ = save("Index Funds", slug: "index", in: finance)
         yield?.lastPlayedAt = .now.addingTimeInterval(-3600)
+        try? library.toggleFavorite(finance)
         library.commit("demo folders seed")
     }
 

@@ -12,6 +12,7 @@ import SwiftUI
 struct LibraryHomeView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(LibraryScreenState.self) private var screen
 
     @Query private var queriedFolders: [Folder]
     @Query private var queriedArticles: [Article]
@@ -74,6 +75,13 @@ struct LibraryHomeView: View {
                 .accessibilityIdentifier("libraryTabs")
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
+            }
+            if tab == .everything {
+                Section {
+                    NewFolderRow { screen.makeFolder(in: nil) }
+                }
+                .listRowInsets(EdgeInsets())
+                .listCard()
             }
             Section {
                 ForEach(folders, id: \.id) { folder in
@@ -139,6 +147,21 @@ struct LibraryHomeView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("libraryEmpty")
+    }
+}
+
+/// A tappable row at the top of the Library's Everything list: plus-folder icon and "New Folder…",
+/// accent tinted, triggers the new-folder alert.
+private struct NewFolderRow: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            SymbolRow(Verbs.newFolder, symbol: Icons.newFolder, ink: Palette.accent)
+                .padding(.horizontal, Spacing.m)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("libraryNewFolder")
     }
 }
 
