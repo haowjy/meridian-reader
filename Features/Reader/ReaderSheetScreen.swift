@@ -98,6 +98,8 @@ struct ReaderSheetScreen: View {
                     SaveToggleButton(isSaved: actions.isSaved, identifier: "readerBookmark",
                                      onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                         .frame(width: BottomChrome.minTapTarget)
+                        // Hug the trailing content edge (scrubber end) while keeping the 44 pt hit area.
+                        .padding(.trailing, -(BottomChrome.minTapTarget - BottomChrome.iconSize) / 2)
                 }
                 // Scrub track (thin, no capsule, full width)
                 readerScrubTrack(palette: palette)

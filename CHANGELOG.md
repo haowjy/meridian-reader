@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Reader player: the save (bookmark) icon is flush with the scrubber's trailing edge, keeping its 44 pt tap area.
 - C147: no shadows on any player card (mini player, Reader, Now Playing). The Reader and Now Playing players sit flat on the page, Spotify-style: cover tile with title and source, thin scrubber with times, then a prev / big green play / next row, with a hairline divider and no card.
 - C146: the Library and Browser mini player is now the same card as the Reader and Now Playing player card: same fill, grey cover tile, 40 pt tile, 12 pt inset, one soft shadow, 4 pt progress line in the scrubber's colours.
 - C145: Reader and Now Playing share one bottom band: same control row and player card at the same positions, one shadow (the card's own shadow removed), even 8 pt spacing, and the Reader card shows the scrubber and speed before Listen.
