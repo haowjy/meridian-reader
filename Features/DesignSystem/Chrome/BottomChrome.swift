@@ -13,9 +13,8 @@ import SwiftUI
 /// └───────────────────────────────── home indicator ┘    ⋯ always slot 5
 /// ```
 ///
-/// The Reader and Now Playing share one band (`ReadingBottomBand`): the control row (a
-/// `BottomToolbarSpanLayout` pill in the Reader, C143; a five-slot transport in Now Playing)
-/// above the player card, on the same grid and material.
+/// The Reader and Now Playing share one band (`ReadingBottomBand`): integrated controls
+/// (title, scrub, transport) flat on the page background, separated by a hairline divider.
 enum BottomChrome {
     /// Horizontal margin of the band's content.
     static let horizontalMargin = Spacing.bandMargin
@@ -240,22 +239,27 @@ extension View {
     }
 }
 
-/// The bottom band shared by the Reader and Now Playing: the control row above the player card,
-/// on the same BottomChrome material as the Library and Browser. Spacing is even (`Spacing.xs`
-/// above, between and below) and the card carries no shadow of its own.
-struct ReadingBottomBand<Controls: View, Player: View, Floating: View>: View {
-    @ViewBuilder var controls: Controls
-    @ViewBuilder var player: Player
+/// The bottom band shared by the Reader and Now Playing: integrated controls on the page
+/// background, separated from the text by a hairline divider. No card, no shadow: the controls
+/// sit directly on the reading surface.
+struct ReadingBottomBand<Content: View, Floating: View>: View {
+    @ViewBuilder var content: Content
     @ViewBuilder var floating: Floating
 
+    @Environment(\.readingPalette) private var reading
+
     var body: some View {
-        VStack(spacing: Spacing.xs) {
-            controls
-            player
-        }
-        .readerScrubBubble()
-        .bottomChromeBand(bottomPadding: Spacing.xs)
-        .overlay(alignment: .top) { floating }
+        content
+            .readerScrubBubble()
+            .bottomChromeBand(bottomPadding: Spacing.xs)
+            .overlay(alignment: .top) {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(reading?.hairline ?? Palette.hairline)
+                        .frame(height: 1 / UIScreen.main.scale)
+                    floating
+                }
+            }
     }
 }
 

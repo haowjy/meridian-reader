@@ -1,17 +1,13 @@
 import SwiftUI
 
-/// Now Playing's bottom band (in the reading theme's colours): the status notes (buffering, the
-/// Apple-fallback and language notes, the developer Debug chip) and the transport row (🔖 and ⋯ in
-/// the Reader's slots). The scrub row is now in the player card above the band.
+/// Now Playing's status notes (buffering, the Apple-fallback and language notes, the developer
+/// Debug chip) for the integrated bottom band. The transport row is now built directly by the
+/// band, not here.
 struct NowPlayingControls: View {
     @Bindable var speech: SpeechController
     @Environment(ShellState.self) private var shell
     @Environment(DeveloperSettings.self) private var developer
     let detectedLanguage: String?
-    /// 🔖, transport slot 1.
-    let save: AnyView
-    /// ⋯, transport slot 5.
-    let more: AnyView
 
     @Environment(\.readingPalette) private var reading
 
@@ -19,10 +15,7 @@ struct NowPlayingControls: View {
     private var isFinished: Bool { speech.nowPlaying?.isFinished == true }
 
     var body: some View {
-        VStack(spacing: BottomChrome.rowSpacing) {
-            notes
-            ListenTransportView(leading: save, trailing: more, speech: speech)
-        }
+        notes
     }
 
     /// Buffering / Apple-fallback / language notes and the developer Debug chip.
@@ -56,7 +49,6 @@ struct NowPlayingControls: View {
             .padding(.horizontal, Spacing.xs)
         }
         if isFinished {
-            // The title card says "● Finished"; no note under it.
             EmptyView()
         } else if speech.isBufferingNext {
             HStack(spacing: Spacing.xs) {

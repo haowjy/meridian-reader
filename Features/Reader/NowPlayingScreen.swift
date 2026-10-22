@@ -83,28 +83,12 @@ struct NowPlayingScreen: View {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
             text(now, readerArticle: actions.readerArticle)
-        } player: {
+        } band: {
             PlayheadReader(speech: speech) { spot in
-                let left = ListeningTime.minutesLeft(in: speech.document, fromUTF16Offset: spot.utf16Offset,
-                                                     rate: speech.rateMultiplier)
-                let timeDetail = now.isFinished ? String(localized: "Finished")
-                    : (left > 0 ? ListeningTime.leftLabel(minutes: left) : nil)
-                ReadingPlayerCard(title: now.lineOne, timeDetail: timeDetail, artwork: artwork,
-                                  artworkLetter: now.artworkLetter) {
-                    playerScrub
-                }
-                .environment(\.readingPalette, palette)
+                bandContent(now: now, actions: actions, palette: palette, artwork: artwork, spot: spot)
             }
-        } controls: {
-            NowPlayingControls(
-                speech: speech, detectedLanguage: speech.sessionDetectedLanguage,
-                save: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
-                                               onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
-                    .disabled(actions.readerArticle == nil)),
-                more: AnyView(MoreMenuButton(id: "nowPlayingMore") { actions.readingPageMenu(.nowPlaying(goTo(now, actions))) })
-            )
         } floating: {
-            // The line at the band's top edge, as in the Reader; the toast floats above it.
+            // The toast floats above the hairline.
             ZStack(alignment: .top) {
                 PrepareProgressEdge()
                 ShellToastLayer()
@@ -112,8 +96,58 @@ struct NowPlayingScreen: View {
         }
     }
 
-    /// The scrub row for the player card: a bare (no capsule) ReaderScrubRow with speed, or a
-    /// placeholder until the map is ready (so nothing shifts when the scrub map builds).
+    /// The integrated bottom band: title, scrub, notes, transport — all flat on the page background.
+    @ViewBuilder
+    private func bandContent(now: NowPlaying, actions: ArticleActions, palette: ReadingPalette,
+                             artwork: Image?, spot: PlayheadSpot) -> some View {
+        let doc = speech.document
+        let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: spot.utf16Offset, rate: speech.rateMultiplier)
+        let timeDetail = now.isFinished ? String(localized: "Finished")
+            : (left > 0 ? ListeningTime.leftLabel(minutes: left) : nil)
+
+        VStack(spacing: Spacing.xs) {
+            // Title row: title + time detail
+            HStack(alignment: .center, spacing: Spacing.s) {
+                if let artwork {
+                    ArtworkTile(image: artwork, letter: now.artworkLetter, size: PlayerCard.artworkSize)
+                } else {
+                    ArtworkTile(letter: now.artworkLetter.isEmpty ? now.lineOne : now.artworkLetter,
+                                size: PlayerCard.artworkSize)
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(now.lineOne)
+                        .typeStyle(.row, weight: .semibold)
+                        .foregroundStyle(palette.ink)
+                        .lineLimit(1)
+                    if let timeDetail {
+                        Text(timeDetail)
+                            .typeStyle(.caption)
+                            .foregroundStyle(palette.secondaryInk)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            // Scrub row
+            playerScrub
+
+            // Notes (buffering, language, etc.)
+            NowPlayingControls(speech: speech, detectedLanguage: speech.sessionDetectedLanguage)
+
+            // Transport: [🔖] [⏮] (⏸) [⏭] [⋯]
+            ListenTransportView(
+                leading: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
+                                                   onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
+                    .disabled(actions.readerArticle == nil)),
+                trailing: AnyView(MoreMenuButton(id: "nowPlayingMore") { actions.readingPageMenu(.nowPlaying(goTo(now, actions))) }),
+                speech: speech
+            )
+        }
+    }
+
+    /// The scrub row for the band: a bare ReaderScrubRow with speed, or a placeholder until
+    /// the map is ready.
     @ViewBuilder
     private var playerScrub: some View {
         if let scrubMap {
@@ -135,7 +169,7 @@ struct NowPlayingScreen: View {
                 }
             }
         } else {
-            // Placeholder: keeps card height stable until scrub map builds.
+            // Placeholder: keeps height stable until scrub map builds.
             HStack(spacing: 0) {
                 Color.clear.frame(height: BottomChrome.fieldControlSize)
                     .frame(maxWidth: .infinity)

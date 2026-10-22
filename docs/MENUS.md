@@ -252,16 +252,17 @@ The names for the chrome that runs along the bottom of every screen.
 | `SurfaceBand` | view | The whole bottom band on the browser and Library surfaces: NP bar row, field row, toolbar row. |
 | `BottomChrome` | enum (constants) | Design-system constants (sizes, spacing) shared by all bottom chrome. |
 | `BottomToolbarLayout` | layout | 5-slot evenly-spaced grid for toolbar rows (browser, Library, Now Playing transport). |
-| `BottomToolbarSpanLayout` | layout | 3-item layout for the Reader's listen pill: bookmark + span-pill + ⋯. |
+| `BottomToolbarSpanLayout` | layout | 3-item layout: leading + wide centre + trailing. |
 | `BandFieldRow` | view | The swap button + address/search capsule row in `SurfaceBand`. |
-| `PlayerCard` | enum | Shared card constants (artwork size, progress height) and surface for `NowPlayingBar` and `ReadingPlayerCard`. |
-| `NowPlayingBar` | view | The compact card (artwork, title, groove progress line, play/pause) on the shared `PlayerCard` surface, in `SurfaceBand`'s top row. |
+| `PlayerCard` | enum | Shared constants (artwork size, progress height) and the flat card surface for `NowPlayingBar`. |
+| `NowPlayingBar` | view | The compact flat card (artwork, title, groove progress line, play/pause) on the `PlayerCard` surface (no shadow), in `SurfaceBand`'s top row. |
 | `NowPlayingBarView` | view | The same card in the Reader sheet; hides on Now Playing and while sheets are up. |
 | `BandNowPlayingBar` | view | `NowPlayingBar` in `SurfaceBand`: always present, shows placeholder when nothing is playing. |
-| `ReadingPlayerCard` | view | Title + time card (with optional scrub) on the shared `PlayerCard` surface, at the bottom of the Reader and Now Playing chrome. |
-| `ReaderSheet` | view | Full layout of the Reader sheet (header, text, band). |
+| `ReadingPlayerCard` | view | Title + time card (with optional scrub) on the flat `PlayerCard` surface; used only in the mini bar. |
+| `ReadingBottomBand` | view | The bottom band of the Reader and Now Playing: integrated controls flat on the page background, separated by a hairline divider. |
+| `ReaderSheet` | view | Full layout of the Reader sheet (header, text, integrated band). |
 | `NowPlayingSheet` | view | Full layout of the Now Playing sheet. |
-| `NowPlayingControls` | view | Status notes and the transport row in Now Playing's band. |
-| `ListenTransportView` | view | Speech-bound wrapper for `NowPlayingTransport` (skips, play/pause disc) with swipe gesture; used inside `NowPlayingControls`. Renamed from `ListenControllerView` in C143 (the "Controller" suffix was MVC jargon). |
+| `NowPlayingControls` | view | Status notes (buffering, language, debug) in Now Playing's band. |
+| `ListenTransportView` | view | Speech-bound wrapper for `NowPlayingTransport` (skips, play/pause disc) with swipe gesture. |
 | `NowPlayingTransport` | view | The 5-slot transport row component: skip-back, play/pause disc (52 pt), skip-forward. |
-| `ReaderScrubRow` | view | The scrub bar inside `ReadingPlayerCard` (Now Playing only; Reader shows `EmptyView()`). |
+| `ReaderScrubRow` | view | The scrub bar in the bottom band (Now Playing: live; Reader: position 0). |

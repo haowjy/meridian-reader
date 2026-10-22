@@ -12,18 +12,20 @@ import SwiftUI
 /// │ `text`: dimmed, SPOKEN in full ink   │ <- fills the sheet, under the header and the band;
 /// │         dimmed                       │   follows the audio
 /// │            ( Jump to Audio )         │ <- after you scroll away, bars up only (C128)
-/// │ `controls`: status notes             │
-/// │ [🔖] [⏮] (⏸) [⏭] [⋯]                │ <- 🔖 and ⋯ where the Reader has them
-/// │ +-- `player` (title + scrub card) --+│ <- title, time left, scrub row and speed
+/// │ ─────────────────────────────────────│ <- hairline divider
+/// │ Title                     time left  │
+/// │ source                               │
+/// │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ <- scrub row
+/// │ [🔖]  [⏮]    (⏸)    [⏭]   [⋯]      │ <- transport
 /// └──────────────────────────────────────┘
 /// ```
 ///
 /// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
-/// `playState` / `onPlayPause`, the only control over the text then; Jump to Audio shows only with the bars up (C128). The pill, the
-/// grabber and a pull down shrink it (`onCollapse`, after it has gone). `floating` floats just
-/// above the bottom band (a toast), as in the Reader.
-struct NowPlayingSheet<Player: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
-                       Controls: View, Floating: View>: View {
+/// `playState` / `onPlayPause`, the only control over the text then; Jump to Audio shows only with
+/// the bars up (C128). The pill, the grabber and a pull down shrink it (`onCollapse`, after it has
+/// gone). `floating` floats just above the bottom band's hairline (a toast), as in the Reader.
+struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
+                       Floating: View>: View {
     /// The book, series or folder the page lives in, else the Library or its site.
     let playingFrom: String
     /// What you hear, for the play / pause floating in full screen.
@@ -42,11 +44,9 @@ struct NowPlayingSheet<Player: View, Reading: View, TextAppearance: View, Access
     /// Under the top bar, in the header (the ☝︎ hint), as in the Reader.
     @ViewBuilder var banner: Banner
     @ViewBuilder var text: Reading
-    /// Article info card (title, time, scrub row) below the transport row.
-    @ViewBuilder var player: Player
-    /// Status notes and the transport row in the bottom band.
-    @ViewBuilder var controls: Controls
-    /// Floats just above the bottom band, as in the Reader (a toast).
+    /// The integrated bottom band: title, scrub, transport, all flat on the page background.
+    @ViewBuilder var band: Band
+    /// Floats just above the bottom band's hairline, as in the Reader (a toast).
     @ViewBuilder var floating: Floating
 
     @State private var chrome = ReadingChrome()
@@ -65,7 +65,11 @@ struct NowPlayingSheet<Player: View, Reading: View, TextAppearance: View, Access
         } content: {
             text
         } band: {
-            ReadingBottomBand { controls } player: { player } floating: { floating }
+            ReadingBottomBand {
+                band
+            } floating: {
+                floating
+            }
         } overText: {
             ZStack(alignment: .bottom) {
                 jumpToAudio
@@ -170,25 +174,30 @@ struct NowPlayingSheetGallery: View {
             EmptyView()
         } text: {
             SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true, card: true)
-        } player: {
-            ReadingPlayerCard(title: "Chapter 12: Hunsford", timeDetail: "9 min left", artworkLetter: "P") {
+        } band: {
+            VStack(spacing: Spacing.xs) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Chapter 12: Hunsford").typeStyle(.row, weight: .semibold).lineLimit(1)
+                        .foregroundStyle(palette.ink)
+                    Text("9 min left").typeStyle(.caption).foregroundStyle(palette.secondaryInk).lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 ReaderScrubRow(map: map, position: 0.42, buffered: [0.42...0.6],
                                onScrubPreview: { _ in }, onScrubCommit: { _ in }, isCapsule: false) {
-                    Text("1x").typeStyle(.caption).foregroundStyle(palette.ink).fieldTextFrame()
+                    Text("1×").typeStyle(.caption).foregroundStyle(palette.ink).fieldTextFrame()
                 }
-            }
-        } controls: {
-            if let note {
-                Text(note)
-                    .typeStyle(.caption)
-                    .foregroundStyle(palette.secondaryInk)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Spacing.xs)
-            }
-            NowPlayingTransport(state: state, onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
-                SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {})
-            } more: {
-                Image(systemName: Icons.more).toolbarIconFrame()
+                if let note {
+                    Text(note)
+                        .typeStyle(.caption)
+                        .foregroundStyle(palette.secondaryInk)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, Spacing.xs)
+                }
+                NowPlayingTransport(state: state, onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
+                    SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {})
+                } more: {
+                    Image(systemName: Icons.more).toolbarIconFrame()
+                }
             }
         } floating: {
             EmptyView()
