@@ -23,7 +23,7 @@ enum LaunchHooks {
         let keys = SpeechController.storedKeys + LocalTTSCoordinator.storedKeys(for: engines)
             + AppAppearance.storedKeys + ReadingAppearance.storedKeys + LibraryTopLevel.storedKeys
             + RecentSearches.storedKeys + ContentBlocker.storedKeys + SurfaceMemoryStore.storedKeys
-            + DeveloperSettings.storedKeys
+            + DeveloperSettings.storedKeys + WhatsNewStore.storedKeys
         for key in keys { defaults.removeObject(forKey: key) }
         preparedAudio.save([])
     }
