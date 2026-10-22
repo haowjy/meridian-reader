@@ -59,14 +59,9 @@ struct ReaderSheetScreen: View {
                                                          address: readerArticle.origin.canonicalURL)
         return ReaderSheet(
             backTitle: state.origin.backTitle,
-            listenTitle: listen.title,
-            listenDetail: listen.detail,
             listenState: speech.playState(of: .article(readerArticle.id)),
-            isSaved: actions.isSaved,
             onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) },
             onListen: { self.listen(from: nil, start: start) },
-            onToggleSave: actions.toggleSaved,
-            onSaveToFolder: actions.saveToFolder,
             palette: palette
         ) {
             TextAppearanceControl()
@@ -77,16 +72,49 @@ struct ReaderSheetScreen: View {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
             text(start, status: listen.detail, chapter: actions.article?.isChapter == true)
-        } player: {
-            // Show the bar when a different article is playing while the user reads this one.
-            if let nowPlaying = speech.nowPlaying, nowPlaying.articleKey != readerArticle.id {
-                NowPlayingBarView(speech: speech)
+        } band: {
+            VStack(spacing: Spacing.xs) {
+                // Another article playing: show Now Playing bar above the controls.
+                if let nowPlaying = speech.nowPlaying, nowPlaying.articleKey != readerArticle.id {
+                    NowPlayingBarView(speech: speech)
+                }
+                // Title row: artwork + title/source + bookmark
+                HStack(spacing: Spacing.s) {
+                    ArtworkTile(letter: playerLetter.isEmpty ? playerTitle : playerLetter,
+                                size: PlayerCard.artworkSize)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(playerTitle)
+                            .typeStyle(.row, weight: .semibold)
+                            .foregroundStyle(palette.ink)
+                            .lineLimit(1)
+                        if let timeDetail {
+                            Text(timeDetail)
+                                .typeStyle(.caption)
+                                .foregroundStyle(palette.secondaryInk)
+                                .lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    SaveToggleButton(isSaved: actions.isSaved, identifier: "readerBookmark",
+                                     onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
+                }
+                // Scrub track (thin, no capsule, full width)
+                readerScrubTrack(palette: palette)
+                // Transport: [...] [⏮] (▶) [⏭] [1x]
+                NowPlayingTransport(state: speech.playState(of: .article(readerArticle.id)),
+                                    canSkipBack: false, canSkipForward: false,
+                                    onSkipBack: {}, onSkipForward: {},
+                                    onPlayPause: { self.listen(from: nil, start: start) }) {
+                    MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
+                        .foregroundStyle(palette.ink)
+                } more: {
+                    SpeedButton(speech: speech)
+                }
             }
-            readerPlayerCard(title: playerTitle, timeDetail: timeDetail, letter: playerLetter, palette: palette)
         } more: {
             MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
         } floating: {
-            // The line at the band's top edge; the toast floats above it.
+            // The toast floats above the hairline.
             ZStack(alignment: .top) {
                 PrepareProgressEdge()
                 ShellToastLayer()
@@ -94,6 +122,22 @@ struct ReaderSheetScreen: View {
         }
         .task(id: WarmKey(id: readerArticle.id, count: readerArticle.document.count)) {
             prepareListen(from: start, saved: actions.isSaved)
+        }
+    }
+
+    /// A thin scrub track at position 0 for the Reader (before Listen starts).
+    private func readerScrubTrack(palette: ReadingPalette) -> some View {
+        let paragraphs = readerArticle.document.paragraphs
+        return Group {
+            if !paragraphs.isEmpty {
+                let map = ReaderScrubMap(paragraphs: paragraphs, sentences: false)
+                ReaderScrubRow(map: map, position: 0, onScrubPreview: { _ in },
+                               onScrubCommit: { _ in }, isCapsule: false) {
+                    EmptyView()
+                }
+            } else {
+                ScrubTrack(value: 0).frame(height: 20)
+            }
         }
     }
 
@@ -154,23 +198,6 @@ struct ReaderSheetScreen: View {
         }
         return (Verbs.listen,
                 ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)))
-    }
-
-    /// The player card with a scrub row at position 0 and the speed control, matching Now
-    /// Playing's card layout before Listen starts. The track is idle (no fill, thumb at the
-    /// start); the speed button is functional.
-    private func readerPlayerCard(title: String, timeDetail: String?, letter: String, palette: ReadingPalette) -> some View {
-        let paragraphs = readerArticle.document.paragraphs
-        return ReadingPlayerCard(title: title, timeDetail: timeDetail, artworkLetter: letter) {
-            if !paragraphs.isEmpty {
-                let map = ReaderScrubMap(paragraphs: paragraphs, sentences: false)
-                ReaderScrubRow(map: map, position: 0, onScrubPreview: { _ in },
-                               onScrubCommit: { _ in }, isCapsule: false) {
-                    SpeedButton(speech: speech)
-                }
-            }
-        }
-        .environment(\.readingPalette, palette)
     }
 
     // MARK: - Actions

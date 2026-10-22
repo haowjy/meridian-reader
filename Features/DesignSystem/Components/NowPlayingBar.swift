@@ -126,7 +126,7 @@ struct NowPlayingBar: View {
         }
         .padding(.leading, Spacing.s)
         .padding(.vertical, Spacing.xs)
-        .playerCardSurface(shadowOpacity: isPlaceholder ? Self.placeholderShadowOpacity : PlayerCard.shadowOpacity)
+        .playerCardSurface()
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .contextMenu { if let menu { menu } }
         .accessibilityElement(children: .contain)
@@ -135,9 +135,6 @@ struct NowPlayingBar: View {
     }
 
     private var quietInk: Color { reading?.tertiaryInk ?? Palette.tertiaryInk }
-
-    /// The placeholder sits flatter than a live card.
-    private static let placeholderShadowOpacity = 0.05
 
     @ViewBuilder
     private var artworkTile: some View {

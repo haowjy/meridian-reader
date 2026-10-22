@@ -9,31 +9,27 @@ import SwiftUI
 /// │ `banner` (the ^ hint, while on)      │   underneath; `textAppearance` (Aa), `accessory` (^)
 /// │ ... `text`: ReadingHeading, then the │ <- fills the sheet, running under the header and
 /// │   text in the reading theme ...      │   the band
-/// │ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]   │ <- this page's own play button over slots 2–4
-/// │ +-- `player` (title + time card) ---+│ <- article info; scrub row when playing
+/// │ ─────────────────────────────────────│ <- hairline divider
+/// │ [art] Title                     [🔖]│ <- title + bookmark
+/// │       source                        │
+/// │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ <- thin scrub
+/// │ [⋯]  [⏮]    (▶)    [⏭]       [1×] │ <- transport row
 /// └──────────────────────────────────────┘
 /// ```
 ///
-/// Now Playing (`NowPlayingSheet`) has the same top bar, the same 🔖 and ⋯ slots and the same
-/// colours (`palette`, the reading theme), so the controls stay put as Listen turns one into the
-/// other. Both go full screen the same way (`ReadingChrome`): scrolling down hides the header and
-/// the band, and the floating ▶ plays this page as Listen does. The close pill, the grabber and a
-/// pull down all close it (`onClose`, after it has gone). 🔖 saves (tap) or files (long-press,
-/// `onSaveToFolder`). `more` is the ⋯ button. `floating` floats just above the bottom band (a
-/// toast).
-struct ReaderSheet<Player: View, Reading: View, More: View, TextAppearance: View, Accessory: View,
+/// Now Playing (`NowPlayingSheet`) has the same top bar, the same colours (`palette`, the reading
+/// theme) and the same flat integrated controls, so the controls stay put as Listen turns one into
+/// the other. Both go full screen the same way (`ReadingChrome`): scrolling down hides the header
+/// and the band, and the floating ▶ plays this page as Listen does. The close pill, the grabber and
+/// a pull down all close it (`onClose`, after it has gone). `floating` floats just above the bottom
+/// band's hairline (a toast).
+struct ReaderSheet<Band: View, Reading: View, More: View, TextAppearance: View, Accessory: View,
                    Banner: View, Floating: View>: View {
     /// What is underneath: "Browser", "Library".
     let backTitle: String
-    let listenTitle: String
-    /// After Listen's title, lighter: "9 min", "6 min left".
-    var listenDetail: String?
     let listenState: PlayState
-    let isSaved: Bool
     let onClose: () -> Void
     let onListen: () -> Void
-    let onToggleSave: () -> Void
-    var onSaveToFolder: (() -> Void)?
     /// The reading theme's colours.
     var palette: ReadingPalette = .app
     /// Aa (`TextAppearanceButton` and its panel), just before `accessory`.
@@ -44,8 +40,8 @@ struct ReaderSheet<Player: View, Reading: View, More: View, TextAppearance: View
     /// with it, so it never covers the first line.
     @ViewBuilder var banner: Banner
     @ViewBuilder var text: Reading
-    /// Article info card (title, time) below the toolbar row.
-    @ViewBuilder var player: Player
+    /// The integrated bottom band: title, scrub, transport, all flat on the page background.
+    @ViewBuilder var band: Band
     @ViewBuilder var more: More
     @ViewBuilder var floating: Floating
 
@@ -64,17 +60,7 @@ struct ReaderSheet<Player: View, Reading: View, More: View, TextAppearance: View
             text
         } band: {
             ReadingBottomBand {
-                BottomToolbarSpanLayout {
-                    saveButton
-                    PlayStateButton(state: listenState,
-                                    look: .pill(title: listenTitle, detail: listenDetail, expands: true),
-                                    action: onListen)
-                        .accessibilityIdentifier("listenPlayPause")
-                    more
-                        .foregroundStyle(palette.ink)
-                }
-            } player: {
-                player
+                band
             } floating: {
                 floating
             }
@@ -82,24 +68,18 @@ struct ReaderSheet<Player: View, Reading: View, More: View, TextAppearance: View
             FloatingPlayButton(state: listenState, action: onListen)
         }
     }
-
-    private var saveButton: some View {
-        SaveToggleButton(isSaved: isSaved, identifier: "readerBookmark", onToggle: onToggleSave,
-                         onSaveToFolder: onSaveToFolder)
-    }
 }
 
 extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView, Banner == EmptyView,
     Floating == EmptyView {
-    init(backTitle: String, listenTitle: String, listenDetail: String? = nil, listenState: PlayState, isSaved: Bool,
-         onClose: @escaping () -> Void, onListen: @escaping () -> Void, onToggleSave: @escaping () -> Void,
-         onSaveToFolder: (() -> Void)? = nil, @ViewBuilder text: () -> Reading, @ViewBuilder player: () -> Player,
+    init(backTitle: String, listenState: PlayState,
+         onClose: @escaping () -> Void, onListen: @escaping () -> Void,
+         @ViewBuilder text: () -> Reading, @ViewBuilder band: () -> Band,
          @ViewBuilder more: () -> More) {
-        self.init(backTitle: backTitle, listenTitle: listenTitle, listenDetail: listenDetail, listenState: listenState,
-                  isSaved: isSaved,
-                  onClose: onClose, onListen: onListen, onToggleSave: onToggleSave, onSaveToFolder: onSaveToFolder,
+        self.init(backTitle: backTitle, listenState: listenState,
+                  onClose: onClose, onListen: onListen,
                   textAppearance: { EmptyView() }, accessory: { EmptyView() }, banner: { EmptyView() }, text: text,
-                  player: player, more: more, floating: { EmptyView() })
+                  band: band, more: more, floating: { EmptyView() })
     }
 }
 
@@ -131,17 +111,34 @@ struct ReadingHeading: View {
 struct ReaderSheetGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("not started") { frame(.idle, "Listen", "9 min") }
-            PreviewState("part-way, saved") { frame(.idle, Verbs.continue, "6 min left", saved: true) }
+            PreviewState("not started") { frame(.idle) }
+            PreviewState("part-way, saved") { frame(.idle, saved: true) }
         }
     }
 
-    private func frame(_ state: PlayState, _ title: String, _ detail: String, saved: Bool = false) -> some View {
-        ReaderSheet(backTitle: "Browser", listenTitle: title, listenDetail: detail, listenState: state, isSaved: saved,
-                    onClose: {}, onListen: {}, onToggleSave: {}) {
+    private func frame(_ state: PlayState, saved: Bool = false) -> some View {
+        ReaderSheet(backTitle: "Browser", listenState: state,
+                    onClose: {}, onListen: {}) {
             SampleReading(title: "Notes on Tides", detail: ["example.org", "9 min"])
-        } player: {
-            ReadingPlayerCard(title: "Notes on Tides", timeDetail: detail, artworkLetter: "example.org") { EmptyView() }
+        } band: {
+            VStack(spacing: Spacing.xs) {
+                HStack(spacing: Spacing.s) {
+                    ArtworkTile(letter: "N", size: PlayerCard.artworkSize)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Notes on Tides").typeStyle(.row, weight: .semibold).lineLimit(1)
+                        Text("example.org").typeStyle(.caption).foregroundStyle(Palette.secondaryInk).lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {})
+                }
+                ScrubTrack(value: 0).frame(height: 20)
+                NowPlayingTransport(state: state, canSkipBack: false, canSkipForward: false,
+                                    onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
+                    Image(systemName: Icons.more).toolbarIconFrame()
+                } more: {
+                    Text("1x").typeStyle(.caption).foregroundStyle(Palette.ink).fieldTextFrame()
+                }
+            }
         } more: {
             Image(systemName: Icons.more).toolbarIconFrame()
         }

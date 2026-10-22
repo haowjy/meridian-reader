@@ -212,9 +212,8 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   save it or listen to it again (🎧, the Reader's Listen). There is one article per address: saving
   a favorite saves it in place. 🔖 = saved, ☆ = favorite.
 - **The Now Playing bar** (`BandNowPlayingBar` / `NowPlayingBarView` → `NowPlayingBar`) is the
-  one thing that shows what you hear: a floating card on the same `PlayerCard` surface as the
-  Reader / Now Playing card (`ReadingPlayerCard`) — same reading-palette card fill, tile colours,
-  radius, shadow and progress track — 8 pt above the field capsule, with the article's artwork at
+  one thing that shows what you hear: a flat card on the `PlayerCard` surface (reading-palette card
+  fill, tile colours, radius, no shadow, progress track) above the field capsule, with the article's artwork at
   the shared 40 pt tile size, its title (its site, or its book, when it has none), the site and
   the time left (two parts set apart by space, the time in lighter ink; at the playback speed,
   written as rows write it: "9 min left", "6 h 10 min left"), a groove progress line (4 pt,
@@ -724,12 +723,13 @@ row) opens Now Playing instead.
 **The two sheets share their chrome** (decision D24), so Listen turns the Reader into Now Playing
 with nothing moving but what has to: the same top bar (`SheetTopBar`: the close pill at the top
 left, **Aa** then ☝︎ at the top right, at the article margin), one shared bottom band
-(`ReadingBottomBand`: control row above the player card, on the same material as the Library and
-Browser), 🔖 in slot 1 and ⋯ in slot 5 of the control row, the same
+(`ReadingBottomBand`: integrated controls flat on the page background, separated by a hairline
+divider — title row, scrub track, transport row, no card, no shadow), the same
 ⋯ menu (Now Playing adds *Go to*), and the same colours and type (the reading theme, below). They
-differ where the job does: Now Playing's middle slots are the transport (⏮, the round ⏸ / ▶, ⏭)
-where the Reader has Listen, it has the scrub row in the player card with the speed, and its text
-follows the audio (the Reader's sits under a heading and never moves by itself).
+differ where the job does: Now Playing's transport has 🔖, ⏮, the round ⏸ / ▶, ⏭ and ⋯, the
+Reader has ⋯, disabled ⏮/⏭ and a round ▶ that starts Listen; Now Playing has the scrub row with
+the speed, and its text follows the audio (the Reader's sits under a heading and never moves by
+itself).
 
 ### The Reader sheet
 
@@ -737,16 +737,17 @@ follows the audio (the Reader's sits under a heading and never moves by itself).
 ┌──────────────────────────────────────┐
 │                 ───                  │ ← grabber
 │ ( ‹ Browser )             (Aa) (☝︎)  │ ← the pill names what is underneath
-│ example.org  9 min                   │ ← source and length (title is in the player card)
+│ example.org  9 min                   │ ← source and length
 │ … text in the reading theme …        │
-│ [🔖]  [ ▶  Listen  9 min ]  [ ⋯ ]    │ ← this page's own ▶, a pill over slots 2–4
-│ ╭ [art] Notes on Tides          9 min ╮ │ ← player card: artwork, title, time
-│ ╰─────────────────────────────────────╯ │   (no scrub before Listen)
+│ ─────────────────────────────────────│ ← hairline divider
+│ [art] Notes on Tides          9 min [🔖]│ ← artwork, title, time, bookmark
+│ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ ← thin scrub track
+│ [⋯]  [⏮]    (▶)    [⏭]       [1×] │ ← transport row
 └──────────────────────────────────────┘
 ```
 
-The heading shows the site and length above the text; its title is always suppressed (the player
-card in the band already shows it), so the title appears once. An article with no title of its own
+The heading shows the site and length above the text; its title is always suppressed (the band
+already shows it), so the title appears once. An article with no title of its own
 shows only the site and length. When the article's own first heading repeats the title, that
 heading takes the title's look and the source line moves under it. The length becomes the time left once the article
 has been started, as in its row and on Listen (a finished article shows its length). The reading
@@ -757,11 +758,11 @@ synthesis").
 - **A sheet over the surface that opened it** (`ReaderSheetScreen`, `ShellState.reader`). From
   the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
   *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
-- **The player card** sits below the toolbar and shows the artwork tile, the article
-  title (one line, clipped), the time detail (*9 min*, *6 min left*, *Finished*), a scrub track
-  at position 0 and the speed control. The track and speed match Now Playing's card so the two
-  screens are the same height; Listen fills the track with progress and Now Playing takes over.
-- **Listen** reads *▶ **Listen** 9 min*, *▶ **Continue** 6 min left* for an article part-way through
+- **The bottom band** sits flat on the page background: the artwork tile, the article
+  title (one line, clipped), the time detail (*9 min*, *6 min left*, *Finished*) and 🔖 in a
+  title row; a thin scrub track at position 0; and a transport row with ⋯ at the leading edge,
+  disabled ⏮/⏭, the big round ▶ (Listen) and 1× at the trailing edge. No card, no shadow.
+- **Listen** (the round ▶ in the transport) starts at the article's saved spot
   (at the playback speed, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
   at large text sizes), or *▶ Listen Again* for a finished one. It starts at the article's saved spot, makes the article what you
   hear (replacing what plays) and turns the Reader into Now Playing in place, where the Reader was
@@ -818,10 +819,11 @@ synthesis").
 │   highlighted in full ink, the       │
 │   sentence underlined …              │
 │            ( Jump to Audio )         │ ← after you scroll away, bars up only (C128)
-│ Preparing next…                      │ ← status notes, above the transport
-│ [🔖]  [⏮]  (⏸)  [⏭]  [ ⋯ ]          │ ← 🔖 and ⋯ as in the Reader; the round ⏸ / ▶
-│ ╭ [art] Title              9 min ──╮ │ ← player card: artwork, title, time left
-│ ╰ ━━━━━●━━━━░░░░──          1×   ╯ │   scrub row + speed at its end
+│ ─────────────────────────────────────│ ← hairline divider
+│ [art] Title              9 min left  │ ← artwork, title, time left
+│ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━] 1×   │ ← thin scrub + speed
+│ Preparing next…                      │ ← status notes
+│ [🔖]  [⏮]    (⏸)    [⏭]   [⋯]      │ ← transport row
 └──────────────────────────────────────┘
 ```
 
@@ -835,16 +837,15 @@ synthesis").
   appearance" below). Over a light app, a dark theme (Dark, Black) gives it light status bar
   content and a heavier dim on the strip above it; while a finger pulls it down the dim lifts, but
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
-  stays readable. The article's first heading is hidden (the player card in the band shows the
+  stays readable. The article's first heading is hidden (the band shows the
   title, so the heading would duplicate it). The spoken paragraph is on the theme's highlight;
   every paragraph stays in full ink (C105). The *Jump to Audio* pill is ink with the article's
   colour for its text; the scrub row, the bubble, the jump hint, the ⋯ panel and the speed popover
   take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on the
   same reading article, in both, so everything below applies to it too.
-- **The player card** (`ReadingPlayerCard`, below the transport row in the band) shows the
-  artwork tile, the title (`ArticleRowTitle.lineOne`: the title; for an article without one its
-  site) and the time left (*9 min left*; *Finished* at the end). The scrub row runs inside it;
-  the speed control sits at its trailing end.
+- **The bottom band** (flat on the page background, no card, no shadow) shows the artwork tile,
+  the title (`ArticleRowTitle.lineOne`) and the time left (*9 min left*; *Finished* at the end)
+  in a title row, then the scrub row with the speed control, status notes and the transport.
 - **The close pill names where it plays from** (*⌄ Pride and Prejudice*; VoiceOver: *Close Now
   Playing*, *Playing from …*): the folder the article is in, a book, a series or one you
   made; *Library* for a saved article in no folder; the site for an article you haven't saved. Tapping
@@ -873,8 +874,8 @@ synthesis").
   above the controls (no arrow: the spoken sentence may be above or below).
   Tap it (or start another page) and following resumes. Scrubbing scrolls to the paragraph under
   the thumb.
-- **At the end** it stays on the article: the text stays, all of it in full ink, the player card
-  says "◉ Finished" where the time left was (the Reader shows the article's length), and ▶
+- **At the end** it stays on the article: the text stays, all of it in full ink, the band
+  says "Finished" where the time left was (the Reader shows the article's length), and ▶
   plays the article again.
 - **Controls** (the band): optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the browser's
   five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭ under 🕘, ⋯ under ⋯), then the player
@@ -889,7 +890,7 @@ synthesis").
   **Favorites / History / Website**.
 - A **prepare progress line** runs along the top edge of the bottom band while prepared audio run,
   as on the other surfaces, in the theme's accent.
-- **Scrubber** (sentence-precise; the track runs inside the player card): fill = progress
+- **Scrubber** (sentence-precise; the track runs inside the band): fill = progress
   (weighted by text length; with a local voice the thumb moves smoothly inside a paragraph,
   estimated from the player's time); the lighter fill ahead of it is audio already rendered (local
   voices; Apple speaks live so there is none).
@@ -950,7 +951,7 @@ Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter pr
   page. Edge taps leave the bars as they are. In Now Playing a page turn stops following the audio
   as a drag does, and *Jump to Audio* appears.
 - **A small ▶ / ⏸ floats at the bottom right** in full screen (a 44 pt accent disc with the
-  floating shadow, above the home indicator, at the article margin): Now Playing's plays and pauses
+  shadow, above the home indicator, at the article margin): Now Playing's plays and pauses
   what you hear; the Reader's is its Listen (and turns it into Now Playing). It fades out 3 s after
   full screen begins; an edge tap (a page turn), or a tap on it, brings it back for another 3 s. A
   tap in the middle brings the bars back instead, with their play control. It isn't there while
