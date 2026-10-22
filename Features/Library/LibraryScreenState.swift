@@ -25,7 +25,15 @@ final class LibraryScreenState {
         var items: [LibraryItem] = []
     }
 
+    /// Snapshot of sort keys taken when entering Edit, restored on Cancel.
+    struct EditSnapshot {
+        var folderSortKeys: [UUID: Double]
+        var articleSortKeys: [UUID: Double]
+        var articleSortRaw: String
+    }
+
     private(set) var editing: Editing?
+    private(set) var editSnapshot: EditSnapshot?
     var selection = Set<LibraryItemID>()
     /// Folders waiting for the delete question (`FolderDeletePrompt`).
     var pendingDelete: [Folder] = []
@@ -59,14 +67,30 @@ final class LibraryScreenState {
 
     func isEditing(folderID: UUID) -> Bool { editing == Editing(folderID: folderID) }
 
-    func beginEditing(folderID: UUID) {
+    func beginEditing(folderID: UUID, snapshot: EditSnapshot) {
         selection = []
         editing = Editing(folderID: folderID)
+        editSnapshot = snapshot
+    }
+
+    func commitEditing() {
+        editing = nil
+        selection = []
+        editSnapshot = nil
+    }
+
+    func cancelEditing() -> EditSnapshot? {
+        let snapshot = editSnapshot
+        editing = nil
+        selection = []
+        editSnapshot = nil
+        return snapshot
     }
 
     func endEditing() {
         editing = nil
         selection = []
+        editSnapshot = nil
     }
 
     // MARK: - Dragging

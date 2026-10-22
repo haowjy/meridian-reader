@@ -96,8 +96,6 @@ struct LibrarySurface: View {
                               identifier: "libraryForward") {}
                 .disabled(true)
                 .toolbarSlot(1)
-            // An imported EPUB or a followed story never takes anything new: ＋ is hidden there,
-            // not dimmed (greyed-vs-hidden rule, C130).
             let createRows = screenMenu.createRows
             if !createRows.isEmpty {
                 Menu {

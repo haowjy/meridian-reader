@@ -8,10 +8,11 @@ import SwiftUI
 /// Details*: a cover or an author) has its cover above the title, the author before the counts.
 /// A followed story has its status line (Follow). A folder whose pages play has the action row:
 /// its Prepare control (the folder's Prepare toggle, F7), the big ▶ (Continue) and *More* (the
-/// folder's menu, as its row's ⋯). *Edit*, or *Select* in a row's menu, puts check circles on the
-/// rows (and drag handles when the sort is *Manual*); the surface's bottom bar then acts on the
-/// selection. Out of Edit, a long press lifts a row to drop on a folder or between rows
-/// (`LibraryDrag`); placing a page between pages makes the sort *Manual*.
+/// folder's menu, as its row's ⋯). *Edit* shows Cancel (left) and Done (right) in the bar;
+/// check circles on rows and drag handles for reordering. A "New Folder" row shows at the top
+/// in Edit. The surface's bottom bar acts on the selection. Out of Edit, a long press lifts a
+/// row to drop on a folder or between rows (`LibraryDrag`); placing a page between pages makes
+/// the sort *Manual*. Cancel reverts reorder changes made during Edit; Done commits them.
 ///
 /// The name shows once, in the header; the navigation bar's title stays blank until the
 /// header's title scrolls under it. The band's search, begun here, searches everything under the
@@ -36,6 +37,7 @@ struct FolderScreen: View {
     let folder: Folder
 
     @Environment(LibraryScreenState.self) private var screen
+    @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     /// The header's title has scrolled under the navigation bar: the bar shows the name.
     @State private var headerTitleHidden = false
@@ -43,6 +45,29 @@ struct FolderScreen: View {
     /// The band's search text while it searches this folder ("" otherwise).
     private var searchText: String {
         shell.librarySearch.isActive && shell.librarySearchFolder == folder.id ? shell.librarySearch.text : ""
+    }
+
+    private func beginEdit() {
+        let subfolders = (folder.children ?? []).filter(\.isLive)
+        let articles = (folder.articles ?? []).filter(\.isLive)
+        let snapshot = LibraryScreenState.EditSnapshot(
+            folderSortKeys: Dictionary(uniqueKeysWithValues: subfolders.map { ($0.id, $0.sortKey) }),
+            articleSortKeys: Dictionary(uniqueKeysWithValues: articles.map { ($0.listenKey, $0.sortKey) }),
+            articleSortRaw: folder.articleSortRaw
+        )
+        screen.beginEditing(folderID: folder.id, snapshot: snapshot)
+    }
+
+    private func cancelEdit() {
+        guard let snapshot = screen.cancelEditing() else { return }
+        for child in (folder.children ?? []) {
+            if let key = snapshot.folderSortKeys[child.id] { child.sortKey = key }
+        }
+        for article in (folder.articles ?? []) {
+            if let key = snapshot.articleSortKeys[article.listenKey] { article.sortKey = key }
+        }
+        folder.articleSortRaw = snapshot.articleSortRaw
+        shell.attempt(String(localized: "Couldn't revert")) { try library.saveChanges() }
     }
 
     var body: some View {
@@ -79,19 +104,31 @@ struct FolderScreen: View {
                         .animation(Motion.snappy, value: headerTitleHidden && !searching)
                         .accessibilityHidden(!headerTitleHidden || searching)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    let editing = screen.isEditing(folderID: folder.id)
-                    Button(editing ? Verbs.done : Verbs.edit) {
-                        withAnimation(Motion.snappy) {
-                            if editing { screen.endEditing() } else { screen.beginEditing(folderID: folder.id) }
+                if screen.isEditing(folderID: folder.id) {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(Verbs.cancel) {
+                            withAnimation(Motion.snappy) { cancelEdit() }
                         }
+                        .accessibilityIdentifier("folderEditCancel")
                     }
-                    .fontWeight(editing ? .semibold : .regular)
-                    .disabled(searching)
-                    .accessibilityIdentifier("folderEdit")
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(Verbs.done) {
+                            withAnimation(Motion.snappy) { screen.commitEditing() }
+                        }
+                        .fontWeight(.semibold)
+                        .accessibilityIdentifier("folderEditDone")
+                    }
+                } else {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(Verbs.edit) {
+                            withAnimation(Motion.snappy) { beginEdit() }
+                        }
+                        .disabled(searching)
+                        .accessibilityIdentifier("folderEdit")
+                    }
                 }
             }
-            .onDisappear { if screen.isEditing(folderID: folder.id) { screen.endEditing() } }
+            .onDisappear { if screen.isEditing(folderID: folder.id) { screen.commitEditing() } }
     }
 }
 
@@ -157,6 +194,13 @@ private struct FolderContentsList: View {
                     }
                     .listHeader()
             }
+            if isEditing {
+                Section {
+                    NewFolderEditRow { screen.makeFolder(in: folder) }
+                        .listRowInsets(EdgeInsets())
+                        .listCard()
+                }
+            }
             // One mixed list of compact rows (D23): subfolders, then pages, in one card.
             if !subfolders.isEmpty || !articles.isEmpty {
                 Section {
@@ -171,7 +215,7 @@ private struct FolderContentsList: View {
                         LibraryArticleRow(article: article)
                             .tag(LibraryItemID.article(article.listenKey))
                     }
-                    .onMove(perform: isEditing && sort == .manual ? moveArticles : nil)
+                    .onMove(perform: isEditing ? moveArticles : nil)
                     .listRowInsets(EdgeInsets())
                     .listCard()
                 }
@@ -258,7 +302,7 @@ private struct FolderContentsList: View {
     private func moveArticles(from source: IndexSet, to destination: Int) {
         let moving = source.map { articles[$0] }
         shell.attempt(String(localized: "Couldn’t change the order")) {
-            try library.arrange(moving, in: folder, before: destination < articles.count ? articles[destination] : nil, shownIn: .manual)
+            try library.arrange(moving, in: folder, before: destination < articles.count ? articles[destination] : nil, shownIn: sort)
         }
     }
 
@@ -322,5 +366,21 @@ private struct FolderSearchResults: View {
         .cardListStyle()
         .environment(\.libraryScreenKey, .filtered(under: folder.id))
         .accessibilityIdentifier("folderSearchResults")
+    }
+}
+
+/// A tappable row at the top of a folder's list in Edit: plus icon and "New Folder", accent
+/// tinted, triggers the new-folder alert.
+private struct NewFolderEditRow: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            SymbolRow(Verbs.newFolder, symbol: Icons.newFolder)
+                .foregroundStyle(Palette.accent)
+                .padding(.horizontal, Spacing.m)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("editNewFolder")
     }
 }

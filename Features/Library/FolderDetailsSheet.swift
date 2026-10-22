@@ -30,6 +30,7 @@ struct FolderDetailsSheet: View {
     @State private var name = ""
     @State private var byline = ""
     @State private var cover: Data?
+    @State private var usesBookLabels = false
     @State private var isLoaded = false
     @State private var photo: PhotosPickerItem?
     @State private var isPickingPhoto = false
@@ -51,6 +52,20 @@ struct FolderDetailsSheet: View {
                 }
                 field(Verbs.name, text: $name, prompt: Verbs.name, id: "detailsName")
                 field(String(localized: "Author"), text: $byline, prompt: String(localized: "Optional"), id: "detailsAuthor")
+                Section {
+                    Toggle(String(localized: "Book"), isOn: $usesBookLabels)
+                        .typeStyle(.row)
+                        .foregroundStyle(Palette.ink)
+                        .padding(.horizontal, Spacing.m)
+                        .frame(minHeight: BottomChrome.minTapTarget)
+                        .accessibilityIdentifier("detailsBookToggle")
+                        .accessibilityHint(String(localized: "Calls pages \u{201C}chapters\u{201D}"))
+                } header: {
+                    SectionHeader(title: String(localized: "Labels"))
+                        .listHeader()
+                }
+                .listRowInsets(EdgeInsets())
+                .listCard()
                 Section {
                     choice(String(localized: "Choose from Photos"), Icons.photos, id: "detailsCoverPhotos") {
                         isPickingPhoto = true
@@ -153,6 +168,7 @@ struct FolderDetailsSheet: View {
         name = folder.name
         byline = folder.byline ?? ""
         cover = folder.coverData
+        usesBookLabels = folder.kind == .book
     }
 
     /// *Choose from Files*: the Files picker.
@@ -191,8 +207,9 @@ struct FolderDetailsSheet: View {
             shell.sheet = nil
             return
         }
+        let newKind: FolderKind = usesBookLabels ? .book : .plain
         guard shell.attempt(String(localized: "Couldn’t save the details"), {
-            try library.setDetails(of: folder, name: name, byline: byline, cover: cover)
+            try library.setDetails(of: folder, name: name, byline: byline, cover: cover, kind: newKind)
         }) != nil else { return }
         shell.sheet = nil
     }

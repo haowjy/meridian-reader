@@ -353,13 +353,14 @@ commas.
   A followed story's status line sits between the details and the row. It plays
   its own pages (not its subfolders') in the order shown, page to page, link pages skipped (a
   followed story's stop playback, below).
-  **Edit** (top right; the rows stay the same component at the same 56 pt height, only their ⋯ goes, C123), or *Select* in a row's
-  menu (Edit with that row selected), puts check circles on the rows, and drag handles
-  (pages only when the sort is *Manual*); the toolbar keeps its five slots and shows
+  **Edit** (top right) enters edit mode: *Cancel* (top left) reverts all reorder changes made
+  during the session, *Done* (top right) commits them (C148). A "New Folder…" row (plus-folder
+  icon, accent tint) shows at the top of the list. Check circles appear on every row and drag
+  handles on the right for reordering; articles are reorderable in any sort (reordering switches
+  to Manual). The toolbar keeps its five slots and shows
   *Move to…* (📁, slot 1), *Mark as Finished* (●, the listening ring made full, the middle),
   ＋ (slot 4: the create group, C126; its *New Folder…* makes a folder here and files the
-  selection into it, like Files' *New Folder with Items*; hidden in an imported EPUB or followed
-  story, C122) and *Remove*
+  selection into it, like Files' *New Folder with Items*) and *Remove*
   (🗑, ⋯'s slot) as symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: the folder's own menu, then *Sort ›,
@@ -372,13 +373,15 @@ commas.
   A favorite is still an ordinary article or folder and keeps the same actions and location.
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
-  **Author**, and *Choose from Photos*, *Choose from Files* (images) and *Remove Cover*.
-  *Cancel* changes nothing; *Save* stores all three at once. A picked picture is kept as a
-  600 px JPEG thumbnail, as a book's cover is. A folder with a cover or an author (a book has its
-  file's) shows the detailed header: the cover above the title, the author before the counts
-  ("A. Writer   2 folders   3 articles"), then the same progress line and controls. Its row shows the cover in place of the folder symbol, and the author under the
-  title until an article in it has played. Details change only the look: its sort, Edit, drags and
-  drops are unchanged. Clearing the author and removing the cover brings back the plain header.
+  **Author**, a **Book** toggle under *Labels* (C149: on calls pages "chapters", off calls them
+  "articles"; EPUB imports default to on), and *Choose from Photos*, *Choose from Files* (images)
+  and *Remove Cover*. *Cancel* changes nothing; *Save* stores all at once. A picked picture is
+  kept as a 600 px JPEG thumbnail, as a book's cover is. A folder with a cover or an author (a
+  book has its file's) shows the detailed header: the cover above the title, the author before the
+  counts ("A. Writer   2 folders   3 articles"), then the same progress line and controls. Its
+  row shows the cover in place of the folder symbol, and the author under the title until an
+  article in it has played. Details change only the look: its sort, Edit, drags and drops are
+  unchanged. Clearing the author and removing the cover brings back the plain header.
 - **Importing a book** (*Import from…*: ＋, the home's and a folder's ⋯, the empty Library's
   card) opens the Files picker for EPUBs. The picked file is copied into the app and the import
   sheet (`BookImportSheet`, medium, grows to large) comes up at once: the cover, title, author,
