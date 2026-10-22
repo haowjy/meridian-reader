@@ -254,10 +254,11 @@ The names for the chrome that runs along the bottom of every screen.
 | `BottomToolbarLayout` | layout | 5-slot evenly-spaced grid for toolbar rows (browser, Library, Now Playing transport). |
 | `BottomToolbarSpanLayout` | layout | 3-item layout for the Reader's listen pill: bookmark + span-pill + ⋯. |
 | `BandFieldRow` | view | The swap button + address/search capsule row in `SurfaceBand`. |
-| `NowPlayingBar` | view | The compact card (artwork, title, progress line, play/pause) in `SurfaceBand`'s top row. |
+| `PlayerCard` | enum | Shared card constants (artwork size, progress height) and surface for `NowPlayingBar` and `ReadingPlayerCard`. |
+| `NowPlayingBar` | view | The compact card (artwork, title, groove progress line, play/pause) on the shared `PlayerCard` surface, in `SurfaceBand`'s top row. |
 | `NowPlayingBarView` | view | The same card in the Reader sheet; hides on Now Playing and while sheets are up. |
 | `BandNowPlayingBar` | view | `NowPlayingBar` in `SurfaceBand`: always present, shows placeholder when nothing is playing. |
-| `ReadingPlayerCard` | view | Title + time card (with optional scrub) at the bottom of the Reader and Now Playing chrome. |
+| `ReadingPlayerCard` | view | Title + time card (with optional scrub) on the shared `PlayerCard` surface, at the bottom of the Reader and Now Playing chrome. |
 | `ReaderSheet` | view | Full layout of the Reader sheet (header, text, band). |
 | `NowPlayingSheet` | view | Full layout of the Now Playing sheet. |
 | `NowPlayingControls` | view | Status notes and the transport row in Now Playing's band. |
