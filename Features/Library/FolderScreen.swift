@@ -12,7 +12,8 @@ import SwiftUI
 /// check circles on rows and drag handles for reordering. A "New Folder" row shows at the top
 /// in Edit. The surface's bottom bar acts on the selection. Out of Edit, a long press lifts a
 /// row to drop on a folder or between rows (`LibraryDrag`); placing a page between pages makes
-/// the sort *Manual*. Cancel reverts reorder changes made during Edit; Done commits them.
+/// the sort *Manual*. Cancel reverts every edit made during the session (reorders, renames,
+/// moves, deletes, new folders); Done commits them all in one save.
 ///
 /// The name shows once, in the header; the navigation bar's title stays blank until the
 /// header's title scrolls under it. The band's search, begun here, searches everything under the
@@ -48,26 +49,18 @@ struct FolderScreen: View {
     }
 
     private func beginEdit() {
-        let subfolders = (folder.children ?? []).filter(\.isLive)
-        let articles = (folder.articles ?? []).filter(\.isLive)
-        let snapshot = LibraryScreenState.EditSnapshot(
-            folderSortKeys: Dictionary(uniqueKeysWithValues: subfolders.map { ($0.id, $0.sortKey) }),
-            articleSortKeys: Dictionary(uniqueKeysWithValues: articles.map { ($0.listenKey, $0.sortKey) }),
-            articleSortRaw: folder.articleSortRaw
-        )
-        screen.beginEditing(folderID: folder.id, snapshot: snapshot)
+        library.beginEditSession()
+        screen.beginEditing(folderID: folder.id)
     }
 
     private func cancelEdit() {
-        guard let snapshot = screen.cancelEditing() else { return }
-        for child in (folder.children ?? []) {
-            if let key = snapshot.folderSortKeys[child.id] { child.sortKey = key }
-        }
-        for article in (folder.articles ?? []) {
-            if let key = snapshot.articleSortKeys[article.listenKey] { article.sortKey = key }
-        }
-        folder.articleSortRaw = snapshot.articleSortRaw
-        shell.attempt(String(localized: "Couldn't revert")) { try library.saveChanges() }
+        screen.cancelEditing()
+        library.cancelEditSession()
+    }
+
+    private func commitEdit() {
+        screen.commitEditing()
+        shell.attempt(String(localized: "Couldn't save")) { try library.commitEditSession() }
     }
 
     var body: some View {
@@ -113,7 +106,7 @@ struct FolderScreen: View {
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(Verbs.done) {
-                            withAnimation(Motion.snappy) { screen.commitEditing() }
+                            withAnimation(Motion.snappy) { commitEdit() }
                         }
                         .fontWeight(.semibold)
                         .accessibilityIdentifier("folderEditDone")
@@ -128,7 +121,7 @@ struct FolderScreen: View {
                     }
                 }
             }
-            .onDisappear { if screen.isEditing(folderID: folder.id) { screen.commitEditing() } }
+            .onDisappear { if screen.isEditing(folderID: folder.id) { commitEdit() } }
     }
 }
 
@@ -208,14 +201,12 @@ private struct FolderContentsList: View {
                         LibraryFolderRow(folder: child)
                             .tag(LibraryItemID.folder(child.id))
                     }
-                    .onMove(perform: isEditing ? moveFolders : nil)
                     .listRowInsets(EdgeInsets())
                     .listCard()
                     ForEach(articles, id: \.listenKey) { article in
                         LibraryArticleRow(article: article)
                             .tag(LibraryItemID.article(article.listenKey))
                     }
-                    .onMove(perform: isEditing ? moveArticles : nil)
                     .listRowInsets(EdgeInsets())
                     .listCard()
                 }
@@ -299,20 +290,6 @@ private struct FolderContentsList: View {
         return parts
     }
 
-    private func moveArticles(from source: IndexSet, to destination: Int) {
-        let moving = source.map { articles[$0] }
-        shell.attempt(String(localized: "Couldn’t change the order")) {
-            try library.arrange(moving, in: folder, before: destination < articles.count ? articles[destination] : nil, shownIn: sort)
-        }
-    }
-
-    private func moveFolders(from source: IndexSet, to destination: Int) {
-        let all = subfolders
-        let moving = source.map { all[$0] }
-        shell.attempt(String(localized: "Couldn’t change the order")) {
-            try library.arrange(moving, in: folder, before: destination < all.count ? all[destination] : nil)
-        }
-    }
 }
 
 /// A search begun on a folder's screen: under the folder's name (as the home keeps its title over

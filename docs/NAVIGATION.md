@@ -353,11 +353,12 @@ commas.
   A followed story's status line sits between the details and the row. It plays
   its own pages (not its subfolders') in the order shown, page to page, link pages skipped (a
   followed story's stop playback, below).
-  **Edit** (top right) enters edit mode: *Cancel* (top left) reverts all reorder changes made
-  during the session, *Done* (top right) commits them (C148). A "New Folder…" row (plus-folder
-  icon, accent tint) shows at the top of the list. Check circles appear on every row and drag
-  handles on the right for reordering; articles are reorderable in any sort (reordering switches
-  to Manual). The toolbar keeps its five slots and shows
+  **Edit** (top right) enters edit mode: all changes during the session (reorders, renames,
+  moves, deletes, new folders) are staged until *Done* (top right) commits them in one save;
+  *Cancel* (top left) reverts every change (C148). A "New Folder…" row (plus-folder icon,
+  accent tint) shows at the top of the list. Check circles appear on every row; a drag handle
+  (≡) on the right of each row is the only way to reorder — touching elsewhere scrolls or
+  selects. Articles are reorderable in any sort (reordering switches to Manual). The toolbar keeps its five slots and shows
   *Move to…* (📁, slot 1), *Mark as Finished* (●, the listening ring made full, the middle),
   ＋ (slot 4: the create group, C126; its *New Folder…* makes a folder here and files the
   selection into it, like Files' *New Folder with Items*) and *Remove*

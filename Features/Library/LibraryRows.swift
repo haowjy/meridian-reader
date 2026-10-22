@@ -92,15 +92,13 @@ struct LibraryArticleRow: View {
                 playState: playState,
                 insertionEdge: screen.insertion?.id == .article(article.listenKey) ? screen.insertion?.edge : nil,
                 prepare: preparedAudio.state(of: article), isFavorite: marksFavorite && article.isFavorite,
-                menu: isEditing ? nil : AnyView(menu))
+                menu: isEditing ? nil : AnyView(menu),
+                editHandle: isEditing ? AnyView(EditDragHandle(id: .article(article.listenKey), screen: screen)) : nil)
             .opensOnTap(isEditing ? nil : activate)
             .libraryDropRow(.article(article.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                // The menu's remove: *Remove from Library* in the Library, *Remove from Recent* in
-                // Recent. The row leaves every list once the remove is stored; a save that fails
-                // keeps it, with a toast. So no role, which would take the row out first.
                 ArticleMenu.swipe(for: article) { articleActions }?.swipeButton()
             }
     }
@@ -166,7 +164,9 @@ struct LibraryFolderRow: View {
         let progress = actions.progress(of: folder, articles: articles)
         let menu = FolderMenu(folder: folder, articles: articles, actions: actions, preparedAudio: preparedAudio, screen: screen,
                               progress: progress, onTurnOffPrepare: { turningOff = folder })
-        opening(row(progress, prepare: preparedAudio.state(of: folder, articles: articles), menu: isEditing ? nil : AnyView(menu)))
+        opening(row(progress, prepare: preparedAudio.state(of: folder, articles: articles),
+                    menu: isEditing ? nil : AnyView(menu),
+                    editHandle: isEditing ? AnyView(EditDragHandle(id: .folder(folder.id), screen: screen)) : nil))
             .accessibilityIdentifier("folderRow")
             .libraryDropRow(.folder(folder.id), in: screen)
             .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
@@ -194,7 +194,7 @@ struct LibraryFolderRow: View {
         }
     }
 
-    private func row(_ progress: FolderProgress, prepare: PrepareState, menu: AnyView?) -> some View {
+    private func row(_ progress: FolderProgress, prepare: PrepareState, menu: AnyView?, editHandle: AnyView? = nil) -> some View {
         let plays = progress.hasArticlesToPlay
         let kind = ListRow.Kind.folder(symbol: folder.rowSymbol, count: plays ? [] : contents,
                                        cover: folder.hasDetails ? folder.coverImage : nil)
@@ -205,7 +205,8 @@ struct LibraryFolderRow: View {
                        insertionEdge: screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil,
                        prepare: prepare, isFavorite: marksFavorite && folder.isFavorite,
                        folderHasDetails: folder.hasDetails, menu: menu,
-                       menuAnchor: AnyView(Color.clear.turnOffPrepareQuestion($turningOff)))
+                       menuAnchor: AnyView(Color.clear.turnOffPrepareQuestion($turningOff)),
+                       editHandle: editHandle)
     }
 
     /// What is in it, as its screen's header counts it: ["2 folders", "3 articles"]; ["Empty"].

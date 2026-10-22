@@ -168,6 +168,31 @@ final class LibraryStore {
         return result
     }
 
+    // MARK: - Edit session (C148)
+
+    /// Begins an edit session: all changes accumulate in the context without saving until
+    /// `commitEditSession` or `cancelEditSession`. Listening progress is preserved across
+    /// both outcomes.
+    func beginEditSession() {
+        isStagingEdit = true
+    }
+
+    /// Saves every change made since `beginEditSession` in one save; fires `editStored`.
+    func commitEditSession() throws {
+        isStagingEdit = false
+        guard commit("edit session") else {
+            rollBack()
+            throw LibraryStoreError.saveFailed
+        }
+        editStored()
+    }
+
+    /// Discards every change made since `beginEditSession`.
+    func cancelEditSession() {
+        isStagingEdit = false
+        rollBack()
+    }
+
     /// After a failed save: the context's changes and the audio work planned with them are
     /// dropped, and every model they changed or deleted reads what the store holds again. The
     /// listening progress among them is then written again (`writeListeningAgain`), for the next

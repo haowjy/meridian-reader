@@ -208,31 +208,31 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| newFolder | the folder keeps its own order (imported, followed) | never |
-| importFile | the folder keeps its own order (imported, followed) | never |
-| pasteText | the folder keeps its own order (imported, followed) | never |
+| newFolder | never | never |
+| importFile | never | never |
+| pasteText | never | never |
 
 ### screen at libraryHome
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| sort | the folder keeps its own order (imported, followed) | never |
+| sort | never | never |
 | prepared audio | never | never |
 
 ### screen at folderScreen
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| sort | the folder keeps its own order (imported, followed) | never |
+| sort | never | never |
 | prepared audio | never | never |
 
 ### screen at add
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| newFolder | the folder keeps its own order (imported, followed) | never |
-| importFile | the folder keeps its own order (imported, followed) | never |
-| pasteText | the folder keeps its own order (imported, followed) | never |
+| newFolder | never | never |
+| importFile | never | never |
+| pasteText | never | never |
 
 ## Prepared Audio list ⋯ (C135)
 
