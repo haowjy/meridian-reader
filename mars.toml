@@ -1,0 +1,10 @@
+[dependencies.meridian-dev-workflow]
+url = "https://github.com/haowjy/meridian-dev-workflow"
+
+[settings]
+targets = [
+    ".claude",
+    ".codex",
+    ".pi",
+]
+models_cache_ttl_hours = 24

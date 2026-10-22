@@ -33,7 +33,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   loss, crashes, store migration or cache integrity; verify everything else on the running app.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
 - One scheme, `MeridianReader`, with two test targets: `MeridianReaderTests` (unit, `Tests/`) and
-  `MeridianReaderUITests` (`UITests/`). Use a separate `-derivedDataPath` per worktree.
+  `MeridianReaderUITests` (`UITests/`).
 - **The machine is memory-starved.** Use one Simulator, and run builds and tests under `gtimeout`.
 - Probes and the UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug
   builds only), on the Simulator as `xcrun simctl launch <device> com.jimmyyao.Reader <args>`, on
@@ -129,6 +129,15 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 - No real people's content in the repo: fixtures are synthetic or public domain, URLs use
   `example.com`.
 
+## Process
+
+Single-lane: one feature branch at a time off main → push → PR (body from the template) → merge
+into main → delete the branch. No parallel worktrees. Main holds release versions.
+
+Work goes through PRs: write the PR body (`.github/pull_request_template.md`), write the PR's
+Changes section as the technical changelog, and add `release-notes/<version>.md` when cutting a
+release. The release workflow (`docs/RELEASE.md`) validates the notes file exists.
+
 ## Writing
 
 - Comments state current truth and the non-obvious why. No history ("used to", "formerly"), no
@@ -146,6 +155,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 - `docs/TTS_ENGINES.md`: the engine registry, Apple, Kokoro routes, adding an engine.
 - `docs/ARTICLE_IDENTITY.md`: canonical URLs, article keys, per-paragraph audio reuse.
 - `docs/TECHNICAL_SPEC.md`, `docs/FUNCTIONAL_REQUIREMENTS.md`: how it is built, what it does.
+- `docs/RELEASE.md`: cutting a release, secrets, App Store Connect setup.
 
 Directory-scoped working notes live next to the code in `<dir>/.context/CONTEXT.md` (deferred
 items in `<dir>/.context/FUTURE.md`); read them before changing that directory:

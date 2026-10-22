@@ -1,0 +1,177 @@
+<!-- Write for a reader who knows nothing about this area: not the project's
+     history, not the names of its parts, not the earlier PRs. Explain each
+     term in a few words the first time it appears, and link what you refer
+     to (issues, PRs, KB decisions, code, screenshots) instead of assuming the
+     reader remembers it.
+
+     Open each section with its point. Say each thing once, in the section
+     that owns it, and cut any sentence the reader doesn't need. Describe the
+     PR's final state, not how it got there.
+
+     Every ## section is required. When a section doesn't apply, keep the
+     heading and write "None." with the reason. -->
+
+## Changelog
+
+<!-- One line per change a user or developer will notice, written in the terms
+     of whoever feels it. Start each line with Added:, Changed:, Fixed: or
+     Removed:. A refactor, test, documentation or tooling change nobody can
+     notice says "None." and why. A release's user-facing text lives in
+     release-notes/<version>.md, not here. -->
+
+- Fixed: <what a person sees now that was broken before>
+
+## Release notes impact
+
+<!-- Which release-notes/<version>.md file this PR changes, or None. -->
+
+None.
+
+## Why
+
+<!-- The problem or opportunity, and who it hurts or helps. For a UI change,
+     show the current screen. -->
+
+## Core design decisions
+
+<!-- The decisions that shaped the change, each aimed at an underlying problem
+     rather than its symptom. For each: what was wrong, what this PR decides,
+     and what it rules out. Quote the owner where a ruling set the decision. -->
+
+1. **<decision>.** <the problem>. <what this PR decides>. Ruled out: <alternative and why>.
+
+## Goal
+
+<!-- Open with the long-term direction this PR moves toward, even when it is
+     one step of it. Then the conditions a reviewer can check after merge.
+     Then the PRs this builds on or unblocks and the issues it fixes or
+     prepares for. -->
+
+**Long term.** <the direction this PR moves toward>
+
+**This PR.**
+
+- <what must be true after merge>
+
+**Related work.**
+
+- #N: <how it relates>
+
+## Before / After
+
+<!-- One item per behavior change, never one block of text. Start a bug
+     fix with "Bug fix:". A fix or changed behavior gets Before and After,
+     with Before kept short; a new capability gets After only. Put each
+     screenshot or GIF next to the item it shows. When UI files changed but
+     nothing looks different, write "No visual change" and say why. -->
+
+- **Bug fix: <what was broken>.** Before: ... After: ...
+- **<capability or behavior change>.** After: ...
+
+## Walkthrough / Reproduction
+
+<!-- Steps that let a reviewer see each change for themselves: one ###
+     subsection per Before / After item, in the same order. Each gives setup
+     (main or this branch, how to start it, seed data), numbered steps, and
+     what to expect on main and on this branch. Drive the running app on the
+     Simulator or iPhone; use launch arguments for state setup
+     (-seedDemoArticle, -seedDemoBook, -resetLibrary, -selectEngine, etc.;
+     see App/LaunchOptions.swift). On the Simulator:
+     xcrun simctl launch <device> com.jimmyyao.Reader <args>
+     On iPhone:
+     xcrun devicectl device process launch … com.jimmyyao.Reader -- <args>
+     When a change has no manual path, say so and give the test command plus
+     the edit that makes it fail. Make every command copy-pasteable. -->
+
+### <Before / After item>
+
+1. Setup: ...
+2. ...
+3. Expect: main ... This branch ...
+
+## How the code changed
+
+<!-- How the code's structure changed, not which lines changed: which module
+     owns which decision now, what concept, boundary or seam is new, how data
+     and control flow through it, and what was merged or deleted. Give the
+     shape before and after. A reader who hasn't opened the diff should be
+     able to sketch the new structure. Short bullets, one idea each. -->
+
+- **<structural change>.** Before: <who owned what>. Now: <who owns it>.
+
+## Diff
+
+<!-- File and line totals, then area totals that don't overlap and add up.
+     Name each area in a few words; How the code changed explains it. -->
+
+- Total: N files, +N / -N
+- Breakdown:
+  - <area>: N files, +N / -N
+
+## SwiftData / store migration changes
+
+<!-- Name each migration. Describe the changed models and relationships,
+     mark added, dropped and renamed properties. -->
+
+## Testing
+
+<!-- Each test added, changed or deleted, with the risk it protects or why
+     deleting it is safe. Critical tests only (AGENTS.md): add a test only
+     for data loss, crashes, store migration or cache integrity; verify
+     everything else on the running app. -->
+
+- Added:
+- Refactored:
+- Deleted:
+
+## Verification
+
+<!-- What you ran and what you saw. Verification is the running app on the
+     Simulator and the iPhone (Release build for timing and speech), with
+     screenshots beside each item, ListenTiming and the unified log where
+     relevant. Tests under 60 s (unit ~5 s, UI ~35 s; use
+     -collect-test-diagnostics never). A PR with no app-visible change says
+     "App: none" with the reason. Steps belong in Walkthrough. For a
+     performance change, give comparable numbers: metric, method, environment
+     and workload, baseline and result. -->
+
+- App (Simulator):
+- App (iPhone, Release):
+- Tests:
+- Performance (when relevant):
+
+## Deferred
+
+<!-- Scope this PR leaves out, each with its tracking home: an issue for
+     cross-cutting work, the nearest .context/FUTURE.md for local work.
+     Temporary code this PR ships names the trigger that removes it. -->
+
+- [ ] <deferred work>: <tracking home>; <removal trigger, if temporary>
+
+## Follow-ups
+
+<!-- What someone does right after this merges, in order: the next PR in a
+     sequence, issues to start, probes to rerun on main. Link each one. -->
+
+- [ ] #N: <what to do right after merge>
+
+## Knowledge Updates
+
+<!-- The AGENTS.md, docs/, .context/ or KB pages this PR updates, linked, or
+     why none needed it. -->
+
+- [ ] <page>: <what it now says>
+
+## Work Item
+
+<!-- Link the work item, design or plan, or say this was direct maintenance. -->
+
+## Spawn Trace
+
+<!-- Every spawn whose work this PR carries, one row each, or "done
+     directly". Name the agent profile it ran as and the model it actually ran
+     on, so a reader can tell which agents reviewed and verified the change. -->
+
+| Spawn | Agent | Model | Role |
+|---|---|---|---|
+| <id> | <agent> | <model> | <what it did, and what it reviewed or verified> |

@@ -2,24 +2,34 @@
 
 Manual release process. Main holds release versions and is pushed to GitHub.
 
+## Development process
+
+Single-lane: one feature branch at a time off main → push → PR (body from the template at
+`.github/pull_request_template.md`) → merge into main → delete the branch. No parallel worktrees.
+
+The PR body is the technical changelog (Added/Changed/Fixed/Removed lines). A release's
+user-facing text lives in `release-notes/<version>.md`.
+
 ## Cutting a release
 
 ### TestFlight
 
-1. Update CHANGELOG.md: move Unreleased entries into a `## [X.Y.Z] - YYYY-MM-DD` section.
-   Write a `### What's New` subsection with user-facing bullets.
+1. Add `release-notes/<version>.md` with user-facing bullets (see `release-notes/README.md`).
 2. Commit and push to main.
 3. In GitHub → Actions → Release, click *Run workflow*:
-   - **version**: the semver string (e.g. `1.0.0`).
+   - **version**: the semver string (e.g. `0.1.0`).
    - **target**: *TestFlight*.
    - **dry_run**: true first to verify, then false.
-4. The workflow archives, uploads to TestFlight, commits the version bump and WhatsNew.json,
-   tags `vX.Y.Z` and creates a GitHub Release with the notes.
+4. The workflow generates WhatsNew.json, archives, uploads to TestFlight, commits the version
+   bump, tags `vX.Y.Z` and creates a GitHub Release with the notes.
+5. In App Store Connect, paste the release notes into What to Test for the build (the ASC API
+   can automate this later).
 
 ### App Store
 
 Same as TestFlight, but pick *App Store submit* as the target. The build uploads to App Store
-Connect; submit for review manually there (the build takes 5–30 minutes to process).
+Connect; submit for review manually there (the build takes 5–30 minutes to process). Paste the
+release notes into What's New for the version in App Store Connect.
 
 ### GitHub Release only
 
