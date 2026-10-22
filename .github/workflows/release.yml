@@ -40,6 +40,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+
 # One release at a time.
 concurrency:
   group: release
@@ -181,7 +184,8 @@ jobs:
         run: |
           plutil -create xml1 "$RUNNER_TEMP/ExportOptions.plist"
           plutil -insert method -string app-store-connect "$RUNNER_TEMP/ExportOptions.plist"
-          plutil -insert destination -string upload "$RUNNER_TEMP/ExportOptions.plist"
+          # A dry run exports the IPA locally and uploads nothing.
+          plutil -insert destination -string ${{ inputs.dry_run && 'export' || 'upload' }} "$RUNNER_TEMP/ExportOptions.plist"
           plutil -insert teamID -string JMYU8K3WZN "$RUNNER_TEMP/ExportOptions.plist"
 
       - name: Export
