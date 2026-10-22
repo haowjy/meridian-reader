@@ -180,12 +180,12 @@ struct BakeDebugOverlay: View {
             .frame(maxHeight: 140)
         }
         .padding(10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .strokeBorder(Palette.hairline, lineWidth: 1)
         )
-        .padding(.horizontal, 8)
+        .padding(.horizontal, Spacing.xs)
         .accessibilityIdentifier("bakeDebugOverlay")
         .onAppear { snapshot = speech.diagnostics.snapshot() }
         .onReceive(timer) { _ in snapshot = speech.diagnostics.snapshot() }
