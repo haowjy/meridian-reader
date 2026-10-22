@@ -121,6 +121,8 @@ struct FolderScreen: View {
                     }
                 }
             }
+            .navigationBarBackButtonHidden(screen.isEditing(folderID: folder.id))
+            .background(InteractivePopControl(disabled: screen.isEditing(folderID: folder.id)))
             .onDisappear { if screen.isEditing(folderID: folder.id) { commitEdit() } }
     }
 }
@@ -359,5 +361,18 @@ private struct NewFolderEditRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("editNewFolder")
+    }
+}
+
+/// Disables (or re-enables) the navigation controller's interactive pop gesture recognizer.
+/// Attached as a background so it finds the hosting `UINavigationController` once the view is
+/// in the hierarchy.
+private struct InteractivePopControl: UIViewControllerRepresentable {
+    var disabled: Bool
+
+    func makeUIViewController(context: Context) -> UIViewController { UIViewController() }
+
+    func updateUIViewController(_ vc: UIViewController, context: Context) {
+        vc.navigationController?.interactivePopGestureRecognizer?.isEnabled = !disabled
     }
 }

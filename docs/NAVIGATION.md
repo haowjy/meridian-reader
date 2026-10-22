@@ -271,6 +271,7 @@ swap as 🌐.
 ```
 Library
 Library  Favorites  Recent
+📁⁺ New Folder…                         accent tinted, Everything only (C150)
 ▣ Pride and Prejudice              ⋯   tap opens; its cover never changes (C102)
 ▣ Tide Tables                      ⋯
 ▣ Finance ★                        ⋯   location-independent favorite
@@ -286,9 +287,10 @@ when it is short of room, and at accessibility text sizes the row shows its stat
 own lighter label after the title (*Pages* then *48*). VoiceOver reads the parts joined with
 commas.
 
-- **The home** (`LibraryHomeView`, C104): Library shows what is saved: top-level folders and pages
-  in no folder. Preparing an article saves it to the Library first (an article played without saving
-  goes to the top level). Favorites shows the starred folders and pages in the Library wherever
+- **The home** (`LibraryHomeView`, C104): Library shows what is saved: a prominent *New Folder…*
+  row (accent tinted, plus-folder icon) at the top of the list (C150), then top-level folders and
+  pages in no folder. Preparing an article saves it to the Library first (an article played without
+  saving goes to the top level). Favorites shows only the starred folders and pages wherever
   they live; starring an article played without saving saves it to the top level (an article that is
   nowhere yet becomes a saved link, as before). Recent shows every article you started listening to
   ("opened" is started: `lastPlayedAt`), saved, prepared or played without saving (no folders,
@@ -355,7 +357,8 @@ commas.
   followed story's stop playback, below).
   **Edit** (top right) enters edit mode: all changes during the session (reorders, renames,
   moves, deletes, new folders) are staged until *Done* (top right) commits them in one save;
-  *Cancel* (top left) reverts every change (C148). A "New Folder…" row (plus-folder icon,
+  *Cancel* (top left) reverts every change (C148). Cancel replaces the ‹ back button (hidden
+  while editing) and swipe-back is disabled, so the only exits are Cancel or Done. A "New Folder…" row (plus-folder icon,
   accent tint) shows at the top of the list. Check circles appear on every row; a drag handle
   (≡) on the right of each row is the only way to reorder — touching elsewhere scrolls or
   selects. Articles are reorderable in any sort (reordering switches to Manual). The toolbar keeps its five slots and shows
