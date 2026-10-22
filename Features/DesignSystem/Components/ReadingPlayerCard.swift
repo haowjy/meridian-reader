@@ -2,7 +2,9 @@ import SwiftUI
 
 /// The player card in the Reader and Now Playing bottom chrome: the article's artwork, title,
 /// optional time-left detail and an optional scrub row, on the reading page's card colour. Sits
-/// inside `ReadingBottomBand`; no shadow of its own (the band's material is the surface).
+/// inside `ReadingBottomBand`; no shadow of its own (the band's material is the surface). The
+/// scrub area always reserves `fieldControlSize` height so the card is the same size in both
+/// screens, whether the scrub row is a live bar, a placeholder or empty.
 ///
 /// ```
 /// ╭─────────────────────────────────────────────╮
@@ -43,7 +45,10 @@ struct ReadingPlayerCard<Scrub: View>: View {
                         .fixedSize()
                 }
             }
-            scrub
+            ZStack(alignment: .leading) {
+                Color.clear.frame(height: BottomChrome.fieldControlSize)
+                scrub
+            }
         }
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.xs)
