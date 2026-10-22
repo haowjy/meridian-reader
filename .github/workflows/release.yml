@@ -1,0 +1,258 @@
+# Meridian Reader — release workflow
+#
+# Manual dispatch only. Builds a Release archive, uploads to TestFlight or
+# submits to the App Store, and cuts a GitHub Release with the CHANGELOG notes.
+#
+# Inputs:
+#   version   — semver string, e.g. 1.0.0 (must be > every existing v* tag)
+#   target    — TestFlight | App Store submit | GitHub Release only
+#   dry_run   — if true, stop before upload/tag/release and print what would happen
+#
+# Secrets (add in Settings → Secrets and variables → Actions):
+#   ASC_KEY_ID        — App Store Connect API Key ID
+#   ASC_ISSUER_ID     — App Store Connect API Issuer ID
+#   ASC_KEY_P8        — contents of the .p8 private key file
+#
+# Signing uses automatic code signing with the ASC API key
+# (-allowProvisioningUpdates with authentication flags).
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (semver, e.g. 1.0.0)"
+        required: true
+        type: string
+      target:
+        description: "Release target"
+        required: true
+        type: choice
+        options:
+          - TestFlight
+          - App Store submit
+          - GitHub Release only
+        default: TestFlight
+      dry_run:
+        description: "Dry run (stop before upload/tag)"
+        required: false
+        type: boolean
+        default: false
+
+# One release at a time.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      # ── Validate inputs ──────────────────────────────────────────────
+      - name: Validate semver
+        run: |
+          VERSION="${{ inputs.version }}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' is not valid semver (expected X.Y.Z)"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Version must be higher than any existing tag
+        run: |
+          VERSION="${{ inputs.version }}"
+          HIGHEST=$(git tag -l 'v*' | sed 's/^v//' | sort -V | tail -1)
+          if [ -n "$HIGHEST" ]; then
+            # Compare: the new version must sort after the highest
+            SORTED=$(printf '%s\n%s' "$HIGHEST" "$VERSION" | sort -V | tail -1)
+            if [ "$SORTED" = "$HIGHEST" ] || [ "$VERSION" = "$HIGHEST" ]; then
+              echo "::error::Version $VERSION is not higher than existing tag v$HIGHEST"
+              exit 1
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_ENV"
+
+      # ── Validate CHANGELOG ──────────────────────────────────────────
+      - name: Check CHANGELOG has a section for this version or Unreleased
+        run: |
+          # The workflow will create the version section from Unreleased if needed.
+          # For now, just verify CHANGELOG.md exists and has content under Unreleased.
+          if ! grep -q '## Unreleased' CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no ## Unreleased section"
+            exit 1
+          fi
+          # Check there's at least one bullet
+          SECTION=$(sed -n '/^## Unreleased/,/^## \[/p' CHANGELOG.md | grep -c '^\- ' || true)
+          if [ "$SECTION" -eq 0 ]; then
+            echo "::error::CHANGELOG.md Unreleased section has no entries"
+            exit 1
+          fi
+
+      # ── Extract release notes ────────────────────────────────────────
+      - name: Extract release notes and generate WhatsNew.json
+        run: |
+          # Create the versioned section in CHANGELOG for the script
+          python3 scripts/whats-new.py "${{ inputs.version }}" || {
+            # If no version section exists, extract from Unreleased
+            # Temporarily create a version section from Unreleased
+            DATE=$(date +%Y-%m-%d)
+            sed -i '' "s/^## Unreleased$/## Unreleased\n\n## [${{ inputs.version }}] - $DATE/" CHANGELOG.md
+            python3 scripts/whats-new.py "${{ inputs.version }}"
+          }
+
+          # Also extract plain-text notes for the GitHub Release
+          python3 -c "
+          import json, pathlib
+          data = json.loads(pathlib.Path('Resources/WhatsNew.json').read_text())
+          bullets = data['versions'].get('${{ inputs.version }}', [])
+          notes = '\n'.join(f'• {b}' for b in bullets)
+          pathlib.Path('release_notes.txt').write_text(notes)
+          print(notes)
+          "
+
+      # ── Set version in project.yml and regenerate Xcode project ──────
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Set version and build number
+        run: |
+          VERSION="${{ inputs.version }}"
+          BUILD_NUMBER="${{ github.run_number }}"
+
+          # Update MARKETING_VERSION in project.yml
+          sed -i '' "s/MARKETING_VERSION: .*/MARKETING_VERSION: \"$VERSION\"/" project.yml
+          # Update CURRENT_PROJECT_VERSION
+          sed -i '' "s/CURRENT_PROJECT_VERSION: .*/CURRENT_PROJECT_VERSION: \"$BUILD_NUMBER\"/" project.yml
+
+          echo "Set MARKETING_VERSION=$VERSION, CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      # ── Select Xcode ────────────────────────────────────────────────
+      - name: Select latest Xcode
+        run: |
+          XCODE=$(find /Applications -maxdepth 1 -name 'Xcode*.app' -print 2>/dev/null | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+
+      # ── Build archive ───────────────────────────────────────────────
+      - name: Write ASC API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$ASC_KEY_P8" > ~/private_keys/"AuthKey_${ASC_KEY_ID}.p8"
+
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -project MeridianReader.xcodeproj \
+            -scheme MeridianReader \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/MeridianReader.xcarchive" \
+            -destination 'generic/platform=iOS' \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM=JMYU8K3WZN
+
+      # ── Export IPA ───────────────────────────────────────────────────
+      - name: Write ExportOptions.plist
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>destination</key>
+            <string>upload</string>
+            <key>teamID</key>
+            <string>JMYU8K3WZN</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Export
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/MeridianReader.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }}
+
+      # ── Dry run gate ─────────────────────────────────────────────────
+      - name: Dry run summary
+        if: inputs.dry_run
+        run: |
+          echo "::notice::DRY RUN — would upload to ${{ inputs.target }}, tag v${{ inputs.version }}, create GitHub Release"
+          echo ""
+          echo "Version: ${{ inputs.version }}"
+          echo "Build:   ${{ github.run_number }}"
+          echo "Target:  ${{ inputs.target }}"
+          echo ""
+          echo "Release notes:"
+          cat release_notes.txt
+          echo ""
+          echo "Archive: $RUNNER_TEMP/MeridianReader.xcarchive"
+          echo "IPA:     $(find "$RUNNER_TEMP/export" -name '*.ipa' 2>/dev/null || echo 'none')"
+
+      # ── Upload to App Store Connect ──────────────────────────────────
+      - name: Upload to App Store Connect
+        if: ${{ !inputs.dry_run && inputs.target != 'GitHub Release only' }}
+        run: |
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$RUNNER_TEMP/export/MeridianReader.ipa" \
+            --apiKey ${{ secrets.ASC_KEY_ID }} \
+            --apiIssuer ${{ secrets.ASC_ISSUER_ID }}
+
+      # ── Submit for App Review (App Store submit only) ─────────────────
+      # After upload, the build processes on ASC's side (5–30 min). A submission
+      # script would need to poll for processing, which is fragile. Instead:
+      # for "App Store submit", the upload is done above; submit for review
+      # manually in App Store Connect, or automate later with the ASC API.
+      - name: App Store submit note
+        if: ${{ !inputs.dry_run && inputs.target == 'App Store submit' }}
+        run: |
+          echo "::notice::Build uploaded. Submit for review in App Store Connect:"
+          echo "  https://appstoreconnect.apple.com"
+          echo ""
+          echo "The build may take 5–30 minutes to process before it appears."
+
+      # ── Commit version bump, tag, GitHub Release ─────────────────────
+      - name: Commit version bump
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add project.yml Resources/WhatsNew.json CHANGELOG.md
+          git commit -m "release: v${{ inputs.version }}" || echo "No changes to commit"
+          git push origin HEAD:main
+
+      - name: Create tag and GitHub Release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git tag "v${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --notes-file release_notes.txt

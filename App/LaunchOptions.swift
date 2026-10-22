@@ -83,6 +83,8 @@ struct LaunchOptions: Equatable {
     /// `-testVoice`: register an offline on-device test voice (`TestVoiceProvider`, "Test Voice"
     /// with voices One and Two); `-selectEngine test.voice` picks it. Downloads render with it.
     var usesTestVoice = false
+    /// `-showWhatsNew`: show the What's New sheet even under `-uiTesting`.
+    var showsWhatsNew = false
     /// `-selectEngine <engine id>` (`local.kokoro`, `apple`, `test.voice`): the engine to load at
     /// launch, persisted as the selection.
     var selectsEngine: SpeechEngineID?
@@ -129,6 +131,7 @@ struct LaunchOptions: Equatable {
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
         failsLibrarySaves = flags.contains("-failLibrarySaves")
+        showsWhatsNew = flags.contains("-showWhatsNew")
         usesTestVoice = flags.contains("-testVoice")
         selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
         kokoroUnits = value(after: "-kokoroUnits")

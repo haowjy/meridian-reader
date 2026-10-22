@@ -18,6 +18,8 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Meridian Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

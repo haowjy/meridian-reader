@@ -6,6 +6,8 @@ import SwiftData
 struct RootView: View {
     @Environment(\.speechController) private var speech
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var showsWhatsNew = false
+    private let whatsNewStore = WhatsNewStore()
 
     var body: some View {
         BrowseStartView()
@@ -23,10 +25,30 @@ struct RootView: View {
             // The app's colour for system controls (`Palette.accent` reads the theme, so this
             // follows a change in Settings), and its appearance on every window.
             .tint(Palette.accent)
-            .onAppear { AppAppearance.shared.applyToWindows() }
+            .onAppear {
+                AppAppearance.shared.applyToWindows()
+                if whatsNewStore.shouldShow && Self.whatsNewAllowed { showsWhatsNew = true }
+            }
+            .sheet(isPresented: $showsWhatsNew) {
+                WhatsNewSheet(notes: whatsNewStore.notes) {
+                    whatsNewStore.markSeen()
+                    showsWhatsNew = false
+                }
+                .presentationDetents([.medium])
+                .interactiveDismissDisabled()
+            }
             #if DEBUG
             .modifier(LaunchTestHooks(options: .current))
             #endif
+    }
+
+    private static var whatsNewAllowed: Bool {
+        #if DEBUG
+        let options = LaunchOptions.current
+        return !options.uiTesting || options.showsWhatsNew
+        #else
+        return true
+        #endif
     }
 }
 

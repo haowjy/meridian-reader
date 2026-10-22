@@ -1,7 +1,17 @@
 # Changelog
 
+All notable changes to Meridian Reader are documented here.
+
+Each release has a `## [X.Y.Z] - YYYY-MM-DD` section. The topmost `## Unreleased` collects
+changes that haven't shipped yet. When cutting a release, the workflow moves Unreleased entries
+into a new version section. The `### What's New` subsection becomes the user-facing release notes
+in the App Store and the What's New sheet — keep it short and friendly. The
+`scripts/whats-new.py` script extracts it; if there is no `### What's New` subsection, it falls
+back to the bullet list with C-numbers stripped.
+
 ## Unreleased
 
+- C151: App Store release prep — workflow, privacy manifest, What's New sheet, docs.
 - C150: prominent "New Folder…" row at the top of the Library's Everything tab (accent-tinted, plus-folder icon, always visible). Favorites lists only starred items (folders first, then articles) with no New Folder or add actions (the toolbar ＋ is dimmed there). Both folders and articles can be favorited/unfavorited from their ⋯ menus.
 - C149: no behavioral difference between a book and a folder. A Book/Folder toggle in Edit Details changes only labels ("chapters" vs "articles"). All folders get the same add menu (New Folder, Import from, Paste Text), subfolders, reorder via drag handles, Sort, and Cancel/Done edit mode. EPUB imports default to Book, preserving initial chapter order, now freely reorderable. Kept book-specific: voice per folder (C138, one voice for all chapters in a book/series), chapter display in Now Playing, Follow series creation.
 - C148: folder edit mode: Cancel (left) and Done (right) in the bar; Cancel replaces the ‹ back button (no back button while editing) and swipe-back is disabled, so the only exits are Cancel (revert) or Done (save). Reordering starts only from the drag handle (≡) on the right of each row; touching elsewhere scrolls or selects. All changes during an edit session (reorders, renames, moves, deletes, new folders) are staged and committed together on Done; Cancel reverts every change. A "New Folder…" row (plus-folder icon, accent tint) at the top of the list in edit mode. Articles reorderable in edit mode regardless of current sort (reordering switches to Manual). Subfolders can be created inside any folder.
@@ -17,3 +27,10 @@
 - C139: Apple default voice for English prefers Nora / "Voice 4", then Premium/Enhanced, then
   Samantha, Daniel, Karen, Moira, Tessa among Standard voices. Voice picker now lists Standard
   non-novelty voices below Enhanced/Premium.
+
+### What's New
+
+- Listen to web articles with high-quality on-device voices.
+- Save articles and listen offline — no account needed.
+- Follow web serials and get new chapters automatically.
+- Import EPUB books and listen chapter by chapter.
