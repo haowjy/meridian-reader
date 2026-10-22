@@ -64,7 +64,12 @@ final class LibraryScreenState {
         editing = Editing(folderID: folderID)
     }
 
-    func endEditing() {
+    func commitEditing() {
+        editing = nil
+        selection = []
+    }
+
+    func cancelEditing() {
         editing = nil
         selection = []
     }

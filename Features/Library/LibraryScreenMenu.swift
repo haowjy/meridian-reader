@@ -35,7 +35,7 @@ struct LibraryScreenMenu {
     var menu: MenuContext {
         let folder = topFolder
         var facts = MenuRegistry.Facts()
-        facts.isFixedOrder = folder?.kind.isBookOrSeries == true
+        facts.isFixedOrder = false
         let screenRows = MenuContext.screenRows(at: folder == nil ? .libraryHome : .folderScreen, facts: facts,
                                                 shell: shell) { option in
             option == .sort ? sortRow(folder) : nil
@@ -86,7 +86,7 @@ struct LibraryCreateMenu {
 
     static func facts(for folder: Folder?) -> MenuRegistry.Facts {
         var facts = MenuRegistry.Facts()
-        facts.isFixedOrder = folder?.kind.isBookOrSeries == true
+        facts.isFixedOrder = false
         return facts
     }
 

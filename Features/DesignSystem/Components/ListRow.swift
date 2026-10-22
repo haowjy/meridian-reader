@@ -86,6 +86,8 @@ struct ListRow: View {
     var menuAnchor: AnyView?
     /// A control of the row's own, 44 pt, just before the ⋯ (a prepare's pause / resume).
     var accessory: AnyView?
+    /// A drag handle shown where the ⋯ sits, in Edit (C148): only the handle initiates reorder.
+    var editHandle: AnyView?
     /// Whether the row has the trailing listening column (false where listening never shows:
     /// browser visits, the Prepared Audio list).
     var showsListening = true
@@ -153,11 +155,13 @@ struct ListRow: View {
                 .accessibilityLabel(Verbs.more)
                 .accessibilityIdentifier("rowMore")
                 .background { menuAnchor }
+            } else if let editHandle {
+                editHandle
             }
         }
         .background { if menu == nil { menuAnchor } }
         .padding(.leading, Spacing.m)
-        .padding(.trailing, menu != nil ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
+        .padding(.trailing, (menu != nil || editHandle != nil) ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
         // One height in Edit and out (C123): the ⋯'s 44 pt square plus this padding is the 56 pt
         // minimum, so a row doesn't shrink when Edit takes its ⋯ away.
         .padding(.vertical, Self.verticalPadding)

@@ -126,6 +126,26 @@ extension View {
     }
 }
 
+/// The drag handle on the right of each row in Edit (C148): a visible grip icon that carries
+/// `.onDrag` to start a library drag. Only the handle initiates reorder; the rest of the row
+/// scrolls, taps to select, or does nothing.
+struct EditDragHandle: View {
+    let id: LibraryItemID
+    let screen: LibraryScreenState
+
+    var body: some View {
+        Image(systemName: Icons.reorder)
+            .foregroundStyle(Palette.tertiaryInk)
+            .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+            .contentShape(Rectangle())
+            .onDrag {
+                screen.beginDrag(id)
+                return NSItemProvider(item: id.payload as NSString, typeIdentifier: UTType.libraryItem.identifier)
+            }
+            .accessibilityLabel(String(localized: "Reorder"))
+    }
+}
+
 private struct LibraryDragSource: ViewModifier {
     let id: LibraryItemID?
     let screen: LibraryScreenState

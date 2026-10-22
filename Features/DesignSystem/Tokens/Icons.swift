@@ -78,6 +78,8 @@ enum Icons {
     /// Cover*. (A page leaving the Library is `unsave`; a prepare going, `removePrepare`.)
     static let delete = "trash"
     static let sort = "arrow.up.arrow.down"
+    /// ≡ Drag handle for reorder in Edit (C148).
+    static let reorder = "line.3.horizontal"
     /// Select (Edit's check circles).
     static let select = "checkmark.circle"
     /// Checked: the chosen option in a list or menu (where the system draws the same ✓ in its own
