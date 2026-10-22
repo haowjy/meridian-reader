@@ -105,6 +105,8 @@ struct LibrarySurface: View {
                 }
                 .accessibilityLabel("Add")
                 .accessibilityIdentifier("libraryAdd")
+                // C150: Favorites only lists starred items; nothing is created there (＋ dims like ›).
+                .disabled(shell.libraryPath.isEmpty && shell.homeTab == .favorites)
                 .toolbarSlot(2)
             }
             BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
