@@ -40,9 +40,9 @@ enum BottomChrome {
     /// Now Playing's round play / pause in the transport's centre slot. Fixed like the toolbar
     /// glyphs (the large content viewer shows it at large text sizes). The row stays
     /// `rowHeight`; the disc reaches past it above and below by half the difference.
-    static let transportDiscSize: CGFloat = 64
+    static let transportDiscSize: CGFloat = 52
     /// The glyph inside the transport disc.
-    static let transportDiscGlyph: CGFloat = 26
+    static let transportDiscGlyph: CGFloat = 21
     /// A folder header's play / pause between Prepare and More (C124): smaller than the
     /// transport's, its glyph in the same proportion.
     static let headerDiscSize: CGFloat = 56

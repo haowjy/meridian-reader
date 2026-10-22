@@ -262,5 +262,5 @@ The names for the chrome that runs along the bottom of every screen.
 | `NowPlayingSheet` | view | Full layout of the Now Playing sheet. |
 | `NowPlayingControls` | view | Status notes and the transport row in Now Playing's band. |
 | `ListenTransportView` | view | Speech-bound wrapper for `NowPlayingTransport` (skips, play/pause disc) with swipe gesture; used inside `NowPlayingControls`. Renamed from `ListenControllerView` in C143 (the "Controller" suffix was MVC jargon). |
-| `NowPlayingTransport` | view | The 5-slot transport row component: skip-back, play/pause disc (64 pt), skip-forward. |
+| `NowPlayingTransport` | view | The 5-slot transport row component: skip-back, play/pause disc (52 pt), skip-forward. |
 | `ReaderScrubRow` | view | The scrub bar inside `ReadingPlayerCard` (Now Playing only; Reader shows `EmptyView()`). |

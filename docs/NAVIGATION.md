@@ -872,7 +872,7 @@ synthesis").
   plays the article again.
 - **Controls** (the band): optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the browser's
   five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭ under 🕘, ⋯ under ⋯), then the player
-  card (scrub row + speed). ▶︎ / ⏸ is a 64 pt round button (accent fill, dark glyph; fixed size,
+  card (scrub row + speed). ▶︎ / ⏸ is a 52 pt round button (accent fill, dark glyph; fixed size,
   like the toolbar glyphs). The row stays 44 pt, so every slot sits where it does on the other
   surfaces; the disc overhangs it. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
   (D4). A sideways swipe on the row skips too.

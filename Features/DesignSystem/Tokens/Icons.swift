@@ -122,8 +122,8 @@ enum Icons {
     static let pause = "pause.fill"
     static let stop = "stop.fill"
     /// ⏮: the previous paragraph, and From Start / Play from Start.
-    static let previous = "backward.end.fill"
-    static let next = "forward.end.fill"
+    static let previous = "backward.end"
+    static let next = "forward.end"
     /// ☝︎ Listen from a paragraph: off, on.
     static let jump = "hand.tap"
     static let jumpOn = "hand.tap.fill"
