@@ -111,8 +111,6 @@ targets:
     platform: iOS
     sources:
       - path: UITests
-        excludes:
-          - ScreenshotAuditTests.swift
     dependencies:
       - target: MeridianReader
     settings:
