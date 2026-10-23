@@ -483,7 +483,7 @@ final class LocalListenPlayer {
         let chunks = source.chunks(paragraph: index)
         let remainder = fromChunk < chunks.count && fromChunk > 0
             ? chunks[fromChunk...].joined(separator: " ")
-            : TextChunker.normalize(source.paragraphs[index])
+            : TTSTextNormalize.normalize(source.paragraphs[index])
         let engine = source.engineName
         let reason: FallbackReason
         if case LocalSynthError.deferredInBackground = error {

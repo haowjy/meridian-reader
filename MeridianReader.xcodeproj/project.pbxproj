@@ -83,6 +83,9 @@
 		391704010186AF1911BC677A /* EPUBChapterCutter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45010D47EF64E44CBFDF5D39 /* EPUBChapterCutter.swift */; };
 		39290A19E2DEB66B25F605D0 /* LocalTTSCoordinator+PreparedAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FCA3549357C6C62035D3C /* LocalTTSCoordinator+PreparedAudio.swift */; };
 		3A195C92FCB9B90A45292946 /* TextChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA28D0D06CEEDF83F2747122 /* TextChunker.swift */; };
+		45E718FCAA4546AEB325B630 /* KokoroGrammar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 261ADF6A70F840D6BA491F07 /* KokoroGrammar.swift */; };
+		EFE1F1F40EB94EA18BDA7B5F /* SpeakableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BA823EF05C4CEE97274BA1 /* SpeakableText.swift */; };
+		CD735244D0854C028CE7514E /* TTSTextNormalize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E7CC66B32704A9B8E85157D /* TTSTextNormalize.swift */; };
 		3A1C7671A5EC1044B2A1FC82 /* LibraryStore+Migration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27CB23FCF6AF8E521F4E149 /* LibraryStore+Migration.swift */; };
 		3B324F695CD45C9051881AB0 /* BookImportFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0FCB5CE4992196F5C7CF95 /* BookImportFiles.swift */; };
 		3C5654EAF4071F68DE0DE916 /* BrowserBottomChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EDFABA0EA9EEBE4262E2D8 /* BrowserBottomChrome.swift */; };
@@ -633,6 +636,9 @@
 		A8A296DA5C750F41A7D56DB0 /* ArticleExtracting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleExtracting.swift; sourceTree = "<group>"; };
 		A8F1BF82B5A05DA01B9DDBD5 /* KokoroLaunchMigrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroLaunchMigrations.swift; sourceTree = "<group>"; };
 		AA28D0D06CEEDF83F2747122 /* TextChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextChunker.swift; sourceTree = "<group>"; };
+		261ADF6A70F840D6BA491F07 /* KokoroGrammar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroGrammar.swift; sourceTree = "<group>"; };
+		C9BA823EF05C4CEE97274BA1 /* SpeakableText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakableText.swift; sourceTree = "<group>"; };
+		9E7CC66B32704A9B8E85157D /* TTSTextNormalize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSTextNormalize.swift; sourceTree = "<group>"; };
 		AA9C656387381A5D444F5C8C /* DeveloperSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperSettings.swift; sourceTree = "<group>"; };
 		AACBCE59294E6E1237689302 /* EngineHandover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineHandover.swift; sourceTree = "<group>"; };
 		AB71DE59C5D155E6D3904EFE /* KokoroONNXModelPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroONNXModelPatch.swift; sourceTree = "<group>"; };
@@ -1130,6 +1136,9 @@
 				E77452F4ED37994E829BEAB2 /* RenderAdmission.swift */,
 				96FDCD615B0B47A38D78697C /* RenderPace.swift */,
 				7D89382699C18C70046328D8 /* SynthQueueContext.swift */,
+				9E7CC66B32704A9B8E85157D /* TTSTextNormalize.swift */,
+				C9BA823EF05C4CEE97274BA1 /* SpeakableText.swift */,
+				261ADF6A70F840D6BA491F07 /* KokoroGrammar.swift */,
 				AA28D0D06CEEDF83F2747122 /* TextChunker.swift */,
 				BEF75092693A8298E682EC36 /* VoiceSelection.swift */,
 				EBD6174A7EBF90760A62446C /* Engines */,
@@ -2071,6 +2080,9 @@
 				FB673A7F64175892D2DB3E7B /* TextAppearanceControl.swift in Sources */,
 				8D3185D4A4B11D605DAEED07 /* TextAppearancePanel.swift in Sources */,
 				3A195C92FCB9B90A45292946 /* TextChunker.swift in Sources */,
+				45E718FCAA4546AEB325B630 /* KokoroGrammar.swift in Sources */,
+				EFE1F1F40EB94EA18BDA7B5F /* SpeakableText.swift in Sources */,
+				CD735244D0854C028CE7514E /* TTSTextNormalize.swift in Sources */,
 				D5E98B393C8F847AE06FA57D /* Themes.swift in Sources */,
 				1C6E5E0364E130A17F8885E7 /* TitleCard.swift in Sources */,
 				DD63A99BA91EEA2DAE0EE07A /* Toast.swift in Sources */,

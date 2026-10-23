@@ -47,11 +47,8 @@ enum ChunkEdgeTrim {
         return .word
     }
 
-    /// `text` + "," when it ends on a bare word (no closing punctuation), else unchanged (C137).
-    static func closeOpenEnd(_ text: String) -> String {
-        guard let last = text.last, last.isLetter || last.isNumber else { return text }
-        return text + ","
-    }
+    /// Forwards to `KokoroGrammar.prepareChunk` (C137). Prefer calling that directly.
+    static func closeOpenEnd(_ text: String) -> String { KokoroGrammar.prepareChunk(text) }
 
     /// Trim leading silence to `leadMs` and trailing silence to exactly `trailMs` (pads with zeros
     /// if Kokoro left less), with 5 ms fades at the new edges. All-silent input is returned as-is.

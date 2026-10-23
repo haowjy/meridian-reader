@@ -30,7 +30,7 @@ final class TextChunkerTests: XCTestCase {
     func testChunksPreserveAllText() {
         for text in [longA, "Short one.", "A b c.  D e f!  G h i?"] {
             let chunks = TextChunker.chunks(for: text, limits: .kokoroCPU)
-            XCTAssertEqual(chunks.joined(separator: " "), TextChunker.normalize(text))
+            XCTAssertEqual(chunks.joined(separator: " "), TTSTextNormalize.normalize(text))
         }
     }
 
@@ -42,6 +42,45 @@ final class TextChunkerTests: XCTestCase {
 
 
 
+
+
+    // MARK: - Normalize pauses (em dash / semicolon)
+
+    func testNormalizeEmDashBetweenWordsBecomesCommaPause() {
+        let out = TTSTextNormalize.normalize("It got worse—and then better.")
+        XCTAssertFalse(out.contains("—"), out)
+        XCTAssertFalse(out.contains("–"), out)
+        XCTAssertTrue(out.contains("worse, and"), out)
+    }
+
+    func testNormalizeKeepsASCIIHyphenCompounds() {
+        let out = TTSTextNormalize.normalize("Dr. J. Ashby-Lowell wrote the three-day flood note.")
+        XCTAssertTrue(out.contains("Ashby-Lowell"), out)
+        XCTAssertTrue(out.contains("three-day"), out)
+    }
+
+    func testNormalizeSpacedDashBecomesCommaPause() {
+        let out = TTSTextNormalize.normalize("The docks — porters, pilots — were busy.")
+        XCTAssertFalse(out.contains("—"), out)
+        XCTAssertTrue(out.contains(","), out)
+    }
+
+    func testNormalizeSemicolonBecomesCommaPause() {
+        let out = TTSTextNormalize.normalize("She showed a map; it was covered in red dots.")
+        XCTAssertFalse(out.contains(";"), out)
+        XCTAssertEqual(out, "She showed a map, it was covered in red dots.")
+    }
+
+    func testSpeakableTextPipelinePhononSkipsKokoroGrammar() {
+        let text = "Hello world—really; yes."
+        let phonon = SpeakableText.prepare(text).normalize().grammar(.none).value
+        let kokoro = SpeakableText.prepare(text).normalize().grammar(.kokoro).value
+        // Paragraph grammar is identity today; both match shared normalize.
+        XCTAssertEqual(phonon, TTSTextNormalize.normalize(text))
+        XCTAssertEqual(kokoro, phonon)
+        XCTAssertEqual(KokoroGrammar.prepareChunk("open end"), "open end,")
+        XCTAssertEqual(KokoroGrammar.prepareChunk("done."), "done.")
+    }
 
     // MARK: - Giant paragraphs
 
@@ -94,7 +133,7 @@ final class TextChunkerTests: XCTestCase {
     private func assertInvariants(_ text: String, _ limits: TextChunker.Limits,
                                   file: StaticString = #filePath, line: UInt = #line) {
         let chunks = TextChunker.chunks(for: text, limits: limits)
-        let normalized = Array(TextChunker.normalize(text))
+        let normalized = Array(TTSTextNormalize.normalize(text))
         XCTAssertFalse(chunks.isEmpty, file: file, line: line)
         for (i, chunk) in chunks.enumerated() {
             XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(chunk), limits.hardMax,

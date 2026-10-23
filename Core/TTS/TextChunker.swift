@@ -7,11 +7,15 @@ import Foundation
 /// engine's `hardMax` *estimated* units (chars, digits weighted ×3 because "2240" is spoken as
 /// four words). Limits come from the engine's `EngineDescriptor`.
 ///
+/// Prefer `SpeakableText.prepare(_:).normalize().grammar(_:).split(limits:)` at call sites so
+/// Kokoro can run its grammar pass; `chunks(for:limits:)` still normalizes then splits (no grammar).
+///
 /// Paragraphs stay the UI/listen unit; chunks are an internal synth detail.
 /// Invariants (tested, incl. 10k-char paragraphs): every chunk ≤ `hardMax`; the first chunk of
 /// a multi-chunk paragraph ≤ `firstTarget`; words are never cut while a space exists;
-/// `chunks(for: t).joined(separator: " ") == normalize(t)` unless a single whitespace-free run
-/// exceeds the limit (then it is cut mid-run and the pieces concatenate back to the run).
+/// `chunks(for: t).joined(separator: " ") == TTSTextNormalize.normalize(t)` unless a single
+/// whitespace-free run exceeds the limit (then it is cut mid-run and the pieces concatenate
+/// back to the run).
 enum TextChunker {
     /// Per-engine chunk sizing (estimated units ≈ chars, digits ×3).
     struct Limits: Equatable, Sendable {
@@ -40,81 +44,23 @@ enum TextChunker {
     }
 
     static func chunks(for text: String, limits: Limits) -> [String] {
-        chunks(for: text, target: limits.target, hardMax: limits.hardMax, firstTarget: limits.firstTarget,
-               secondTarget: limits.secondTarget, alwaysSplitFirst: limits.alwaysSplitFirst)
+        chunks(forNormalized: TTSTextNormalize.normalize(text), limits: limits)
     }
 
-    // MARK: - Normalization
-
-    /// Light, meaning-preserving cleanup before synth.
-    /// - collapses all whitespace runs (incl. newlines / NBSP) to one space
-    /// - turns "aside" dashes (`-nobody … year-`, `–nurse, etc-`, ` - `) into commas so the engine
-    ///   pauses instead of reading/choking on stray hyphens; intra-word hyphens stay
-    ///   (`Ashby-Lowell`, `three-day`).
-    static func normalize(_ text: String) -> String {
-        var s = text.replacingOccurrences(of: "\u{00A0}", with: " ")
-        s = s.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
-        guard !s.isEmpty else { return s }
-        s = replaceAsideDashes(s)
-        // Tidy punctuation the dash pass can create.
-        s = s.replacingOccurrences(of: #"\s+,"#, with: ",", options: .regularExpression)
-        s = s.replacingOccurrences(of: #",(\s*,)+"#, with: ",", options: .regularExpression)
-        s = s.replacingOccurrences(of: #"([.!?…]),"#, with: "$1", options: .regularExpression)
-        s = s.replacingOccurrences(of: #",\s*([.!?…])"#, with: "$1", options: .regularExpression)
-        s = s.replacingOccurrences(of: #"^,\s*"#, with: "", options: .regularExpression)
-        s = s.split(whereSeparator: { $0 == " " }).joined(separator: " ")
-        return s.trimmingCharacters(in: .whitespaces)
+    /// Split already-normalized (and optionally grammar-prepped) text. Used by `SpeakableText.split`.
+    static func chunks(forNormalized text: String, limits: Limits) -> [String] {
+        chunks(forNormalized: text, target: limits.target, hardMax: limits.hardMax,
+               firstTarget: limits.firstTarget, secondTarget: limits.secondTarget,
+               alwaysSplitFirst: limits.alwaysSplitFirst)
     }
 
-    private static func replaceAsideDashes(_ s: String) -> String {
-        let dashes: Set<Character> = ["-", "–", "—", "‒", "―"]
-        let quoteLike: Set<Character> = ["\"", "'", "“", "”", "‘", "’", "«", "»", "(", ")", "[", "]"]
-        let chars = Array(s)
-        var out = ""
-        out.reserveCapacity(chars.count + 8)
-        var i = 0
-        while i < chars.count {
-            let c = chars[i]
-            guard dashes.contains(c) else {
-                out.append(c)
-                i += 1
-                continue
-            }
-            var j = i
-            while j < chars.count, dashes.contains(chars[j]) { j += 1 }
-            let before: Character? = i > 0 ? chars[i - 1] : nil
-            let after: Character? = j < chars.count ? chars[j] : nil
-            let spaceBefore = before == nil || before!.isWhitespace
-            let spaceAfter = after == nil || after!.isWhitespace
-            let wordBefore = before.map { $0.isLetter || $0.isNumber } ?? false
-            let wordAfter = after.map { $0.isLetter || $0.isNumber } ?? false
-            if wordBefore && wordAfter {
-                // Intra-word hyphen / range: keep as-is.
-                out.append(contentsOf: chars[i..<j])
-            } else if spaceBefore || spaceAfter {
-                // Aside / trailing / leading dash → pause.
-                if spaceBefore && !spaceAfter {
-                    out.append(", ")       // " -nobody" → " , nobody" (tidied to ", nobody")
-                } else {
-                    out.append(",")        // "year- " / " - " → "year, " / " , "
-                }
-            } else if wordBefore, let a = after, ".,;:!?…".contains(a),
-                      j + 1 == chars.count || chars[j + 1].isWhitespace || quoteLike.contains(chars[j + 1]) {
-                // Dash glued to closing punctuation ("etc-." / "etc-,"): drop it.
-            } else if (before.map(quoteLike.contains) ?? false) || (after.map(quoteLike.contains) ?? false) {
-                // Quote/bracket-adjacent (e.g. `”-` or `-“`): soft pause.
-                out.append(", ")
-            } else {
-                // Inside a token next to other punctuation (URL / path / code: `a.com/-/x`,
-                // `foo-_bar`): keep as-is; a ", " here would put a space into the URL.
-                out.append(contentsOf: chars[i..<j])
-            }
-            i = j
-        }
-        return out
-    }
+    // MARK: - Normalization (see TTSTextNormalize)
+
+    /// Forwards to `TTSTextNormalize` (shared listen prep). Prefer `SpeakableText` at new call sites.
+    static func normalize(_ text: String) -> String { TTSTextNormalize.normalize(text) }
 
     // MARK: - Chunking
+
 
     /// Estimated spoken length. Digits read as several syllables ("2.5 hundred", years).
     static func estimatedUnits(_ s: String) -> Int {
@@ -133,14 +79,14 @@ enum TextChunker {
     ///   clause boundary (`; : —` or `,`); if it has none, it stays whole.
     /// - Sentences longer than `hardMax` are cut into balanced pieces at the strongest boundaries.
     static func chunks(
-        for text: String,
+        forNormalized text: String,
         target: Int,
         hardMax: Int,
         firstTarget: Int,
         secondTarget: Int? = nil,
         alwaysSplitFirst: Bool = false
     ) -> [String] {
-        let normalized = normalize(text)
+        let normalized = text
         guard !normalized.isEmpty else { return [] }
         let target = min(target, hardMax)
         let wholeLimit = alwaysSplitFirst
@@ -399,7 +345,7 @@ enum TextChunker {
         let units = estimatedUnits(text)
         guard units > minResplit * 2 else { return [text] }
         let half = max(minResplit, units / 2 + 8)
-        let pieces = chunks(for: text, target: half, hardMax: half, firstTarget: half)
+        let pieces = chunks(forNormalized: TTSTextNormalize.normalize(text), target: half, hardMax: half, firstTarget: half)
         return pieces.count > 1 ? pieces : [text]
     }
 
