@@ -28,7 +28,9 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
 
     var isPrepared: Bool { load.isLoaded }
 
-    /// Soften ALL CAPS + keep `?`/`!` from being eaten by Phonon's ellipsis→period rewrite.
+    /// Thin Phonon-only footgun fixes (`?…`, shouty ALL CAPS). Gradium's own normalizer
+    /// (`normalize_text` / `Normalize::for_lang(.en)`) still runs automatically inside
+    /// `tts.synthesize` — we do not reimplement numbers/symbols here. See `synthesizeOnce`.
     func spokenText(forChunk text: String) -> String { PhononSpokenText.prepare(text) }
 
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
@@ -57,6 +59,9 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
                 do {
                     let needs = Phonon.needsCompiling(PhononModelStore.modelsDirectory)
                     ListenTimingLog.log("phonon_load_start", ["needs_compiling": needs])
+                    // `language: .english` turns Gradium normalize ON (Normalize::for_lang(En)).
+                    // `.none` would skip it. Numbers / @ / + / = / currency / … are rewritten
+                    // inside every later `synthesize` — no separate Swift `normalize()` call.
                     if let unit {
                         loaded = try await Phonon.load(
                             models: PhononModelStore.modelsDirectory,
@@ -104,6 +109,12 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
         }
         let t0 = ListenTimingLog.now()
         let samples: [Float]
+        // Pipeline into Phonon: Meridian `TTSTextNormalize` (shared pause rules) → chunk →
+        // `PhononSpokenText.prepare` (footguns) → here. Gradium then runs its English
+        // `normalize_text` automatically (language set at load): spells numbers/symbols,
+        // turns em/en dashes into spaces, spaced `;`/`:` into comma pauses, `…`→`.`.
+        // Meridian's em-dash→`: ` still matters — without it Gradium would drop the dash
+        // to whitespace (no pause); Gradium then remaps our spaced `:` to `, ` (still a pause).
         do {
             samples = try await tts.synthesize(trimmed)
         } catch is CancellationError {

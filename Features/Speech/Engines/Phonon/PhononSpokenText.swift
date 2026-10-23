@@ -1,13 +1,16 @@
 import Foundation
 
-/// Phonon-only spoken-text tweaks applied at render (not at plan time).
+/// Phonon-only spoken-text footguns applied at render (not at plan time).
 ///
-/// Phonon's Gradium normalizer keeps `?`/`!` and does not letter-spell ALL CAPS, but the 31m
-/// model is trained on ordinary mixed-case prose: shouty ALL CAPS and `?.` / `?…` (which
-/// Phonon's StringAppender collapses to a period, dropping the question mark) both sound wrong.
-/// Soften here so `tts.synthesize` sees readable case and surviving enders. Must only change
-/// letter case (or drop redundant `.`/`…` after `?`/`!`) — planned chunk text still reassembles
-/// to `TTSTextNormalize.normalize(paragraph)` for SubParagraphPosition / cache invariants.
+/// **Not** a second normalizer. Gradium's English `normalize_text` already runs inside every
+/// `Phonon.synthesize` because we load with `language: .english` (see `PhononHost`). That
+/// rewrite owns numbers, symbols, currency, ellipsis→`.`, dash→space, `;`/`:`→comma pauses.
+/// Meridian's shared `TTSTextNormalize` stays upstream for pause rules Gradium does not do
+/// the way we want (em dash → colon pause for both engines). This type only fixes Gradium
+/// mishandles *before* that path: shouty ALL CAPS (31m reads them oddly) and `?.` / `?…`
+/// (StringAppender pops `?`/`!` when it later pushes `.`). Must only change letter case or
+/// drop redundant `.`/`…` after `?`/`!` — planned chunks still reassemble to
+/// `TTSTextNormalize.normalize(paragraph)` for SubParagraphPosition / cache invariants.
 enum PhononSpokenText {
     static func prepare(_ text: String) -> String {
         var s = preserveQuestionAndExclaim(text)
