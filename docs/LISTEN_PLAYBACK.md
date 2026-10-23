@@ -635,9 +635,11 @@ check slots, min height 48), so state changes never move rows.
 
 1. **Voice ›** (`VoicePage`): the default voice for new articles and books, from the one voice
    switcher (`VoiceSelectionList`, C138a), the same list an article's or a book's *Voice* picker
-   shows. Engines are its sections: Kokoro's curated voices with samples (the default one marked
-   "(default)"; the model's download progress, tap to cancel, or *Remove Download* below them;
-   crash and failure notices in its footer), then Apple's: "Best for <language>" and the
+   shows. Engines are its sections: Kokoro's curated voices with samples (Heart marked
+   "(default)" and shipped installed; other packs show the prepared ↓ once downloaded; swipe
+   *Remove Download* on a downloaded pack — Heart only when another curated pack is installed;
+   the shared model's download progress below them, tap to cancel; crash and failure notices in
+   its footer), then Apple's: "Best for <language>" and the
    installed voices for the language, Premium, then Enhanced, then the rest. Picking a voice
    picks its engine; there is no Engine control. The row's value names it ("Heart", "Ava (Apple)").
 2. **Language ›** (`LanguagePage`), 3. **Speed**, the six speeds in one line.
