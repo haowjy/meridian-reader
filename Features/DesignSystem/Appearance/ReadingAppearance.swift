@@ -3,8 +3,8 @@ import SwiftUI
 /// How pages read (Settings › Reading and the Aa panel on the Reader and Now Playing): the reading
 /// theme, the typeface, the text size step, the line spacing and Scroll or Pages, stored in
 /// UserDefaults (`reading.theme`, `reading.font`, `reading.textSize`, `reading.lineSpacing`,
-/// `reading.layout`). Both editors bind
-/// to the one store in the environment, so they never disagree, and the page follows it live.
+/// `reading.layout`). Both editors use `ReadingAppearancePanel` bound to this one store, so they
+/// never disagree, and the page follows it live.
 @Observable
 final class ReadingAppearance {
     static let themeKey = "reading.theme"
@@ -76,4 +76,13 @@ final class ReadingAppearance {
 extension EnvironmentValues {
     /// The app's reading appearance store (`AppComposition`); a default one for previews.
     @Entry var readingAppearance = ReadingAppearance(defaults: .standard)
+}
+
+
+extension ReadingAppearance {
+    /// The text size stepper's values and actions (Aa panel and Settings › Reading).
+    var textSizeModel: TextSizeStepper.Model {
+        TextSizeStepper.Model(label: ReadingTextSize.label(step: textSizeStep), canShrink: canShrinkText,
+                              canGrow: canGrowText, shrink: shrinkText, grow: growText)
+    }
 }

@@ -5,17 +5,17 @@ import SwiftUI
 ///
 /// ```
 /// Settings                                              Done
-/// Appearance   [ System | Light | Dark ]  Color (●)(●)(●)(●)(●)
-/// Reading      themes (◐)(Aa)(Aa)(Aa)(Aa), font, size [A] 100% [A], spacing, Scroll / Pages, a sample
-/// Listening    engines (download, ↓ once downloaded, ✓ chosen), Voice ›, Language ›, Speed [0.75× … 2×]
+/// Listening    Voice ›, Language ›, Speed ›
+/// Appearance   Appearance › (System / Light / Dark + Color on the pushed page)
+/// Reading      Reading › (shared `ReadingAppearancePanel` / Aa controls on the pushed page)
 /// Browsing     Block Ads (on)
 /// Prepared audio    Prepared audio ›, the audio kept on this iPhone
 /// Developer    (developer options only) listen debug, fake extraction failure, the panel
 /// Version 1.0 (1)                        (2 s long-press: developer options on / off)
 /// ```
 ///
-/// Reading edits the same store as the Aa panel on the Reader and Now Playing
-/// (`ReadingAppearance`), so the two never disagree.
+/// Reading opens the same `ReadingAppearancePanel` as Aa on the Reader and Now Playing, so the two
+/// never disagree.
 struct SettingsView: View {
     @Bindable var speech: SpeechController
     let onDone: () -> Void
@@ -29,9 +29,9 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                AppearanceSettingsSection(appearance: AppAppearance.shared)
-                ReadingSettingsSection(appearance: reading)
                 ListeningSettingsSection(speech: speech)
+                appearanceLinkSection
+                readingLinkSection
                 BrowsingSettingsSection(blocker: contentBlocker)
                 StorageSettingsSection(speech: speech)
                 if developer.isEnabled {
@@ -57,6 +57,30 @@ struct SettingsView: View {
                  ? "Debug tools are shown in Settings › Developer. Long-press the version again to hide them."
                  : "Debug tools are hidden.")
         }
+    }
+
+    // MARK: - Appearance / Reading drill-ins
+
+    private var appearanceLinkSection: some View {
+        Section {
+            SettingsLinkRow(title: String(localized: "Appearance"), symbol: nil,
+                            value: AppAppearance.shared.mode.title,
+                            accessibilityID: "settingsAppearance") {
+                AppearanceSettingsPage(appearance: AppAppearance.shared)
+            }
+        }
+        .listCard()
+    }
+
+    private var readingLinkSection: some View {
+        Section {
+            SettingsLinkRow(title: String(localized: "Reading"), symbol: nil,
+                            value: reading.theme.title,
+                            accessibilityID: "settingsReading") {
+                ReadingSettingsPage()
+            }
+        }
+        .listCard()
     }
 
     // MARK: - Version / developer options
@@ -90,68 +114,49 @@ struct SettingsView: View {
 }
 
 /// Settings › Appearance: the app's appearance and its colour (`AppAppearance`).
-private struct AppearanceSettingsSection: View {
+private struct AppearanceSettingsPage: View {
     @Bindable var appearance: AppAppearance
 
     var body: some View {
-        Section {
-            SettingsControlRow(title: Verbs.theme) {
-                ChoicePicker(options: AppearanceMode.allCases, selection: $appearance.mode,
-                             identifier: "appearanceMode") { mode in
-                    Text(mode.title).typeStyle(.row)
+        List {
+            Section {
+                SettingsControlRow(title: Verbs.theme) {
+                    ChoicePicker(options: AppearanceMode.allCases, selection: $appearance.mode,
+                                 identifier: "appearanceMode") { mode in
+                        Text(mode.title).typeStyle(.row)
+                    }
+                }
+                SettingsControlRow(title: String(localized: "Color")) {
+                    AccentThemePicker(selection: $appearance.accent)
                 }
             }
-            SettingsControlRow(title: String(localized: "Color")) {
-                AccentThemePicker(selection: $appearance.accent)
-            }
-        } header: {
-            SectionHeader(title: String(localized: "Appearance")).listHeader()
+            .listCard()
         }
-        .listCard()
+        .cardListStyle()
+        .navigationTitle(String(localized: "Appearance"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
-/// Settings › Reading: the reading theme, typeface, text size, line spacing and Scroll or Pages, the
-/// same store and controls as the Aa panel, with a sample in what is chosen.
-private struct ReadingSettingsSection: View {
-    @Bindable var appearance: ReadingAppearance
+/// Settings › Reading: the shared Aa panel (`ReadingAppearancePanel` → `TextAppearancePanel`).
+private struct ReadingSettingsPage: View {
+    @Environment(\.readingAppearance) private var appearance
 
     var body: some View {
-        let accent = AppAppearance.shared.accent
-        Section {
-            SettingsControlRow(title: Verbs.theme) {
-                ReadingThemePicker(selection: $appearance.theme, accent: accent)
+        List {
+            Section {
+                ReadingAppearancePanel(appearance: appearance)
+                    .listRowInsets(EdgeInsets())
+            } footer: {
+                Text("How the Reader and Now Playing show articles. Aa at the top of either changes the same settings.")
+                    .listFooter()
             }
-            SettingsControlRow(title: String(localized: "Font")) {
-                ChoicePicker(options: ReadingFont.allCases, selection: $appearance.font, identifier: "readingFont") { font in
-                    Text(font.title).typeStyle(.row, weight: .medium, design: font.design)
-                }
-            }
-            SettingsControlRow(title: Verbs.textSize) {
-                TextSizeStepper(model: appearance.textSizeModel)
-            }
-            SettingsControlRow(title: String(localized: "Line Spacing")) {
-                ChoicePicker(options: ReadingLineSpacing.allCases, selection: $appearance.lineSpacing,
-                             identifier: "readingLineSpacing") { spacing in
-                    Text(spacing.title).typeStyle(.row)
-                }
-            }
-            SettingsControlRow(title: String(localized: "Layout")) {
-                ChoicePicker(options: ReadingLayout.allCases, selection: $appearance.layout,
-                             identifier: "readingLayout") { layout in
-                    Text(layout.title).typeStyle(.row)
-                }
-            }
-            ReadingSample(palette: appearance.palette(accent: accent), font: appearance.font,
-                          textScale: appearance.textScale, lineSpacing: appearance.lineSpacing)
-                .padding(.vertical, Spacing.xs)
-        } header: {
-            SectionHeader(title: String(localized: "Reading")).listHeader()
-        } footer: {
-            Text("How the Reader and Now Playing show articles. Aa at the top of either changes the same settings.")
-                .listFooter()
+            .listCard()
         }
-        .listCard()
+        .cardListStyle()
+        .navigationTitle(String(localized: "Reading"))
+        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("settingsReadingPage")
     }
 }
 

@@ -21,9 +21,9 @@ struct TextAppearanceButton: View {
 }
 
 /// How the page reads, changed live under it: the reading theme, the typeface, the text size, the
-/// line spacing and Scroll or Pages. Shown by Aa on the Reader and Now Playing; Settings › Reading
-/// holds the same controls (`ReadingThemePicker`, `ChoicePicker`, `TextSizeStepper`), bound to the
-/// same store.
+/// line spacing and Scroll or Pages. Shown by Aa on the Reader and Now Playing, and by
+/// Settings › Reading, via the shared `ReadingAppearancePanel` wrapper (same store, same controls).
+/// Aa sizes the popover with `Panel.width`; Settings lets the panel fill its card.
 ///
 /// ```
 /// (◐)  (Aa)  (Aa)  (Aa)  (Aa)       themes: Match App, Light, Sepia, Dark, Black
@@ -59,9 +59,24 @@ struct TextAppearancePanel: View {
             }
         }
         .padding(Spacing.m)
-        .frame(width: Panel.width)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("textAppearancePanel")
+    }
+}
+
+/// The panel bound to `ReadingAppearance`; Aa and Settings › Reading both present this type so the
+/// controls never drift apart. It refreshes the reading palette when a theme is chosen.
+struct ReadingAppearancePanel: View {
+    @Bindable var appearance: ReadingAppearance
+
+    var body: some View {
+        let accent = AppAppearance.shared.accent
+        TextAppearancePanel(
+            theme: $appearance.theme, font: $appearance.font, lineSpacing: $appearance.lineSpacing,
+            layout: $appearance.layout, textSize: appearance.textSizeModel, accent: accent
+        )
+        .readingSurface(appearance.palette(accent: accent))
     }
 }
 
