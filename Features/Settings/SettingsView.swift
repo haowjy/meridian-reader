@@ -6,12 +6,10 @@ import SwiftUI
 /// ```
 /// Settings                                              Done
 /// Listening    Voice ›, Language ›, Speed ›
-/// Appearance   Appearance › (System / Light / Dark + Color on the pushed page)
-/// Reading      Reading › (shared `ReadingAppearancePanel` / Aa controls on the pushed page)
+/// Appearance / Reading   Appearance ›, Reading › (one card; drill-ins)
 /// Browsing     Block Ads (on)
-/// Prepared audio    Prepared audio ›, the audio kept on this iPhone
+/// Prepared Audio & Storage   Prepared audio ›, sizes, Version (long-press: developer options)
 /// Developer    (developer options only) listen debug, fake extraction failure, the panel
-/// Version 1.0 (1)                        (2 s long-press: developer options on / off)
 /// ```
 ///
 /// Reading opens the same `ReadingAppearancePanel` as Aa on the Reader and Now Playing, so the two
@@ -30,16 +28,16 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 ListeningSettingsSection(speech: speech)
-                appearanceLinkSection
-                readingLinkSection
+                appearanceAndReadingSection
                 BrowsingSettingsSection(blocker: contentBlocker)
-                StorageSettingsSection(speech: speech)
+                StorageSettingsSection(speech: speech, versionRow: { versionRow })
                 if developer.isEnabled {
                     DeveloperSettingsSection()
                 }
-                versionSection
             }
             .cardListStyle()
+            // Tighter than Library cards: Settings root has many short sections.
+            .listSectionSpacing(Spacing.xs)
             .navigationTitle(Verbs.settings)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -59,21 +57,15 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Appearance / Reading drill-ins
+    // MARK: - Appearance / Reading drill-ins (one card)
 
-    private var appearanceLinkSection: some View {
+    private var appearanceAndReadingSection: some View {
         Section {
             SettingsLinkRow(title: String(localized: "Appearance"), symbol: nil,
                             value: AppAppearance.shared.mode.title,
                             accessibilityID: "settingsAppearance") {
                 AppearanceSettingsPage(appearance: AppAppearance.shared)
             }
-        }
-        .listCard()
-    }
-
-    private var readingLinkSection: some View {
-        Section {
             SettingsLinkRow(title: String(localized: "Reading"), symbol: nil,
                             value: reading.theme.title,
                             accessibilityID: "settingsReading") {
@@ -83,27 +75,24 @@ struct SettingsView: View {
         .listCard()
     }
 
-    // MARK: - Version / developer options
+    // MARK: - Version / developer options (last row of Storage card)
 
-    private var versionSection: some View {
-        Section {
-            SymbolRow(DeveloperSettings.versionLabel, symbol: nil, ink: Palette.secondaryInk) {
-                if developer.isEnabled {
-                    Text("Developer options")
-                        .typeStyle(.caption)
-                }
-            }
-            .onLongPressGesture(minimumDuration: DeveloperSettings.unlockPressSeconds) {
-                toggleDeveloperOptions()
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("settingsVersionRow")
-            .accessibilityAction(named: developer.isEnabled
-                                 ? "Turn off developer options" : "Turn on developer options") {
-                toggleDeveloperOptions()
+    private var versionRow: some View {
+        SymbolRow(DeveloperSettings.versionLabel, symbol: nil, ink: Palette.secondaryInk) {
+            if developer.isEnabled {
+                Text("Developer options")
+                    .typeStyle(.caption)
             }
         }
-        .listCard()
+        .onLongPressGesture(minimumDuration: DeveloperSettings.unlockPressSeconds) {
+            toggleDeveloperOptions()
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("settingsVersionRow")
+        .accessibilityAction(named: developer.isEnabled
+                             ? "Turn off developer options" : "Turn on developer options") {
+            toggleDeveloperOptions()
+        }
     }
 
     private func toggleDeveloperOptions() {
@@ -169,9 +158,9 @@ private struct BrowsingSettingsSection: View {
             SettingsToggleRow(title: String(localized: "Block Ads"), symbol: Icons.blockAds,
                               isOn: $blocker.isEnabled, accessibilityID: "blockAdsToggle")
         } header: {
-            SectionHeader(title: String(localized: "Browsing")).listHeader()
+            SectionHeader(title: String(localized: "Browsing"), size: .settings).listHeader()
         } footer: {
-            Text("Stops common ad and tracker sites from loading in web pages, Follow's included. A change applies to pages loaded after it.")
+            Text("Blocks ads and trackers on pages loaded after you change this.")
                 .listFooter()
         }
         .listCard()
@@ -181,8 +170,9 @@ private struct BrowsingSettingsSection: View {
 /// Settings › Prepared Audio & Storage (C134): the Prepared Audio list, and the audio kept on
 /// this iPhone in two figures: prepared (chosen, never cleared automatically) and from listening
 /// (cleared once its article leaves Recent).
-private struct StorageSettingsSection: View {
+private struct StorageSettingsSection<VersionRow: View>: View {
     let speech: SpeechController
+    @ViewBuilder var versionRow: () -> VersionRow
 
     @Environment(PrepareCenter.self) private var preparedAudio
     @State private var preparedBytes: Int64?
@@ -198,10 +188,11 @@ private struct StorageSettingsSection: View {
             }
             sizeRow(String(localized: "Prepared Audio"), bytes: preparedBytes, id: "settingsPreparedSize")
             sizeRow(String(localized: "Audio From Listening"), bytes: listeningBytes, id: "settingsAudioSize")
+            versionRow()
         } header: {
-            SectionHeader(title: String(localized: "Prepared Audio & Storage")).listHeader()
+            SectionHeader(title: String(localized: "Prepared Audio & Storage"), size: .settings).listHeader()
         } footer: {
-            Text("Prepared audio stays until you delete it. Audio from listening is cleared once its article leaves the last \(LibraryStore.recentLimit) in Recent.")
+            Text("Prepared stays until you delete it. Listening audio clears when it leaves Recent.")
                 .listFooter()
         }
         .listCard()
@@ -258,7 +249,7 @@ private struct DeveloperSettingsSection: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("listenDebugSettings")
         } header: {
-            SectionHeader(title: String(localized: "Developer")).listHeader()
+            SectionHeader(title: String(localized: "Developer"), size: .settings).listHeader()
         } footer: {
             Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes every extraction fail (Reader, Save, Follow, Prepared Audio) until the app quits.")
                 .listFooter()

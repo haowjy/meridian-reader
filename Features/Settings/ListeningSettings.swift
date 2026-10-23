@@ -27,7 +27,7 @@ struct ListeningSettingsSection: View {
                 SpeedPage(speech: speech)
             }
         } header: {
-            SectionHeader(title: String(localized: "Listening")).listHeader()
+            SectionHeader(title: String(localized: "Listening"), size: .settings).listHeader()
         } footer: {
             if let notice = localTTS.engineCrashNotice {
                 Text(notice).foregroundStyle(Palette.destructive).listFooter()
