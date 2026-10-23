@@ -46,10 +46,10 @@ final class TextChunkerTests: XCTestCase {
 
     // MARK: - Normalize pauses (em dash / semicolon)
 
-    func testNormalizeEmDashBetweenWordsBecomesCommaPause() {
+    func testNormalizeEmDashBetweenWordsBecomesColonPause() {
         let out = TTSTextNormalize.normalize("It got worse—and then better.")
         XCTAssertFalse(out.contains("—"), out)
-        XCTAssertTrue(out.contains("worse, and"), out)
+        XCTAssertTrue(out.contains("worse: and"), out)
     }
 
     func testNormalizeKeepsEnDashRanges() {
@@ -72,10 +72,10 @@ final class TextChunkerTests: XCTestCase {
         XCTAssertTrue(out.contains("three-day"), out)
     }
 
-    func testNormalizeSpacedDashBecomesCommaPause() {
+    func testNormalizeSpacedDashBecomesColonPause() {
         let out = TTSTextNormalize.normalize("The docks — porters, pilots — were busy.")
         XCTAssertFalse(out.contains("—"), out)
-        XCTAssertTrue(out.contains(","), out)
+        XCTAssertEqual(out, "The docks: porters, pilots: were busy.")
     }
 
     func testNormalizeSemicolonBecomesCommaPause() {
@@ -84,9 +84,9 @@ final class TextChunkerTests: XCTestCase {
         XCTAssertEqual(out, "She showed a map, it was covered in red dots.")
     }
 
-    func testNormalizeClauseSemicolonBecomesCommaAndEmDashPause() {
+    func testNormalizeClauseSemicolonBecomesCommaAndEmDashColon() {
         let out = TTSTextNormalize.normalize("Hello world—really; yes.")
-        XCTAssertEqual(out, "Hello world, really, yes.")
+        XCTAssertEqual(out, "Hello world: really, yes.")
     }
 
     // MARK: - Giant paragraphs

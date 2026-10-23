@@ -1,12 +1,12 @@
 import Foundation
 
 /// Shared meaning-preserving cleanup before synth (any on-device engine).
-/// Whitespace collapse, aside/em dashes → comma pauses, clause semicolons → pauses,
+/// Whitespace collapse, aside/em dashes → colon pauses, clause semicolons → comma pauses,
 /// punctuation tidy. Does not change displayed reader HTML — listen path only.
 enum TTSTextNormalize {
     /// Light, meaning-preserving cleanup before synth.
     /// - collapses all whitespace runs (incl. newlines / NBSP) to one space
-    /// - turns aside dashes and glued em/horizontal-bar dashes into commas so the engine pauses
+    /// - turns aside dashes and glued em/horizontal-bar dashes into colons so the engine pauses
     ///   (` - `, `worse—and`, spaced ` — `); ASCII hyphen compounds stay (`Ashby-Lowell`,
     ///   `three-day`); en/figure dashes between word characters stay (ranges: `10–12`,
     ///   `Monday–Friday`)
@@ -21,6 +21,11 @@ enum TTSTextNormalize {
         // not a clause break (URL / path / code: `a.com/x;y=1`).
         s = s.replacingOccurrences(of: #";(?=\s|$)"#, with: ",", options: .regularExpression)
         // Tidy punctuation the dash / semicolon passes can create.
+        s = s.replacingOccurrences(of: #"\s+:"#, with: ":", options: .regularExpression)
+        s = s.replacingOccurrences(of: #":(\s*[:,])+|,(\s*,)*\s*:"#, with: ":", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"([.!?…]):"#, with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: #":\s*([.!?…])"#, with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"^:\s*"#, with: "", options: .regularExpression)
         s = s.replacingOccurrences(of: #"\s+,"#, with: ",", options: .regularExpression)
         s = s.replacingOccurrences(of: #",(\s*,)+"#, with: ",", options: .regularExpression)
         s = s.replacingOccurrences(of: #"([.!?…]),"#, with: "$1", options: .regularExpression)
@@ -35,7 +40,7 @@ enum TTSTextNormalize {
     /// between letters/digits stays (compounds / ranges).
     private static func replaceAsideDashes(_ s: String) -> String {
         let dashes: Set<Character> = ["-", "–", "—", "‒", "―"]
-        // Between word characters, only these become a comma pause.
+        // Between word characters, only these become a colon pause.
         let clauseDashes: Set<Character> = ["—", "―"]
         let quoteLike: Set<Character> = ["\"", "'", "“", "”", "‘", "’", "«", "»", "(", ")", "[", "]"]
         let chars = Array(s)
@@ -64,15 +69,15 @@ enum TTSTextNormalize {
                     // Intra-word hyphen / en-dash range: keep as-is (`Ashby-Lowell`, `10–12`).
                     out.append(contentsOf: run)
                 } else {
-                    // Em / horizontal-bar between words → clause pause (books: "worse—and").
-                    out.append(", ")
+                    // Em / horizontal-bar between words → colon pause (books: "worse—and" → "worse: and").
+                    out.append(": ")
                 }
             } else if spaceBefore || spaceAfter {
                 // Aside / trailing / leading dash → pause.
                 if spaceBefore && !spaceAfter {
-                    out.append(", ") // " -nobody" → " , nobody" (tidied to ", nobody")
+                    out.append(": ") // " -nobody" → " : nobody" (tidied to ": nobody")
                 } else {
-                    out.append(",") // "year- " / " - " → "year, " / " , "
+                    out.append(":") // "year- " / " - " → "year: " / " : "
                 }
             } else if wordBefore, let a = after, ".,;:!?…".contains(a),
                       j + 1 == chars.count || chars[j + 1].isWhitespace || quoteLike.contains(chars[j + 1]) {

@@ -449,8 +449,8 @@ audio" rule all read it.
 - **Sentences first.** Whole sentences are packed up to the chunk's budget (abbreviation-,
   initial-, "U.S.A."- and decimal-aware). A sentence that fits the hard max is split only to make
   the short first chunk or the ramp; longer ones are cut by `balancedSplit` (sentence-like
-  `etc. The` > `:` > `,` > before a conjunction > space, pieces balanced). Aside / em dashes and clause semicolons become
-  commas (pause) in `TTSTextNormalize` before split, so strength after normalize is mostly `:` > `,`;
+  `etc. The` > `:` > `,` > before a conjunction > space, pieces balanced). Aside / em dashes become
+  colons and clause semicolons become commas (pauses) in `TTSTextNormalize` before split, so strength after normalize is mostly `:` > `,`;
   ASCII hyphen compounds stay (`Ashby-Lowell`); en-dash ranges stay (`10–12`); a dash glued to punctuation
   goes ("etc-." → "etc."). Prep is normalize then `TextChunker.chunks(for:limits:)`.
 - **First chunk** (fast first audio):
