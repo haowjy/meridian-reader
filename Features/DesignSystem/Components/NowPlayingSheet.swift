@@ -94,8 +94,8 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     }
 }
 
-/// Now Playing's transport row in the five-slot grid: `[leading] [⏮] (⏸) [⏭] [more]`, with 🔖
-/// first and ⋯ last, where the Reader's toolbar has them. The play button is the big round disc
+/// Transport row in the five-slot grid: `[leading] [⏮] (⏸) [⏭] [more]`. Now Playing puts 🔖
+/// first and ⋯ last; the Reader puts speed (`1×`) first and ⋯ last. The play button is the big round disc
 /// and reads "Play" / "Pause" like any player's. The row keeps the grid's 44 pt height, so every slot (and ⋯) sits where it does on the other surfaces; the
 /// disc reaches past it by half the difference. The row keeps that room above it, and below it
 /// too where the home indicator's inset doesn't already give it (a phone with a Home button).

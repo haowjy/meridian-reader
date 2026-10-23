@@ -48,11 +48,11 @@ enum Verbs {
     static let playFromStart = String(localized: "Play from Start")
     static let prepare = String(localized: "Prepare Audio")
     /// A page's, in its menu and in the Prepared Audio list: its audio deleted, and it stays out of
-    /// every download (P8). A voice model's in Settings (its swipe): the model deleted, to be
-    /// prepared again before the engine speaks.
+    /// every download (P8).
     static let removePrepare = String(localized: "Remove Prepared Audio")
-    /// A voice model's, in Settings (its swipe) and the CPU route bench: a real file download.
-    static let removeModelDownload = String(localized: "Remove Prepared Audio")
+    /// A voice model's, in Settings › Voice (and the CPU route bench): the model files deleted so
+    /// they download again before the engine speaks. Not prepared-audio removal.
+    static let removeModelDownload = String(localized: "Remove Download")
     /// The Prepared Audio list's row action (C135): the audio only, never the article.
     static let deleteAudio = String(localized: "Delete Audio")
     static let deleteAllPrepared = String(localized: "Delete All…")

@@ -137,9 +137,9 @@ struct ReaderSheetGallery: View {
                 ScrubTrack(value: 0).frame(height: 20)
                 NowPlayingTransport(state: state, canSkipBack: false, canSkipForward: false,
                                     onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
-                    Image(systemName: Icons.more).toolbarIconFrame()
-                } more: {
                     Text("1x").typeStyle(.caption).foregroundStyle(Palette.ink).fieldTextFrame()
+                } more: {
+                    Image(systemName: Icons.more).toolbarIconFrame()
                 }
             }
         } more: {

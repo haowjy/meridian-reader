@@ -103,15 +103,15 @@ struct ReaderSheetScreen: View {
                 }
                 // Scrub track (thin, no capsule, full width)
                 readerScrubTrack(palette: palette)
-                // Transport: [...] [⏮] (▶) [⏭] [1x]
+                // Transport: [1x] [⏮] (▶) [⏭] [...]
                 NowPlayingTransport(state: speech.playState(of: .article(readerArticle.id)),
                                     canSkipBack: false, canSkipForward: false,
                                     onSkipBack: {}, onSkipForward: {},
                                     onPlayPause: { self.listen(from: nil, start: start) }) {
+                    SpeedButton(speech: speech)
+                } more: {
                     MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
                         .foregroundStyle(palette.ink)
-                } more: {
-                    SpeedButton(speech: speech)
                 }
             }
         } more: {
