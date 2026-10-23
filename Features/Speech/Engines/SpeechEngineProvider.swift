@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One adapter per voice library (Apple, FluidAudio). Registers the engines
+/// One adapter per voice library (Apple, FluidAudio, Phonon). Registers the engines
 /// it provides and builds their synth hosts. Only provider files import the library.
 /// What a provider needs to decide its hooks (launch arguments, settings) comes in at its init,
 /// from `AppComposition.makeProviders()`.

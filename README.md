@@ -1,7 +1,7 @@
 # Meridian Reader
 
 A personal iOS app for listening to web articles. Browse in the app, extract a clean copy with
-Readability, save it, and listen offline with Apple's voices or Kokoro running on the device.
+Readability, save it, and listen offline with Apple's voices, Kokoro, or Phonon (on-device, selectable) running on the device.
 
 ## Open and run
 
@@ -25,7 +25,7 @@ Requirements: Xcode with the iOS 17+ SDK and [XcodeGen](https://github.com/yonas
 - Reader view extracted from the live article with Mozilla Readability
 - Library of saved articles (SwiftData), bookmarks and history
 - Listening: sentence and paragraph scrubbing, speed changes in place, mini player, lock screen
-- On-device Kokoro (vendored FluidAudio and ONNX Runtime) with Apple speech as the fallback
+- On-device Kokoro (vendored FluidAudio and ONNX Runtime) and Phonon 31m English (ptts / Core ML, not default), with Apple speech as the fallback
 
 The app icon source is `Resources/Brand/meridian-reader-icon-g1.svg`, exported into
 `Resources/Assets.xcassets/AppIcon.appiconset`.

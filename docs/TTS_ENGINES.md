@@ -1,9 +1,10 @@
 # TTS engines
 
-Meridian Reader speaks with **Apple TTS** (always available, the default and the fallback) or **Kokoro**,
-an optional on-device neural voice. Voice libraries plug in behind one registry, so the listen
-core never imports a library or switches on engine types. How playback, rendering and the audio
-cache use an engine is in `LISTEN_PLAYBACK.md`.
+Meridian Reader speaks with **Apple TTS** (always available, the default and the fallback) or an
+optional on-device neural voice: **Kokoro** (default on-device choice) or **Phonon** 31m English
+(selectable, not default). Voice libraries plug in behind one registry, so the listen core never
+imports a library or switches on engine types. How playback, rendering and the audio cache use an
+engine is in `LISTEN_PLAYBACK.md`.
 
 ## Shape
 
@@ -18,7 +19,7 @@ Listen UI  →  SpeechController  →  ListenEngine (bound per utterance)
                                       └─ LocalListenEngine   LocalListenPlayer: file player + producer
                                                                └─ ListenUnitSource (per play): audio cache + GlobalSynthQueue
                                                                     → LocalSynthService → LocalChunkRenderer
-                                                                       → LocalSynthHost (KokoroCPUHost / KokoroHost)
+                                                                       → LocalSynthHost (KokoroCPUHost / KokoroHost / PhononHost)
 ```
 
 ```swift
@@ -174,11 +175,35 @@ section (`KokoroRouteDebugSection`, from the provider's `debugSections`) changes
 (`setFastGPURoute`, `setCPUThreads`), then asks the coordinator to rebuild the live host
 (`LocalTTSCoordinator.reloadEngine`, which knows no engine).
 
+
+## Phonon
+
+Optional on-device English TTS via Gradium [`ptts`](https://github.com/gradium-ai/xn-ptts) 0.4.0
+(Phonon 31m Core ML). **Not the default** — Settings → Listen lists it beside Kokoro; Apple stays
+the fallback. iOS 18+.
+
+| | |
+|---|---|
+| Engine id | `local.phonon` |
+| Host | `PhononHost` (`computeUnit: .cpu` in this PR for the CPU probe vs Kokoro ONNX) |
+| Models | `phonon-31m-en-coreml.zip` (~131 MB) downloaded on first use into Application Support, unzipped, then `PhononModels.install` → `PhononTTS/models` |
+| Voices | Full English set in the zip (`PhononVoiceCatalog`); default `default` |
+| Chunking | `TextChunker.Limits.phonon` (short first chunk for TTFA) |
+| Background | No (`rendersInBackground` false) — Core ML path |
+| Probe label | `phonon-31m cpu` (`routingLabel`); `-engineProbe -probeOnly Phonon,Kokoro` |
+
+Desktop GGUF "q8" is a different stack; on iOS the fair CPU comparison is Core ML
+`computeUnit: .cpu` vs Kokoro's ONNX CPU route. ANE remains Phonon's upstream default and can be
+re-enabled later once the CPU numbers are in.
+
+Files: `Features/Speech/Engines/Phonon/` (`PhononProvider`, `PhononHost`, `PhononModelStore`,
+`PhononVoiceCatalog`). Registered from `AppComposition.makeProviders()`.
+
 ## Engine registry
 
 ```
 AppComposition (composition root: the only file that lists libraries)
-  └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider])
+  └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider, PhononProvider])
        └─ injected → LocalTTSCoordinator(engines:defaults:…) → LocalSynthService(engines:)
             └─ SpeechController(localTTS:defaults:) over the coordinator
 

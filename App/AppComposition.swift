@@ -176,11 +176,12 @@ enum AppComposition {
             AppleSpeechProvider(),
             FluidAudioProvider(coreMLUnits: options.kokoroUnits,
                                keepsCoreMLStages: options.kokoroStress?.route == .coreml),
+            PhononProvider(),
         ]
         if options.usesTestVoice { providers.append(TestVoiceProvider()) }
         return providers
         #else
-        return [AppleSpeechProvider(), FluidAudioProvider()]
+        return [AppleSpeechProvider(), FluidAudioProvider(), PhononProvider()]
         #endif
     }
 
