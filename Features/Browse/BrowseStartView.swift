@@ -23,6 +23,7 @@ struct BrowseStartView: View {
     @AppStorage(RecentSearches.storageKey) private var recentSearchesRaw = ""
     @State private var alertMessage: String?
     @Environment(\.readingAppearance) private var readingAppearance
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private var webStore: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
@@ -41,8 +42,10 @@ struct BrowseStartView: View {
 
     private var recentSearches: [String] { RecentSearches.decode(recentSearchesRaw) }
 
+    private var isRegular: Bool { sizeClass == .regular }
+
     var body: some View {
-        browser
+        regularShell(browser)
             // Under the sheets the browser stays as it is (so pulling one down reveals it), but it
             // is out of reach until they are gone.
             .covered(isCovered)
@@ -167,6 +170,28 @@ struct BrowseStartView: View {
                              context.isOnReadingPage ? readingAppearance.palette(accent: AppAppearance.shared.accent) : nil
                          }) { context, close in
             MoreMenuPanel(context: context, close: close)
+        }
+    }
+
+
+    /// Regular width: persistent ~280 pt sidebar + main pane. Compact is unchanged.
+    @ViewBuilder
+    private func regularShell<Content: View>(_ content: Content) -> some View {
+        if isRegular {
+            HStack(spacing: 0) {
+                if !shell.sidebarCollapsed {
+                    RegularShellSidebar()
+                }
+                ZStack(alignment: .topLeading) {
+                    content
+                    if shell.sidebarCollapsed {
+                        RegularSidebarRevealButton()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        } else {
+            content
         }
     }
 

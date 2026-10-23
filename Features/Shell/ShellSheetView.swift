@@ -10,6 +10,9 @@ struct ShellSheetView: View {
     @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private var isRegular: Bool { sizeClass == .regular }
 
     var body: some View {
         content(sheet)
@@ -29,6 +32,7 @@ struct ShellSheetView: View {
             FolderDetailsSheet(folderID: id)
         case .voice(let target):
             VoicePickerSheet(target: target)
+                .regularInsetFormSheet(isRegular: isRegular)
         case .follow(let flow):
             FollowSheet(flow: flow)
         case .following(let id):
@@ -43,6 +47,7 @@ struct ShellSheetView: View {
             .presentationDragIndicator(.visible)
         case .settings:
             SettingsView(speech: speech) { shell.sheet = nil }
+                .regularInsetFormSheet(isRegular: isRegular)
         case .share(let url):
             ActivityShareSheet(items: [url])
                 .presentationDetents([.medium, .large])

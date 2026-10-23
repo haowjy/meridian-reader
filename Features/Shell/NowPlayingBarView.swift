@@ -185,7 +185,7 @@ private struct BarMenu: View {
 /// The bar's cover, decoded once per page: the bar redraws several times a second while playing,
 /// and a fresh `UIImage` each pass would decode the picture again. Not observed: filling it
 /// redraws nothing.
-private final class BarCover {
+final class BarCover {
     private var key: UUID?
     private var data: Data?
     private var image: Image?

@@ -28,29 +28,64 @@ struct BrowserBottomChrome: View {
     let menu: () -> MenuContext
 
     @Environment(ShellState.self) private var shell
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    /// Regular-width: omit phone swap + Now Playing row (sidebar + clustered dock own those).
+    private var isRegular: Bool { sizeClass == .regular }
 
     private var web: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
     private var isDictating: Bool { dictation?.isActive == true }
 
     var body: some View {
-        SurfaceBand(
-            swap: .init(systemImage: Icons.library, label: Verbs.library,
-                        hint: String(localized: "Show the Library"), identifier: "browseLibrary",
-                        action: shell.openLibrary),
-            session: search,
-            cancelID: "addressCancel",
-            onCancel: shell.endAddressSearch,
-            // Like Safari: the session starts with the page's full address, selected.
-            begin: { search.begin(with: web.currentURL?.absoluteString ?? "") },
-            isBarCovered: shell.reader != nil
-        ) { focus in
-            addressField(focus)
-        } toolbar: {
-            toolbar
+        Group {
+            if isRegular {
+                regularChrome
+            } else {
+                SurfaceBand(
+                    swap: .init(systemImage: Icons.library, label: Verbs.library,
+                                hint: String(localized: "Show the Library"), identifier: "browseLibrary",
+                                action: shell.openLibrary),
+                    session: search,
+                    cancelID: "addressCancel",
+                    onCancel: shell.endAddressSearch,
+                    // Like Safari: the session starts with the page's full address, selected.
+                    begin: { search.begin(with: web.currentURL?.absoluteString ?? "") },
+                    isBarCovered: shell.reader != nil
+                ) { focus in
+                    addressField(focus)
+                } toolbar: {
+                    toolbar
+                }
+            }
         }
         .overlay(alignment: .top) { LoadProgressLine(web: web) }
         .animation(Motion.snappy, value: listenState)
+    }
+
+    /// Regular: address field as main-pane chrome; clustered player + browse tools in the dock.
+    /// Sidebar owns Library swap. Compact path above is unchanged.
+    private var regularChrome: some View {
+        VStack(spacing: 0) {
+            SurfaceBand(
+                swap: nil,
+                session: search,
+                cancelID: "addressCancel",
+                onCancel: shell.endAddressSearch,
+                begin: { search.begin(with: web.currentURL?.absoluteString ?? "") },
+                isBarCovered: shell.reader != nil,
+                showsNowPlayingBar: false,
+                showsToolbar: false
+            ) { focus in
+                addressField(focus)
+            } toolbar: {
+                EmptyView()
+            }
+            if !search.isActive {
+                ClusteredPlayerDock(speech: speech, isCovered: shell.reader != nil,
+                                    trailingTools: AnyView(toolbar))
+            }
+        }
     }
 
     // MARK: - Address field
