@@ -63,7 +63,7 @@ Before the first submission:
    - Privacy: https://haowjy.github.io/meridian-reader/privacy.html
    - Support: https://haowjy.github.io/meridian-reader/support.html
    Paste both into App Store Connect › App Information. Settings in the app also links to them.
-5. **Screenshots**: at least one set for 6.7" and 6.1" displays (iPhone only; `TARGETED_DEVICE_FAMILY = 1`).
+5. **Screenshots**: iPhone 6.7" and 6.1" sets, plus iPad 12.9"/13" portrait (`TARGETED_DEVICE_FAMILY = 1,2`). Framed previews live under `~/.meridian/.../work/release/screenshots/app-store/` (not in this repo).
 6. **Age rating**: answer the questionnaire (no objectionable content).
 7. **Export compliance**: the app declares `ITSAppUsesNonExemptEncryption = NO` in Info.plist,
    so Apple skips the export compliance question on each submission.
