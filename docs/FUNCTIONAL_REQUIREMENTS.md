@@ -24,12 +24,13 @@ its last article (reloaded). A fresh install opens the Library.
 |----|-------------|
 | B1 | The address field takes a URL (loaded in the in-app web view) or search text (a Google search). |
 | B2 | Pages open only by user action; links navigate normally. ‹ / › are web history. |
-| B3 | The start page shows starred pages and folders as a Favorites icon grid, along with Recent Searches; Show All opens the Library's Favorites tab. |
+| B3 | The start page shows starred pages that have their own http(s) address as a Favorites icon grid (no folders here), along with Recent Searches; a tap opens that address in Browse; Show All opens the Library's Favorites tab (which still lists starred folders and every starred page). |
 | B4 | While typing: local matches (history, saved articles) first, then live Google suggestions (unofficial endpoint, debounced). If Google fails, only local matches show, with no error. |
 | B5 | History keeps the last 30 visited pages (title, host, favicon), deduped by canonical URL. Clearing history never deletes saved articles. |
 | B6 | ☆ *Add to Favorites* sets an independent star flag without moving the article. A new favorite may be a link (URL, title, favicon) without being saved; an article stays where it is, in the Library or not (starring never files it). Favorites lists every starred article, in the Library or not, and a starred article is never pruned. Unstarring only clears the star. *Remove from Library* never clears it: the article leaves every Library list and stays in Favorites. One article per address; a chapter can be starred like any other article. |
 | B7 | Dictation fills the address field while searching, on-device where the language allows; nothing is submitted automatically, and listening pauses while the mic is open. |
 | B8 | Loading pages needs the network. |
+| B9 | **Open In / Share from other apps.** Files (and similar) can Open In / Copy to Meridian a DRM-free EPUB or a text PDF; the file uses the same import pipeline as Library *Import from…* (progress sheet, refusals). Safari (and similar) can Share a webpage URL; Meridian opens that address in Browse. A Share Extension hands the payload to the host via an App Group inbox (`meridian-reader://inbox`). DRM EPUBs, password-protected PDFs, scanned/image-only PDFs (no OCR), and non-http(s) shares are refused or ignored as today. Cold start and warm start both work. |
 | B9 | A readable article shows 🎧 at the end of the address field: grey when it isn't what you hear (tap: listen now, replacing what plays once this article is extracted; "Nothing to listen to on this article" when it has too little text), accent with bars when it is (tap: pause / resume). |
 | B10 | Video and audio on a page play only after a tap. *Block Ads* (Settings › Browsing, on by default) keeps requests to common ad and tracker hosts from loading, in every web view the app makes; a link through an ad host (a sponsored search result) doesn't open; a change applies to pages loaded after it. |
 
@@ -79,7 +80,7 @@ its last article (reloaded). A fresh install opens the Library.
 ## Not in the app
 
 - Accounts, a backend, sync.
-- Tabs; a share extension or open-in as an entry point.
+- Tabs.
 - Auto reader mode, auto-opening links, saving failed extractions.
 - Cloud voices.
 - Tags, highlights.

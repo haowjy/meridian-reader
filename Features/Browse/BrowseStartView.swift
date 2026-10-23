@@ -15,9 +15,6 @@ struct BrowseStartView: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \RecentVisit.visitedAt, order: .reverse) private var recentVisits: [RecentVisit]
-    /// The Favorites tiles' folder menus: their Rename and Delete questions.
-    @State private var favoritesScreen = LibraryScreenState()
-
     /// Once true, the browse WKWebView stays in the tree (history / back-forward). Starts false so
     /// cold launch on the start page never creates WebKit GPU/WebContent processes.
     @State private var browseWebViewMounted = false
@@ -261,31 +258,24 @@ struct BrowseStartView: View {
     // MARK: - Start page
 
     private var startPage: some View {
-        FavoritesQuery { favorites, folders in
+        FavoritesQuery { favorites in
             BrowseStartPage(
                 favorites: favorites,
-                favoriteFolders: folders,
                 recentSearches: recentSearches,
-                onOpenFavorite: { LibraryActions(library: library, speech: speech, shell: shell, follow: follow).open($0) },
-                onOpenFavoriteFolder: { shell.showLibrary(at: library.path(to: $0)) },
+                // Browse Favorites: open the page's own http(s) URL in the browser, not Reader.
+                onOpenFavorite: { article in
+                    if let url = article.url { shell.navigate(to: url) }
+                },
                 onShowFavorites: shell.showFavorites,
                 pageMenu: { page in
                     AnyView(ArticleMenu(actions: ArticleActions(article: page, library: library, shell: shell, speech: speech,
                                                           preparedAudio: preparedAudio, follow: follow),
                                      place: .elsewhere))
                 },
-                folderMenu: { folder, onTurnOffPrepare in
-                    AnyView(FolderMenu(folder: folder, articles: folder.playOrder,
-                                       actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow),
-                                       preparedAudio: preparedAudio, screen: favoritesScreen, place: .tile,
-                                       onTurnOffPrepare: onTurnOffPrepare))
-                },
                 onSearch: submit,
                 onClearSearches: { recentSearchesRaw = "" }
             )
             .task(id: favorites.count) { await library.backfillFavoriteIcons() }
-            // A folder tile's Rename… and Delete Folder… ask here, as the Library's do there.
-            .libraryDialogs(favoritesScreen) {}
         }
     }
 

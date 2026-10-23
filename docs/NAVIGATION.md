@@ -234,11 +234,11 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   only what you hear, and hides on Now Playing, under other sheets and once nothing is loaded.
 
 **Start page** (no page loaded), Safari-style:
-1. **Favorites**: starred pages and folders (favicon, or the letter tile every page shows when
-   there is no usable favicon, with the title, else the site, below), then its
-   folders as folder tiles; 4 per row, up to 8. Show All → the Library's Favorites tab. An article tile
-   opens the page (a link in the browser, a saved page in the Reader); a folder tile opens it in
-   the Library. A tile's long press is its article's or folder's menu ("Menus", below).
+1. **Favorites**: starred pages that have their own http(s) address (favicon, or the letter tile
+   every page shows when there is no usable favicon, with the title, else the site, below). No
+   folders here (Library › Favorites still lists starred folders and every starred page). 4 per
+   row, up to 8. Show All → the Library's Favorites tab. A tile opens that address in Browse; a
+   long press is the article's menu ("Menus", below).
 2. **Recent Searches** (local, newest first, *Clear All*; each a 🔍 row, as in the search layer).
 
 ## The Library

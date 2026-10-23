@@ -1,18 +1,26 @@
 import SwiftData
 import SwiftUI
 
-/// The starred pages and folders, live, for `content` (the start page's grid), by
-/// `LibraryQueries`' favorite lists.
+/// Starred pages with an http(s) address, live, for the browser start page's Favorites strip.
+/// Library Favorites (folders and every starred page) is unchanged; this query is Browse-only.
 struct FavoritesQuery<Content: View>: View {
     @Query private var articles: [Article]
-    @Query private var folders: [Folder]
-    private let content: ([Article], [Folder]) -> Content
+    private let content: ([Article]) -> Content
 
-    init(@ViewBuilder content: @escaping ([Article], [Folder]) -> Content) {
+    init(@ViewBuilder content: @escaping ([Article]) -> Content) {
         _articles = Query(LibraryQueries.favoriteArticles)
-        _folders = Query(LibraryQueries.favoriteFolders)
         self.content = content
     }
 
-    var body: some View { content(articles.filter(\.isLive), LibraryStore.ordered(folders.filter(\.isLive))) }
+    var body: some View {
+        content(articles.filter(\.isLive).filter(\.hasBrowseURL))
+    }
+}
+
+extension Article {
+    /// An address the browser start page can open (http or https only).
+    var hasBrowseURL: Bool {
+        guard let url, let scheme = url.scheme?.lowercased() else { return false }
+        return scheme == "http" || scheme == "https"
+    }
 }

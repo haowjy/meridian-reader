@@ -299,6 +299,13 @@ Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their 
   subfolders move to the top level with their contents as they were, nothing deeper starred), and
   the container is removed.
 
+**Open In / Share** (`IncomingOpen`, `SharedInbox`, `MeridianReaderShare`): the host declares
+`CFBundleDocumentTypes` for PDF and EPUB and the `meridian-reader` URL scheme. A file Open In
+calls `onOpenURL` with a file URL → `BookImportActions.importPicked` (same path as *Import from…*).
+The Share Extension writes a web URL or a copied book file into the App Group inbox and opens
+`meridian-reader://inbox`; the host drains on that URL and whenever it becomes active
+(`IncomingOpenModifier`). http(s) shares call `ShellState.navigate` (Browse).
+
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):
 0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub` or
    `.pdf` (`BookImportFiles`): a picked file is copied there under its security-scoped access, and

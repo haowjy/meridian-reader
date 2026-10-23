@@ -1,27 +1,22 @@
 import SwiftUI
 
-/// The browser's start page (no page loaded), Safari-style: starred pages and folders (Show All
-/// opens the Library's Favorites tab), then Recent
-/// Searches.
+/// The browser's start page (no page loaded), Safari-style: starred pages that have their own
+/// http(s) address (Show All opens the Library's Favorites tab), then Recent Searches. Folders
+/// are not shown here — only in Library › Favorites.
 struct BrowseStartPage: View {
     let favorites: [Article]
-    let favoriteFolders: [Folder]
     let recentSearches: [String]
     var onOpenFavorite: (Article) -> Void
-    var onOpenFavoriteFolder: (Folder) -> Void
     var onShowFavorites: () -> Void
     /// A page tile's long press: the page's menu (`ArticleMenu`).
     var pageMenu: (Article) -> AnyView
-    /// A folder tile's long press: the folder's menu (`FolderMenu`); its closure asks *Turn Off
-    /// Prepare* by the tile.
-    var folderMenu: (Folder, _ onTurnOffPrepare: @escaping () -> Void) -> AnyView
     var onSearch: (String) -> Void
     var onClearSearches: () -> Void
 
-    /// Two rows of four tiles; Show All opens the whole folder.
+    /// Two rows of four tiles; Show All opens Library › Favorites.
     static let favoriteLimit = 8
 
-    private var hasFavorites: Bool { !favorites.isEmpty || !favoriteFolders.isEmpty }
+    private var hasFavorites: Bool { !favorites.isEmpty }
 
     var body: some View {
         ScrollView {
@@ -33,9 +28,7 @@ struct BrowseStartPage: View {
                                       actionNavigates: true, actionIdentifier: "startFavoritesShowAll",
                                       action: onShowFavorites)
                         FavoritesGrid(articles: Array(favorites.prefix(Self.favoriteLimit)),
-                                      folders: Array(favoriteFolders.prefix(max(0, Self.favoriteLimit - favorites.count))),
-                                      onOpen: onOpenFavorite, onOpenFolder: onOpenFavoriteFolder,
-                                      articleMenu: pageMenu, folderMenu: folderMenu)
+                                      onOpen: onOpenFavorite, articleMenu: pageMenu)
                     }
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("startFavorites")

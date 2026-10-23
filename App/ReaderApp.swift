@@ -72,6 +72,7 @@ struct ReaderApp: App {
                 .environment(contentBlocker)
                 .environment(\.readingAppearance, readingAppearance)
                 .environment(developer)
+                .modifier(IncomingOpenModifier(library: library, shell: shell))
                 .task {
                     await AppLaunch.run(library: library, speech: speechController, shell: shell, preparedAudio: preparedAudio,
                                         follow: follow)

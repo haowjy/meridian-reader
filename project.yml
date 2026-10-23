@@ -46,6 +46,10 @@ targets:
         product: onnxruntime
       - package: ZIPFoundation
         product: ZIPFoundation
+      - target: MeridianReaderShare
+        embed: true
+    entitlements:
+      path: App/MeridianReader.entitlements
     info:
       path: App/Info.plist
       properties:
@@ -54,6 +58,26 @@ targets:
         NSMicrophoneUsageDescription: Meridian Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.
         NSSpeechRecognitionUsageDescription: Meridian Reader turns what you say into text for the Browse address bar. Recognition runs on your iPhone when your language supports it.
         ITSAppUsesNonExemptEncryption: false
+        # Probe installs set BUNDLE_ID_SUFFIX; SharedInbox reads this so the App Group matches.
+        MeridianAppGroupSuffix: $(BUNDLE_ID_SUFFIX)
+        # Open In / Copy to Meridian from Files and other apps (PDF, EPUB).
+        LSSupportsOpeningDocumentsInPlace: false
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: PDF Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.pdf
+          - CFBundleTypeName: EPUB Publication
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - org.idpf.epub-container
+        # Share Extension → host (`meridian-reader://inbox`) and future deep links.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.jimmyyao.Reader
+            CFBundleURLSchemes:
+              - meridian-reader
         # A Library row being dragged (`UTType.libraryItem`): the app's own type, so only the
         # Library's folders and lists take the drop.
         UTExportedTypeDeclarations:
@@ -92,6 +116,40 @@ targets:
       testTargets:
         - MeridianReaderTests
         - MeridianReaderUITests
+
+
+  # Share Extension: Safari / Files → App Group inbox → host opens Browse or Import.
+  MeridianReaderShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ShareExtension
+      - path: Core/Incoming/SharedInbox.swift
+    settings:
+      BUNDLE_ID_SUFFIX: ""
+      PRODUCT_BUNDLE_IDENTIFIER: com.jimmyyao.Reader$(BUNDLE_ID_SUFFIX).Share
+      CODE_SIGN_STYLE: Automatic
+      PRODUCT_NAME: MeridianReaderShare
+      GENERATE_INFOPLIST_FILE: NO
+      MARKETING_VERSION: "0.1.0"
+      CURRENT_PROJECT_VERSION: "1"
+      SKIP_INSTALL: YES
+      LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    entitlements:
+      path: ShareExtension/Share.entitlements
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Meridian Reader
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        MeridianAppGroupSuffix: $(BUNDLE_ID_SUFFIX)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            # Web URLs + PDF/EPUB (and file URLs for those books).
+            NSExtensionActivationRule: 'SUBQUERY(extensionItems, $extensionItem, SUBQUERY($extensionItem.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url" OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.pdf" OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "org.idpf.epub-container" OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.file-url").@count > 0).@count > 0'
 
   MeridianReaderTests:
     type: bundle.unit-test
