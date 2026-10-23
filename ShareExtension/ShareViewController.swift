@@ -26,7 +26,7 @@ final class ShareViewController: UIViewController {
     private func process() async {
         do {
             try await enqueueSharedItems()
-            openHost()
+            await openHost()
             finish()
         } catch {
             statusLabel.text = String(localized: "Couldn't share to Meridian Reader")
@@ -132,24 +132,33 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    /// Share Extensions can't always use `extensionContext.open`; walk the responder chain for
-    /// `UIApplication.open`, and fall back to the host draining on next activation.
-    private func openHost() {
+    /// Ask the host to drain via `meridian-reader://inbox`. Prefer `NSExtensionContext.open`
+    /// (works for the containing app's URL scheme). Fall back to the responder chain; if neither
+    /// opens us, the host still drains whenever it becomes active.
+    private func openHost() async {
         let url = SharedInbox.openInboxURL()
+        if let context = extensionContext {
+            let opened = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+                context.open(url) { success in
+                    cont.resume(returning: success)
+                }
+            }
+            if opened { return }
+        }
         var responder: UIResponder? = self
         while let current = responder {
             if let application = current as? UIApplication {
-                application.open(url, options: [:], completionHandler: nil)
+                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                    application.open(url, options: [:]) { _ in cont.resume() }
+                }
                 return
             }
-            // Selector openURL: on responders (UIApplication in the chain on some iOS versions).
             if current.responds(to: Selector(("openURL:"))) {
                 current.perform(Selector(("openURL:")), with: url)
                 return
             }
             responder = current.next
         }
-        extensionContext?.open(url, completionHandler: nil)
     }
 
     private func finish(cancel: Bool = false) {

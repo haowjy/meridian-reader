@@ -56,6 +56,10 @@ targets:
         embed: true
     entitlements:
       path: App/MeridianReader.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.jimmyyao.Reader
+          - group.com.jimmyyao.Reader.probe
     info:
       path: App/Info.plist
       properties:
@@ -145,6 +149,10 @@ targets:
       LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
     entitlements:
       path: ShareExtension/Share.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.jimmyyao.Reader
+          - group.com.jimmyyao.Reader.probe
     info:
       path: ShareExtension/Info.plist
       properties:
