@@ -8,6 +8,8 @@ struct RootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showsWhatsNew = false
     @State private var whatsNewStore = WhatsNewStore()
+    /// Cellular / Low Data Mode confirm before Phonon / Kokoro model downloads.
+    @State private var cellularDownload = LargeModelDownloadConsent.shared
 
     var body: some View {
         BrowseStartView()
@@ -36,6 +38,20 @@ struct RootView: View {
                 }
                 .presentationDetents([.medium])
                 .interactiveDismissDisabled()
+            }
+            .alert(cellularDownload.prompt?.title ?? "",
+                   isPresented: Binding(
+                    get: { cellularDownload.prompt != nil },
+                    set: { if !$0 { cellularDownload.deferUntilWiFi() } }
+                   )) {
+                Button(Verbs.downloadAnyway) { cellularDownload.allow() }
+                    .accessibilityIdentifier("cellularDownloadConfirm")
+                Button(Verbs.waitForWiFi, role: .cancel) { cellularDownload.deferUntilWiFi() }
+                    .accessibilityIdentifier("cellularDownloadWait")
+            } message: {
+                if let prompt = cellularDownload.prompt {
+                    Text(prompt.message)
+                }
             }
             #if DEBUG
             .modifier(LaunchTestHooks(options: .current))

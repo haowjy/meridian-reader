@@ -76,6 +76,11 @@ final class KokoroONNXModelStore {
     func ensureInstalled(progress: (@Sendable (Double) -> Void)? = nil) async throws {
         refresh()
         if isInstalled { return }
+        // Cellular / Low Data Mode: ask once before the ~163 MB ONNX (Wi‑Fi starts immediately).
+        if !isBusy {
+            try await LargeModelDownloadConsent.shared.confirmIfNeeded(
+                engineName: "Kokoro", bytes: Self.expectedBytes)
+        }
         let token = UUID()
         if let progress { progressObservers[token] = progress }
         defer { progressObservers[token] = nil }
@@ -83,7 +88,7 @@ final class KokoroONNXModelStore {
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
                 waiters.append(cont)
                 if case .failed = state { state = .notDownloaded }
-                if !isBusy { download() }
+                if !isBusy { beginDownload() }
             }
         } onCancel: {
             Task { @MainActor in KokoroONNXModelStore.shared.cancel() }
@@ -124,6 +129,19 @@ final class KokoroONNXModelStore {
     }
 
     func download() {
+        guard !isBusy, !isInstalled else { return }
+        Task { @MainActor in
+            do {
+                try await LargeModelDownloadConsent.shared.confirmIfNeeded(
+                    engineName: "Kokoro", bytes: Self.expectedBytes)
+            } catch {
+                return
+            }
+            self.beginDownload()
+        }
+    }
+
+    private func beginDownload() {
         guard !isBusy, !isInstalled else { return }
         state = .downloading(fraction: 0, written: 0, total: Self.expectedBytes)
         let delegate = DownloadDelegate(

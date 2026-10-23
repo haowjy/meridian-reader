@@ -170,6 +170,9 @@ enum Verbs {
     /// An article's or a book's menu row (C138): "Voice: Heart".
     static func voiceRow(_ name: String) -> String { String(localized: "Voice: \(name)") }
     static let changeVoice = String(localized: "Change Voice")
+    /// Cellular prompt before Phonon / Kokoro model downloads.
+    static let downloadAnyway = String(localized: "Download")
+    static let waitForWiFi = String(localized: "Wait for Wi‑Fi")
     static let language = String(localized: "Language")
     static let textSize = String(localized: "Text Size")
     static let listenDebug = String(localized: "Listen Debug")

@@ -43,10 +43,24 @@ final class PhononModelStore {
         PhononModels.isInstalled(at: modelsDirectory)
     }
 
+    /// Verified zip already on disk (no network); skip the cellular prompt.
+    nonisolated static var hasReusableZipOnDisk: Bool {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: zipURL.path),
+              (try? fm.attributesOfItem(atPath: zipURL.path)[.size] as? NSNumber)?.int64Value == expectedZipBytes,
+              (try? sha256(of: zipURL)) == zipSHA256 else { return false }
+        return true
+    }
+
     func ensureInstalled(progress: (@Sendable (Double) -> Void)? = nil) async throws {
         if Self.filesLookInstalled {
             progress?(1)
             return
+        }
+        // Cellular / Low Data Mode: ask once before the ~131 MB zip (Wi‑Fi starts immediately).
+        if !isBusy, !Self.hasReusableZipOnDisk {
+            try await LargeModelDownloadConsent.shared.confirmIfNeeded(
+                engineName: "Phonon", bytes: Self.expectedZipBytes)
         }
         let token = UUID()
         if let progress { progressObservers[token] = progress }
