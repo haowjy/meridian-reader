@@ -6,17 +6,20 @@ import Foundation
 enum TTSTextNormalize {
     /// Light, meaning-preserving cleanup before synth.
     /// - collapses all whitespace runs (incl. newlines / NBSP) to one space
-    /// - turns aside dashes and clause em/en dashes into commas so the engine pauses
+    /// - turns aside dashes and glued em/horizontal-bar dashes into commas so the engine pauses
     ///   (` - `, `worse—and`, spaced ` — `); ASCII hyphen compounds stay (`Ashby-Lowell`,
-    ///   `three-day`)
-    /// - turns clause semicolons into commas (`foo; bar` → `foo, bar`)
+    ///   `three-day`); en/figure dashes between word characters stay (ranges: `10–12`,
+    ///   `Monday–Friday`)
+    /// - turns clause semicolons into commas (`foo; bar` → `foo, bar`); semicolons inside
+    ///   tokens (URLs / query params: `a.com/x;y`) stay
     static func normalize(_ text: String) -> String {
         var s = text.replacingOccurrences(of: "\u{00A0}", with: " ")
         s = s.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
         guard !s.isEmpty else { return s }
         s = replaceAsideDashes(s)
-        // Clause semicolons → comma pauses (Kokoro/Phonon often ignore `;`).
-        s = s.replacingOccurrences(of: ";", with: ",")
+        // Clause semicolons → comma pauses (Kokoro/Phonon often ignore `;`). Keep `;` that is
+        // not a clause break (URL / path / code: `a.com/x;y=1`).
+        s = s.replacingOccurrences(of: #";(?=\s|$)"#, with: ",", options: .regularExpression)
         // Tidy punctuation the dash / semicolon passes can create.
         s = s.replacingOccurrences(of: #"\s+,"#, with: ",", options: .regularExpression)
         s = s.replacingOccurrences(of: #",(\s*,)+"#, with: ",", options: .regularExpression)
@@ -27,10 +30,13 @@ enum TTSTextNormalize {
         return s.trimmingCharacters(in: .whitespaces)
     }
 
-    /// Em/en/figure dashes are clause breaks even when glued between words (`worse—and`).
-    /// ASCII `-` between letters/digits stays (compounds / ranges).
+    /// Em / horizontal-bar dashes are clause breaks even when glued between words (`worse—and`).
+    /// En / figure dashes between word characters stay (numeric and word ranges). ASCII `-`
+    /// between letters/digits stays (compounds / ranges).
     private static func replaceAsideDashes(_ s: String) -> String {
         let dashes: Set<Character> = ["-", "–", "—", "‒", "―"]
+        // Between word characters, only these become a comma pause.
+        let clauseDashes: Set<Character> = ["—", "―"]
         let quoteLike: Set<Character> = ["\"", "'", "“", "”", "‘", "’", "«", "»", "(", ")", "[", "]"]
         let chars = Array(s)
         var out = ""
@@ -54,11 +60,11 @@ enum TTSTextNormalize {
             let wordAfter = after.map { $0.isLetter || $0.isNumber } ?? false
             let onlyASCIIHyphen = run.allSatisfy { $0 == "-" }
             if wordBefore && wordAfter {
-                if onlyASCIIHyphen {
-                    // Intra-word hyphen / numeric range: keep as-is.
+                if onlyASCIIHyphen || run.allSatisfy({ !clauseDashes.contains($0) }) {
+                    // Intra-word hyphen / en-dash range: keep as-is (`Ashby-Lowell`, `10–12`).
                     out.append(contentsOf: run)
                 } else {
-                    // Em/en/figure dash between words → clause pause (books: "worse—and").
+                    // Em / horizontal-bar between words → clause pause (books: "worse—and").
                     out.append(", ")
                 }
             } else if spaceBefore || spaceAfter {
@@ -72,7 +78,7 @@ enum TTSTextNormalize {
                       j + 1 == chars.count || chars[j + 1].isWhitespace || quoteLike.contains(chars[j + 1]) {
                 // Dash glued to closing punctuation ("etc-." / "etc-,"): drop it.
             } else if (before.map(quoteLike.contains) ?? false) || (after.map(quoteLike.contains) ?? false) {
-                // Quote/bracket-adjacent (e.g. `”-` or `-“`): soft pause.
+                // Quote/bracket-adjacent (e.g. quote-dash or dash-quote): soft pause.
                 out.append(", ")
             } else {
                 // Inside a token next to other punctuation (URL / path / code: `a.com/-/x`,

@@ -49,8 +49,21 @@ final class TextChunkerTests: XCTestCase {
     func testNormalizeEmDashBetweenWordsBecomesCommaPause() {
         let out = TTSTextNormalize.normalize("It got worse—and then better.")
         XCTAssertFalse(out.contains("—"), out)
-        XCTAssertFalse(out.contains("–"), out)
         XCTAssertTrue(out.contains("worse, and"), out)
+    }
+
+    func testNormalizeKeepsEnDashRanges() {
+        let out = TTSTextNormalize.normalize("Pages 10–12 and Monday–Friday were lost.")
+        XCTAssertTrue(out.contains("10–12"), out)
+        XCTAssertTrue(out.contains("Monday–Friday"), out)
+        XCTAssertFalse(out.contains("10, 12"), out)
+        XCTAssertFalse(out.contains("Monday, Friday"), out)
+    }
+
+    func testNormalizeKeepsSemicolonInsideURL() {
+        let out = TTSTextNormalize.normalize("See https://example.com/a;b=1 for details.")
+        XCTAssertTrue(out.contains("a;b=1") || out.contains("https://example.com/a;b=1"), out)
+        XCTAssertFalse(out.contains("a,b=1"), out)
     }
 
     func testNormalizeKeepsASCIIHyphenCompounds() {
@@ -71,15 +84,9 @@ final class TextChunkerTests: XCTestCase {
         XCTAssertEqual(out, "She showed a map, it was covered in red dots.")
     }
 
-    func testSpeakableTextPipelinePhononSkipsKokoroGrammar() {
-        let text = "Hello world—really; yes."
-        let phonon = SpeakableText.prepare(text).normalize().grammar(.none).value
-        let kokoro = SpeakableText.prepare(text).normalize().grammar(.kokoro).value
-        // Paragraph grammar is identity today; both match shared normalize.
-        XCTAssertEqual(phonon, TTSTextNormalize.normalize(text))
-        XCTAssertEqual(kokoro, phonon)
-        XCTAssertEqual(KokoroGrammar.prepareChunk("open end"), "open end,")
-        XCTAssertEqual(KokoroGrammar.prepareChunk("done."), "done.")
+    func testNormalizeClauseSemicolonBecomesCommaAndEmDashPause() {
+        let out = TTSTextNormalize.normalize("Hello world—really; yes.")
+        XCTAssertEqual(out, "Hello world, really, yes.")
     }
 
     // MARK: - Giant paragraphs

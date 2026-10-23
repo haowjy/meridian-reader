@@ -7,10 +7,8 @@ import Foundation
 /// engine's `hardMax` *estimated* units (chars, digits weighted ×3 because "2240" is spoken as
 /// four words). Limits come from the engine's `EngineDescriptor`.
 ///
-/// Prefer `SpeakableText.prepare(_:).normalize().grammar(_:).split(limits:)` at call sites so
-/// Kokoro can run its grammar pass; `chunks(for:limits:)` still normalizes then splits (no grammar).
-///
-/// Paragraphs stay the UI/listen unit; chunks are an internal synth detail.
+/// Entry point: `chunks(for:limits:)` normalizes (`TTSTextNormalize`) then splits. Paragraphs
+/// stay the UI/listen unit; chunks are an internal synth detail.
 /// Invariants (tested, incl. 10k-char paragraphs): every chunk ≤ `hardMax`; the first chunk of
 /// a multi-chunk paragraph ≤ `firstTarget`; words are never cut while a space exists;
 /// `chunks(for: t).joined(separator: " ") == TTSTextNormalize.normalize(t)` unless a single
@@ -34,7 +32,7 @@ enum TextChunker {
         /// within the first chunk's audio, so it ramps (≈160) before full-size chunks.
         var secondTarget: Int? = nil
         static let firstSlack = 24
-        /// When the first sentence has no clause boundary (`; : —`, comma, before a conjunction)
+        /// When the first sentence has no clause boundary (`:`, comma, before a conjunction)
         /// inside `firstTarget`, the first chunk may grow up to `firstTarget + firstStretch` to reach
         /// one (or the sentence end) instead of cutting between bare words. Kokoro ONNX on the phone
         /// (iPhone 17 Pro, 231 chunks): render ≈ 0.35 s + 23 ms/char (median), worst
@@ -47,17 +45,12 @@ enum TextChunker {
         chunks(forNormalized: TTSTextNormalize.normalize(text), limits: limits)
     }
 
-    /// Split already-normalized (and optionally grammar-prepped) text. Used by `SpeakableText.split`.
+    /// Split already-normalized text (used by resplit / internal callers).
     static func chunks(forNormalized text: String, limits: Limits) -> [String] {
         chunks(forNormalized: text, target: limits.target, hardMax: limits.hardMax,
                firstTarget: limits.firstTarget, secondTarget: limits.secondTarget,
                alwaysSplitFirst: limits.alwaysSplitFirst)
     }
-
-    // MARK: - Normalization (see TTSTextNormalize)
-
-    /// Forwards to `TTSTextNormalize` (shared listen prep). Prefer `SpeakableText` at new call sites.
-    static func normalize(_ text: String) -> String { TTSTextNormalize.normalize(text) }
 
     // MARK: - Chunking
 
@@ -74,9 +67,9 @@ enum TextChunker {
     ///   second: `secondTarget`, then `target`); a sentence that fits `hardMax` is never split
     ///   except to make the short first/second chunk.
     /// - The first chunk: the first sentence if ≤ `firstTarget + firstSlack`, else its head cut at
-    ///   the strongest boundary that fits (`; : —` > `,` > before a conjunction > space).
+    ///   the strongest boundary that fits (`:` > `,` > before a conjunction > space).
     /// - The second chunk (when `secondTarget` is set): a sentence longer than it is cut only at a
-    ///   clause boundary (`; : —` or `,`); if it has none, it stays whole.
+    ///   clause boundary (`:` or `,`); if it has none, it stays whole.
     /// - Sentences longer than `hardMax` are cut into balanced pieces at the strongest boundaries.
     static func chunks(
         forNormalized text: String,
@@ -145,7 +138,7 @@ enum TextChunker {
                 // Short first chunk (fast first audio), never cut between bare words when avoidable:
                 // 1. the whole first sentence if it fits the budget (+ a little slack);
                 // 2. else its head at the best clause boundary inside the budget
-                //    (`; : —` > comma > before a conjunction), head ≥ a third of the budget;
+                //    (`:` > comma > before a conjunction), head ≥ a third of the budget;
                 // 3. else a slightly bigger first chunk (≤ firstTarget + firstStretch): the whole
                 //    sentence, or its head at the nearest clause boundary past the budget;
                 // 4. only then (a clause-free run) a space cut inside the budget.
@@ -230,7 +223,7 @@ enum TextChunker {
                 if e >= 0, ".!?…".contains(chars[e]), i + 1 < chars.count,
                    isBoundary(chars: chars, enderIndex: e, afterIndex: i + 1) {
                     strength = .sentence
-                } else if ";:—–".contains(prev) {
+                } else if prev == ":" {
                     strength = .strong
                 } else if prev == "," {
                     strength = .comma
@@ -423,7 +416,7 @@ enum TextChunker {
 
     /// Clause boundaries first (`,` `;` `:` followed by space), then spaces, then hard cut.
     private static func splitOversized(_ sentence: String, hardMax: Int) -> [String] {
-        let clauses = splitAfter(sentence, separators: [",", ";", ":"])
+        let clauses = splitAfter(sentence, separators: [",", ":"])
         var out: [String] = []
         var buffer = ""
         func flush() {

@@ -28,8 +28,8 @@ struct ChunkRenderRequest: Sendable {
 /// shared normalize → prepare → `SynthRenderGate` → call (with `EngineCrashGuard` if the engine is
 /// crash-guarded) → on `LocalSynthError.inputTooLong` re-split (≈halves, down to the engine's
 /// `minResplit`) and recurse → write 24 kHz mono CAF. Every model call is logged (`synth`).
-/// Kokoro chunk open-end closing (`KokoroGrammar.prepareChunk`) runs here at render so planned
-/// chunks still reassemble to normalize(paragraph).
+/// Host-specific spoken-text tweaks (`LocalSynthHost.spokenText(forChunk:)`) run here at render
+/// so planned chunks still reassemble to normalize(paragraph).
 final class LocalChunkRenderer: Sendable {
     let host: LocalSynthHost
     let descriptor: EngineDescriptor
@@ -77,10 +77,8 @@ final class LocalChunkRenderer: Sendable {
             try Task.checkCancellation()
             let boundary = ChunkEdgeTrim.boundary(after: trimmed, nextWord: request.nextWord,
                                                   isLastInParagraph: request.isLastInParagraph)
-            // Kokoro clips the last phoneme of a call that ends without punctuation (a dead stop at
-            // the join). Close mid-sentence cuts with a comma via KokoroGrammar; Phonon skips.
-            // Edge trim then sets the join pause (C137).
-            let spoken = host.trimsEdgeSilence ? KokoroGrammar.prepareChunk(trimmed) : trimmed
+            // Host may tweak spoken text (e.g. close open-ended cuts); edge trim stays audio-only.
+            let spoken = host.spokenText(forChunk: trimmed)
             var pcm = try await synthesizeResilient(spoken, depth: 0, request: request)
             if host.trimsEdgeSilence {
                 // Join pauses sized to the cut (sentence / clause / word / paragraph end).

@@ -77,7 +77,6 @@ final class FluidAudioProvider: SpeechEngineProvider {
             // Chunks ≤ 280 units; a call over `KokoroCPUHost.maxTokensPerCall` throws
             // inputTooLong and the renderer re-splits.
             limits: .kokoroCPU,
-            speakableGrammar: .kokoro,
             crashNotice: "Kokoro stopped unexpectedly")
     )
 

@@ -42,6 +42,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     /// phoneme-dense text (numbers, acronyms). Kokoro's own cap is 510 phonemes.
     /// Kokoro pads every call with ≈0.3 s + ≈0.5 s of silence; trim it at joins.
     var trimsEdgeSilence: Bool { true }
+    func spokenText(forChunk text: String) -> String { KokoroSpokenText.closeOpenEnd(text) }
     static let maxTokensPerCall = 360
     static let gain = KokoroCPUAudio.coreMLMatchGain
 

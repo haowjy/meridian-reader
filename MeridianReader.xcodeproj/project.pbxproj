@@ -21,6 +21,7 @@
 		07286D582F2241FC9C07F626 /* LaunchOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A90987D414269FE1F330324 /* LaunchOptions.swift */; };
 		0837421BFA6A1AE7D2EE614C /* FolderMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 760ADC276A4146F0BE3E2294 /* FolderMenu.swift */; };
 		0873CE00AC68C50AC5733977 /* KokoroONNXModelPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB71DE59C5D155E6D3904EFE /* KokoroONNXModelPatch.swift */; };
+		0A74C28FC6981B2D99179CA6 /* TTSTextNormalize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1938588ED78A5691580AF615 /* TTSTextNormalize.swift */; };
 		0A93CFA680F58E6E5C8E735A /* PreparedAudioSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE19C28CCC8AEBE247C7D47 /* PreparedAudioSheet.swift */; };
 		0A961DE2184B44D59AC269A3 /* NowPlayingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B8B971800F9C1A2D8256AD /* NowPlayingController.swift */; };
 		0B8B7193FC251A0B20C544A8 /* PrepareStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0B1BF9B2D32B30F41A551D /* PrepareStatus.swift */; };
@@ -83,9 +84,6 @@
 		391704010186AF1911BC677A /* EPUBChapterCutter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45010D47EF64E44CBFDF5D39 /* EPUBChapterCutter.swift */; };
 		39290A19E2DEB66B25F605D0 /* LocalTTSCoordinator+PreparedAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FCA3549357C6C62035D3C /* LocalTTSCoordinator+PreparedAudio.swift */; };
 		3A195C92FCB9B90A45292946 /* TextChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA28D0D06CEEDF83F2747122 /* TextChunker.swift */; };
-		45E718FCAA4546AEB325B630 /* KokoroGrammar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 261ADF6A70F840D6BA491F07 /* KokoroGrammar.swift */; };
-		EFE1F1F40EB94EA18BDA7B5F /* SpeakableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BA823EF05C4CEE97274BA1 /* SpeakableText.swift */; };
-		CD735244D0854C028CE7514E /* TTSTextNormalize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E7CC66B32704A9B8E85157D /* TTSTextNormalize.swift */; };
 		3A1C7671A5EC1044B2A1FC82 /* LibraryStore+Migration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D27CB23FCF6AF8E521F4E149 /* LibraryStore+Migration.swift */; };
 		3B324F695CD45C9051881AB0 /* BookImportFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0FCB5CE4992196F5C7CF95 /* BookImportFiles.swift */; };
 		3C5654EAF4071F68DE0DE916 /* BrowserBottomChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EDFABA0EA9EEBE4262E2D8 /* BrowserBottomChrome.swift */; };
@@ -304,6 +302,7 @@
 		D104CF1F6DA3BF37A8C52D9E /* voice-preview-kokoro-bm_fable.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E106CE193D53C1C3A4B78ED5 /* voice-preview-kokoro-bm_fable.m4a */; };
 		D231F317762F5A06976D553E /* ListenHTMLBlocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1D77F56B390F31EF269EC2 /* ListenHTMLBlocks.swift */; };
 		D3DCC8F14D59F9D7FC329E7A /* LibraryActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F77F0AE7ACDBDFC9C59950 /* LibraryActions.swift */; };
+		D3EC6E4FB8AA02AC216B2F5F /* KokoroSpokenText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6B333CEF284ADB7584E9F63 /* KokoroSpokenText.swift */; };
 		D455E1AF78DC0141592DD2D6 /* EPUBRefusals.swift in Sources */ = {isa = PBXBuildFile; fileRef = D553622E9139BB88940E7CDE /* EPUBRefusals.swift */; };
 		D4CD350DADACCAD2BEC743E4 /* HTMLReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EB4AF1A5EA196F0B14FC2BB /* HTMLReadingView.swift */; };
 		D4E76A50F3AF47C7F6624622 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBFD3354CC38D882B6A037E1 /* RootView.swift */; };
@@ -445,6 +444,7 @@
 		165855906CA15DD60E60E04F /* LocalEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalEngineState.swift; sourceTree = "<group>"; };
 		16EDF90343AC029677F05346 /* PDFBookReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFBookReader.swift; sourceTree = "<group>"; };
 		18A177990C084F66F6156AA9 /* ArticleAudioCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleAudioCache.swift; sourceTree = "<group>"; };
+		1938588ED78A5691580AF615 /* TTSTextNormalize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSTextNormalize.swift; sourceTree = "<group>"; };
 		193CD2B8886A3DEB7F98704E /* FollowStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowStatus.swift; sourceTree = "<group>"; };
 		193E8BF6E0BDB85E79F073F5 /* PillButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillButton.swift; sourceTree = "<group>"; };
 		1ACFA53144ACD406A5EE67C8 /* ParagraphSplitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParagraphSplitter.swift; sourceTree = "<group>"; };
@@ -636,9 +636,6 @@
 		A8A296DA5C750F41A7D56DB0 /* ArticleExtracting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleExtracting.swift; sourceTree = "<group>"; };
 		A8F1BF82B5A05DA01B9DDBD5 /* KokoroLaunchMigrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroLaunchMigrations.swift; sourceTree = "<group>"; };
 		AA28D0D06CEEDF83F2747122 /* TextChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextChunker.swift; sourceTree = "<group>"; };
-		261ADF6A70F840D6BA491F07 /* KokoroGrammar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroGrammar.swift; sourceTree = "<group>"; };
-		C9BA823EF05C4CEE97274BA1 /* SpeakableText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakableText.swift; sourceTree = "<group>"; };
-		9E7CC66B32704A9B8E85157D /* TTSTextNormalize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSTextNormalize.swift; sourceTree = "<group>"; };
 		AA9C656387381A5D444F5C8C /* DeveloperSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperSettings.swift; sourceTree = "<group>"; };
 		AACBCE59294E6E1237689302 /* EngineHandover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineHandover.swift; sourceTree = "<group>"; };
 		AB71DE59C5D155E6D3904EFE /* KokoroONNXModelPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroONNXModelPatch.swift; sourceTree = "<group>"; };
@@ -767,6 +764,7 @@
 		F5DCE6CBAAFA608CF8B51FBF /* ShellSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellSheetView.swift; sourceTree = "<group>"; };
 		F5DF4EAADD7B03A2902B750A /* ExtractionContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractionContext.swift; sourceTree = "<group>"; };
 		F67DE239E333051B09D3E6BC /* ReadingPagination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingPagination.swift; sourceTree = "<group>"; };
+		F6B333CEF284ADB7584E9F63 /* KokoroSpokenText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroSpokenText.swift; sourceTree = "<group>"; };
 		F7755AAF6221CB2EBD33E209 /* LibraryMigrationReceipt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryMigrationReceipt.swift; sourceTree = "<group>"; };
 		F7836312F95307ABA39A3258 /* ReaderNormalize.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ReaderNormalize.js; sourceTree = "<group>"; };
 		F7A594681F0B9CA492DB04B7 /* ArtworkTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkTile.swift; sourceTree = "<group>"; };
@@ -1086,6 +1084,7 @@
 				3559B0329B50693785E81B8F /* KokoroRoute.swift */,
 				B90F9318F1E785DE7B887818 /* KokoroRouteDebugSection.swift */,
 				D3C44E47BEE4E2988D128002 /* KokoroSplitHost.swift */,
+				F6B333CEF284ADB7584E9F63 /* KokoroSpokenText.swift */,
 				B8ABBED78C0342FBAE734702 /* KokoroStressRun.swift */,
 				0B7C40BC9E55A2B320911AC8 /* KokoroVoiceCatalog.swift */,
 				3DD711F8D4F703721AEC5662 /* CPURoute */,
@@ -1136,10 +1135,8 @@
 				E77452F4ED37994E829BEAB2 /* RenderAdmission.swift */,
 				96FDCD615B0B47A38D78697C /* RenderPace.swift */,
 				7D89382699C18C70046328D8 /* SynthQueueContext.swift */,
-				9E7CC66B32704A9B8E85157D /* TTSTextNormalize.swift */,
-				C9BA823EF05C4CEE97274BA1 /* SpeakableText.swift */,
-				261ADF6A70F840D6BA491F07 /* KokoroGrammar.swift */,
 				AA28D0D06CEEDF83F2747122 /* TextChunker.swift */,
+				1938588ED78A5691580AF615 /* TTSTextNormalize.swift */,
 				BEF75092693A8298E682EC36 /* VoiceSelection.swift */,
 				EBD6174A7EBF90760A62446C /* Engines */,
 			);
@@ -1901,6 +1898,7 @@
 				069A3DF5CB732F3E5804C928 /* KokoroRoute.swift in Sources */,
 				4CC1406258C655FCC652500D /* KokoroRouteDebugSection.swift in Sources */,
 				74A54BB76A9782DCD844F489 /* KokoroSplitHost.swift in Sources */,
+				D3EC6E4FB8AA02AC216B2F5F /* KokoroSpokenText.swift in Sources */,
 				2BAAC4B23197229A90E76114 /* KokoroStressRun.swift in Sources */,
 				2F53AE947E46E1423D455AA1 /* KokoroVoiceCatalog.swift in Sources */,
 				6463BC23BBC8C09505912165 /* LaunchHooks.swift in Sources */,
@@ -2073,6 +2071,7 @@
 				5C76BE82C9E71DE64EE80863 /* SynthQueueContext.swift in Sources */,
 				DEBDDAFA0A4BABE647BB99BC /* SynthRenderGate.swift in Sources */,
 				D9DD77AF091F9EB7F751E5EC /* SystemBars.swift in Sources */,
+				0A74C28FC6981B2D99179CA6 /* TTSTextNormalize.swift in Sources */,
 				96902AA40A397449F3D7D74C /* TableOfContents.swift in Sources */,
 				C1FA3E739C84015302D72B5A /* TestEPUB.swift in Sources */,
 				B2CB4F0F54A0F94AD9BBEC41 /* TestPageSchemeHandler.swift in Sources */,
@@ -2080,9 +2079,6 @@
 				FB673A7F64175892D2DB3E7B /* TextAppearanceControl.swift in Sources */,
 				8D3185D4A4B11D605DAEED07 /* TextAppearancePanel.swift in Sources */,
 				3A195C92FCB9B90A45292946 /* TextChunker.swift in Sources */,
-				45E718FCAA4546AEB325B630 /* KokoroGrammar.swift in Sources */,
-				EFE1F1F40EB94EA18BDA7B5F /* SpeakableText.swift in Sources */,
-				CD735244D0854C028CE7514E /* TTSTextNormalize.swift in Sources */,
 				D5E98B393C8F847AE06FA57D /* Themes.swift in Sources */,
 				1C6E5E0364E130A17F8885E7 /* TitleCard.swift in Sources */,
 				DD63A99BA91EEA2DAE0EE07A /* Toast.swift in Sources */,

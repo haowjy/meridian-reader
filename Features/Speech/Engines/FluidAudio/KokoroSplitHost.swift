@@ -37,6 +37,8 @@ final class KokoroSplitHost: LocalSynthHost, @unchecked Sendable {
     /// Only the ONNX output carries Kokoro's padding as a separate trim; the Core ML route's
     /// chunks have always joined untrimmed. Read after the call that made the chunk.
     var trimsEdgeSilence: Bool { lock.withLock { onONNX } }
+    /// Open-end comma on every Kokoro route (Core ML and ONNX); independent of edge trim.
+    func spokenText(forChunk text: String) -> String { KokoroSpokenText.closeOpenEnd(text) }
 
     var onProgress: (@Sendable (Double) -> Void)? {
         get { coreML.onProgress }

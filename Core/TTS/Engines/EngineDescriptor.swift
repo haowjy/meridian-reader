@@ -106,8 +106,6 @@ struct OnDeviceTraits: Sendable {
     let cacheVoicePrefix: String
     /// Per-call chunk sizing used by `TextChunker` (units = chars, digits ×3).
     let limits: TextChunker.Limits
-    /// Speakable grammar pass after shared normalize (Kokoro only; Phonon stays `.none`).
-    var speakableGrammar: SpeakableGrammar = .none
     /// The engine can die uncatchably inside a model call: every call is wrapped in
     /// `EngineCrashGuard`, and this cause goes in the notice after a crash ("Kokoro stopped
     /// unexpectedly"). nil: not guarded.

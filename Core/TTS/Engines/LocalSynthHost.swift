@@ -74,12 +74,16 @@ protocol LocalSynthHost: AnyObject, Sendable {
     var routeTag: String? { get }
     /// Trim each chunk's leading/trailing silence to boundary-sized pauses (`ChunkEdgeTrim`).
     var trimsEdgeSilence: Bool { get }
+    /// Per-chunk spoken text for this host (identity by default). Engines that need a trailing
+    /// comma on open-ended cuts override this; the shared renderer must not switch on engine type.
+    func spokenText(forChunk text: String) -> String
 }
 
 extension LocalSynthHost {
     var rendersInBackground: Bool { false }
     var routeTag: String? { nil }
     var trimsEdgeSilence: Bool { false }
+    func spokenText(forChunk text: String) -> String { text }
 }
 
 /// The one CAF writer for rendered audio (mono Int16): every chunk a host renders
