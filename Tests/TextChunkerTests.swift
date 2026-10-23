@@ -89,6 +89,41 @@ final class TextChunkerTests: XCTestCase {
         XCTAssertEqual(out, "Hello world: really, yes.")
     }
 
+
+    // MARK: - Comma cuts vs sentence ends
+
+    /// A first sentence with commas that still fits `firstTarget + firstStretch` must end the
+    /// first chunk on the sentence end — not on a mid-clause comma (join sounds like a period).
+    func testFirstChunkPrefersSentenceEndOverCommaWithinStretch() {
+        let limits = TextChunker.Limits(target: 240, hardMax: 280, firstTarget: 80, minResplit: 24,
+                                        alwaysSplitFirst: true, secondTarget: 160)
+        // ~114 units; commas inside; period within firstCap (120). Next sentence forces multi-chunk.
+        let text = "Right, let me give you a quick tour of how the harbor town got this way, and you'll have to trust me on the dates. After that the mills hummed through the night while nobody slept."
+        let chunks = TextChunker.chunks(for: text, limits: limits)
+        XCTAssertGreaterThanOrEqual(chunks.count, 2, chunks.joined(separator: " | "))
+        XCTAssertTrue(chunks[0].hasSuffix("."), "first chunk should end on sentence end, got: \(chunks[0])")
+        XCTAssertFalse(chunks[0].hasSuffix(","), "first chunk must not end on a comma when sentence fits stretch: \(chunks[0])")
+    }
+
+    /// When the first sentence clearly overshoots the stretch, a comma cut for TTFA is still OK.
+    func testFirstChunkMayEndOnCommaWhenSentenceExceedsStretch() {
+        let limits = TextChunker.Limits(target: 240, hardMax: 280, firstTarget: 80, minResplit: 24,
+                                        alwaysSplitFirst: true, secondTarget: 160)
+        let text = "Residents had complained for years about brown water, low pressure, and bills that seemed to rise every quarter whether or not anything was fixed."
+        let chunks = TextChunker.chunks(for: text, limits: limits)
+        XCTAssertEqual(chunks.count, 2, chunks.joined(separator: " | "))
+        XCTAssertTrue(chunks[0].hasSuffix(","), "expected comma cut when sentence > stretch: \(chunks[0])")
+        XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(chunks[0]), limits.firstTarget)
+    }
+
+    /// Phonon keeps a comma-heavy paragraph under target as one call (no comma-as-period joins).
+    func testPhononDoesNotSplitCommaHeavyParagraphUnderTarget() {
+        let text = "Dr. Alvarez, who has studied the system since 1998, said the pipes were laid in 1931, were patched in 1972, and were never meant to carry today's load, low pressure, or brown water."
+        let chunks = TextChunker.chunks(for: text, limits: .phonon)
+        XCTAssertEqual(chunks.count, 1, chunks.joined(separator: " | "))
+        XCTAssertTrue(chunks[0].contains(","), chunks[0])
+    }
+
     // MARK: - Giant paragraphs
 
     private static let sentencePool = [
@@ -148,8 +183,11 @@ final class TextChunkerTests: XCTestCase {
             XCTAssertFalse(chunk.isEmpty, file: file, line: line)
         }
         if chunks.count > 1 {
-            XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(chunks[0]), limits.firstTarget,
-                                     "first chunk over firstTarget: \(chunks[0].count) chars", file: file, line: line)
+            // firstTarget + firstStretch: whole first sentence may fill the stretch so we do not
+            // end the first call on a mid-clause comma (sounds period-like at the join).
+            let firstCap = min(limits.firstTarget + TextChunker.Limits.firstStretch, limits.hardMax)
+            XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(chunks[0]), firstCap,
+                                     "first chunk over firstTarget+stretch: \(chunks[0].count) chars", file: file, line: line)
         }
         var pos = 0
         for (i, chunk) in chunks.enumerated() {

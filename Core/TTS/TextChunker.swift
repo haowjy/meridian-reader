@@ -66,8 +66,10 @@ enum TextChunker {
     /// - Whole sentences are packed greedily up to the chunk's budget (first: `firstTarget`,
     ///   second: `secondTarget`, then `target`); a sentence that fits `hardMax` is never split
     ///   except to make the short first/second chunk.
-    /// - The first chunk: the first sentence if ≤ `firstTarget + firstSlack`, else its head cut at
-    ///   the strongest boundary that fits (`:` > `,` > before a conjunction > space).
+    /// - The first chunk: the first sentence if ≤ `firstTarget + firstStretch`, else its head cut at
+    ///   the strongest boundary that fits (`:` > `,` > before a conjunction > space). Mid-clause
+    ///   (comma) cuts only when the sentence overshoots the stretch — ending a call at a comma
+    ///   sounds period-like at the join.
     /// - The second chunk (when `secondTarget` is set): a sentence longer than it is cut only at a
     ///   clause boundary (`:` or `,`); if it has none, it stays whole.
     /// - Sentences longer than `hardMax` are cut into balanced pieces at the strongest boundaries.
@@ -137,21 +139,26 @@ enum TextChunker {
             if k == 0 {
                 // Short first chunk (fast first audio), never cut between bare words when avoidable:
                 // 1. the whole first sentence if it fits the budget (+ a little slack);
-                // 2. else its head at the best clause boundary inside the budget
+                // 2. else the whole sentence if it fits firstTarget + firstStretch — prefer a
+                //    sentence-end join over a mid-clause (comma) cut that sounds period-like;
+                // 3. else its head at the best clause boundary inside the budget
                 //    (`:` > comma > before a conjunction), head ≥ a third of the budget;
-                // 3. else a slightly bigger first chunk (≤ firstTarget + firstStretch): the whole
-                //    sentence, or its head at the nearest clause boundary past the budget;
-                // 4. only then (a clause-free run) a space cut inside the budget.
+                // 4. else its head at the nearest clause boundary between the budget and the stretch;
+                // 5. only then (a clause-free run) a space cut inside the budget.
                 let cap = firstCap
                 let minHead = max(12, firstLimit / 3)
                 if units <= min(firstLimit + Limits.firstSlack, hardMax) {
+                    out.append(sentence)
+                } else if units <= cap {
+                    // Prefer finishing the sentence within firstStretch over a mid-clause (comma)
+                    // cut. Ending a synth call at a comma keeps clause-sized silence but the voice
+                    // still falls like a period at the join — avoid that when the sentence end is
+                    // only a little past firstTarget.
                     out.append(sentence)
                 } else if let (head, rest) = splitHead(sentence, maxUnits: firstLimit, minStrength: .conjunction,
                                                        minHead: minHead) {
                     out.append(head)
                     queue.append(rest)
-                } else if units <= cap {
-                    out.append(sentence)
                 } else if let (head, rest) = stretchedHead(sentence, from: firstLimit, maxUnits: cap) {
                     out.append(head)
                     queue.append(rest)
