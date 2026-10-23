@@ -9,9 +9,9 @@ import SwiftUI
 ///
 /// ```
 /// KOKORO (ON-DEVICE)
-///  Heart  ✓                        ▶
-///  Bella                           ▶
-///  Downloading… 40%  (or: Remove Download)
+///  Heart  ✓  (default)             ▶   ← swipe Remove Download when another pack is in
+///  Bella  ↓ Bright, American       ▶   ← swipe Remove Download when its pack is downloaded
+///  Downloading… 40%
 /// APPLE
 ///  Best for English (US)
 ///  Ava  Premium, English (US)
@@ -63,7 +63,8 @@ struct VoiceSelectionList: View {
         .listCard()
     }
 
-    /// The model's download: its progress (tap cancels) while it downloads, else Remove Download.
+    /// Shared model download progress (ONNX ~175 MB). Per-voice pack removal is a swipe on that
+    /// voice row (`VoiceChoiceRows`), not a global Remove Download.
     @ViewBuilder
     private func modelRow(_ descriptor: EngineDescriptor) -> some View {
         let id = descriptor.id
@@ -74,11 +75,6 @@ struct VoiceSelectionList: View {
             } accessory: {
                 ModelDownloadMark(fraction: localTTS.synth.state.warmingProgress)
             }
-        } else if localTTS.isModelInstalled(id) {
-            Button(role: .destructive) { try? localTTS.deleteModel(id) } label: {
-                Text(Verbs.removeModelDownload).foregroundStyle(Palette.destructive)
-            }
-            .accessibilityIdentifier("engineRemoveDownload")
         }
     }
 

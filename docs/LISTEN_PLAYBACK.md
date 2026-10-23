@@ -156,7 +156,7 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
   (`AppleFallbackRenderer`: a synthesizer per render, so the render queue's fallback and the
   player's never wait on each other and none outlives a media-services reset; a synthesizer that
   sends nothing for 10 s is stopped and the render fails like any other), and the
-  lifecycle `state` (`LocalEngineState`). A reload, an engine switch, Settings' *Remove Download* on a model, Settings'
+  lifecycle `state` (`LocalEngineState`). A reload, an engine switch, a voice pack's swipe *Remove Download*, Settings'
   cancel or a failed start lets the host go: its load in flight stops, its models are released and
   the model call in flight on it finishes, and only then does the next host load, so two hosts'
   models (two ORT sessions, ≈1 GB) are never resident together. The states: `off` (Apple speaks), `warming(id, progress, task)`
@@ -313,7 +313,7 @@ opening an article and for listening starting or jumping is `LocalTTSCoordinator
 (`LocalTTSCoordinator.renderTarget`, `RenderTarget`): the loaded on-device engine in its selected
 voice, as the audio cache's engine and voice keys. Jobs and pending jobs carry no voice; every
 readiness check, chunk file and publish reads the target at that step. While no engine is loaded
-(Apple selected, a model loading or failed, *Remove Download* on a model, a cancelled download) there is no
+(Apple selected, a model loading or failed, every voice pack removed / model cleared, a cancelled download) there is no
 target and nothing renders: the worker parks before its next chunk (the call in flight finishes
 and files nothing), a listener's chunk plays with Apple, and the queue never loads a model itself.
 Once an engine is ready the coordinator restarts it (`GlobalSynthQueue.renderTargetChanged`) and
@@ -635,9 +635,11 @@ check slots, min height 48), so state changes never move rows.
 
 1. **Voice ›** (`VoicePage`): the default voice for new articles and books, from the one voice
    switcher (`VoiceSelectionList`, C138a), the same list an article's or a book's *Voice* picker
-   shows. Engines are its sections: Kokoro's curated voices with samples (the default one marked
-   "(default)"; the model's download progress, tap to cancel, or *Remove Download* below them;
-   crash and failure notices in its footer), then Apple's: "Best for <language>" and the
+   shows. Engines are its sections: Kokoro's curated voices with samples (Heart marked
+   "(default)" and shipped installed; other packs show the prepared ↓ once downloaded; swipe
+   *Remove Download* on a downloaded pack — Heart only when another curated pack is installed;
+   the shared model's download progress below them, tap to cancel; crash and failure notices in
+   its footer), then Apple's: "Best for <language>" and the
    installed voices for the language, Premium, then Enhanced, then the rest. Picking a voice
    picks its engine; there is no Engine control. The row's value names it ("Heart", "Ava (Apple)").
 2. **Language ›** (`LanguagePage`), 3. **Speed**, the six speeds in one line.

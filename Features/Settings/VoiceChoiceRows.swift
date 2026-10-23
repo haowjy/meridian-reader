@@ -1,7 +1,9 @@
 import SwiftUI
 
 /// An on-device engine's voices as choice rows, each with its sample: the one list Settings ›
-/// Voice and an article's or a book's voice picker (C138) both show.
+/// Voice and an article's or a book's voice picker (C138) both show. A downloaded pack can be
+/// removed with a trailing swipe (*Remove Download*); Heart stays while it is the only curated
+/// pack on disk so the picker never empties.
 struct VoiceChoiceRows: View {
     let descriptor: EngineDescriptor
     /// The engine voice id with the checkmark ("af_heart").
@@ -12,11 +14,17 @@ struct VoiceChoiceRows: View {
     let speech: SpeechController
     let onPick: (EngineVoice) -> Void
 
+    private var localTTS: LocalTTSCoordinator { speech.localTTS }
+
     var body: some View {
+        let _ = localTTS.voicePacksRevision
         ForEach(descriptor.voices) { voice in
+            let installed = localTTS.isVoicePackInstalled(voice.id, for: descriptor.id)
+            let detail = voice.id == descriptor.defaultVoiceID
+                ? VoicePage.defaultVoiceSubtitle(voice.detail) : voice.detail
             SettingsChoiceRow(
                 title: voice.label,
-                subtitle: DetailPart(voice.id == descriptor.defaultVoiceID ? VoicePage.defaultVoiceSubtitle(voice.detail) : voice.detail),
+                subtitle: installed ? DetailPart.prepared(detail) : DetailPart(detail),
                 selected: current == voice.id && preparingID == nil,
                 accessibilityID: "voiceRow-\(voice.id)"
             ) {
@@ -39,6 +47,14 @@ struct VoiceChoiceRows: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel(preview.playingID == voice.id ? "Stop preview" : "Preview \(voice.label)")
                     .accessibilityIdentifier("voicePreview-\(voice.id)")
+                }
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                if localTTS.canDeleteVoicePack(voice.id, for: descriptor.id) {
+                    Button(Verbs.removeModelDownload, role: .destructive) {
+                        try? localTTS.deleteVoicePack(voice.id, for: descriptor.id)
+                    }
+                    .accessibilityIdentifier("voiceRemoveDownload-\(voice.id)")
                 }
             }
         }

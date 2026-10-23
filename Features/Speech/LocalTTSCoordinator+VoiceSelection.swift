@@ -71,14 +71,20 @@ extension LocalTTSCoordinator {
         noteBakeMarksChanged()
     }
 
-    /// The stored default, else (first launch after C138a) the engine and voices chosen before.
+    /// The stored default, else Kokoro Heart when supported (first launch / post-C138a with no
+    /// stored pick), else the engine and voices chosen before C138a, else Apple.
     func loadDefaultSelection(legacyEngine: SpeechEngineID, legacyAppleVoice: String?) {
         if let stored = defaults.string(forKey: Self.defaultSelectionKey).flatMap(VoiceSelection.init(stored:)),
            engines.contains(stored.engine) {
             defaultSelection = stored
             return
         }
-        if engines.isOnDevice(legacyEngine), let voice = engineVoices[legacyEngine] {
+        if engines.supports(.kokoro) {
+            let heart = KokoroVoiceCatalog.defaultVoice
+            KokoroAssets.installBundledHeartIfNeeded()
+            defaultSelection = VoiceSelection(engine: .kokoro, voice: heart)
+            setEngineVoice(.kokoro, heart)
+        } else if engines.isOnDevice(legacyEngine), let voice = engineVoices[legacyEngine] {
             defaultSelection = VoiceSelection(engine: legacyEngine, voice: voice)
         } else {
             defaultSelection = VoiceSelection(engine: .apple, voice: legacyAppleVoice ?? "")

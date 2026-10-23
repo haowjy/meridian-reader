@@ -19,6 +19,12 @@ protocol SpeechEngineProvider: AnyObject {
     /// Make sure `voice`'s files are on disk (prepare if needed) before it's selected.
     /// No-op for engines whose voices ship with the model.
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws
+    /// One voice pack's files are on disk (Kokoro `<voice>.bin`). False for engines without packs.
+    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool
+    /// Settings may offer *Remove Download* for this pack (Heart is protected when alone).
+    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool
+    /// Remove one voice pack's download. No-op when `canDeleteVoicePack` is false.
+    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws
     /// The previous process died inside a call of one of this provider's engines (`crash.engine`).
     /// nil: the default (switch away from it if it was selected). `playing` is the last session
     /// resume point.
@@ -41,6 +47,9 @@ protocol SpeechEngineProvider: AnyObject {
 extension SpeechEngineProvider {
     var retiredEngines: [RetiredEngine] { [] }
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {}
+    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool { false }
+    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool { false }
+    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws {}
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? { nil }
     func crashRetried(_ id: SpeechEngineID) {}
     var regenerableDirectories: [URL] { [] }
@@ -129,6 +138,18 @@ final class EngineRegistry {
 
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {
         try await byID[id]?.1.prepareVoice(voice, for: id)
+    }
+
+    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
+        byID[id]?.1.isVoicePackInstalled(voice, for: id) ?? false
+    }
+
+    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool {
+        byID[id]?.1.canDeleteVoicePack(voice, for: id) ?? false
+    }
+
+    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws {
+        try byID[id]?.1.deleteVoicePack(voice, for: id)
     }
 
     /// A cache voice key as people read it: "kokoro.af_heart" → "Kokoro Heart" (the engine's short

@@ -78,6 +78,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private(set) var voiceDownloadID: String?
     /// Last voice download failure (Settings footer); cleared on the next pick.
     private(set) var voiceDownloadError: String?
+    /// Bumped when a Kokoro voice pack is installed or removed (Voice rows refresh swipe / ↓).
+    private(set) var voicePacksRevision: UInt64 = 0
     private var voiceChoiceToken = 0
     /// Set by `SpeechController`: may the local engine speak (and bake) these listen blocks?
     /// False when the article's effective language isn't supported by the engine (it then
@@ -317,6 +319,14 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Voice selected for a multi-voice engine (nil for single-voice engines).
     func voice(for id: SpeechEngineID) -> String? { engineVoices[id] }
 
+    /// Persist the engine's selected voice id (also written when a voice finishes downloading).
+    func setEngineVoice(_ id: SpeechEngineID, _ voice: String) {
+        engineVoices[id] = voice
+        if let key = engines.descriptor(id)?.resolvedVoiceDefaultsKey {
+            defaults.set(voice, forKey: key)
+        }
+    }
+
     /// `ArticleAudioCache` voice key of engine `id`'s audio in its selected voice
     /// ("kokoro.af_heart"; the format is persisted); nil for an engine that renders nothing ahead.
     func cacheVoice(of id: SpeechEngineID) -> String? {
@@ -393,6 +403,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         guard token == voiceChoiceToken else { return false }
         voiceDownloadID = nil
         engineVoices[id] = voice // the host's voice when it loads; every render names its own
+        voicePacksRevision &+= 1
         return true
     }
 
@@ -452,6 +463,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
     /// Delete one local engine's downloaded models (default: the active local engine).
+    /// Kept for Listen debug / CPU-route bench; Voice settings removes packs per voice instead.
     func deleteModel(_ engine: SpeechEngineID? = nil) throws {
         let id = engine ?? activeLocalEngineID ?? engines.defaultLocalEngineID
         switch synth.state {
@@ -461,7 +473,54 @@ final class LocalTTSCoordinator: SynthQueueContext {
             break
         }
         try engines.deleteModels(id)
+        voicePacksRevision &+= 1
         noteBakeMarksChanged()
+    }
+
+    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
+        engines.isVoicePackInstalled(voice, for: id)
+    }
+
+    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool {
+        engines.canDeleteVoicePack(voice, for: id)
+    }
+
+    /// Remove one on-device voice pack (swipe *Remove Download* on that voice). Heart stays when
+    /// it is the only curated pack; deleting the selected pack falls back to Heart (or another
+    /// installed pack if Heart itself was removed).
+    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws {
+        guard engines.canDeleteVoicePack(voice, for: id) else { return }
+        try engines.deleteVoicePack(voice, for: id)
+        let fallback = fallbackVoiceAfterDeleting(voice, for: id)
+        if engineVoices[id] == voice {
+            setEngineVoice(id, fallback)
+            switch synth.state {
+            case .warming(id, _, _), .ready(id), .failed(id, _):
+                synth.turnOff()
+                Task { await loadEngine(id) }
+            default:
+                break
+            }
+        }
+        if defaultSelection.engine == id, defaultSelection.voice == voice {
+            defaultSelection = VoiceSelection(engine: id, voice: fallback)
+            defaults.set(defaultSelection.stored, forKey: Self.defaultSelectionKey)
+        }
+        voicePacksRevision &+= 1
+        noteBakeMarksChanged()
+    }
+
+    /// After removing `voice`, prefer Heart (re-seeded from the bundle), else any other installed
+    /// curated pack, else the engine's catalog default.
+    private func fallbackVoiceAfterDeleting(_ voice: String, for id: SpeechEngineID) -> String {
+        let heart = engines.descriptor(id)?.defaultVoiceID ?? KokoroVoiceCatalog.defaultVoice
+        if voice != heart, engines.isVoicePackInstalled(heart, for: id) { return heart }
+        if let other = engines.descriptor(id)?.voices.map(\.id).first(where: {
+            $0 != voice && engines.isVoicePackInstalled($0, for: id)
+        }) {
+            return other
+        }
+        return heart
     }
 
     func noteBakeMarksChanged() {

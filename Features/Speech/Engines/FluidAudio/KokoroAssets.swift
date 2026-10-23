@@ -18,13 +18,54 @@ enum KokoroAssets {
         FileManager.default.fileExists(atPath: repoDirectory.path)
     }
 
+    /// Bundled default pack (`Resources/Kokoro/af_heart.bin`, ~0.5 MB). Ships with the app so the
+    /// Voice picker never starts empty; copied into the repo dir on first launch.
+    static var bundledHeartPackURL: URL? {
+        Bundle.main.url(forResource: "af_heart", withExtension: "bin", subdirectory: "Kokoro")
+            ?? Bundle.main.url(forResource: "af_heart", withExtension: "bin")
+    }
+
+    static func voicePackURL(_ voice: String) -> URL {
+        repoDirectory.appendingPathComponent("\(voice).bin")
+    }
+
     static func voicePackInstalled(_ voice: String) -> Bool {
-        FileManager.default.fileExists(atPath: repoDirectory.appendingPathComponent("\(voice).bin").path)
+        FileManager.default.fileExists(atPath: voicePackURL(voice).path)
+    }
+
+    /// Installed curated packs (ids from `KokoroVoiceCatalog`).
+    static func installedCuratedVoiceIDs() -> [String] {
+        KokoroVoiceCatalog.curated.map(\.id).filter(voicePackInstalled)
+    }
+
+    /// Copy the bundled Heart pack into the repo dir when missing. Returns true when Heart is
+    /// present afterwards (already was, or just installed).
+    @discardableResult
+    static func installBundledHeartIfNeeded(fileManager fm: FileManager = .default) -> Bool {
+        let voice = KokoroVoiceCatalog.defaultVoice
+        if voicePackInstalled(voice) { return true }
+        guard let bundled = bundledHeartPackURL else {
+            ListenTimingLog.log("kokoro_voice_bundled_missing", ["voice": voice])
+            return false
+        }
+        do {
+            try fm.createDirectory(at: repoDirectory, withIntermediateDirectories: true)
+            try fm.copyItem(at: bundled, to: voicePackURL(voice))
+            ListenTimingLog.log("kokoro_voice_bundled", ["voice": voice])
+            return true
+        } catch {
+            ListenTimingLog.log("kokoro_voice_bundled_failed", ["voice": voice, "error": "\(error)"])
+            return false
+        }
     }
 
     /// Download + convert a voice pack if it isn't on disk yet (FluidAudio fetches
-    /// `voices/<id>.json` from the HF repo root and writes `<id>.bin`).
+    /// `voices/<id>.json` from the HF repo root and writes `<id>.bin`). Heart prefers the
+    /// bundled pack so first launch never needs the network for the default voice.
     static func ensureVoicePack(_ voice: String) async throws {
+        if voice == KokoroVoiceCatalog.defaultVoice {
+            installBundledHeartIfNeeded()
+        }
         guard !voicePackInstalled(voice) else { return }
         try FileManager.default.createDirectory(at: repoDirectory, withIntermediateDirectories: true)
         let t0 = ListenTimingLog.now()
@@ -32,9 +73,21 @@ enum KokoroAssets {
         ListenTimingLog.log("kokoro_voice_download", ["voice": voice, "ms": ListenTimingLog.ms(since: t0)])
     }
 
+    /// Remove one voice pack (`.bin`). Does not touch the shared ONNX model or other packs.
+    /// Returns bytes freed (0 when the file was already gone).
+    @discardableResult
+    static func deleteVoicePack(_ voice: String, fileManager fm: FileManager = .default) -> Int64 {
+        let url = voicePackURL(voice)
+        guard fm.fileExists(atPath: url.path) else { return 0 }
+        let bytes = FileSizes.allocatedBytes(at: url, fileManager: fm)
+        try? fm.removeItem(at: url)
+        ListenTimingLog.log("kokoro_voice_delete", ["voice": voice, "bytes": bytes])
+        return bytes
+    }
+
     /// Flat 510×256 fp32 voice pack (`<voice>.bin`).
     static func loadVoicePack(_ voice: String) throws -> [Float] {
-        try KokoroAneVoicePack.load(from: repoDirectory.appendingPathComponent("\(voice).bin")).storage
+        try KokoroAneVoicePack.load(from: voicePackURL(voice)).storage
     }
 
     /// The Core ML route's 7-stage chain appears to be on disk (cheap existence check).

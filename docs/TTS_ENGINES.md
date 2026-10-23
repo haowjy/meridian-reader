@@ -97,11 +97,16 @@ chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
 
 - Shared assets (`KokoroAssets`, `Application Support/fluidaudio/Models/kokoro-82m-coreml/ANE/`):
   vocab, BART G2P, the US lexicon, voice packs (`<voice>.bin`, 0.5 MB each) and, for the Core ML
-  route, the `.mlmodelc` stages. Settings shows download progress; swipe left for *Remove Download*.
-- Voices (`KokoroVoiceCatalog`): `af_heart` (default), `af_bella`, `bf_emma`, `am_puck`,
-  `bm_fable`. A stored voice that isn't curated resolves to the default. A voice pack prepared audio
-  when the voice is chosen (`LocalTTSCoordinator.downloadVoice` → `EngineRegistry.prepareVoice`);
+  route, the `.mlmodelc` stages. The shared ONNX model download shows progress under the voice
+  list (tap to cancel). Each downloaded voice pack is removed with a swipe *Remove Download* on
+  that voice row; Heart cannot be removed while it is the only curated pack on disk.
+- Voices (`KokoroVoiceCatalog`): `af_heart` (Heart, default), `af_bella`, `bf_emma`, `am_puck`,
+  `bm_fable`. Heart's pack ships in the app (`Resources/Kokoro/af_heart.bin`) and is copied into
+  the cache on first launch (`KokoroHeartPackInstall`), so the Voice picker never starts empty.
+  A stored voice that isn't curated resolves to the default. Other packs prepare (~0.5 MB) when
+  the voice is chosen (`LocalTTSCoordinator.downloadVoice` → `EngineRegistry.prepareVoice`);
   only then does the voice switch. A failed prepare keeps the old voice and shows the error.
+  Until Kokoro's model is ready, Apple's "Best for English" remains available as today.
 - Previews are bundled (`Resources/VoicePreviews/voice-preview-kokoro-<id>.m4a`, ≈5 s, 24 kHz
   mono AAC), rendered on the Mac:
 
