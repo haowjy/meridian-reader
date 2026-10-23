@@ -234,11 +234,11 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   only what you hear, and hides on Now Playing, under other sheets and once nothing is loaded.
 
 **Start page** (no page loaded), Safari-style:
-1. **Favorites**: starred pages and folders (favicon, or the letter tile every page shows when
-   there is no usable favicon, with the title, else the site, below), then its
-   folders as folder tiles; 4 per row, up to 8. Show All → the Library's Favorites tab. An article tile
-   opens the page (a link in the browser, a saved page in the Reader); a folder tile opens it in
-   the Library. A tile's long press is its article's or folder's menu ("Menus", below).
+1. **Favorites**: starred pages that have their own http(s) address (favicon, or the letter tile
+   every page shows when there is no usable favicon, with the title, else the site, below). No
+   folders here (Library › Favorites still lists starred folders and every starred page). 4 per
+   row, up to 8. Show All → the Library's Favorites tab. A tile opens that address in Browse; a
+   long press is the article's menu ("Menus", below).
 2. **Recent Searches** (local, newest first, *Clear All*; each a 🔍 row, as in the search layer).
 
 ## The Library
@@ -387,7 +387,7 @@ commas.
   article in it has played. Details change only the look: its sort, Edit, drags and drops are
   unchanged. Clearing the author and removing the cover brings back the plain header.
 - **Importing a book** (*Import from…*: ＋, the home's and a folder's ⋯, the empty Library's
-  card) opens the Files picker for EPUBs. The picked file is copied into the app and the import
+  card) opens the Files picker for EPUBs and PDFs. The picked file is copied into the app and the import
   sheet (`BookImportSheet`, medium, grows to large) comes up at once: the cover, title, author,
   file and chapter count once read; a progress line ("Reading chapters… 4 / 9"); **Add to**, the
   folder whose screen it started from (else the Library), with *Change*, which pushes the Move
@@ -396,7 +396,7 @@ commas.
   first chapters and what is skipped for listening. It can't be pulled down
   while it works; *Cancel* stops it and keeps nothing. Done, it closes on the book's screen,
   with *▶ Play*, which starts the first chapter that plays. A refusal says why in one line with OK: copy-protected (DRM),
-  fixed layout, too large, or not a readable EPUB; so does an import or *Replace* whose save
+  password-protected PDF, fixed layout, too large, or not a readable book; so does an import or *Replace* whose save
   fails, which keeps nothing. A book already in the Library asks *“Title”
   is already in the Library*: *Replace* (the same folder, its name, place and order kept,
   positions kept where chapters match; *Add to* then shows where it is and can't change) or

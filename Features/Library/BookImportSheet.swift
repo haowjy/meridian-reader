@@ -127,7 +127,7 @@ struct BookImportSheet: View {
         guard case .working(let step) = flow.phase else { return nil }
         switch step {
         case .reading:
-            return (0, String(localized: "Reading the EPUB…"))
+            return (0, String(localized: "Reading the book…"))
         case .preparing(_, let done, let total):
             return (total > 0 ? Double(done) / Double(total) : 0, String(localized: "Reading chapters… \(done) / \(total)"))
         case .storing:
@@ -169,9 +169,9 @@ struct BookImportSheet: View {
             return String(localized: "The folder chosen for this import was deleted. Choose another, or the import stops.")
         }
         guard let folder = flow.destination else {
-            return String(localized: "The EPUB becomes a folder in the Library, one chapter per section.")
+            return String(localized: "The book becomes a folder in the Library, one chapter per section.")
         }
-        return String(localized: "The EPUB becomes a folder inside \(folder.name), one chapter per section.")
+        return String(localized: "The book becomes a folder inside \(folder.name), one chapter per section.")
     }
 
     // MARK: - Chapters

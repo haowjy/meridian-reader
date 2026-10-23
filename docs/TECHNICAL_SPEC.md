@@ -33,8 +33,9 @@ Core/
   Device/       chip / OS gates
   Domain/       ReaderArticle, PageOrigin, ParagraphDocument, ParagraphSplitter, ArticleIdentity, ReaderScrubMap, WordCount
   EPUB/         EPUB reading: zip container, package, contents, chapter cutting, BookIdentity
+  PDF/          PDFKit text extract into pages (no OCR); one chapter per text page
   Extraction/   ArticleExtracting, Readability runner, ListenContentNormalizer, reader scripts
-  Sources/      PageSource (SingleWebPageSource, EPUBSource), BookImporter, chapter settling, cover thumbnails, Imports/ files
+  Sources/      PageSource (SingleWebPageSource, EPUBSource, PDFSource), BookImporter, chapter settling, cover thumbnails, Imports/ files
   Persistence/  SwiftData models; Library/ (Folder, Page, LibraryStore, LibraryQueries, migration); frozen legacy readers
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
@@ -298,18 +299,30 @@ Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their 
   subfolders move to the top level with their contents as they were, nothing deeper starred), and
   the container is removed.
 
+**Open In / Share** (`IncomingOpen`, `SharedInbox`, `MeridianReaderShare`): the host declares
+`CFBundleDocumentTypes` for PDF and EPUB and the `meridian-reader` URL scheme. A file Open In
+calls `onOpenURL` with a file URL → `BookImportActions.importPicked` (same path as *Import from…*).
+The Share Extension writes a web URL or a copied book file into the App Group inbox and opens
+`meridian-reader://inbox`; the host drains on that URL and whenever it becomes active
+(`IncomingOpenModifier`). http(s) shares call `ShellState.navigate` (Browse).
+
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):
-0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub`
-   (`BookImportFiles`): a picked file is copied there under its security-scoped access, and an
-   `.epub` link is downloaded there (`WKDownload`: a main-frame response served as
+0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub` or
+   `.pdf` (`BookImportFiles`): a picked file is copied there under its security-scoped access, and
+   an `.epub` link is downloaded there (`WKDownload`: a main-frame response served as
    `application/epub+zip`, or named `.epub` and not a web page). The copy is deleted when the
    import ends, however it ends; launch clears what a killed import left.
-1. `EPUBBookReader` reads and cuts the file off the main thread: DRM and fixed layout are
-   refused, then the package, the contents and every spine file are read and cut at contents
-   anchors, choosing the depth per branch; front and back matter are flagged.
-2. Each chapter is normalized, one at a time, in one hidden web view (above). Progress is a value
-   (`BookImportProgress`: reading, chapters prepared of all of them, storing). Cancelling the
-   importing task stops it between chapters and before anything is stored, keeping nothing.
+1. **EPUB:** `EPUBBookReader` reads and cuts the file off the main thread: DRM and fixed layout
+   are refused, then the package, the contents and every spine file are read and cut at contents
+   anchors, choosing the depth per branch; front and back matter are flagged. **PDF:**
+   `PDFBookReader` uses PDFKit (`PDFPage.string`, no OCR): password-protected / locked PDFs and
+   files with no extractable text are refused; one chapter per text page (blank pages skipped; a
+   page over the word bar is split). First-page thumbnail when rendering works.
+2. **EPUB:** each chapter is normalized, one at a time, in one hidden web view (above). **PDF:**
+   plain text is wrapped as escaped `<p>` blocks (`ParagraphDocument.paragraphsHTML`) with no web
+   view. Progress is a value (`BookImportProgress`: reading, chapters prepared of all of them,
+   storing). Cancelling the importing task stops it between chapters and before anything is
+   stored, keeping nothing.
 3. The chapters are settled on their listen blocks (`BookChapterFinalizer`) before any key is
    kept: a chapter with nothing to read is dropped; a book with no body chapter left plays every
    chapter; a body chapter under 100 words joins the body chapter after it, else the one before,
@@ -341,7 +354,7 @@ Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their 
    chapters, order, details and listening are untouched. No SwiftData field changed for D19.
 
 Refusals and failures are `BookImportError`s whose messages the sheet shows as they are (DRM,
-fixed layout, over `EPUBLimits`' caps, unreadable). Once the file is read, the importer hands the
+password-protected PDF, fixed layout, over `EPUBLimits`' caps, unreadable). Once the file is read, the importer hands the
 sheet a `BookImportPreview` (title, authors, cover thumbnail, chapter titles, what is skipped).
 The importer takes *Add to* as a folder id it reads again in its save, so a change while the
 book is read and prepared is stored in that one save; from *Saving the book…* on it can't change,

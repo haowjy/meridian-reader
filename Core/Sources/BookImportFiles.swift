@@ -45,12 +45,15 @@ struct BookImportFiles {
         try? FileManager.default.removeItem(at: directory)
     }
 
-    /// `name` as a file name ending in `.epub`: no path separators, never empty.
+    /// `name` as a file name: keeps `.epub` / `.pdf`, else appends `.epub`. No path separators,
+    /// never empty.
     static func fileName(_ name: String) -> String {
         var base = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if base.hasPrefix(".") { base = String(base.drop { $0 == "." }) }
         if base.isEmpty { base = "Imported" }
-        return base.lowercased().hasSuffix(".epub") ? base : base + ".epub"
+        let lower = base.lowercased()
+        if lower.hasSuffix(".epub") || lower.hasSuffix(".pdf") { return base }
+        return base + ".epub"
     }
 }

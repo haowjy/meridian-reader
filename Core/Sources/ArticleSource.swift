@@ -1,7 +1,7 @@
 import Foundation
 
-/// Where pages come from: the web page the browser shows (`SingleWebPageSource`), an imported book
-/// (`EPUBSource`). Every source hands out the same thing, normalized page
+/// Where pages come from: the web page the browser shows (`SingleWebPageSource`), an imported
+/// EPUB (`EPUBSource`) or PDF (`PDFSource`). Every source hands out the same thing, normalized page
 /// content whose listen blocks are its reading blocks, so the reader, the render queue and the
 /// audio cache treat every page alike. A source never decides playback.
 @MainActor

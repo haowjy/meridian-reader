@@ -173,7 +173,7 @@ final class BookImportFlow: Identifiable {
         guard !isCancelled else { return }
         if error is CancellationError { return }
         let message = (error as? BookImportError)?.localizedDescription
-            ?? String(localized: "Meridian couldn't import this EPUB.")
+            ?? String(localized: "Meridian couldn't import this book.")
         library.log("import \(fileName) failed: \(error)")
         phase = .failed(message)
     }
