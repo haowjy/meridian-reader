@@ -63,9 +63,9 @@ struct BrowseStartView: View {
             }
             .fullScreenCover(item: Binding(get: { shell.sheet.flatMap { $0.coversTheScreen ? $0 : nil } },
                                            set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
-            // *Import Book…*: the picked book is copied in and imported (the import sheet).
+            // *Import from…*: the picked EPUB/PDF is copied in and imported (the import sheet).
             .fileImporter(isPresented: Binding(get: { shell.isPickingBook }, set: { shell.isPickingBook = $0 }),
-                          allowedContentTypes: [.epub]) { result in
+                          allowedContentTypes: [.epub, .pdf]) { result in
                 guard case .success(let url) = result else { return }
                 BookImportActions(library: library, shell: shell).importPicked(url, into: shell.bookPickDestination)
             }

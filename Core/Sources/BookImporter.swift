@@ -46,16 +46,18 @@ enum BookImportOutcome {
 /// Why a book wasn't imported, as the import sheet says it (one line, with OK).
 enum BookImportError: Error, Equatable, LocalizedError {
     case drmProtected
+    /// A password-protected PDF.
+    case encrypted
     case fixedLayout
     /// Over `EPUBLimits`' caps: more text, files or bytes than a book needs (a zip bomb lands
     /// here too).
     case tooLarge
-    /// Not an EPUB, damaged, or no text. The detail is for the log.
+    /// Not a readable EPUB/PDF, damaged, or no text. The detail is for the log.
     case unreadable(String)
     /// The folder the book was going into was deleted while it was read.
     case destinationGone
-    /// The hidden web view couldn't prepare a chapter's text, or the chapters it made don't meet
-    /// the size policy (`BookChapterFinalizer.check`).
+    /// A chapter's text couldn't be prepared, or the chapters don't meet the size policy
+    /// (`BookChapterFinalizer.check`).
     case couldNotPrepare(String)
     case couldNotSave
 
@@ -69,24 +71,34 @@ enum BookImportError: Error, Equatable, LocalizedError {
         }
     }
 
+    init(_ error: PDFError) {
+        switch error {
+        case .encrypted: self = .encrypted
+        case .noText: self = .unreadable("no extractable text (scanned/image-only PDF; no OCR)")
+        case .unreadable(let detail): self = .unreadable(detail)
+        }
+    }
+
     var errorDescription: String? {
         switch self {
         case .drmProtected: String(localized: "This EPUB is copy-protected (DRM), so Meridian can't read it.")
+        case .encrypted: String(localized: "This PDF is password-protected, so Meridian can't read it.")
         case .fixedLayout: String(localized: "This is a fixed-layout EPUB; its text can't be read in order.")
-        case .tooLarge: String(localized: "This EPUB is too large to import.")
-        case .unreadable: String(localized: "This file isn't a readable EPUB.")
+        case .tooLarge: String(localized: "This book is too large to import.")
+        case .unreadable: String(localized: "This file isn't a readable book.")
         case .destinationGone: String(localized: "The folder chosen for this import no longer exists.")
-        case .couldNotPrepare: String(localized: "Meridian couldn't prepare this EPUB's text.")
+        case .couldNotPrepare: String(localized: "Meridian couldn't prepare this book's text.")
         case .couldNotSave: String(localized: "Meridian couldn't save the folder. Try again.")
         }
     }
 }
 
-/// Imports an EPUB into the library: read and cut it (off the main thread), make each chapter
-/// ready for listening in the hidden web view, settle the chapters on their listen blocks, then
-/// store one book folder with one page per chapter in a single save. Front matter is kept as
-/// skipped pages. A body chapter still over the bar after settling makes the book be cut again
-/// with a lower cap, at most `maxCuts` times.
+/// Imports an EPUB or PDF into the library. EPUBs: read and cut (off the main thread), make each
+/// chapter ready for listening in the hidden web view, settle on listen blocks, then store one
+/// book folder with one page per chapter in a single save. Front matter is kept as skipped pages;
+/// a body chapter still over the bar after settling makes the book be cut again with a lower
+/// cap, at most `maxCuts` times. PDFs: PDFKit text extract (no OCR), one chapter per text page,
+/// plain-text HTML wrapping (no web view), then the same settle/store path.
 ///
 /// Nothing in the library changes until the last step, and only for chapters that pass the size
 /// policy (`BookChapterFinalizer.check`): a book with nothing left to read is unreadable, and one
@@ -108,10 +120,22 @@ struct BookImporter {
     /// (`destinationGone`). A book already in the Library stays where it is: `choice` says whether
     /// its pages are rebuilt. `read` gets the book's title, cover and chapters once the file is
     /// read, before anything else.
-    func importBook(at fileURL: URL, into destinationID: @autoclosure () -> UUID?,
+    func importBook(at fileURL: URL, into destinationID: @autoclosure @escaping () -> UUID?,
                     ifAlreadyInLibrary choice: ReimportChoice,
                     progress: (BookImportProgress) -> Void = { _ in },
                     read onRead: (BookImportPreview) -> Void = { _ in }) async throws -> BookImportOutcome {
+        if fileURL.pathExtension.lowercased() == "pdf" {
+            return try await importPDF(at: fileURL, into: destinationID, ifAlreadyInLibrary: choice,
+                                       progress: progress, read: onRead)
+        }
+        return try await importEPUB(at: fileURL, into: destinationID, ifAlreadyInLibrary: choice,
+                                    progress: progress, read: onRead)
+    }
+
+    private func importEPUB(at fileURL: URL, into destinationID: @escaping () -> UUID?,
+                            ifAlreadyInLibrary choice: ReimportChoice,
+                            progress: (BookImportProgress) -> Void,
+                            read onRead: (BookImportPreview) -> Void) async throws -> BookImportOutcome {
         _ = try folder(destinationID())
         progress(.reading)
         var rules = rules
@@ -132,7 +156,40 @@ struct BookImporter {
             cuts += 1
         }
 
-        let details = source.folderDetails
+        return try await store(key: book.key, source: source, into: destinationID, choice: choice, cuts: cuts,
+                               progress: progress)
+    }
+
+    private func importPDF(at fileURL: URL, into destinationID: @escaping () -> UUID?,
+                           ifAlreadyInLibrary choice: ReimportChoice,
+                           progress: (BookImportProgress) -> Void,
+                           read onRead: (BookImportPreview) -> Void) async throws -> BookImportOutcome {
+        _ = try folder(destinationID())
+        progress(.reading)
+        let book = try await readPDF(fileURL)
+        onRead(Self.preview(of: book))
+        if let existing = library.book(key: book.key), choice == .cancel { return .alreadyInLibrary(existing) }
+
+        let source: PDFSource
+        do {
+            source = try await PDFSource.prepare(book, bar: bar) {
+                progress(.preparing(title: book.title, done: $0, total: $1))
+            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw BookImportError.couldNotPrepare(error.localizedDescription)
+        }
+
+        // A page still over the bar after PDFBookReader's split is a prepare failure (no re-cut loop).
+        return try await store(key: book.key, source: source, into: destinationID, choice: choice, cuts: 1,
+                               progress: progress)
+    }
+
+    private func store(key: UUID, source: ArticleSource, into destinationID: @escaping () -> UUID?,
+                       choice: ReimportChoice, cuts: Int,
+                       progress: (BookImportProgress) -> Void) async throws -> BookImportOutcome {
+        guard let details = source.details else { throw BookImportError.couldNotPrepare("missing folder details") }
         progress(.storing(title: details.title))
         var chapters: [ArticleContent] = []
         for ref in try await source.knownArticles() { chapters.append(try await source.content(of: ref)) }
@@ -140,7 +197,7 @@ struct BookImporter {
         // From here to the save nothing awaits, so nothing can change under it.
         try Task.checkCancellation()
         do {
-            if let existing = library.book(key: book.key) {
+            if let existing = library.book(key: key) {
                 guard choice == .replace else { return .alreadyInLibrary(existing) }
                 try library.replaceBook(existing, with: details, chapters: chapters)
                 return .replaced(existing)
@@ -162,6 +219,16 @@ struct BookImporter {
             chapterCount: book.chapters.count,
             chapterTitles: book.chapters.filter { !$0.skipsInPlayback }.compactMap(\.title),
             skippedTitles: book.chapters.filter(\.skipsInPlayback).compactMap(\.title))
+    }
+
+    static func preview(of book: PDFBook) -> BookImportPreview {
+        return BookImportPreview(
+            title: book.title,
+            byline: book.author,
+            cover: book.coverJPEG,
+            chapterCount: book.chapters.count,
+            chapterTitles: book.chapters.compactMap(\.title),
+            skippedTitles: [])
     }
 
     /// The folder `id` names as the library has it now (nil: the top level): it may have been
@@ -196,6 +263,23 @@ struct BookImporter {
                 try EPUBBookReader.read(fileURL: fileURL, limits: limits, rules: rules)
             }.value
         } catch let error as EPUBError {
+            throw BookImportError(error)
+        } catch {
+            throw BookImportError.unreadable(error.localizedDescription)
+        }
+        try Task.checkCancellation()
+        return book
+    }
+
+    /// PDFKit extract off the main thread; a cancel during it is seen once it is done.
+    private func readPDF(_ fileURL: URL) async throws -> PDFBook {
+        let maxWords = bar.maxWords
+        let book: PDFBook
+        do {
+            book = try await Task.detached(priority: .userInitiated) {
+                try PDFBookReader.read(fileURL: fileURL, maxWords: maxWords)
+            }.value
+        } catch let error as PDFError {
             throw BookImportError(error)
         } catch {
             throw BookImportError.unreadable(error.localizedDescription)
