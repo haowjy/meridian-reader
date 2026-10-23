@@ -44,49 +44,34 @@ final class TextChunkerTests: XCTestCase {
 
 
 
-    // MARK: - Normalize pauses (em dash / semicolon)
+    // MARK: - Normalize is whitespace-only (pause rewriting removed)
 
-    func testNormalizeEmDashBetweenWordsBecomesColonPause() {
-        let out = TTSTextNormalize.normalize("It got worse—and then better.")
-        XCTAssertFalse(out.contains("—"), out)
-        XCTAssertTrue(out.contains("worse: and"), out)
+    func testNormalizeCollapsesWhitespaceOnly() {
+        XCTAssertEqual(TTSTextNormalize.normalize("A  b\n\tc"), "A b c")
+        XCTAssertEqual(TTSTextNormalize.normalize("  hello  "), "hello")
     }
 
-    func testNormalizeKeepsEnDashRanges() {
-        let out = TTSTextNormalize.normalize("Pages 10–12 and Monday–Friday were lost.")
-        XCTAssertTrue(out.contains("10–12"), out)
-        XCTAssertTrue(out.contains("Monday–Friday"), out)
-        XCTAssertFalse(out.contains("10, 12"), out)
-        XCTAssertFalse(out.contains("Monday, Friday"), out)
+    func testNormalizePassesEmDashAndSemicolonThrough() {
+        // Pause rewriting removed; engines (NeMo / Gradium) own TN.
+        XCTAssertEqual(TTSTextNormalize.normalize("It got worse—and then better."),
+                       "It got worse—and then better.")
+        XCTAssertEqual(TTSTextNormalize.normalize("The docks — porters, pilots — were busy."),
+                       "The docks — porters, pilots — were busy.")
+        XCTAssertEqual(TTSTextNormalize.normalize("She showed a map; it was covered in red dots."),
+                       "She showed a map; it was covered in red dots.")
+        XCTAssertEqual(TTSTextNormalize.normalize("Hello world—really; yes."),
+                       "Hello world—really; yes.")
     }
 
-    func testNormalizeKeepsSemicolonInsideURL() {
-        let out = TTSTextNormalize.normalize("See https://example.com/a;b=1 for details.")
-        XCTAssertTrue(out.contains("a;b=1") || out.contains("https://example.com/a;b=1"), out)
-        XCTAssertFalse(out.contains("a,b=1"), out)
-    }
-
-    func testNormalizeKeepsASCIIHyphenCompounds() {
-        let out = TTSTextNormalize.normalize("Dr. J. Ashby-Lowell wrote the three-day flood note.")
-        XCTAssertTrue(out.contains("Ashby-Lowell"), out)
-        XCTAssertTrue(out.contains("three-day"), out)
-    }
-
-    func testNormalizeSpacedDashBecomesColonPause() {
-        let out = TTSTextNormalize.normalize("The docks — porters, pilots — were busy.")
-        XCTAssertFalse(out.contains("—"), out)
-        XCTAssertEqual(out, "The docks: porters, pilots: were busy.")
-    }
-
-    func testNormalizeSemicolonBecomesCommaPause() {
-        let out = TTSTextNormalize.normalize("She showed a map; it was covered in red dots.")
-        XCTAssertFalse(out.contains(";"), out)
-        XCTAssertEqual(out, "She showed a map, it was covered in red dots.")
-    }
-
-    func testNormalizeClauseSemicolonBecomesCommaAndEmDashColon() {
-        let out = TTSTextNormalize.normalize("Hello world—really; yes.")
-        XCTAssertEqual(out, "Hello world: really, yes.")
+    func testNormalizeKeepsRangesHyphensAndURLSemicolons() {
+        let ranges = TTSTextNormalize.normalize("Pages 10–12 and Monday–Friday were lost.")
+        XCTAssertTrue(ranges.contains("10–12"), ranges)
+        XCTAssertTrue(ranges.contains("Monday–Friday"), ranges)
+        let compounds = TTSTextNormalize.normalize("Dr. J. Ashby-Lowell wrote the three-day flood note.")
+        XCTAssertTrue(compounds.contains("Ashby-Lowell"), compounds)
+        XCTAssertTrue(compounds.contains("three-day"), compounds)
+        let url = TTSTextNormalize.normalize("See https://example.com/a;b=1 for details.")
+        XCTAssertTrue(url.contains("a;b=1"), url)
     }
 
 

@@ -7,8 +7,9 @@ import Foundation
 /// engine's `hardMax` *estimated* units (chars, digits weighted ×3 because "2240" is spoken as
 /// four words). Limits come from the engine's `EngineDescriptor`.
 ///
-/// Entry point: `chunks(for:limits:)` normalizes (`TTSTextNormalize`) then splits. Paragraphs
-/// stay the UI/listen unit; chunks are an internal synth detail.
+/// Entry point: `chunks(for:limits:)` whitespace-normalizes (`TTSTextNormalize`) then splits.
+/// Paragraphs stay the UI/listen unit; chunks are an internal synth detail. Pause rewriting
+/// lives in the engines (Kokoro NeMo / Phonon Gradium), not here.
 /// Invariants (tested, incl. 10k-char paragraphs): every chunk ≤ `hardMax`; the first chunk of
 /// a multi-chunk paragraph ≤ `firstTarget`; words are never cut while a space exists;
 /// `chunks(for: t).joined(separator: " ") == TTSTextNormalize.normalize(t)` unless a single

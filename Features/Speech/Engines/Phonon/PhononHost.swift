@@ -109,12 +109,11 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
         }
         let t0 = ListenTimingLog.now()
         let samples: [Float]
-        // Pipeline into Phonon: Meridian `TTSTextNormalize` (shared pause rules) → chunk →
+        // Pipeline into Phonon: Meridian `TTSTextNormalize` (whitespace only) → chunk →
         // `PhononSpokenText.prepare` (footguns) → here. Gradium then runs its English
         // `normalize_text` automatically (language set at load): spells numbers/symbols,
         // turns em/en dashes into spaces, spaced `;`/`:` into comma pauses, `…`→`.`.
-        // Meridian's em-dash→`: ` still matters — without it Gradium would drop the dash
-        // to whitespace (no pause); Gradium then remaps our spaced `:` to `, ` (still a pause).
+        // Meridian no longer rewrites dashes/semicolons into pauses — Gradium owns that.
         do {
             samples = try await tts.synthesize(trimmed)
         } catch is CancellationError {
