@@ -40,10 +40,13 @@ private struct PlayerCardSurface: ViewModifier {
 ///
 /// ```
 /// ╭─────────────────────────────────────────────╮
-/// │ [art]  Notes on Tides          9 min left   │  <- title + time (trailing)
+/// │ [art]  Notes on Tides   9 min left    (Voice)│  <- title + time; Voice trailing (aligned right)
 /// │ [-- scrubber, full width -------*---]   1x  │  <- `scrub` bare row; EmptyView in Reader
 /// ╰─────────────────────────────────────────────╯
 /// ```
+///
+/// Voice (`VoiceChromeButton`) sits to the right of the title block in the Reader and Now Playing
+/// bottom bands, and opens the same Voice picker as ⋯ › Voice / Settings › Voice.
 struct ReadingPlayerCard<Scrub: View>: View {
     let title: String
     var timeDetail: String?
@@ -83,6 +86,29 @@ struct ReadingPlayerCard<Scrub: View>: View {
         .playerCardSurface()
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("readingPlayerCard")
+    }
+}
+
+
+/// Voice in the Reader's and Now Playing's bottom player title row: a round field control (36 pt,
+/// 44 pt to tap) trailing the title, on the card fill. Opens the article's or book's Voice picker
+/// (`VoicePickerSheet` / `VoiceSelectionList`), the same list as Settings › Voice and ⋯ › Voice.
+struct VoiceChromeButton: View {
+    /// `readerVoice` or `nowPlayingVoice`.
+    var identifier = "voiceChrome"
+    let action: () -> Void
+
+    @Environment(\.readingPalette) private var reading
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: Icons.voice)
+                .foregroundStyle(reading?.ink ?? Palette.ink)
+                .roundFieldControl(fill: BottomChrome.fieldFill(reading))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+        .accessibilityLabel(Verbs.voice)
     }
 }
 

@@ -10,7 +10,7 @@ import SwiftUI
 /// │ ... `text`: ReadingHeading, then the │ <- fills the sheet, running under the header and
 /// │   text in the reading theme ...      │   the band
 /// │ ─────────────────────────────────────│ <- hairline divider
-/// │ [art] Title                     [🔖]│ <- title + bookmark
+/// │ [art] Title          (Voice)    [🔖]│ <- title; Voice then bookmark (trailing)
 /// │       source                        │
 /// │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ <- thin scrub
 /// │ [⋯]  [⏮]    (▶)    [⏭]       [1×] │ <- transport row

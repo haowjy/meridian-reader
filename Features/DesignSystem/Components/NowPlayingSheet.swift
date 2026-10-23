@@ -13,8 +13,7 @@ import SwiftUI
 /// │         dimmed                       │   follows the audio
 /// │            ( Jump to Audio )         │ <- after you scroll away, bars up only (C128)
 /// │ ─────────────────────────────────────│ <- hairline divider
-/// │ Title                     time left  │
-/// │ source                               │
+/// │ [art] Title          time left (Voice)│ <- title; Voice trailing (aligned right)
 /// │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ <- scrub row
 /// │ [🔖]  [⏮]    (⏸)    [⏭]   [⋯]      │ <- transport
 /// └──────────────────────────────────────┘
@@ -176,12 +175,15 @@ struct NowPlayingSheetGallery: View {
             SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true, card: true)
         } band: {
             VStack(spacing: Spacing.xs) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Chapter 12: Hunsford").typeStyle(.row, weight: .semibold).lineLimit(1)
-                        .foregroundStyle(palette.ink)
-                    Text("9 min left").typeStyle(.caption).foregroundStyle(palette.secondaryInk).lineLimit(1)
+                HStack(spacing: Spacing.s) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Chapter 12: Hunsford").typeStyle(.row, weight: .semibold).lineLimit(1)
+                            .foregroundStyle(palette.ink)
+                        Text("9 min left").typeStyle(.caption).foregroundStyle(palette.secondaryInk).lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    VoiceChromeButton(identifier: "previewVoice") {}
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 ReaderScrubRow(map: map, position: 0.42, buffered: [0.42...0.6],
                                onScrubPreview: { _ in }, onScrubCommit: { _ in }, isCapsule: false) {
                     Text("1×").typeStyle(.caption).foregroundStyle(palette.ink).fieldTextFrame()
