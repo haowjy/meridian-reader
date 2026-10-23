@@ -7,10 +7,13 @@ extension SpeechEngineID {
 }
 
 extension TextChunker.Limits {
-    /// Phonon splits long text into sentences itself; keep first chunks short for TTFA.
+    /// Phonon prefers whole-paragraph synth calls. Display paragraphs are capped around
+    /// 1,200 chars (`ParagraphSplitter.threshold`); Phonon's own sentence handling + ANE
+    /// make short TTFA first-clips unnecessary for normal listening. Oversized rare
+    /// paragraphs still sentence-split via TextChunker under `hardMax`.
     static let phonon = TextChunker.Limits(
-        target: 360, hardMax: 480, firstTarget: 90, minResplit: 24,
-        alwaysSplitFirst: true, secondTarget: 180)
+        target: 1200, hardMax: 1600, firstTarget: 1200, minResplit: 48,
+        alwaysSplitFirst: false, secondTarget: nil)
 }
 
 /// Gradium Phonon 31m English adapter. Registers one on-device engine (`local.phonon`).
