@@ -36,3 +36,13 @@ The app icon source is `Resources/Brand/meridian-reader-icon-g1.svg`, exported i
 - `docs/TECHNICAL_SPEC.md`: architecture, extraction, persistence
 - `docs/NAVIGATION.md`: browser, reader and library navigation
 - `docs/LISTEN_PLAYBACK.md` and `docs/TTS_ENGINES.md`: playback and voice engines
+
+## Public site (App Store URLs)
+
+Privacy Policy and Support pages live in `site/` and publish to GitHub Pages:
+
+- https://haowjy.github.io/meridian-reader/
+- https://haowjy.github.io/meridian-reader/privacy.html
+- https://haowjy.github.io/meridian-reader/support.html
+
+See `site/README.md` and `docs/RELEASE.md`.

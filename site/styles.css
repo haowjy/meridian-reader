@@ -1,0 +1,139 @@
+/* Adapted from the MIT-licensed GitHub Pages privacy-policy template
+   (https://github.com/abhuiyan00/privacy-policy). Meridian Reader branding applied. */
+:root {
+  --bg: #fbfaf7;
+  --fg: #141416;
+  --muted: #6b6a66;
+  --card: #f3f2ee;
+  --border: #e5e3dc;
+  --accent: #287060;
+  --accent-soft: #e7f1ee;
+  --maxw: 820px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141416;
+    --fg: #f2f1ec;
+    --muted: #a3a29c;
+    --card: #1f1f23;
+    --border: #2e2e33;
+    --accent: #5fa0b8;
+    --accent-soft: #1a2a30;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  text-decoration: none;
+  color: inherit;
+}
+.brand img {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+.brand span {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+nav.site {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+}
+nav.site a { color: var(--accent); text-decoration: none; }
+nav.site a:hover { text-decoration: underline; }
+nav.site a[aria-current="page"] {
+  color: var(--fg);
+  font-weight: 600;
+  text-decoration: none;
+}
+h1 { font-size: 2rem; margin: 0 0 0.35rem; letter-spacing: -0.02em; }
+h2 { font-size: 1.25rem; margin: 2.2rem 0 0.6rem; padding-top: 0.2rem; }
+h3 { font-size: 1.05rem; margin: 1.4rem 0 0.4rem; }
+.dates { color: var(--muted); font-size: 0.9rem; }
+.summary {
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  margin: 1.75rem 0;
+  font-size: 0.97rem;
+}
+.cards {
+  display: grid;
+  gap: 1rem;
+  margin: 1.75rem 0;
+}
+@media (min-width: 640px) {
+  .cards { grid-template-columns: 1fr 1fr; }
+}
+.card {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.15rem 1.25rem;
+  text-decoration: none;
+  color: inherit;
+}
+.card:hover { border-color: var(--accent); }
+.card strong { display: block; color: var(--accent); margin-bottom: 0.35rem; }
+.card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+p, li { color: var(--fg); }
+a { color: var(--accent); }
+.muted { color: var(--muted); }
+ul { padding-left: 1.25rem; }
+li { margin: 0.35rem 0; }
+nav.toc {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+nav.toc ol {
+  margin: 0.3rem 0 0;
+  padding-left: 1.25rem;
+  columns: 2;
+  column-gap: 2rem;
+}
+nav.toc a { text-decoration: none; }
+nav.toc a:hover { text-decoration: underline; }
+footer {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+code {
+  background: var(--card);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+@media (max-width: 600px) {
+  nav.toc ol { columns: 1; }
+  h1 { font-size: 1.6rem; }
+}
