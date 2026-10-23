@@ -28,6 +28,9 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
 
     var isPrepared: Bool { load.isLoaded }
 
+    /// Soften ALL CAPS + keep `?`/`!` from being eaten by Phonon's ellipsis→period rewrite.
+    func spokenText(forChunk text: String) -> String { PhononSpokenText.prepare(text) }
+
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
     private var currentVoice: String { lock.withLock { voice } }
 
