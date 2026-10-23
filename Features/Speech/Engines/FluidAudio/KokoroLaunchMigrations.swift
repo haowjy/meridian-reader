@@ -66,3 +66,13 @@ struct KokoroCoreMLStageCleanup: LaunchMigration {
         }
     }
 }
+
+
+/// Copy the bundled Heart voice pack into FluidAudio's cache when missing so the Voice picker
+/// never starts empty. Idempotent; runs every launch (cheap existence check).
+struct KokoroHeartPackInstall: LaunchMigration {
+    func runIfNeeded(_ tts: LocalTTSCoordinator) {
+        guard tts.engines.supports(.kokoro) else { return }
+        KokoroAssets.installBundledHeartIfNeeded()
+    }
+}

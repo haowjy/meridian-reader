@@ -106,7 +106,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// Kokoro's audio and model housekeeping, then pruning Core ML's compiled-model cache of
     /// earlier installs' bundles; a Debug build also probes for background GPU time.
     var launchMigrations: [LaunchMigration] {
-        var steps: [LaunchMigration] = [KokoroAudioCachePurge(), KokoroONNXMainMigration()]
+        var steps: [LaunchMigration] = [KokoroHeartPackInstall(), KokoroAudioCachePurge(), KokoroONNXMainMigration()]
         if !keepsCoreMLStages { steps.append(KokoroCoreMLStageCleanup()) }
         steps.append(CoreMLCompileCacheJanitor())
         #if DEBUG
@@ -180,6 +180,10 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// first render doesn't wait on the network (and a failed prepare keeps the old voice).
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {
         guard id == .kokoro else { return }
+        // Heart's pack ships in the app bundle; restore it even before the ONNX frontend is ready.
+        if voice == KokoroVoiceCatalog.defaultVoice {
+            KokoroAssets.installBundledHeartIfNeeded()
+        }
         switch routeSettings.route {
         case .onnxCPU:
             // Only once the frontend files exist; otherwise `prepare()` fetches the voice.
@@ -190,6 +194,31 @@ final class FluidAudioProvider: SpeechEngineProvider {
             // preloads the selected voice.
             guard KokoroAssets.repoDirectoryExists else { return }
             try await KokoroAssets.ensureVoicePack(voice)
+        }
+    }
+
+    /// Whether `<voice>.bin` is on disk for Kokoro.
+    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
+        id == .kokoro && KokoroAssets.voicePackInstalled(voice)
+    }
+
+    /// Heart stays while it is the only curated pack on disk (or would leave the picker empty).
+    /// Any other downloaded pack can be removed.
+    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool {
+        guard id == .kokoro, KokoroAssets.voicePackInstalled(voice) else { return false }
+        if voice == KokoroVoiceCatalog.defaultVoice {
+            return KokoroAssets.installedCuratedVoiceIDs().contains { $0 != voice }
+        }
+        return true
+    }
+
+    /// Remove one Kokoro voice pack. No-op when `canDeleteVoicePack` is false.
+    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws {
+        guard canDeleteVoicePack(voice, for: id) else { return }
+        _ = KokoroAssets.deleteVoicePack(voice)
+        // Heart is re-seeded from the bundle if somehow wiped while still required.
+        if voice != KokoroVoiceCatalog.defaultVoice {
+            KokoroAssets.installBundledHeartIfNeeded()
         }
     }
 

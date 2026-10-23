@@ -1,8 +1,9 @@
 import Foundation
 
 /// The Kokoro voices Reader offers (Settings → Listen → Voice). THE place to swap voices:
-/// edit one line. Each id must be a FluidAudio English pack (`KokoroAneConstants.englishVoices`;
-/// non-default packs prepare ~0.5 MB on select) and should have a bundled preview clip
+/// edit one line. Each id must be a FluidAudio English pack (`KokoroAneConstants.englishVoices`).
+/// Heart (`af_heart`) ships as `Resources/Kokoro/af_heart.bin` and installs on first launch;
+/// other packs prepare ~0.5 MB on select. Each should have a bundled preview clip
 /// `Resources/VoicePreviews/voice-preview-kokoro-<id>.m4a` (see docs/LISTEN_PLAYBACK.md for how
 /// the clips were rendered).
 enum KokoroVoiceCatalog {
