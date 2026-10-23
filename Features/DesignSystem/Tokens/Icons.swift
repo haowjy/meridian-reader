@@ -179,6 +179,10 @@ enum Icons {
     static let blockAds = "hand.raised"
     /// Prepared audio and storage (Settings).
     static let storage = "internaldrive"
+    /// Privacy Policy (Settings › About).
+    static let privacy = "doc.text"
+    /// Support (Settings › About).
+    static let support = "questionmark.circle"
 
     // MARK: Notices
 

@@ -58,8 +58,11 @@ Before the first submission:
 2. **Price**: Free.
 3. **App Privacy**: "Data Not Collected" (the app has no analytics, no network to our servers,
    no tracking). Answer the privacy questions accordingly.
-4. **Privacy policy URL**: required by Apple. Set up a simple page (GitHub Pages or similar)
-   and enter its URL in App Store Connect.
+4. **Privacy policy URL** and **Support URL**: required by Apple. Hosted on GitHub Pages from
+   `site/` in this repo:
+   - Privacy: https://haowjy.github.io/meridian-reader/privacy.html
+   - Support: https://haowjy.github.io/meridian-reader/support.html
+   Paste both into App Store Connect › App Information. Settings in the app also links to them.
 5. **Screenshots**: at least one set for 6.7" and 6.1" displays.
 6. **Age rating**: answer the questionnaire (no objectionable content).
 7. **Export compliance**: the app declares `ITSAppUsesNonExemptEncryption = NO` in Info.plist,

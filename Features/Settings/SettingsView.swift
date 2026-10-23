@@ -9,6 +9,7 @@ import SwiftUI
 /// Appearance / Reading   Appearance ›, Reading › (one card; drill-ins)
 /// Browsing     Block Ads (on)
 /// Prepared Audio & Storage   Prepared audio ›, sizes, Version (long-press: developer options)
+/// About        Privacy Policy, Support (GitHub Pages)
 /// Developer    (developer options only) listen debug, fake extraction failure, the panel
 /// ```
 ///
@@ -31,6 +32,7 @@ struct SettingsView: View {
                 appearanceAndReadingSection
                 BrowsingSettingsSection(blocker: contentBlocker)
                 StorageSettingsSection(speech: speech, versionRow: { versionRow })
+                AboutSettingsSection()
                 if developer.isEnabled {
                     DeveloperSettingsSection()
                 }
@@ -99,6 +101,42 @@ struct SettingsView: View {
         developer.isEnabled.toggle()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         developerToggleNotice = developer.isEnabled ? "Developer options on" : "Developer options off"
+    }
+}
+
+
+/// Settings › About: Privacy Policy and Support on GitHub Pages (App Store Guideline 5.1.1).
+private struct AboutSettingsSection: View {
+    private static let privacyURL = URL(string: "https://haowjy.github.io/meridian-reader/privacy.html")!
+    private static let supportURL = URL(string: "https://haowjy.github.io/meridian-reader/support.html")!
+
+    var body: some View {
+        Section {
+            Link(destination: Self.privacyURL) {
+                SymbolRow(String(localized: "Privacy Policy"), symbol: Icons.privacy) {
+                    Image(systemName: Icons.disclosure)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .fontWeight(.semibold)
+                }
+            }
+            .buttonStyle(.plain)
+            .tint(Palette.ink)
+            .accessibilityIdentifier("settingsPrivacyPolicy")
+
+            Link(destination: Self.supportURL) {
+                SymbolRow(String(localized: "Support"), symbol: Icons.support) {
+                    Image(systemName: Icons.disclosure)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .fontWeight(.semibold)
+                }
+            }
+            .buttonStyle(.plain)
+            .tint(Palette.ink)
+            .accessibilityIdentifier("settingsSupport")
+        } header: {
+            SectionHeader(title: String(localized: "About"), size: .settings).listHeader()
+        }
+        .listCard()
     }
 }
 
