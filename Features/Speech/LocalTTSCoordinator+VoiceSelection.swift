@@ -131,6 +131,6 @@ extension LocalTTSCoordinator {
             return String(localized: "\(voice.name) (Apple)")
         }
         let d = engines.descriptor(selection.engine)
-        return d?.voices.first { $0.id == selection.voice }?.label ?? d?.shortName ?? selection.voice
+        return d?.allVoices.first { $0.id == selection.voice }?.label ?? d?.shortName ?? selection.voice
     }
 }

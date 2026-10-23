@@ -55,6 +55,10 @@ struct EngineDescriptor: Sendable, Identifiable {
 
     /// Settings' Voice section for this engine; empty when its voices are picked elsewhere (Apple).
     var voices: [EngineVoice] = []
+    /// Extra voices shown under *More voices* below `voices` (Phonon's full bundle).
+    var moreVoices: [EngineVoice] = []
+    /// `voices` + `moreVoices`: everything selectable.
+    var allVoices: [EngineVoice] { voices + moreVoices }
     var defaultVoiceID: String? = nil
     /// UserDefaults key for the selected voice (nil → "reader.tts.voice.<id>").
     var voiceDefaultsKey: String? = nil
@@ -84,7 +88,7 @@ struct EngineDescriptor: Sendable, Identifiable {
 
     /// Voice to use for a stored selection: the stored id if it's still offered, else the default.
     func resolvedVoice(_ stored: String?) -> String? {
-        if let stored, voices.contains(where: { $0.id == stored }) { return stored }
+        if let stored, allVoices.contains(where: { $0.id == stored }) { return stored }
         return defaultVoiceID ?? voices.first?.id
     }
 

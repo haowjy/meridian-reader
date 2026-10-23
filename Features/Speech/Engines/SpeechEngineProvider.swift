@@ -159,7 +159,7 @@ final class EngineRegistry {
         for d in descriptors {
             guard let p = d.onDevice?.cacheVoicePrefix, voiceID.hasPrefix(p + ".") else { continue }
             let voice = String(voiceID.dropFirst(p.count + 1))
-            guard let label = d.voices.first(where: { $0.id == voice })?.label else { return d.shortName }
+            guard let label = d.allVoices.first(where: { $0.id == voice })?.label else { return d.shortName }
             return "\(d.shortName) \(label)"
         }
         return descriptor(.apple)?.shortName ?? "Apple"
@@ -171,7 +171,7 @@ final class EngineRegistry {
         for d in descriptors {
             guard let p = d.onDevice?.cacheVoicePrefix, voiceID.hasPrefix(p + ".") else { continue }
             let voice = String(voiceID.dropFirst(p.count + 1))
-            return d.voices.first(where: { $0.id == voice })?.label ?? d.shortName
+            return d.allVoices.first(where: { $0.id == voice })?.label ?? d.shortName
         }
         return descriptor(.apple)?.shortName ?? "Apple"
     }

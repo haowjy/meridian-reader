@@ -14,7 +14,7 @@ extension TextChunker.Limits {
 }
 
 /// Gradium Phonon 31m English adapter. Registers one on-device engine (`local.phonon`).
-/// This PR runs Core ML on **CPU** only (`computeUnit: .cpu`) for the speed probe vs Kokoro.
+/// Core ML on Phonon's default compute unit (Neural Engine).
 @MainActor
 final class PhononProvider: SpeechEngineProvider {
     let name = "Phonon"
@@ -23,10 +23,11 @@ final class PhononProvider: SpeechEngineProvider {
         id: .phonon,
         displayName: "Phonon (on-device)",
         shortName: "Phonon",
-        subtitle: "~131 MB download, English, CPU for now",
+        subtitle: "~131 MB download, English",
         isRecommended: false,
         sortOrder: 20,
         voices: PhononVoiceCatalog.curated,
+        moreVoices: PhononVoiceCatalog.more,
         defaultVoiceID: PhononVoiceCatalog.defaultVoice,
         voiceDefaultsKey: "reader.tts.phononVoice",
         hardware: HardwareRequirement(
@@ -47,7 +48,7 @@ final class PhononProvider: SpeechEngineProvider {
 
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
         guard id == .phonon else { return nil }
-        return PhononHost(voice: voice ?? PhononVoiceCatalog.defaultVoice, computeUnit: .cpu)
+        return PhononHost(voice: voice ?? PhononVoiceCatalog.defaultVoice)
     }
 
     func isInstalled(_ id: SpeechEngineID) -> Bool {
@@ -62,7 +63,7 @@ final class PhononProvider: SpeechEngineProvider {
     /// Voices live inside the model bundle; once the bundle is installed every curated voice is present.
     func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
         id == .phonon && PhononModelStore.filesLookInstalled
-            && PhononVoiceCatalog.curated.contains(where: { $0.id == voice })
+            && PhononVoiceCatalog.all.contains(where: { $0.id == voice })
     }
 
     func debugSections(speech: SpeechController) -> AnyView {

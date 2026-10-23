@@ -2,14 +2,15 @@ import Foundation
 import PhononTTS
 
 /// Phonon 31m English via Gradium `ptts` / Core ML.
-/// This PR forces `computeUnit: .cpu` so Jimmy can compare CPU speed to Kokoro ONNX CPU.
-/// Desktop GGUF "q8" is a different stack; label probe rows `phonon-31m cpu`.
+/// Normal listening uses Phonon's default compute unit (Neural Engine). `computeUnit: .cpu` is an
+/// optional debug route (the earlier CPU probe); CPU-only rendering made the phone laggy.
 final class PhononHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .phonon
-    /// Always CPU for this PR (ANE is Phonon's default; we override for the probe).
-    let computeUnit: ComputeUnit
-    var routingLabel: String? { "phonon-31m cpu" }
-    var routeTag: String? { "cpu" }
+    /// nil = Phonon default (Neural Engine). `.cpu` only for the debug probe.
+    let computeUnit: ComputeUnit?
+    var routingLabel: String? { computeUnit == nil ? "phonon-31m ane" : "phonon-31m cpu" }
+    var routeTag: String? { computeUnit == nil ? "ane" : "cpu" }
+    private var unitTag: String { computeUnit == nil ? "ane" : "cpu" }
     /// Core ML path; prove background later. Default LocalSynthHost is false.
     var rendersInBackground: Bool { false }
     var onProgress: (@Sendable (Double) -> Void)?
@@ -20,7 +21,7 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
     private var tts: Phonon?
 
     init(voice: String = PhononVoiceCatalog.defaultVoice,
-         computeUnit: ComputeUnit = .cpu) {
+         computeUnit: ComputeUnit? = nil) {
         self.voice = voice
         self.computeUnit = computeUnit
     }
@@ -34,11 +35,12 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
         let progress = onProgress
         let voice = currentVoice
         let unit = computeUnit
+        let tag = unitTag
         try await load.run {
             let t0 = ListenTimingLog.now()
             let onDisk = PhononModelStore.filesLookInstalled
             ListenTimingLog.log("phonon_init_start", [
-                "voice": voice, "unit": "cpu", "models_on_disk": onDisk,
+                "voice": voice, "unit": tag, "models_on_disk": onDisk,
             ])
             do {
                 progress?(0.02)
@@ -52,10 +54,16 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
                 do {
                     let needs = Phonon.needsCompiling(PhononModelStore.modelsDirectory)
                     ListenTimingLog.log("phonon_load_start", ["needs_compiling": needs])
-                    loaded = try await Phonon.load(
-                        models: PhononModelStore.modelsDirectory,
-                        language: .english,
-                        computeUnit: unit)
+                    if let unit {
+                        loaded = try await Phonon.load(
+                            models: PhononModelStore.modelsDirectory,
+                            language: .english,
+                            computeUnit: unit)
+                    } else {
+                        loaded = try await Phonon.load(
+                            models: PhononModelStore.modelsDirectory,
+                            language: .english)
+                    }
                     if voice != loaded.voice {
                         try await loaded.setVoice(voice)
                     }
@@ -107,7 +115,7 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
             sampleRate: Int(Phonon.sampleRate),
             metrics: [
                 "engine": "phonon",
-                "unit": "cpu",
+                "unit": unitTag,
                 "wall_ms": wallMs,
                 "audio_s": audioS,
                 "rtf": audioS > 0 ? (Double(wallMs) / 1000.0) / audioS : 0,

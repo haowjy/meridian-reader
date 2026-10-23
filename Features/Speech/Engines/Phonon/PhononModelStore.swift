@@ -5,7 +5,7 @@ import ZIPFoundation
 
 /// Download / verify / unzip / install the Phonon 31m English Core ML bundle.
 /// Release asset: `phonon-31m-en-coreml.zip` (~131 MB). Not GGUF q8 — iOS uses Core ML; this PR
-/// forces `computeUnit: .cpu` for the CPU probe Jimmy asked for.
+/// uses the Neural Engine by default (CPU is a debug route).
 ///
 /// Layout under Application Support:
 /// - `PhononTTS/phonon-31m-en-coreml.zip` — verified download

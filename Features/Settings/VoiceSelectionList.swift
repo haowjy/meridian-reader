@@ -29,11 +29,81 @@ struct VoiceSelectionList: View {
 
     private var localTTS: LocalTTSCoordinator { speech.localTTS }
 
+    /// Engine whose voices are listed. nil until the user taps one: the current selection's engine.
+    @State private var shownEngine: SpeechEngineID?
+
+    private var localEngines: [EngineDescriptor] {
+        localTTS.engines.localDescriptors.filter { !$0.voices.isEmpty }
+    }
+
+    private var visibleEngine: SpeechEngineID {
+        shownEngine ?? current?.engine ?? localEngines.first?.id ?? .apple
+    }
+
+    /// Engine first (Phonon / Kokoro / Apple), then only that engine's voices.
     var body: some View {
-        ForEach(localTTS.engines.localDescriptors.filter { !$0.voices.isEmpty }) { descriptor in
+        engineSelector
+        if visibleEngine == .apple {
+            appleSection
+        } else if let descriptor = localEngines.first(where: { $0.id == visibleEngine }) {
             engineSection(descriptor)
+            if !descriptor.moreVoices.isEmpty, localTTS.engines.supports(descriptor.id) {
+                moreVoicesSection(descriptor)
+            }
         }
-        appleSection
+    }
+
+    @ViewBuilder
+    private var engineSelector: some View {
+        Section {
+            ForEach(localEngines) { d in
+                SettingsChoiceRow(title: d.displayName,
+                                  subtitle: engineSubtitle(d).map { DetailPart($0) },
+                                  selected: visibleEngine == d.id,
+                                  accessibilityID: "engineRow-\(d.id.rawValue)") {
+                    shownEngine = d.id
+                }
+            }
+            SettingsChoiceRow(title: localTTS.engines.systemDescriptor?.displayName ?? "Apple",
+                              subtitle: nil,
+                              selected: visibleEngine == .apple,
+                              accessibilityID: "engineRow-apple") {
+                shownEngine = .apple
+            }
+        } header: {
+            SectionHeader(title: String(localized: "Engine")).listHeader()
+        }
+        .listCard()
+    }
+
+    private func engineSubtitle(_ d: EngineDescriptor) -> String? {
+        if localTTS.synth.state.warmingEngineID == d.id { return modelState }
+        if current?.engine == d.id, let label = d.allVoices.first(where: { $0.id == current?.voice })?.label {
+            return String(localized: "In use: \(label)")
+        }
+        return nil
+    }
+
+    /// Same engine, listing only its *More voices* (VoiceChoiceRows lists `descriptor.voices`).
+    private static func moreDescriptor(_ d: EngineDescriptor) -> EngineDescriptor {
+        var more = d
+        more.voices = d.moreVoices
+        return more
+    }
+
+    @ViewBuilder
+    private func moreVoicesSection(_ descriptor: EngineDescriptor) -> some View {
+        let id = descriptor.id
+        let more = Self.moreDescriptor(descriptor)
+        Section {
+            VoiceChoiceRows(descriptor: more, current: current?.engine == id ? current?.voice : nil,
+                            preparingID: preparingID, preview: preview, speech: speech) { voice in
+                onPick(VoiceSelection(engine: id, voice: voice.id))
+            }
+        } header: {
+            SectionHeader(title: String(localized: "More voices")).listHeader()
+        }
+        .listCard()
     }
 
     @ViewBuilder
