@@ -63,7 +63,7 @@ enum PrepareState: Equatable {
 }
 
 /// Prepare progress, drawn one way app-wide (rings mean listening only): an outline ↓ before it
-/// prepared audio, the circle filling with the accent from the bottom as it prepared audio (the ↓ turning
+/// prepared audio, the circle filling with the accent from the top as it prepared audio (the ↓ turning
 /// white where the fill has reached it), the same in grey while paused, a small spinner
 /// while it waits its turn (C93: `QueuedIndicator`, a small spinner), a accent filled ↓ once prepared (C89: ✓ is selection's only). A
 /// folder header's Prepare control, a row's tile while it prepared audio, a prepare in the
@@ -88,9 +88,9 @@ struct PrepareMark: View {
                 let filled = size * min(max(fraction, 0), 1)
                 let tint = state.isPaused ? Palette.secondaryInk : Palette.accent
                 Circle().strokeBorder(tint, lineWidth: lineWidth)
-                Circle().fill(tint).mask(alignment: .bottom) { Rectangle().frame(height: filled) }
+                Circle().fill(tint).mask(alignment: .top) { Rectangle().frame(height: filled) }
                 arrow.foregroundStyle(tint)
-                arrow.foregroundStyle(Palette.onAccent).mask(alignment: .bottom) { Rectangle().frame(height: filled) }
+                arrow.foregroundStyle(Palette.onAccent).mask(alignment: .top) { Rectangle().frame(height: filled) }
             case .prepared:
                 Image(systemName: Icons.prepared)
                     .resizable()
