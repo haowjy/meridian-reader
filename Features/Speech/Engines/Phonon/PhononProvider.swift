@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 extension SpeechEngineID {
-    /// Phonon 31m English (Apache 2.0). Core ML via Gradium `ptts`. Not the default.
+    /// Phonon 31m English (Apache 2.0). Core ML via Gradium `ptts`. App default on-device engine.
     static let phonon = SpeechEngineID("local.phonon")
 }
 
@@ -26,9 +26,9 @@ final class PhononProvider: SpeechEngineProvider {
         id: .phonon,
         displayName: "Phonon (on-device)",
         shortName: "Phonon",
-        subtitle: "~131 MB download, English",
-        isRecommended: false,
-        sortOrder: 20,
+        subtitle: "Recommended, ~131 MB download",
+        isRecommended: true,
+        sortOrder: 10,
         voices: PhononVoiceCatalog.curated,
         moreVoices: PhononVoiceCatalog.more,
         defaultVoiceID: PhononVoiceCatalog.defaultVoice,

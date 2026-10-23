@@ -71,19 +71,29 @@ extension LocalTTSCoordinator {
         noteBakeMarksChanged()
     }
 
-    /// The stored default, else Kokoro Heart when supported (first launch / post-C138a with no
-    /// stored pick), else the engine and voices chosen before C138a, else Apple.
+    /// The stored default, else Phonon Zoey when supported (first launch / unset pick),
+    /// else Kokoro Heart (2nd default) when supported, else legacy engine/voices, else Apple.
+    /// Heart's bundled pack is always seeded when Kokoro is supported so switching engines
+    /// does not wait on that voice download.
     func loadDefaultSelection(legacyEngine: SpeechEngineID, legacyAppleVoice: String?) {
         if let stored = defaults.string(forKey: Self.defaultSelectionKey).flatMap(VoiceSelection.init(stored:)),
            engines.contains(stored.engine) {
             defaultSelection = stored
+            // Keep Heart installed even when the stored pick is Phonon/Apple.
+            if engines.supports(.kokoro) { KokoroAssets.installBundledHeartIfNeeded() }
             return
         }
         if engines.supports(.kokoro) {
-            let heart = KokoroVoiceCatalog.defaultVoice
             KokoroAssets.installBundledHeartIfNeeded()
+            setEngineVoice(.kokoro, KokoroVoiceCatalog.defaultVoice)
+        }
+        if engines.supports(.phonon) {
+            let zoey = PhononVoiceCatalog.defaultVoice
+            defaultSelection = VoiceSelection(engine: .phonon, voice: zoey)
+            setEngineVoice(.phonon, zoey)
+        } else if engines.supports(.kokoro) {
+            let heart = KokoroVoiceCatalog.defaultVoice
             defaultSelection = VoiceSelection(engine: .kokoro, voice: heart)
-            setEngineVoice(.kokoro, heart)
         } else if engines.isOnDevice(legacyEngine), let voice = engineVoices[legacyEngine] {
             defaultSelection = VoiceSelection(engine: legacyEngine, voice: voice)
         } else {

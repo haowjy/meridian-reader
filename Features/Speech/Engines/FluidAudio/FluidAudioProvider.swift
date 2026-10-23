@@ -58,9 +58,9 @@ final class FluidAudioProvider: SpeechEngineProvider {
         id: .kokoro,
         displayName: "Kokoro (on-device)",
         shortName: "Kokoro",
-        subtitle: "Recommended, ~175 MB download",
-        isRecommended: true,
-        sortOrder: 10,
+        subtitle: "~175 MB download",
+        isRecommended: false,
+        sortOrder: 20,
         voices: kokoroVoices,
         defaultVoiceID: KokoroVoiceCatalog.defaultVoice,
         voiceDefaultsKey: "reader.tts.kokoroVoice", // pre-DI key, keep

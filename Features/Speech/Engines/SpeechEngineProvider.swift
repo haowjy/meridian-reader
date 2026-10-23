@@ -104,7 +104,7 @@ final class EngineRegistry {
     }
 
     /// Engine that sizes chunks / keys the cache when no local engine is active yet:
-    /// the recommended on-device engine (Kokoro today), else the first one.
+    /// the recommended on-device engine (Phonon Zoey today), else the first one.
     var defaultLocalEngineID: SpeechEngineID {
         (localDescriptors.first { $0.isRecommended } ?? localDescriptors.first)?.id ?? .apple
     }

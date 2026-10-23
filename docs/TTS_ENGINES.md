@@ -1,8 +1,8 @@
 # TTS engines
 
-Meridian Reader speaks with **Apple TTS** (always available, the default and the fallback) or an
-optional on-device neural voice: **Kokoro** (default on-device choice) or **Phonon** 31m English
-(selectable, not default). Voice libraries plug in behind one registry, so the listen core never
+Meridian Reader speaks with **Apple TTS** (always available fallback) or an on-device neural
+voice: **Phonon** 31m English (default on-device choice, Zoey) or **Kokoro** (2nd default, Heart;
+Heart's pack ships in the app). Voice libraries plug in behind one registry, so the listen core never
 imports a library or switches on engine types. How playback, rendering and the audio cache use an
 engine is in `LISTEN_PLAYBACK.md`.
 
@@ -179,15 +179,15 @@ section (`KokoroRouteDebugSection`, from the provider's `debugSections`) changes
 ## Phonon
 
 Optional on-device English TTS via Gradium [`ptts`](https://github.com/gradium-ai/xn-ptts) 0.4.0
-(Phonon 31m Core ML). **Not the default** — Settings → Listen lists it beside Kokoro; Apple stays
-the fallback. iOS 18+.
+(Phonon 31m Core ML). **Default on-device engine** (Zoey); Kokoro Heart is the 2nd curated default.
+Apple stays the fallback when no on-device engine can speak. iOS 18+.
 
 | | |
 |---|---|
 | Engine id | `local.phonon` |
 | Host | `PhononHost` (`computeUnit: .cpu` in this PR for the CPU probe vs Kokoro ONNX) |
 | Models | `phonon-31m-en-coreml.zip` (~131 MB) downloaded on first use into Application Support, unzipped, then `PhononModels.install` → `PhononTTS/models` |
-| Voices | Full English set in the zip (`PhononVoiceCatalog`); default `default` |
+| Voices | Full English set in the zip (`PhononVoiceCatalog`); default `Zoey` |
 | Chunking | `TextChunker.Limits.phonon` (short first chunk for TTFA) |
 | Background | No (`rendersInBackground` false) — Core ML path |
 | Probe label | `phonon-31m cpu` (`routingLabel`); `-engineProbe -probeOnly Phonon,Kokoro` |
