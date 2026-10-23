@@ -124,6 +124,26 @@ final class TextChunkerTests: XCTestCase {
         XCTAssertTrue(chunks[0].contains(","), chunks[0])
     }
 
+    /// Kokoro whole-paragraph profile: a normal paragraph under hardMax is one call.
+    func testKokoroKeepsNormalParagraphWhole() {
+        let text = "Residents had complained for years about brown water, low pressure, and bills that seemed to rise every quarter. Nobody was surprised. She showed a map; it was covered in red dots."
+        XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(TTSTextNormalize.normalize(text)), TextChunker.Limits.kokoroCPU.hardMax)
+        let chunks = TextChunker.chunks(for: text, limits: .kokoroCPU)
+        XCTAssertEqual(chunks.count, 1, chunks.joined(separator: " | "))
+    }
+
+    /// Over hardMax, Kokoro still splits — at sentence ends, every chunk ≤ hardMax.
+    func testKokoroSplitsOverHardMaxAtSentenceEnds() {
+        let text = Self.sentencePool.joined(separator: " ")
+        let limits = TextChunker.Limits.kokoroCPU
+        let chunks = TextChunker.chunks(for: text, limits: limits)
+        XCTAssertGreaterThan(chunks.count, 1)
+        for c in chunks {
+            XCTAssertLessThanOrEqual(TextChunker.estimatedUnits(c), limits.hardMax, c)
+            XCTAssertTrue([".", "!", "?"].contains(c.last.map(String.init) ?? ""), "should end on sentence: \(c)")
+        }
+    }
+
     // MARK: - Giant paragraphs
 
     private static let sentencePool = [
