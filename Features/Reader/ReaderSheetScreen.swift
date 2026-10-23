@@ -34,6 +34,7 @@ struct ReaderSheetScreen: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(\.readingAppearance) private var appearance
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var jumpMode = false
     @State private var scroll = ReadingScrollHandle()
 
@@ -120,6 +121,8 @@ struct ReaderSheetScreen: View {
                         .foregroundStyle(palette.ink)
                 }
             }
+            .frame(maxWidth: sizeClass == .regular ? RegularLayout.playerClusterWidth : .infinity)
+            .frame(maxWidth: .infinity)
         } more: {
             MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
         } floating: {
@@ -173,6 +176,7 @@ struct ReaderSheetScreen: View {
                         }) { index in
             if jumpMode { listen(from: index, start: start) }
         }
+        .regularReadableMeasure(isRegular: sizeClass == .regular)
     }
 
     /// The sentence at the page's saved listening spot, while it is part-way through: the text

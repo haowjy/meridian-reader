@@ -27,7 +27,9 @@ struct LibrarySurface: View {
     /// The ⋯'s *Turn Off Prepare* asked: the question shows by the ⋯.
     @State private var turningOff: Folder?
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
+    private var isRegular: Bool { sizeClass == .regular }
     private var search: SearchSession { shell.librarySearch }
 
     var body: some View {
@@ -42,29 +44,54 @@ struct LibrarySurface: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scrollDismissesKeyboard(.interactively)
 
-            SurfaceBand(
-                swap: .init(systemImage: Icons.browser, label: Verbs.browser,
-                            hint: String(localized: "Return to the browser"), identifier: "libraryBrowser",
-                            action: shell.leaveLibrary),
-                session: search,
-                cancelID: "librarySearchCancel",
-                onCancel: shell.endLibrarySearch,
-                begin: shell.beginLibrarySearch,
-                isBarCovered: shell.reader != nil
-            ) { focus in
-                SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt, focus: focus,
-                            fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard)
-            } toolbar: {
-                if screen.isEditing {
-                    LibraryEditBar()
-                } else {
-                    toolbar
+            if isRegular {
+                // Regular: sidebar owns surface swap / Settings; clustered dock owns Now Playing.
+                // Keep search field when active; otherwise a slim clustered dock with library tools.
+                if search.isActive {
+                    SurfaceBand(
+                        swap: nil,
+                        session: search,
+                        cancelID: "librarySearchCancel",
+                        onCancel: shell.endLibrarySearch,
+                        begin: shell.beginLibrarySearch,
+                        isBarCovered: shell.reader != nil,
+                        showsNowPlayingBar: false,
+                        showsToolbar: false
+                    ) { focus in
+                        SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt, focus: focus,
+                                    fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard)
+                    } toolbar: { EmptyView() }
                 }
+                ClusteredPlayerDock(speech: speech, isCovered: shell.reader != nil, trailingTools: AnyView(libraryRegularTools))
+                    .overlay(alignment: .top) { PrepareProgressEdge() }
+                    .overlay(alignment: .top) { ShellToastLayer() }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("libraryChrome")
+            } else {
+                SurfaceBand(
+                    swap: .init(systemImage: Icons.browser, label: Verbs.browser,
+                                hint: String(localized: "Return to the browser"), identifier: "libraryBrowser",
+                                action: shell.leaveLibrary),
+                    session: search,
+                    cancelID: "librarySearchCancel",
+                    onCancel: shell.endLibrarySearch,
+                    begin: shell.beginLibrarySearch,
+                    isBarCovered: shell.reader != nil
+                ) { focus in
+                    SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt, focus: focus,
+                                fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard)
+                } toolbar: {
+                    if screen.isEditing {
+                        LibraryEditBar()
+                    } else {
+                        toolbar
+                    }
+                }
+                .overlay(alignment: .top) { PrepareProgressEdge() }
+                .overlay(alignment: .top) { ShellToastLayer() }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("libraryChrome")
             }
-            .overlay(alignment: .top) { PrepareProgressEdge() }
-            .overlay(alignment: .top) { ShellToastLayer() }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("libraryChrome")
         }
         .background(Palette.paper.ignoresSafeArea())
         .libraryDropZone(screen, top: shell.libraryPath.last.map(LibraryScreenKey.route) ?? .home,
@@ -115,6 +142,38 @@ struct LibrarySurface: View {
             MoreMenuButton(id: "libraryMore") { screenMenu.menu }
             .turnOffPrepareQuestion($turningOff)
             .toolbarSlot(BottomToolbarLayout.moreSlot)
+        }
+    }
+
+
+    // MARK: - Regular trailing tools
+
+    @ViewBuilder
+    private var libraryRegularTools: some View {
+        if screen.isEditing {
+            LibraryEditBar()
+        } else {
+            HStack(spacing: Spacing.s) {
+                BandToolbarButton(systemImage: Icons.back, label: Verbs.back,
+                                  identifier: "libraryBack", action: shell.libraryBack)
+                    .disabled(shell.libraryPath.isEmpty)
+                let createRows = screenMenu.createRows
+                if !createRows.isEmpty {
+                    Menu {
+                        MenuRows(createRows)
+                    } label: {
+                        Image(systemName: Icons.add).toolbarIconFrame()
+                    }
+                    .accessibilityLabel("Add")
+                    .accessibilityIdentifier("libraryAdd")
+                    .disabled(shell.libraryPath.isEmpty && shell.homeTab == .favorites)
+                }
+                BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
+                                  identifier: "libraryHistory") { shell.present(.history) }
+                MoreMenuButton(id: "libraryMore") { screenMenu.menu }
+                    .turnOffPrepareQuestion($turningOff)
+            }
+            .tint(Palette.ink)
         }
     }
 

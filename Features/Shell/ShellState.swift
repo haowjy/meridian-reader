@@ -189,6 +189,8 @@ final class ShellState {
     let addressSearch = SearchSession()
     /// The Library's search field, in the band (decision D22): its text filters the Library home.
     let librarySearch = SearchSession()
+    /// Regular-width sidebar collapsed for focus reading / full-bleed Browse (iPad). Compact ignores it.
+    var sidebarCollapsed = false
     /// Whether a target is what you hear (the playback session answers).
     private let isHearing: (ListenTarget) -> Bool
 

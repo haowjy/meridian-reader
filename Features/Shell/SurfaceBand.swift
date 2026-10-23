@@ -17,7 +17,7 @@ import UIKit
 /// `session.isFocused`.
 struct SurfaceBand<Field: View, Toolbar: View>: View {
     /// The swap to the other surface, at the leading edge of the field's row (row 2).
-    let swap: BandSwap
+    var swap: BandSwap?
     let session: SearchSession
     let cancelID: String
     let onCancel: () -> Void
@@ -26,6 +26,10 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
     let begin: () -> Void
     /// The surface is under the Reader sheet, which shows the bar itself.
     var isBarCovered = false
+    /// Regular-width shell: Now Playing moves to `ClusteredPlayerDock`; omit the phone bar row.
+    var showsNowPlayingBar = true
+    /// Regular-width shell: five-slot toolbar may live in the main-pane top chrome instead.
+    var showsToolbar = true
     @ViewBuilder var field: (FocusState<Bool>.Binding) -> Field
     @ViewBuilder var toolbar: () -> Toolbar
 
@@ -36,8 +40,8 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
 
     var body: some View {
         VStack(spacing: BottomChrome.rowSpacing) {
-            if !session.isActive {
-                // Row 1: Now Playing alone, full width (D23).
+            if showsNowPlayingBar, !session.isActive {
+                // Row 1: Now Playing alone, full width (D23). Compact only; regular uses ClusteredPlayerDock.
                 BandNowPlayingBar(speech: speech, isCovered: isBarCovered)
                     .tint(Palette.ink)
                     .padding(.bottom, Spacing.xxs)
@@ -62,7 +66,7 @@ struct SurfaceBand<Field: View, Toolbar: View>: View {
                     .accessibilityIdentifier(cancelID)
                 }
             }
-            if !session.isActive {
+            if showsToolbar, !session.isActive {
                 toolbar()
                     // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI
                     // gives disabled buttons, so a slot with nothing to do would look tappable.

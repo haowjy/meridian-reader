@@ -141,6 +141,7 @@ enum Verbs {
     static let clearAll = String(localized: "Clear All")
     /// The two surfaces, as the swap, the back pill and the ⋯'s big button name them; *Library*
     /// is also the home's title and Now Playing's *Go to*.
+    static let search = String(localized: "Search")
     static let library = String(localized: "Library")
     static let browser = String(localized: "Browser")
     /// The browser's Reader toggle and big button.
