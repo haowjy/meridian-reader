@@ -1,8 +1,8 @@
 # Meridian Reader
 
 A personal iOS app for listening to (and reading) web articles: browse in the app, extract a clean
-copy with Readability, save it, and listen offline with Apple TTS or Kokoro running on the device.
-Single user, no backend. SwiftUI, SwiftData, iOS 17+, iPhone portrait.
+copy with Readability, save it, and listen offline with Apple TTS, Kokoro, or Phonon running on the device.
+Single user, no backend. SwiftUI, SwiftData, iOS 18+, iPhone portrait.
 
 ## Build and verify
 
@@ -68,6 +68,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 | `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/`, `UITests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) and UI flows |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
+| `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); models download at runtime |
 | `Resources/` | Readability scripts, voice previews, assets |
 | `docs/` | How the app behaves and why (below) |
 
@@ -152,7 +153,7 @@ release. The release workflow (`docs/RELEASE.md`) validates the notes file exist
 - `docs/NAVIGATION.md`: screens, gestures, bottom chrome, the reader UI.
 - `docs/LISTEN_PLAYBACK.md`: playback session, engines at runtime, render queue, chunking, audio
   cache, background listening, diagnostics.
-- `docs/TTS_ENGINES.md`: the engine registry, Apple, Kokoro routes, adding an engine.
+- `docs/TTS_ENGINES.md`: the engine registry, Apple, Kokoro, Phonon, adding an engine.
 - `docs/ARTICLE_IDENTITY.md`: canonical URLs, article keys, per-paragraph audio reuse.
 - `docs/TECHNICAL_SPEC.md`, `docs/FUNCTIONAL_REQUIREMENTS.md`: how it is built, what it does.
 - `docs/RELEASE.md`: cutting a release, secrets, App Store Connect setup.

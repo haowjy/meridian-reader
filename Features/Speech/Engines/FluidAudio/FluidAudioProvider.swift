@@ -12,16 +12,15 @@ extension SpeechEngineID {
 }
 
 extension TextChunker.Limits {
-    /// Kokoro, on either route (sized for the ONNX CPU route, the default). ≈1.0–1.3 phonemes
-    /// per char; a call holds at most 510 phonemes. Chunks ramp so playback never waits after the
-    /// first one: first ≤ 80 units (≈5 s of audio, ≈1.5 s to render on iPhone 17 Pro at ≈2.7× real
-    /// time), second ≤ 160 (renders in ≈3.5 s, inside the first chunk's 5 s), then whole sentences
-    /// packed to 240, never over 280 (≈300 tokens, ≈18 s of audio; ORT activation memory grows
-    /// ≈1.3 MB/token, ≈+380 MB at 300 tokens measured on the Mac). Longer chunks = fewer joins and
-    /// Kokoro keeps sentence prosody; sentences are only split when longer than 280 (at clauses).
-    /// Deterministic per text, so live chunks and bake-ahead share one plan.
-    static let kokoroCPU = TextChunker.Limits(target: 240, hardMax: 280, firstTarget: 80, minResplit: 24,
-                                              alwaysSplitFirst: true, secondTarget: 160)
+    /// Kokoro, on either route (sized for the ONNX CPU route, the default). Whole-paragraph
+    /// profile like Phonon, but capped by Kokoro itself: ≈1.0–1.3 phonemes per char, a call holds
+    /// at most 510 phonemes, `KokoroCPUHost.maxTokensPerCall` is 360, and ORT activation memory
+    /// grows ≈1.3 MB/token (≈+380 MB at 300 tokens on the Mac). So hardMax stays 280 units: a
+    /// paragraph ≤ 280 is one call (no short first clip); longer ones pack whole sentences up to
+    /// 280 and only split a sentence longer than 280 (at clauses). TTFA on long openers is later
+    /// by design (≈280 units ≈ 6–8 s render on iPhone 17 Pro). Deterministic per text.
+    static let kokoroCPU = TextChunker.Limits(target: 280, hardMax: 280, firstTarget: 280, minResplit: 24,
+                                              alwaysSplitFirst: false, secondTarget: nil)
 }
 
 /// FluidAudio adapter (vendored `Vendor/FluidAudio`, v0.16.1): registers Kokoro.
@@ -59,9 +58,9 @@ final class FluidAudioProvider: SpeechEngineProvider {
         id: .kokoro,
         displayName: "Kokoro (on-device)",
         shortName: "Kokoro",
-        subtitle: "Recommended, ~175 MB download",
-        isRecommended: true,
-        sortOrder: 10,
+        subtitle: "~175 MB download",
+        isRecommended: false,
+        sortOrder: 20,
         voices: kokoroVoices,
         defaultVoiceID: KokoroVoiceCatalog.defaultVoice,
         voiceDefaultsKey: "reader.tts.kokoroVoice", // pre-DI key, keep

@@ -14,6 +14,8 @@ struct SectionHeader: View {
         /// Under a screen title (the Library's lists): `row` semibold in secondary ink, so the
         /// screen title stays the largest thing.
         case list
+        /// Settings root only: `caption` semibold in secondary ink — denser than Library headers.
+        case settings
         /// The top level of a screen without a title (the start page): `heading`.
         case page
     }
@@ -33,15 +35,23 @@ struct SectionHeader: View {
     /// The action's text height, for its 44 pt tap area.
     @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var actionHeight = TypeStyle.row.size
 
+    private var titleStyle: TypeStyle {
+        switch size {
+        case .list: return .row
+        case .settings: return .caption
+        case .page: return .heading
+        }
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
                 Text(title)
-                    .typeStyle(size == .list ? .row : .heading, weight: size == .list ? .semibold : nil)
-                    .foregroundStyle(size == .list ? Palette.secondaryInk : Palette.ink)
+                    .typeStyle(titleStyle, weight: size == .page ? nil : .semibold)
+                    .foregroundStyle(size == .page ? Palette.ink : Palette.secondaryInk)
                 if let count {
                     Text("\(count)")
-                        .typeStyle(size == .list ? .row : .heading, weight: .regular)
+                        .typeStyle(titleStyle, weight: .regular)
                         .monospacedDigit()
                         .foregroundStyle(Palette.tertiaryInk)
                         .fixedSize()

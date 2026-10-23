@@ -22,9 +22,11 @@ struct VoiceChoiceRows: View {
             let installed = localTTS.isVoicePackInstalled(voice.id, for: descriptor.id)
             let detail = voice.id == descriptor.defaultVoiceID
                 ? VoicePage.defaultVoiceSubtitle(voice.detail) : voice.detail
+            let subtitle: DetailPart? = detail.isEmpty ? nil
+                : (installed ? DetailPart.prepared(detail) : DetailPart(detail))
             SettingsChoiceRow(
                 title: voice.label,
-                subtitle: installed ? DetailPart.prepared(detail) : DetailPart(detail),
+                subtitle: subtitle,
                 selected: current == voice.id && preparingID == nil,
                 accessibilityID: "voiceRow-\(voice.id)"
             ) {

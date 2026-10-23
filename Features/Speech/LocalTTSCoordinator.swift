@@ -395,7 +395,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         } catch {
             guard token == voiceChoiceToken else { return false }
             voiceDownloadID = nil
-            let label = d.voices.first { $0.id == voice }?.label ?? voice
+            let label = d.allVoices.first { $0.id == voice }?.label ?? voice
             voiceDownloadError = "Couldn't download \(label). Check your connection and try again."
             ListenDebugLog.shared.append("voice download failed \(voice): \(error.localizedDescription)")
             return false
@@ -515,7 +515,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private func fallbackVoiceAfterDeleting(_ voice: String, for id: SpeechEngineID) -> String {
         let heart = engines.descriptor(id)?.defaultVoiceID ?? KokoroVoiceCatalog.defaultVoice
         if voice != heart, engines.isVoicePackInstalled(heart, for: id) { return heart }
-        if let other = engines.descriptor(id)?.voices.map(\.id).first(where: {
+        if let other = engines.descriptor(id)?.allVoices.map(\.id).first(where: {
             $0 != voice && engines.isVoicePackInstalled($0, for: id)
         }) {
             return other

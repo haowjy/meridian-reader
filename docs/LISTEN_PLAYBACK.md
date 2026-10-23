@@ -449,16 +449,20 @@ audio" rule all read it.
 - **Sentences first.** Whole sentences are packed up to the chunk's budget (abbreviation-,
   initial-, "U.S.A."- and decimal-aware). A sentence that fits the hard max is split only to make
   the short first chunk or the ramp; longer ones are cut by `balancedSplit` (sentence-like
-  `etc. The` > `; : —` > `,` > before a conjunction > space, pieces balanced). Aside dashes become
-  commas, intra-word hyphens stay, a dash glued to punctuation goes ("etc-." → "etc.").
+  `etc. The` > `:` > `,` > before a conjunction > space, pieces balanced). `TTSTextNormalize` is
+  whitespace-only (pause rewriting removed); engines own TN (Kokoro NeMo / Phonon Gradium), so
+  em dashes and semicolons reach the engine as written. Prep is normalize then
+  `TextChunker.chunks(for:limits:)`.
 - **First chunk** (fast first audio):
   1. the whole first sentence if ≤ `firstTarget + 24`;
-  2. else its head at the best clause boundary inside `firstTarget` (`; : —` > comma > before
+  2. else the whole sentence if ≤ `firstTarget + 40` (120 units) — prefer a sentence-end join over
+     a mid-clause comma cut (ending a synth call at a comma sounds period-like at the join). On
+     the phone the ONNX route renders ≈ 0.35 s + 23 ms per char (median, 28 ms worst), so 120
+     units is ≈ 3 s to first audio, the most that still feels prompt;
+  3. else its head at the best clause boundary inside `firstTarget` (`:` > comma > before
      and/but/which/when…), at least a third of the budget long;
-  3. else up to `firstTarget + 40` (120 units): the whole sentence, or the nearest clause boundary
-     past the budget. On the phone the ONNX route renders ≈ 0.35 s + 23 ms per char (median,
-     28 ms worst), so 120 units is ≈ 3 s to first audio, the most that still feels prompt;
-  4. only for a clause-free run longer than that: a space cut inside the budget.
+  4. else the nearest clause boundary between the budget and the stretch;
+  5. only for a clause-free run longer than that: a space cut inside the budget.
   A tiny first sentence ("Yes.") takes the next sentence, or its head at a clause, while it stays
   ≤ 120 (`growShortFirst`), so it doesn't play out before chunk 1 is ready.
 - **Ramp.** Chunk k renders while chunks 0…k−1 play, at ≥ 2× real time, so chunk k ≤

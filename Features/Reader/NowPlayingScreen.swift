@@ -19,7 +19,8 @@ import SwiftUI
 /// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎
 ///   then a tap on a paragraph plays from there; 🔖 saves / removes (tap) or files the page
 ///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `ArticleActions`, as
-///   in the Reader.
+///   in the Reader. Voice (`VoiceChromeButton`) sits to the right of the title in the bottom band
+///   and opens the same Voice picker as ⋯ › Voice.
 /// - At the end it stays: the text stays, all in full ink, the title card says "● Finished" (the ring, full)
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
 /// - Scrolling down reads full screen, as in the Reader (`NowPlayingSheet`, `ReadingChrome`): the
@@ -96,7 +97,8 @@ struct NowPlayingScreen: View {
         }
     }
 
-    /// The integrated bottom band: title, scrub, notes, transport — all flat on the page background.
+    /// The integrated bottom band: title + Voice (trailing), scrub, notes, transport — all flat on
+    /// the page background.
     @ViewBuilder
     private func bandContent(now: NowPlaying, actions: ArticleActions, palette: ReadingPalette,
                              artwork: Image?, spot: PlayheadSpot) -> some View {
@@ -127,6 +129,10 @@ struct NowPlayingScreen: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                // Voice, aligned right of the title (⋯ › Voice / Settings › Voice's same picker).
+                VoiceChromeButton(identifier: "nowPlayingVoice") {
+                    shell.present(.voice(.article(now.articleKey)))
+                }
             }
 
             // Scrub row

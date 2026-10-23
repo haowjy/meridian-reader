@@ -18,6 +18,8 @@ import SwiftUI
 ///   Prepare, Prepared Audio; then Settings / Saved / Reader, Reader disabled here, C140). Both act through
 ///   `ArticleActions`, as in Now Playing.
 /// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
+/// - Voice (`VoiceChromeButton`), right of the title in the bottom band, opens the page's Voice
+///   picker (same as ⋯ › Voice / Settings › Voice's list).
 /// - Scrolling down reads full screen, as in Now Playing (`ReaderSheet`, `ReadingChrome`); a link
 ///   in the text opens in the browser.
 ///
@@ -95,6 +97,10 @@ struct ReaderSheetScreen: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    // Voice, aligned right of the title (same picker as ⋯ › Voice / Settings › Voice).
+                    VoiceChromeButton(identifier: "readerVoice") {
+                        shell.present(.voice(.article(readerArticle.id)))
+                    }
                     SaveToggleButton(isSaved: actions.isSaved, identifier: "readerBookmark",
                                      onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                         .frame(width: BottomChrome.minTapTarget)

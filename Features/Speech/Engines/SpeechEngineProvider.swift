@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One adapter per voice library (Apple, FluidAudio). Registers the engines
+/// One adapter per voice library (Apple, FluidAudio, Phonon). Registers the engines
 /// it provides and builds their synth hosts. Only provider files import the library.
 /// What a provider needs to decide its hooks (launch arguments, settings) comes in at its init,
 /// from `AppComposition.makeProviders()`.
@@ -104,7 +104,7 @@ final class EngineRegistry {
     }
 
     /// Engine that sizes chunks / keys the cache when no local engine is active yet:
-    /// the recommended on-device engine (Kokoro today), else the first one.
+    /// the recommended on-device engine (Phonon Zoey today), else the first one.
     var defaultLocalEngineID: SpeechEngineID {
         (localDescriptors.first { $0.isRecommended } ?? localDescriptors.first)?.id ?? .apple
     }
@@ -159,7 +159,7 @@ final class EngineRegistry {
         for d in descriptors {
             guard let p = d.onDevice?.cacheVoicePrefix, voiceID.hasPrefix(p + ".") else { continue }
             let voice = String(voiceID.dropFirst(p.count + 1))
-            guard let label = d.voices.first(where: { $0.id == voice })?.label else { return d.shortName }
+            guard let label = d.allVoices.first(where: { $0.id == voice })?.label else { return d.shortName }
             return "\(d.shortName) \(label)"
         }
         return descriptor(.apple)?.shortName ?? "Apple"
@@ -171,7 +171,7 @@ final class EngineRegistry {
         for d in descriptors {
             guard let p = d.onDevice?.cacheVoicePrefix, voiceID.hasPrefix(p + ".") else { continue }
             let voice = String(voiceID.dropFirst(p.count + 1))
-            return d.voices.first(where: { $0.id == voice })?.label ?? d.shortName
+            return d.allVoices.first(where: { $0.id == voice })?.label ?? d.shortName
         }
         return descriptor(.apple)?.shortName ?? "Apple"
     }

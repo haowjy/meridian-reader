@@ -34,6 +34,7 @@ final class KokoroHost: LocalSynthHost, @unchecked Sendable {
     let unitsLabel: String
     var routingLabel: String? { unitsLabel }
     var routeTag: String? { KokoroRoute.coreMLGPU.rawValue }
+    func spokenText(forChunk text: String) -> String { KokoroSpokenText.closeOpenEnd(text) }
 
     static let defaultUnitsLabel = "aneTailGpu"
 

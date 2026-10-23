@@ -4,7 +4,7 @@ import AVFoundation
 /// Settings › Listening, on the Settings card:
 ///
 /// 1. **Voice ›**: the default voice for new articles and books, from the one voice switcher
-///    (`VoicePage`, `VoiceSelectionList`: engines are its sections, C138a). No engine control.
+///    (`VoicePage`, `VoiceSelectionList`: compact Engine chips then that engine's voices, C138a).
 /// 3. **Language ›**: Automatic (match article) or a manual language (`LanguagePage`).
 /// 4. **Speed ›**: the playback speeds, the list Now Playing's speed opens (`SpeedPage`).
 struct ListeningSettingsSection: View {
@@ -27,7 +27,7 @@ struct ListeningSettingsSection: View {
                 SpeedPage(speech: speech)
             }
         } header: {
-            SectionHeader(title: String(localized: "Listening")).listHeader()
+            SectionHeader(title: String(localized: "Listening"), size: .settings).listHeader()
         } footer: {
             if let notice = localTTS.engineCrashNotice {
                 Text(notice).foregroundStyle(Palette.destructive).listFooter()

@@ -12,13 +12,13 @@ import SwiftUI
 /// On-device voices prepare once, …          `.listFooter()`
 /// ```
 extension View {
-    /// Grouped cards on paper, at the page margin, `Spacing.l` between sections.
+    /// Grouped cards on paper, at the page margin, `Spacing.s` between sections (Settings density).
     func cardListStyle() -> some View {
         listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
             .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
-            .listSectionSpacing(Spacing.l)
+            .listSectionSpacing(Spacing.s)
             .environment(\.defaultMinListRowHeight, 0)
     }
 
@@ -37,13 +37,13 @@ extension View {
     /// A section header (a `SectionHeader`) in line with the cards: no extra header inset.
     func listHeader() -> some View {
         textCase(nil)
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xs, trailing: 0))
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xxs, trailing: 0))
     }
 
     /// A note under a card: a footnote in line with the card.
     func listFooter() -> some View {
         footnote()
             .textCase(nil)
-            .listRowInsets(EdgeInsets(top: Spacing.xs, leading: 0, bottom: 0, trailing: 0))
+            .listRowInsets(EdgeInsets(top: Spacing.xxs, leading: 0, bottom: 0, trailing: 0))
     }
 }

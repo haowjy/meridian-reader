@@ -1,20 +1,20 @@
 import AVFoundation
 import SwiftUI
 
-/// C138a: the one voice switcher. Engines are its sections: each on-device engine's voices (with
-/// samples, `VoiceChoiceRows`), then Apple's installed voices for the language, best first
-/// (Premium, Enhanced, then the rest). Picking a voice picks its engine; there is no other engine
-/// control. Settings › Voice (the default for new articles) and an article's or a book's
-/// *Voice* picker (`VoicePickerSheet`) are this list.
+/// C138a: the one voice switcher. A compact Engine control (Phonon | Kokoro | Apple) filters the
+/// list; each on-device engine's voices (with samples, `VoiceChoiceRows`) or Apple's installed
+/// voices for the language (Premium, Enhanced, then the rest) follow. Picking a voice picks its
+/// engine. Settings › Voice (the default for new articles) and an article's or a book's *Voice*
+/// picker (`VoicePickerSheet`) are this list.
 ///
 /// ```
-/// KOKORO (ON-DEVICE)
-///  Heart  ✓  (default)             ▶   ← swipe Remove Download when another pack is in
-///  Bella  ↓ Bright, American       ▶   ← swipe Remove Download when its pack is downloaded
+/// Engine   [ Phonon | Kokoro | Apple ]
+/// PHONON
+///  Zoey  ✓  Playful, American (default)
+///  Freya    Bright, British
 ///  Downloading… 40%
-/// APPLE
-///  Best for English (US)
-///  Ava  Premium, English (US)
+/// MORE VOICES
+///  Alfie    Punchy, British male
 /// ```
 struct VoiceSelectionList: View {
     @Bindable var speech: SpeechController
@@ -29,11 +29,81 @@ struct VoiceSelectionList: View {
 
     private var localTTS: LocalTTSCoordinator { speech.localTTS }
 
+    /// Engine whose voices are listed. nil until the user taps one: the current selection's engine.
+    @State private var shownEngine: SpeechEngineID?
+
+    private var localEngines: [EngineDescriptor] {
+        localTTS.engines.localDescriptors.filter { !$0.voices.isEmpty }
+    }
+
+    private var visibleEngine: SpeechEngineID {
+        shownEngine ?? current?.engine ?? localEngines.first?.id ?? .apple
+    }
+
+    /// Engine first (Phonon / Kokoro / Apple), then only that engine's voices.
     var body: some View {
-        ForEach(localTTS.engines.localDescriptors.filter { !$0.voices.isEmpty }) { descriptor in
+        engineSelector
+        if visibleEngine == .apple {
+            appleSection
+        } else if let descriptor = localEngines.first(where: { $0.id == visibleEngine }) {
             engineSection(descriptor)
+            if !descriptor.moreVoices.isEmpty, localTTS.engines.supports(descriptor.id) {
+                moreVoicesSection(descriptor)
+            }
         }
-        appleSection
+    }
+
+    /// Compact Phonon | Kokoro | Apple chips (same ChoicePicker as Appearance), not tall choice rows.
+    private var engineOptions: [SpeechEngineID] {
+        localEngines.map(\.id) + [.apple]
+    }
+
+    private var engineSelection: Binding<SpeechEngineID> {
+        Binding(get: { visibleEngine }, set: { shownEngine = $0 })
+    }
+
+    @ViewBuilder
+    private var engineSelector: some View {
+        Section {
+            SettingsControlRow(title: String(localized: "Engine")) {
+                ChoicePicker(options: engineOptions, selection: engineSelection,
+                             identifier: "engineRow") { id in
+                    Text(engineChipLabel(id)).typeStyle(.row)
+                }
+            }
+        }
+        .listCard()
+    }
+
+    private func engineChipLabel(_ id: SpeechEngineID) -> String {
+        if id == .apple {
+            return localTTS.engines.systemDescriptor?.shortName
+                ?? localTTS.engines.systemDescriptor?.displayName ?? "Apple"
+        }
+        return localEngines.first(where: { $0.id == id })?.shortName
+            ?? localTTS.engines.shortName(id)
+    }
+
+    /// Same engine, listing only its *More voices* (VoiceChoiceRows lists `descriptor.voices`).
+    private static func moreDescriptor(_ d: EngineDescriptor) -> EngineDescriptor {
+        var more = d
+        more.voices = d.moreVoices
+        return more
+    }
+
+    @ViewBuilder
+    private func moreVoicesSection(_ descriptor: EngineDescriptor) -> some View {
+        let id = descriptor.id
+        let more = Self.moreDescriptor(descriptor)
+        Section {
+            VoiceChoiceRows(descriptor: more, current: current?.engine == id ? current?.voice : nil,
+                            preparingID: preparingID, preview: preview, speech: speech) { voice in
+                onPick(VoiceSelection(engine: id, voice: voice.id))
+            }
+        } header: {
+            SectionHeader(title: String(localized: "More voices")).listHeader()
+        }
+        .listCard()
     }
 
     @ViewBuilder

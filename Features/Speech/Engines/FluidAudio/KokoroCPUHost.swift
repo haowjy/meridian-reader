@@ -38,10 +38,11 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     /// Read before each call: the background gets one thread.
     private let runState: AppRunState
     /// Calls above this many tokens are re-split by the renderer (`inputTooLong`). Chunks are
-    /// ≤ 280 units (`TextChunker.Limits.kokoroCPU`, ≈1.0–1.3 tokens per char); this only catches
+    /// ≤ 280 units (`TextChunker.Limits.kokoroCPU`, whole-paragraph profile, ≈1.0–1.3 tokens per char); this only catches
     /// phoneme-dense text (numbers, acronyms). Kokoro's own cap is 510 phonemes.
     /// Kokoro pads every call with ≈0.3 s + ≈0.5 s of silence; trim it at joins.
     var trimsEdgeSilence: Bool { true }
+    func spokenText(forChunk text: String) -> String { KokoroSpokenText.closeOpenEnd(text) }
     static let maxTokensPerCall = 360
     static let gain = KokoroCPUAudio.coreMLMatchGain
 

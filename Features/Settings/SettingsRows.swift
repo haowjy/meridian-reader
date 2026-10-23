@@ -117,7 +117,7 @@ struct SettingsControlRow<Control: View>: View {
                 .foregroundStyle(Palette.secondaryInk)
             control()
         }
-        .padding(.vertical, Spacing.xs)
+        .padding(.vertical, Spacing.xxs)
     }
 }
 
