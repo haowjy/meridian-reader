@@ -9,7 +9,7 @@ import SwiftUI
 /// Appearance / Reading   Appearance ›, Reading › (one card; drill-ins)
 /// Browsing     Block Ads (on)
 /// Prepared Audio & Storage   Prepared audio ›, sizes, Version (long-press: developer options)
-/// About        Privacy Policy, Support (GitHub Pages)
+/// About        Privacy Policy, Support, Acknowledgements
 /// Developer    (developer options only) listen debug, fake extraction failure, the panel
 /// ```
 ///
@@ -105,7 +105,8 @@ struct SettingsView: View {
 }
 
 
-/// Settings › About: Privacy Policy and Support on GitHub Pages (App Store Guideline 5.1.1).
+/// Settings › About: Privacy Policy and Support on GitHub Pages (App Store Guideline 5.1.1),
+/// plus Acknowledgements for the on-device TTS / extraction stack.
 private struct AboutSettingsSection: View {
     private static let privacyURL = URL(string: "https://haowjy.github.io/meridian-reader/privacy.html")!
     private static let supportURL = URL(string: "https://haowjy.github.io/meridian-reader/support.html")!
@@ -133,6 +134,11 @@ private struct AboutSettingsSection: View {
             .buttonStyle(.plain)
             .tint(Palette.ink)
             .accessibilityIdentifier("settingsSupport")
+
+            SettingsLinkRow(title: String(localized: "Acknowledgements"), symbol: Icons.acknowledgements,
+                            value: "", accessibilityID: "settingsAcknowledgements") {
+                AcknowledgementsView()
+            }
         } header: {
             SectionHeader(title: String(localized: "About"), size: .settings).listHeader()
         }

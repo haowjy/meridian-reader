@@ -183,6 +183,8 @@ enum Icons {
     static let privacy = "doc.text"
     /// Support (Settings › About).
     static let support = "questionmark.circle"
+    /// Acknowledgements (Settings › About).
+    static let acknowledgements = "list.bullet.rectangle"
 
     // MARK: Notices
 

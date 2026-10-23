@@ -63,7 +63,7 @@ Before the first submission:
    - Privacy: https://haowjy.github.io/meridian-reader/privacy.html
    - Support: https://haowjy.github.io/meridian-reader/support.html
    Paste both into App Store Connect › App Information. Settings in the app also links to them.
-5. **Screenshots**: at least one set for 6.7" and 6.1" displays.
+5. **Screenshots**: at least one set for 6.7" and 6.1" displays (iPhone only; `TARGETED_DEVICE_FAMILY = 1`).
 6. **Age rating**: answer the questionnaire (no objectionable content).
 7. **Export compliance**: the app declares `ITSAppUsesNonExemptEncryption = NO` in Info.plist,
    so Apple skips the export compliance question on each submission.
@@ -74,8 +74,11 @@ Before the first submission:
 |---------|---------|-------|
 | Kokoro (via FluidAudio) | Apache-2.0 | The ONNX model is downloaded at runtime into Application Support from Hugging Face (`KokoroONNXModelStore`), never bundled in the app. |
 | FluidAudio | Apache-2.0 | Vendored with local patches (`Vendor/FluidAudio/VENDORED.md`). |
+| Phonon / Gradium (ptts) | Apache-2.0 / MIT | Phonon 31m English Core ML; zip downloaded at runtime (~131 MB). |
 | ONNX Runtime | MIT | Swift package, CPU inference only. |
-| ZIPFoundation | MIT | EPUB unzip. |
+| ZIPFoundation | MIT | EPUB and Phonon model unzip. |
+| Mozilla Readability | Apache-2.0 | Bundled JS under `Resources/Readability/`. |
 
 All licenses are permissive (Apache-2.0, MIT) and compatible with App Store distribution.
-No license file is included in the repo (owner decision).
+Settings › About › Acknowledgements lists them in-app. No separate license file is in the repo
+(owner decision).
