@@ -68,6 +68,8 @@ targets:
         NSMicrophoneUsageDescription: Meridian Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.
         NSSpeechRecognitionUsageDescription: Meridian Reader turns what you say into text for the Browse address bar. Recognition runs on your iPhone when your language supports it.
         ITSAppUsesNonExemptEncryption: false
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
         # Probe installs set BUNDLE_ID_SUFFIX; SharedInbox reads this so the App Group matches.
         MeridianAppGroupSuffix: $(BUNDLE_ID_SUFFIX)
         # Open In / Copy to Meridian from Files and other apps (PDF, EPUB).
