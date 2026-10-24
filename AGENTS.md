@@ -137,6 +137,10 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 Single-lane: one feature branch at a time off main → push → PR (body from the template) → merge
 into main → delete the branch. No parallel worktrees. Main holds release versions.
 
+**Merge your own PRs.** Agents merge most PRs themselves once the PR body is complete and checks
+the PR names pass; don't wait for approval. Stop and ask only for a PR that changes persisted data
+(a migration), the release or signing setup, or is a large redesign the owner hasn't seen.
+
 Work goes through PRs: write the PR body (`.github/pull_request_template.md`), write the PR's
 Changes section as the technical changelog, and add `release-notes/<version>.md` when cutting a
 release. The release workflow (`docs/RELEASE.md`) validates the notes file exists.
