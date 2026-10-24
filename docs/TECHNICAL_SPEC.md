@@ -6,11 +6,14 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 
 ## Constraints
 
-- iPhone, portrait, iOS 17+. Native Swift and SwiftUI only.
+- iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`), iOS 18+, portrait. The iPad has a regular-width
+  layout (below); compact width keeps the phone's chrome. Native Swift and SwiftUI only.
 - No backend, accounts or sync. Article text and audio stay on the device.
-- Offline first: saved articles read and play with no network (Apple voices, or Kokoro once
-  prepared).
-- Apple TTS is the default and the fallback; on-device Kokoro is optional.
+- Offline first: saved articles read and play with no network (Apple voices, or Phonon or Kokoro
+  once their models are downloaded).
+- On-device Phonon (voice Zoey) is the default voice on a supported device and Kokoro (Heart) the
+  second default; Apple TTS is the fallback when neither can speak. Phonon and Kokoro models are
+  large downloads, so on cellular or Low Data Mode the app asks first (`LargeModelDownloadConsent`).
 - Extraction sits behind a protocol, so the engine can be swapped.
 
 ## Stack
@@ -21,7 +24,7 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 | Browser | `WKWebView` |
 | Extraction | Mozilla Readability.js, bundled (`Resources/Readability/`) |
 | Persistence | SwiftData, two store files: the library (`Folder`, `Article`) and the local store (`RecentVisit`; `SavedArticle`, frozen); small JSON files and UserDefaults for the rest |
-| Speech | `AVSpeechSynthesizer`; Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
+| Speech | `AVSpeechSynthesizer`; Phonon 31m via Gradium `ptts` (Core ML); Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
 | Language | `NaturalLanguage` (article language), `Speech` (address-bar dictation) |
 | Project | XcodeGen (`project.yml` → `MeridianReader.xcodeproj`) |
 
@@ -40,14 +43,15 @@ Core/
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
 Features/
-  Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens
+  Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
+  DesignSystem/  tokens (incl. `RegularLayout`: the iPad sidebar, readable-measure and sheet widths)
   Browse/   start page, browser chrome, page actions (PageArticleService), dictation
   Reader/   the Reader sheet, Now Playing (text that follows the audio, scrub row, controls)
   Library/  the Library surface and screens (home, folder), rows, the Move tree, Favorites' sheet and ☆, the import sheet
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a library over its own files
-UITests/    three end-to-end flows (MeridianReaderUITests)
+UITests/    one end-to-end smoke flow (MeridianReaderUITests)
 ```
 
 ## Architecture
@@ -64,6 +68,11 @@ UITests/    three end-to-end flows (MeridianReaderUITests)
   hooks before and after it, then crash resume. Views only render. A Debug build hosting the unit
   tests builds none of it (`AppMain`): tests build their own stacks over their own files
   (`LibraryTestEnvironment`).
+- **iPad.** One code path, two chromes: views read `horizontalSizeClass` and branch on `.regular`
+  only for chrome (`BrowseStartView`'s sidebar, `BrowserBottomChrome` / `LibrarySurface`'s main-pane
+  band and `ClusteredPlayerDock`, `ReaderSheetScreen`'s `regularReadableMeasure`, `ShellSheetView`'s
+  `regularInsetFormSheet` for Voice and Settings). State, data and playback are shared; compact
+  chrome is untouched. Sizes live in `RegularLayout`. See NAVIGATION.md → "iPad and regular width".
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
   sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. A reading
@@ -466,7 +475,7 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 |---------|---------|
 | Library, search, delete | Yes |
 | Reading a saved article | Yes (`cleanedHTML`) |
-| Listening | Yes: Apple voices; Kokoro once its model is downloaded |
+| Listening | Yes: Apple voices; Phonon or Kokoro once its model is downloaded |
 | Loading pages, Save of a new page | No |
 | Google suggestions, favicons | No (they quietly don't show) |
 
@@ -474,8 +483,8 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 
 All of it is user-initiated or for the article in view: article loads, Google search and the unofficial
 Google suggest endpoint (`suggestqueries.google.com`, while typing in the address field), favicons
-of visited and bookmarked sites, and the one-time Kokoro model and voice-pack downloads (Hugging
-Face). No analytics.
+of visited and bookmarked sites, and the one-time voice model downloads: Phonon's zip (GitHub release of `gradium-ai/xn-ptts`) and Kokoro's model and voice packs (Hugging
+Face), asked first on cellular or Low Data Mode. No analytics.
 
 Extracted HTML is shown as Readability returns it; there is no separate sanitizer. Readability
 drops `<script>` elements but keeps inline handlers (`onerror`, `onclick`) and `javascript:`

@@ -12,8 +12,10 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 | **Browser** | A start page (Favorites, Recent Searches) or a web page, with one bottom bar (address field + toolbar). |
 | **Reader** | A sheet for reading any page, over the browser or the Library, with its own Listen. |
 | **Now Playing** | A sheet over everything for what you hear, in the Reader's reading theme and type: a title card, the text following the audio (the spoken paragraph highlighted, every paragraph in full ink), and the player's controls. |
-| **Settings** | ⋯ › Settings, the last row of every ⋯ panel: Appearance (System / Light / Dark, five app colours), Reading (theme, font, size, spacing, Scroll / Pages; the same as Aa), Listening (engine, voice, language, speed), Browsing (Block Ads), Prepared Audio & Storage, and Developer (developer options only). |
+| **Settings** | ⋯ › Settings, the last row of every ⋯ panel (the sidebar's bottom row on iPad): Listening (voice, language, speed), Appearance (System / Light / Dark, five app colours) and Reading (theme, font, size, spacing, Scroll / Pages; the same as Aa) as pages, Browsing (Block Ads), Prepared Audio & Storage, About (Privacy Policy, Support, Acknowledgements), and Developer (developer options only). |
 | **Now Playing bar** | What you hear, on the browser, the start page, every Library screen and the Reader sheet, from the first play until *Stop Listening* (long-press: the page's menu, then *Stop Listening*) or the page is removed from the Library (its menu's *Remove from Library*, or anywhere else), deleted, or revised by a book's *Replace*; it keeps a finished page with ▶. Tap or swipe up → Now Playing. |
+
+On iPad (regular width) the surfaces sit beside a sidebar; see *iPad* below.
 
 The app reopens on the surface you left: the Library at the folder you were in, or the browser on
 its last article (reloaded). A fresh install opens the Library.
@@ -68,7 +70,7 @@ its last article (reloaded). A fresh install opens the Library.
 
 | ID | Requirement |
 |----|-------------|
-| P1 | Apple TTS is the default and always available. Kokoro (on-device, English, A15+) is optional: downloaded on selection, deletable, and used only once ready. Apple speaks whenever Kokoro can't (not downloaded, loading, failed, another language, a chunk it can't render live), in the best installed Apple voice for the language (Premium, then Enhanced, then default; the Kokoro voice's gender first). C129: a Kokoro crash never switches engine or voice: the same voice resumes on ONNX CPU silently (one thread fewer each time); after a second crash in a row downloads and new rendering pause, playback goes on through audio already rendered, and only where it reaches audio not rendered yet does it pause there with a plain banner and Retry (Retry restarts Kokoro and resumes rendering and downloads). Apple audio is never written to the download cache. An app install that cuts a call off isn't counted as a crash. |
+| P1 | Phonon (on-device, English, Core ML) is the default voice on a supported device (Zoey), Kokoro (on-device, English, A15+; Heart) the second default, and Apple TTS is always available and the fallback. Each on-device engine downloads its model on selection (deletable for Kokoro voice packs) and is used only once ready. Apple speaks whenever the selected engine can't (not downloaded, loading, failed, another language, a chunk it can't render live), in the best installed Apple voice for the language (Premium, then Enhanced, then default; the engine voice's gender first). Phonon renders only with the app in front; Kokoro's ONNX route keeps rendering in the background. C129: a Kokoro crash never switches engine or voice: the same voice resumes on ONNX CPU silently (one thread fewer each time); after a second crash in a row downloads and new rendering pause, playback goes on through audio already rendered, and only where it reaches audio not rendered yet does it pause there with a plain banner and Retry (Retry restarts Kokoro and resumes rendering and downloads). Apple audio is never written to the download cache. An app install that cuts a call off isn't counted as a crash. |
 | P2 | Playback never goes silent or freezes mid-article: anything the selected engine can't produce is spoken with Apple. |
 | P3 | Each article keeps one voice's audio; switching voice re-renders it, and the old voice plays until each paragraph is replaced. |
 | P4 | The position is remembered per article and resumed later, for an article listened to without saving too (kept while it is in the last 50 of Recent, C134); after a Kokoro crash the app reopens the article at the paragraph that was playing, or at its own spot, paused, when its text has changed since. |
@@ -76,6 +78,15 @@ its last article (reloaded). A fresh install opens the Library.
 | P6 | The article's language is detected; an article the selected engine can't speak uses an Apple voice for its language, without changing settings. |
 | P7 | Saved articles play fully offline. |
 | P8 | *Download* on a page, folder, book or followed story fetches its text (keeping a link page's in place) and renders its whole audio in the on-device voice ahead of time, one page at a time, behind what is playing, while the app is in front and, on the ONNX CPU route, in the background while audio plays (the playing page always first). A folder's Download is a toggle (its header's Download control, and one *Download* / *Turn Off Download* row in its menus): while on, every page added to it later downloads too; turned off, what is downloaded stays; turned back on over a folder all downloaded, nothing is downloaded again. A slim line on the bottom chrome shows progress while downloads run; nothing is modal. ⋯ › Downloads lists them (Queued with pause and remove, Done with the storage used, Different Voice), each with its voice; after a voice change a download offers *Re-download* or *Keep*. |
+| P9 | A voice model download (Phonon ~131 MB, Kokoro ~163 MB) starts at once on Wi-Fi. On cellular or with Low Data Mode on it asks first ("Download on Cellular?": *Download* or *Wait for Wi-Fi*); waiting cancels that download for now. Apple voices never ask. |
+
+## iPad
+
+| ID | Requirement |
+|----|-------------|
+| I1 | On iPad (regular width) the app has a ~280 pt sidebar (Library, Browser, Search, Favorites and the top-level folders, Settings; it can be hidden), the address field as the main pane's top band, and a clustered player dock (what plays, or the last-played article to resume, with the surface's toolbar) in place of the phone's Now Playing bar. The Reader's text sits in a ~700 pt column; Voice and Settings open as form sheets. |
+| I2 | Compact width (iPhone, or an iPad in a compact size class) is unchanged. |
+| I3 | Not required yet: a Browse and Reader split view, and landscape-specific layouts (the app is portrait). |
 
 ## Not in the app
 

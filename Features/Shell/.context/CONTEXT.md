@@ -93,3 +93,12 @@ changing the shell code.
   target on its pan, after the scroll view's own). New scrolling content in a `Sheet` needs that
   hook, or it only scrolls. Under
   Reduce Motion, slides and the morph become fades (`Motion.slideAndFade`, `Motion.sheet`).
+- **Regular width (iPad) is a second layout of the same shell, not a second shell.** The gate is
+  `horizontalSizeClass == .regular`; nothing iPad-specific applies in compact. What it changes
+  (user-visible behavior: `../../../docs/NAVIGATION.md`, "iPad and regular width"): a collapsible
+  left sidebar (`RegularShellSidebar`, hosted by `BrowseStartView`), the Browse address field as the
+  main pane's top band, the toolbar and Now Playing moved into `ClusteredPlayerDock` (it replaces
+  `NowPlayingBarView` and steps aside under a sheet), a centred Reader column, and Voice and
+  Settings as `.presentationSizing(.form)` sheets. Measures live in
+  `../DesignSystem/Tokens/RegularLayout.swift` (`regularReadableMeasure`, `regularInsetFormSheet`
+  apply them). Both layouts must keep working: probe a change on an iPhone and an iPad simulator.

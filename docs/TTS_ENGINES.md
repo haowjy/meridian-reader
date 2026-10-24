@@ -178,26 +178,60 @@ section (`KokoroRouteDebugSection`, from the provider's `debugSections`) changes
 
 ## Phonon
 
-Optional on-device English TTS via Gradium [`ptts`](https://github.com/gradium-ai/xn-ptts) 0.4.0
-(Phonon 31m Core ML). **Default on-device engine** (Zoey); Kokoro Heart is the 2nd curated default.
-Apple stays the fallback when no on-device engine can speak. iOS 18+.
+On-device English TTS via Gradium [`ptts`](https://github.com/gradium-ai/xn-ptts) 0.4.0
+(Phonon 31m Core ML, Apache 2.0). **The default on-device engine** (Zoey, picked on a fresh
+install when the engine is supported); Kokoro Heart is the second default. Apple stays the
+fallback when no on-device engine can speak. iOS 18+.
 
 | | |
 |---|---|
 | Engine id | `local.phonon` |
-| Host | `PhononHost` (`computeUnit: .cpu` in this PR for the CPU probe vs Kokoro ONNX) |
-| Models | `phonon-31m-en-coreml.zip` (~131 MB) downloaded on first use into Application Support, unzipped, then `PhononModels.install` → `PhononTTS/models` |
-| Voices | Full English set in the zip (`PhononVoiceCatalog`); default `Zoey` |
-| Chunking | `TextChunker.Limits.phonon` (short first chunk for TTFA) |
-| Background | No (`rendersInBackground` false) — Core ML path |
-| Probe label | `phonon-31m cpu` (`routingLabel`); `-engineProbe -probeOnly Phonon,Kokoro` |
+| Host | `PhononHost`: Core ML on Phonon's default compute unit, the Neural Engine (`computeUnit` is `nil`; routing label `phonon-31m ane`). `PhononHost` can take `computeUnit: .cpu` (label `phonon-31m cpu`), but nothing in the app passes it: CPU-only rendering made the phone laggy. |
+| Models | `phonon-31m-en-coreml.zip` (~131 MB), downloaded on first use into Application Support, SHA-256 checked, unzipped, then `PhononModels.install` → `PhononTTS/models`. On cellular or Low Data Mode the download asks first (below). |
+| Voices | The full English set in the zip (`PhononVoiceCatalog`): eight curated at the top of the picker (Zoey default), the rest under *More voices*. Voices live in the bundle, so once it is installed every one is present. |
+| Chunking | `TextChunker.Limits.phonon`: target 1200, `hardMax` 1600, whole-paragraph calls (no short first clip). |
+| Background | No (`rendersInBackground` false): the Core ML path renders only with the app in front. |
+| Probe | `-engineProbe -probeOnly Phonon,Kokoro` (the short names; the log line `compute units=` shows the routing label). |
 
-Desktop GGUF "q8" is a different stack; on iOS the fair CPU comparison is Core ML
-`computeUnit: .cpu` vs Kokoro's ONNX CPU route. ANE remains Phonon's upstream default and can be
-re-enabled later once the CPU numbers are in.
+Phonon's own English `normalize_text` runs inside every `Phonon.synthesize` (the host loads with
+`language: .english`): it owns numbers, symbols, currency, ellipsis and pauses.
 
 Files: `Features/Speech/Engines/Phonon/` (`PhononProvider`, `PhononHost`, `PhononModelStore`,
-`PhononVoiceCatalog`). Registered from `AppComposition.makeProviders()`.
+`PhononSpokenText`, `PhononVoiceCatalog`). Registered from `AppComposition.makeProviders()`.
+
+### Large model downloads
+
+`LargeModelDownloadConsent` guards the Phonon zip (~131 MB) and Kokoro's ONNX model (~163 MB).
+On Wi-Fi (or Ethernet) with Low Data Mode off a download starts without a prompt. On cellular or
+with Low Data Mode on, an alert from `RootView` asks "Download on Cellular?" ("<engine> needs about
+<size>. You're not on Wi-Fi.") with *Download* or *Wait for Wi-Fi* (which cancels the download
+for now). Offline never prompts, so the download's own error shows. A verified Phonon zip already
+on disk skips the prompt. Apple voices never go through it.
+
+## Text prep for speech
+
+Three steps, in this order; engines own normalization, the shared code only hands over clean text
+in chunks the engine can take:
+
+1. **Normalize** (`TTSTextNormalize`, shared): collapses whitespace only (NBSP and runs of
+   whitespace to one space, trimmed). Dashes, semicolons and the rest pass through. Listen path
+   only; the Reader's HTML is unchanged.
+2. **Chunk** (`TextChunker`, per-engine `Limits` from the provider): sentences packed up to the
+   engine's `target`, a sentence over `hardMax` cut at clauses, then balanced pieces. Chunks
+   reassemble to the normalized paragraph. Limits: Phonon `target` 1200 / `hardMax` 1600
+   (`TextChunker.Limits.phonon`); Kokoro `target` and `hardMax` 280 (`.kokoroCPU`, bounded by
+   Kokoro's per-call memory growth). They are measured values owned by the provider.
+3. **Engine-side prep**, at render time (`LocalSynthHost.spokenText(forChunk:)`), inside the
+   engine's directory: Phonon runs `PhononSpokenText` (softens shouty ALL CAPS, keeps `?` / `!`
+   intonation) before Gradium's normalizer; Kokoro closes a mid-sentence chunk that ends on a bare
+   word with a comma (`KokoroSpokenText`) and picks heteronym pronunciations in its vendored
+   frontend (`Resources/KokoroHeteronyms.json`, above). Prep may change letter case or drop
+   redundant punctuation, never words, so planned chunks still map to the normalized paragraph
+   (sub-paragraph positions, the audio cache).
+
+There is no shared "speakable text" rewriter (it was removed) and no app-side grammar or pause
+pass for Kokoro; changing how something is pronounced means changing the engine's directory or
+its data file.
 
 ## Engine registry
 
@@ -269,7 +303,8 @@ come from the registry.
 ## Settings keys
 
 `reader.tts.engineID` (the engine on `ready`, Apple on `off` / `failed`), per-engine voice keys
-(`reader.tts.kokoroVoice`), `reader.rateMultiplier`, `reader.languageAutomatic` and
+(`reader.tts.kokoroVoice`, `reader.tts.phononVoice`), the default selection
+(`reader.voiceSelection.default`: engine + voice for new articles), `reader.rateMultiplier`, `reader.languageAutomatic` and
 `reader.selectedLanguageCode`. Rate and language apply to every engine. Kokoro's route knobs and
 ONNX crash count (`reader.tts.kokoro.fastGPURoute`, `.cpuThreads`, `.onnxCrashCount`) are
 `FluidAudioProvider`'s `storedKeys`. `-resetLibrary` clears all of these.

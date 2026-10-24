@@ -19,3 +19,14 @@
   (a probe's tap on the Library row) also gets a tap in the middle of its text (`tapX` 196 of 402,
   logged in `textTapped`), so the Reader opens in full screen; in Scroll it doesn't. Check whether
   a finger's tap does it on a device, and where the click comes from.
+- `Features/Browse/BrowseStartView.swift`, `Features/Shell/RegularShellSidebar.swift`: iPad Browse | Reader
+  split (web page and Reader side by side in the main pane). Today the Reader is a sheet over the
+  surface even at regular width. Design a split in the main pane gated on `.regular`, and decide
+  what the sidebar's Browser row selects.
+- `Features/Reader/ReaderSheetScreen.swift`: a trailing chapters column for a book's Reader at
+  regular width (the iPad design proposed it; the Reader has no chapter list of its own, a book's
+  chapters are its folder's rows in the Library). Add the column beside the ~700 pt measure
+  (`RegularLayout.readableMeasure`) and keep it out of compact.
+- `project.yml`, `Features/DesignSystem/Tokens/RegularLayout.swift`: iPad landscape polish. Only the
+  portrait orientation key is set and the layout was only checked in portrait. Decide whether to
+  allow landscape, then check the sidebar, dock (`playerClusterWidth`) and reading measure there.
