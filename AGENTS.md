@@ -2,7 +2,15 @@
 
 A personal iOS app for listening to (and reading) web articles: browse in the app, extract a clean
 copy with Readability, save it, and listen offline with Apple TTS, Kokoro, or Phonon running on the device.
-Single user, no backend. SwiftUI, SwiftData, iOS 18+, iPhone portrait.
+Single user, no backend. SwiftUI, SwiftData, iOS 18+, iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`;
+the project sets the portrait orientation key).
+
+**iPad is a regular-width layout, not a scaled phone.** Everything iPad-specific is gated on
+`horizontalSizeClass == .regular` (`Features/DesignSystem/Tokens/RegularLayout.swift`): a ~280 pt
+collapsible sidebar (`RegularShellSidebar`), main-pane Browse chrome, a ~700 pt Reader measure, the
+`ClusteredPlayerDock` in place of the phone's Now Playing bar, and Voice and Settings as
+`.presentationSizing(.form)` sheets. Compact width (iPhone, iPad in a compact size class) keeps the
+phone chrome unchanged; check both when touching shell chrome.
 
 ## Build and verify
 
@@ -65,7 +73,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
 | `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `PDF` (PDFKit text extract into pages), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import for EPUB/PDF), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
-| `Features/` | `DesignSystem` (tokens, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
+| `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/`, `UITests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) and UI flows |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
 | `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); models download at runtime |

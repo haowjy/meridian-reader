@@ -10,7 +10,9 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 `Playback/PlaybackSession.swift` (the state machine)
 → `Playback/` adapters (`AppleListenEngine`, `LocalListenEngine` → `LocalListenPlayer`) →
 `LocalTTSCoordinator` (engine selection, `LocalSynthService`, launch recovery) →
-`Core/TTS/GlobalSynthQueue.swift` (render queue) and `Core/TTS/ArticleAudioCache.swift`.
+`Core/TTS/GlobalSynthQueue.swift` (render queue) and `Core/TTS/ArticleAudioCache.swift`. Engines are
+in `Engines/` (`Phonon/`, `FluidAudio/` and `ONNX/` for Kokoro, `Apple/`); each
+provider owns its host, model store, voice catalog and chunk limits.
 
 ## Contracts that break quietly
 
@@ -70,6 +72,14 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
   paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the
   paragraph count.
+- **Phonon (the default engine).** Core ML on the Neural Engine (`PhononHost`), one-call-at-a-time
+  like the rest, and `rendersInBackground` is false: `RenderAdmission` parks background renders for
+  it, so a Phonon article only plays on in the background from audio already rendered. Its limits
+  (`TextChunker.Limits.phonon`: target 1200, hardMax 1600, whole paragraphs) belong to
+  `PhononProvider`; `PhononSpokenText` may change case and drop redundant punctuation, never words
+  (chunks must still map to the normalized paragraph, see the chunk-plans rule below). Its model
+  zip goes through `LargeModelDownloadConsent`, as does Kokoro's ONNX. Don't add a shared
+  speakable-text pass: engines own normalization (`docs/TTS_ENGINES.md` → "Text prep for speech").
 - **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
   (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again.
   One call at a time (`SynthRenderGate`), never a Core ML call in the background
@@ -112,7 +122,8 @@ is the lock screen and remote commands, `+Settings` the language, voice and `Lis
 ## Verifying here
 
 - Playback is verified by probing the running app (AGENTS.md → "Build and verify"). The unit
-  tests here are `TextChunkerTests`, `ParagraphSplitTests` and `EngineCrashGuardTests`.
+  tests here are `TextChunkerTests` (chunk limits and whitespace-only normalize),
+  `PhononSpokenTextTests`, `VoiceSelectionTests` and `EngineCrashGuardTests`.
 - Behavior that only shows on a device (the libBNNS crash, real render speed, background
   limits) is measured with a Release build and the timing log; see LISTEN_PLAYBACK.md →
   "Diagnostics".

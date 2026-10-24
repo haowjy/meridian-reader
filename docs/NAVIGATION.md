@@ -69,6 +69,10 @@ the start page. `BrowseStartView` hosts both (`ShellState.surface`); all chrome 
 band, the same on both (decisions D22 and D23), and each surface uses everything between the
 status bar and it (safe area respected).
 
+On iPad (regular width) the same two surfaces sit beside a sidebar, with the bottom band split into
+main-pane chrome and a clustered player dock; see "iPad and regular width" below. This section
+describes the compact (phone) chrome.
+
 **The app reopens on the surface you left** (decision D10): the Library at the folder you were in
 (`ShellState.libraryPath`, folders that no longer exist dropped), or the browser on its last page,
 reloaded. A fresh install opens the Library. Kept on the device in UserDefaults
@@ -1062,27 +1066,38 @@ control for control.
 
 ## Settings
 
-**⋯ › Settings** (`SettingsView`; the last row of every ⋯ panel, titled *Settings* like the row,
-*Done* closes it) holds every setting, on the Library's list style (cards on paper), top to
-bottom:
+**⋯ › Settings** (`SettingsView`; the last row of every ⋯ panel, and the sidebar's bottom row on
+iPad; titled *Settings*, *Done* closes it) is a `NavigationStack` of cards on paper (the Library's
+list style). Top to bottom:
 
-- **Appearance**: *Theme* System / Light / Dark (the app's windows follow it) and *Color*:
-  Jade (the default), Harbor, Plum, Ember, Graphite: the accent and what is drawn from it (the
-  playing tint, letter tiles) on every screen (`AppAppearance`, UserDefaults `appearance.mode`,
-  `appearance.accent`).
-- **Reading**: the reading appearance above, with a sample of what is chosen.
-- **Listening**: the engines (Apple and the on-device ones: prepare, cancel, the selection ✓, a
-  prepared one's grey ✓ before its second line, *Remove Prepared Audio* on a swipe), *Voice ›* and *Language ›* (pages of their own; no symbols in this card, as the
-  engines have none), and *Speed* (*Speed 1× ›*, as *Voice* and *Language*): an article of the speeds
-  Now Playing's speed lists, 0.75× to 2×, the chosen one ✓.
+- **Listening** (first; the audio settings):
+  - *Voice ›* (`VoicePage`): the default voice for new articles and books, from the one voice
+    switcher (`VoiceSelectionList`, the same list an article's or a book's *Voice* picker shows).
+    *Phonon | Kokoro | Apple* chips choose which engine's voices are listed; picking a voice picks
+    its engine. Phonon and Kokoro list their curated voices with samples, then *More voices*;
+    Apple lists the installed voices for the language, Premium first. A voice's download shows
+    progress below the list (tap to cancel; on cellular or Low Data Mode it asks first, "Download
+    on Cellular?"), a downloaded Kokoro pack is removed with a swipe, and a crash or failure
+    notice sits in the footer. The row's value names the voice.
+  - *Language ›* (`LanguagePage`) and *Speed ›* (the speeds Now Playing lists, 0.75× to 2×, the
+    chosen one ✓).
+- **Appearance ›** and **Reading ›**, one card (nested pages, not inline rows):
+  *Appearance* (`AppearanceSettingsPage`) holds *Theme* System / Light / Dark (the app's windows
+  follow it) and *Color*: Jade (the default), Harbor, Plum, Ember, Graphite (the accent and what
+  is drawn from it, on every screen; `AppAppearance`, UserDefaults `appearance.mode`,
+  `appearance.accent`). *Reading* (`ReadingSettingsPage`) is the reading appearance above (the
+  Aa panel), with a sample of what is chosen.
 - **Browsing**: *Block Ads* (on by default): requests to common ad and tracker hosts don't load
   in any of the app's web views; a change applies to pages loaded after it.
-- **Prepared Audio & Storage**: *Prepared Audio ›* (the Prepared Audio list) and the listening audio kept on
-  the iPhone.
+- **Prepared Audio & Storage**: *Prepared Audio ›* (the Prepared Audio list), the size of the
+  prepared audio, the size of the audio kept from listening, and the **version row** (a 2 s
+  long-press toggles developer options, below).
+- **About**: *Privacy Policy* and *Support* (open the project's web pages) and *Acknowledgements ›*
+  (`AcknowledgementsView`: FluidAudio, Kokoro, Phonon / Gradium, ONNX Runtime, ZIPFoundation,
+  Mozilla Readability).
 - **Developer** (developer options only): *Listen Debug*, *Fake Extraction Failure* (every
   extraction fails until the app quits: the browser's Reader and Save, Follow's preview and
   chapters, prepared audio) and *Listen Debug Panel ›*.
-- The **version row** last.
 
 ## Developer options
 
@@ -1100,6 +1115,33 @@ can't stick; long-press the version row to turn it back on. A launch forces it w
 `-reader.developerOptions NO|YES`. Launch-argument hooks and test-only markers compile only in
 Debug builds (`App/LaunchOptions.swift`).
 
+## iPad and regular width
+
+The iPad (and any window whose `horizontalSizeClass` is `.regular`) gets its own layout; the
+iPhone and compact widths keep the chrome described everywhere else in this file, unchanged. The
+sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
+
+- **Sidebar** (`RegularShellSidebar`, ~280 pt, left of the main pane, hosted by `BrowseStartView`):
+  the app name and *Hide sidebar*; *Library* and *Browser* (the two surfaces; what the 📚 / 🌐 swap
+  does on a phone); *Search*; a *Folders* list (Favorites and the top-level folders; a tap opens
+  that folder in the Library); and *Settings* at the bottom. *Hide sidebar* collapses it for focus
+  reading and a floating *Show sidebar* button brings it back; the collapse is not remembered
+  across launches.
+- **Main-pane chrome.** The address field is the top band of the main pane (the same field, with
+  no swap button and no Now Playing row). In the Library the band shows only while a search is
+  active. The toolbar (‹ › ＋ or 🔖, 🕘, ⋯) moves into the dock.
+- **Clustered player dock** (`ClusteredPlayerDock`, ~520 pt, bottom of the main pane) replaces the
+  phone's Now Playing bar and carries the surface's toolbar beside it. It shows the playing
+  article, or a resume bar for the last-played one, or "Nothing playing / Pick something to play".
+  It steps aside under a sheet or Now Playing.
+- **Reader.** The text sits in a ~700 pt readable column, centred, and the Reader's player
+  controls are held to the dock's width.
+- **Voice and Settings** open as form sheets (`.presentationSizing(.form)`, ~600 pt, drag indicator
+  visible) instead of full-width sheets. Other sheets keep their phone presentation.
+- **Not built.** A Browse | Reader split view (web page and Reader side by side) is deferred, and
+  so is landscape-specific polish; the project sets the portrait orientation key and the
+  screenshots are portrait.
+
 ## Current screens
 
 | Screen | Button | Presentation |
@@ -1108,7 +1150,7 @@ Debug builds (`App/LaunchOptions.swift`).
 | Browser → editing the address | ✕ round, right of the field | in place; tap outside or drag down |
 | Browser ⋯ / Reader ⋯ / Now Playing ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
 | ⋯ → Website (Reader, Now Playing) | — | closes the sheet (and leaves the library) and shows / loads the page in the browser; audio continues |
-| ⋯ → Settings (`SettingsView`) | Done | `.sheet`; Voice, Language, Prepared Audio push inside it |
+| ⋯ → Settings (`SettingsView`); on iPad also the sidebar's Settings | Done | `.sheet` (a form sheet on iPad); Voice, Language, Speed, Appearance, Reading, Prepared Audio and Acknowledgements push inside it |
 | Reader / Now Playing → Aa (`TextAppearanceControl`) | tap outside | popover from Aa |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | Done (grabber) | `.sheet`, medium/large |

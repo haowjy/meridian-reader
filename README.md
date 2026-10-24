@@ -16,7 +16,7 @@ Pick an iOS Simulator or a device and run the `MeridianReader` scheme. The home-
 `com.jimmyyao.Reader` so existing installs keep their data. Measure speech timing on a device with
 a Release build; FluidAudio is about 3× slower in Debug.
 
-Requirements: Xcode with the iOS 17+ SDK and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+Requirements: Xcode with the iOS 18+ SDK and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 (`brew install xcodegen`).
 
 ## What's in it
@@ -25,7 +25,8 @@ Requirements: Xcode with the iOS 17+ SDK and [XcodeGen](https://github.com/yonas
 - Reader view extracted from the live article with Mozilla Readability
 - Library of saved articles (SwiftData), bookmarks and history
 - Listening: sentence and paragraph scrubbing, speed changes in place, mini player, lock screen
-- On-device Kokoro (vendored FluidAudio and ONNX Runtime) and Phonon 31m English (ptts / Core ML, not default), with Apple speech as the fallback
+- On-device Kokoro (vendored FluidAudio and ONNX Runtime) and Phonon 31m English (ptts / Core ML, the default on-device voice), with Apple speech as the fallback
+- iPhone and iPad: the iPad uses a regular-width layout (sidebar, clustered player, readable Reader column)
 
 The app icon source is `Resources/Brand/meridian-reader-icon-g1.svg`, exported into
 `Resources/Assets.xcassets/AppIcon.appiconset`.

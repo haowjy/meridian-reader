@@ -632,20 +632,21 @@ Logs `coreml_cache_prune`.
 
 ## Settings › Listening
 
-`ListeningSettingsSection` in Settings (⋯ → *Settings*, `NAVIGATION.md` → "Settings"), on the
+`ListeningSettingsSection` in Settings (⋯ → *Settings*, `NAVIGATION.md` → "Settings"), the first card of Settings, on the
 Library's list style: chrome cards on paper, `SectionHeader`s, notes in secondary ink. Every
 choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed accessory and
 check slots, min height 48), so state changes never move rows.
 
 1. **Voice ›** (`VoicePage`): the default voice for new articles and books, from the one voice
    switcher (`VoiceSelectionList`, C138a), the same list an article's or a book's *Voice* picker
-   shows. Engines are its sections: Kokoro's curated voices with samples (Heart marked
-   "(default)" and shipped installed; other packs show the prepared ↓ once downloaded; swipe
-   *Remove Download* on a downloaded pack — Heart only when another curated pack is installed;
-   the shared model's download progress below them, tap to cancel; crash and failure notices in
-   its footer), then Apple's: "Best for <language>" and the
-   installed voices for the language, Premium, then Enhanced, then the rest. Picking a voice
-   picks its engine; there is no Engine control. The row's value names it ("Heart", "Ava (Apple)").
+   shows. A *Phonon | Kokoro | Apple* chip row chooses which engine's voices are listed, starting
+   on the current selection's engine: Phonon's and Kokoro's curated voices with samples (Zoey and
+   Heart marked "(default)"; Phonon adds a *More voices* list); other packs show the prepared ↓ once
+   downloaded; swipe *Remove Download* on a downloaded Kokoro pack (Heart only when another
+   curated pack is installed); the model's download progress below them, tap to cancel (on
+   cellular or Low Data Mode it asks first); crash and failure notices in the footer. Apple lists
+   "Best for <language>" and the installed voices for the language, Premium, then Enhanced, then
+   the rest. Picking a voice picks its engine. The row's value names it ("Zoey", "Heart", "Ava (Apple)").
 2. **Language ›** (`LanguagePage`), 3. **Speed**, the six speeds in one line.
 
 The version row at the bottom of Settings toggles developer options (a 2 s long-press); Settings
