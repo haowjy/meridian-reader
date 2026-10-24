@@ -141,6 +141,7 @@ into main → delete the branch. No parallel worktrees. Main holds release versi
 for approval, data changes and migrations included. Hold a PR for the owner only when it (1) touches
 release steps (release workflow, signing, App Store Connect, version cuts), (2) is a large design the
 owner hasn't seen, or (3) leaves its task unfinished. Judge "done" against what the owner asked for.
+Docs-only changes (`AGENTS.md`, `.context/`, `docs/`) skip the PR: commit them straight to main.
 
 Work goes through PRs: write the PR body (`.github/pull_request_template.md`), write the PR's
 Changes section as the technical changelog, and add `release-notes/<version>.md` when cutting a
