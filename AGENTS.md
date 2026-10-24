@@ -2,15 +2,9 @@
 
 A personal iOS app for listening to (and reading) web articles: browse in the app, extract a clean
 copy with Readability, save it, and listen offline with Apple TTS, Kokoro, or Phonon running on the device.
-Single user, no backend. SwiftUI, SwiftData, iOS 18+, iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`;
-the project sets the portrait orientation key).
+Single user, no backend. SwiftUI, SwiftData, iOS 18+, iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`).
 
-**iPad is a regular-width layout, not a scaled phone.** Everything iPad-specific is gated on
-`horizontalSizeClass == .regular` (`Features/DesignSystem/Tokens/RegularLayout.swift`): a ~280 pt
-collapsible sidebar (`RegularShellSidebar`), main-pane Browse chrome, a ~700 pt Reader measure, the
-`ClusteredPlayerDock` in place of the phone's Now Playing bar, and Voice and Settings as
-`.presentationSizing(.form)` sheets. Compact width (iPhone, iPad in a compact size class) keeps the
-phone chrome unchanged; check both when touching shell chrome.
+iPad is a regular-width layout gated on `horizontalSizeClass == .regular`; compact chrome is unchanged. Detail: [`Features/Shell/AGENTS.md`](Features/Shell/AGENTS.md).
 
 ## Build and verify
 
