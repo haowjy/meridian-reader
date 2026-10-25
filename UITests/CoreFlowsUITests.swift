@@ -73,4 +73,30 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(eventually { icon.exists && more.exists }, "another brings it back, still folded")
         XCTAssertFalse(pill.exists)
     }
+
+    /// Jump to Audio is for the bars up only (C128): scrolled away from the audio the pill shows,
+    /// a middle tap into full screen removes it at once, and leaving full screen brings it back.
+    func testJumpToAudioLeavesWithFullScreen() throws {
+        let app = launch(["-browseTestPages"])
+        let link = app.links["Next page"]
+        XCTAssertTrue(appears(link, timeout: 10))
+        link.tap()
+        tapWhenHittable(find(app, "addressReader"))
+        tapWhenHittable(app.buttons["pageReaderListen"])
+        XCTAssertTrue(appears(app.buttons["listenPlayPause"], timeout: 10), "Now Playing")
+
+        let jump = app.buttons["nowPlayingJumpToAudio"]
+        let text = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
+        let low = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+        low.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.3)
+        XCTAssertTrue(appears(jump, timeout: 5), "scrolled away from the audio: the pill")
+
+        text.tap()
+        XCTAssertTrue(eventually(1) { !jump.exists }, "full screen removes the pill at once")
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertFalse(jump.exists, "and it stays away through full screen")
+        text.tap()
+        XCTAssertTrue(appears(jump, timeout: 3), "leaving full screen brings it back")
+    }
 }

@@ -73,16 +73,30 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     /// Floats over the text, so the text keeps running under it. No arrow: the spoken sentence
     /// may be above or below. Inverted: an ink pill with the page's colour for its text.
     private var jumpToAudio: some View {
-        let shows = chrome.showsJumpToAudio(awayFromAudio: showsJumpToAudio)
-        return ZStack {
+        JumpToAudioPill(chrome: chrome, awayFromAudio: showsJumpToAudio, action: onJumpToAudio)
+    }
+}
+
+/// Jump to Audio's pill. Its own view so it reads `chrome.hidden` in its own body: this page builds
+/// its overText before the compact chrome attaches (`ReadingChrome.attach`), so a read made by the
+/// page's body would only watch the sheet's own copy of full screen and miss the compact chrome's.
+/// It leaves with a fast fade the moment full screen begins and returns only on exit (C128).
+private struct JumpToAudioPill: View {
+    let chrome: ReadingChrome
+    let awayFromAudio: Bool
+    let action: () -> Void
+
+    var body: some View {
+        let shows = chrome.showsJumpToAudio(awayFromAudio: awayFromAudio)
+        ZStack {
             if shows {
-                PillButton("Jump to Audio", style: .inverted, size: .compact, action: onJumpToAudio)
+                PillButton("Jump to Audio", style: .inverted, size: .compact, action: action)
                     .overTextShadow()
                     .accessibilityIdentifier("nowPlayingJumpToAudio")
                     .transition(.opacity)
             }
         }
-        .animation(Motion.snappy, value: shows)
+        .animation(shows ? Motion.snappy : Motion.fadeOut, value: shows)
     }
 }
 
