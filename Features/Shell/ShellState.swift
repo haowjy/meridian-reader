@@ -137,6 +137,9 @@ final class ShellState {
         case library
     }
 
+    /// Whether the compact bottom chrome is expanded or scrolled down to one row.
+    let chrome = ChromeState()
+
     private(set) var surface: Surface = .browse {
         didSet { remember() }
     }
@@ -316,6 +319,7 @@ final class ShellState {
 
     /// The browser's page changed: its address field, and the page to reopen on.
     func browserPageChanged() {
+        chrome.expand()
         syncAddressField()
         remember()
     }

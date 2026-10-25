@@ -24,6 +24,11 @@ struct BrowseStartView: View {
     @State private var alertMessage: String?
     @Environment(\.readingAppearance) private var readingAppearance
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The Library's screen state, shared by its screens and the bottom chrome (which the shell owns).
+    @State private var libraryScreen = LibraryScreenState()
+    /// The Library ⋯'s *Turn Off Prepare* asked: the question shows by the ⋯.
+    @State private var turningOff: Folder?
+    @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
     private var webStore: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
@@ -88,33 +93,42 @@ struct BrowseStartView: View {
             }
     }
 
-    /// The page (or start page), the search layer over it, and the bottom chrome.
+    /// The page (or start page), the search layer over it, and at regular width the bottom chrome.
+    /// Compact width draws the chrome in `layers`, over the page and the Library alike.
     private var browser: some View {
         VStack(spacing: 0) {
             ZStack {
-                if showsBrowseWebView {
-                    WebView(store: webStore)
-                        .opacity(hasPage ? 1 : 0)
-                        .allowsHitTesting(hasPage)
-                        .onAppear { browseWebViewMounted = true }
-                }
+                // The page runs under the chrome, through the bottom safe area, and keeps its last
+                // line clear of the chrome by an inset.
+                ZStack {
+                    if showsBrowseWebView {
+                        WebView(store: webStore,
+                                bottomInset: isRegular ? 0 : ChromeMetrics.footprint,
+                                onScroll: isRegular ? nil : { [chrome = shell.chrome] in chrome.scrolled(to: $0) })
+                            .opacity(hasPage ? 1 : 0)
+                            .allowsHitTesting(hasPage)
+                            .onAppear { browseWebViewMounted = true }
+                    }
 
-                if !hasPage {
-                    startPage
+                    if !hasPage {
+                        startPage
+                    }
                 }
+                .ignoresSafeArea(.container, edges: isRegular ? [] : .bottom)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Safari-style search session: full-bleed Recent Searches / suggestions over the page.
             .overlay {
                 if search.isActive && shell.isBrowsing {
                     searchLayer
+                        .padding(.bottom, isRegular ? 0 : ChromeMetrics.collapsedFootprint)
                 }
             }
             .clipped()
 
             // The library draws its own chrome and covers this; the reader overlay draws its own
             // too, but this stays under it so its pull-down reveals the browser whole.
-            if !shell.isInLibrary {
+            if isRegular && !shell.isInLibrary {
                 bottomChrome
             }
         }
@@ -202,9 +216,14 @@ struct BrowseStartView: View {
     private var layers: some View {
         ZStack {
             if shell.isInLibrary {
-                LibrarySurface()
+                LibrarySurface(chrome: libraryChrome)
                     .covered(shell.reader != nil || shell.isNowPlayingPresented)
                     .transition(.opacity)
+            }
+            // Compact: the one bottom chrome, over the browser and the Library, under the Reader.
+            if !isRegular {
+                compactChrome
+                    .covered(shell.reader != nil || shell.isNowPlayingPresented)
             }
             if let reader = shell.reader {
                 ReaderSheetScreen(state: reader, speech: speech)
@@ -216,6 +235,48 @@ struct BrowseStartView: View {
                     .id(shell.nowPlayingPresentation)
             }
         }
+    }
+
+    // MARK: - Compact bottom chrome
+
+    private var libraryChrome: LibraryChrome {
+        LibraryChrome(shell: shell, library: library, speech: speech, preparedAudio: preparedAudio, screen: libraryScreen,
+                      topLevelSort: $topLevelSort, turningOff: $turningOff)
+    }
+
+    /// The host for the browser's and the Library's chrome. The browser's depends on the page
+    /// (saved or not), so the host sits inside its lookup.
+    private var compactChrome: some View {
+        let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
+        return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
+            ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen())
+                .environment(libraryScreen)
+        }
+    }
+
+    private func browseChromeScreen(_ libraryPage: Article?) -> ChromeScreen {
+        let actions = pageActions(libraryPage)
+        let search = search
+        return ChromeScreen(
+            destination: .browse,
+            session: search,
+            cancelID: "addressCancel",
+            onCancel: shell.endAddressSearch,
+            // Like Safari: the session starts with the page's full address, selected.
+            begin: { [webStore] in search.begin(with: webStore.currentURL?.absoluteString ?? "") },
+            canGoBack: webStore.canGoBack,
+            canGoForward: webStore.canGoForward,
+            backID: "browseBack",
+            forwardID: "browseForward",
+            onBack: webStore.goBack,
+            onForward: webStore.goForward,
+            field: { focus in
+                AnyView(BrowseAddressField(speech: speech, dictation: dictation,
+                                           onOpenReader: { run { try await $0.openInReader() } }, onListen: listen,
+                                           onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
+            },
+            more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) })
+        )
     }
 
     // MARK: - 🎧
@@ -271,10 +332,14 @@ struct BrowseStartView: View {
             default: return nil
             }
         }
+        // The compact chrome has no 🕘 button: History is a row of ⋯.
+        let rows = isRegular ? screen : screen + [MenuRow(id: "moreHistory", title: Verbs.history, icon: Icons.history) {
+            shell.present(.history)
+        }]
         let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: Verbs.openInReader) { run { try await $0.openInReader() } }
-        return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
+        return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: rows,
                            tiles: MenuContext.tiles(shell, last: reader))
     }
 
@@ -302,6 +367,7 @@ struct BrowseStartView: View {
             )
             .task(id: favorites.count) { await library.backfillFavoriteIcons() }
         }
+        .modifier(CompactChromeInsets(isCompact: !isRegular))
     }
 
     // MARK: - Address

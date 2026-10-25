@@ -48,6 +48,9 @@ struct LaunchOptions: Equatable {
     var scrubBubbleDemo = false
     /// `-slowMenuAnimation`: slow the ⋯ morph so a mid-animation frame can be captured.
     var slowMenuAnimation = false
+    /// `-chromeFallback`: draw the compact bottom chrome in its pre-iOS 26 skin (the thick material
+    /// strip) on a new OS, since no older simulator runtime is installed to look at it.
+    var forcesChromeFallback = false
     /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
     /// saved articles and bookmarks again.
     var rerunsLibraryMigration = false
@@ -121,6 +124,7 @@ struct LaunchOptions: Equatable {
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
+        forcesChromeFallback = flags.contains("-chromeFallback")
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
         seedsDemoBook = flags.contains("-seedDemoBook")
         demoBookPlace = value(after: "-seedDemoBookPlace").flatMap(Int.init)

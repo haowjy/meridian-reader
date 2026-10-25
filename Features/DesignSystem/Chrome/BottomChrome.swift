@@ -143,14 +143,17 @@ private struct BottomChromeField: ViewModifier {
     let trailing: CGFloat
     @ScaledMetric(relativeTo: .body) private var height = BottomChrome.rowHeight
     @Environment(\.readingPalette) private var reading
+    /// The compact chrome's field height (`ChromeHost`), which also sets the capsule's surface.
+    @Environment(\.chromeFieldHeight) private var chromeHeight
 
     func body(content: Content) -> some View {
+        let base = chromeHeight ?? BottomChrome.rowHeight
         content
             .padding(.leading, leading)
             .padding(.trailing, trailing)
             .padding(.vertical, BottomChrome.fieldVerticalPadding)
-            .frame(height: BottomChrome.grown(height, from: BottomChrome.rowHeight))
-            .background(BottomChrome.fieldFill(reading), in: Capsule())
+            .frame(height: BottomChrome.grown(chromeHeight ?? height, from: base))
+            .chromeSurface(Capsule(), fill: BottomChrome.fieldFill(reading))
     }
 }
 

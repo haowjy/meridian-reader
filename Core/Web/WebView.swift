@@ -9,6 +9,11 @@ extension EnvironmentValues {
 
 struct WebView: UIViewRepresentable {
     var store: WebViewStore
+    /// Room the page keeps clear at the bottom, for chrome floating over it: the page scrolls
+    /// through it, so its last line can rise above the chrome.
+    var bottomInset: CGFloat = 0
+    /// The user's scroll position (0 at the top of the page), while they drag or the page coasts.
+    var onScroll: ((CGFloat) -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(store: store)
@@ -32,6 +37,11 @@ struct WebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.store = store
+        context.coordinator.onScroll = onScroll
+        if webView.scrollView.contentInset.bottom != bottomInset {
+            webView.scrollView.contentInset.bottom = bottomInset
+            webView.scrollView.verticalScrollIndicatorInsets.bottom = bottomInset
+        }
         if store.webView !== webView {
             context.coordinator.attach(webView)
         }
@@ -42,6 +52,7 @@ struct WebView: UIViewRepresentable {
         /// `WebViewStore.staysOnPage`, read where WebKit asks.
         private let staysOnPage: Bool
         private var observations: [NSKeyValueObservation] = []
+        var onScroll: ((CGFloat) -> Void)?
         @MainActor init(store: WebViewStore) {
             self.store = store
             staysOnPage = store.staysOnPage
@@ -61,6 +72,14 @@ struct WebView: UIViewRepresentable {
                 },
                 webView.observe(\.estimatedProgress, options: [.new]) { [weak self] wv, _ in
                     Task { @MainActor in self?.store.progress = wv.estimatedProgress }
+                },
+                // Only the user's own scrolling moves the chrome, not a page loading or restoring.
+                webView.scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scroll, _ in
+                    guard scroll.isDragging || scroll.isDecelerating else { return }
+                    let inset = scroll.adjustedContentInset
+                    let farthest = scroll.contentSize.height + inset.bottom + inset.top - scroll.bounds.height
+                    let offset = min(scroll.contentOffset.y + inset.top, max(farthest, 0))
+                    Task { @MainActor in self?.onScroll?(offset) }
                 },
                 // Same-document URL changes (pushState sites) never hit `didFinish`: recheck.
                 webView.observe(\.url, options: [.new]) { [weak self] wv, _ in
