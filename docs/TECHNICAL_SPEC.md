@@ -79,7 +79,7 @@ UITests/    the smoke flow and the in-place Reader chrome flow (MeridianReaderUI
   its `rows` say two, one or none. `ChromeGeometry` is the one pure layout function from (width,
   state) to every piece's frame (the edit bar included), the fade, and where the progress and toast
   overlays sit; it is sized by `ChromeMetrics` (every size a multiple of a base unit of 4, mirrored
-  by the mockups' `MC.SZ`; the Reader's text keeps `row2Footprint` whether the chrome is expanded or
+  by the mockups' `MC.SZ`; the Reader's text keeps `collapsedFootprint` whether the chrome is expanded or
   collapsed). `ChromeScroll` (`ShellState.chromeScroll`) owns both presence flags and is the one
   scroll controller the Library, the Browser and the Reader feed; `ChromeScroll.readerScrollUpReexpands`
   is the Reader's switch for scrolling up, and the Reader's offsets that no finger moved only

@@ -81,17 +81,18 @@ searching   [ field                    ][icon][✕]             the keyboard is 
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2) on one
   surface: Liquid Glass inside one `GlassEffectContainer` on iOS 26, every piece answering a press;
   earlier iOS (and a Debug launch with `-chromeFallback`) draws a thick material strip with
-  `Palette.chrome` capsules, one hairline and one shadow under each shape. Heights: row 1 52, row 2
-  56 (circles 56), the collapsed row 48; sizes live in `ChromeMetrics` (footprint 126 expanded, 58
-  collapsed, 66 on the Reader). Every control glyph, the field's reader icon, ↻ and 🎤 included,
+  `Palette.chrome` capsules, one hairline and one shadow under each shape. One height, 44 pt
+  (`ChromeMetrics.barHeight`), for every piece in every row and state; the lit segment is inset 4
+  (36 tall, radius 18). Sizes live in `ChromeMetrics` (footprint 108 expanded, 56 collapsed and on
+  the Reader). Every control glyph, the field's reader icon, ↻ and 🎤 included,
   is 19 pt medium (`BottomChrome.chromeGlyph`); the field's 🔍 is a caption-size hint, not a
-  control. Labels are 11 pt medium ink.
+  control. Labels are 10 pt medium ink.
 - **Row 1** is the screen's context: on the Browser `[‹][›][address]` (› dropped with no forward
   page, both dropped on a new page), on the Library its search field. The address field is
   `[reader icon][URL][↻]` (↻ is ✕ while the page loads); there is no 🎧 in it on compact width:
   play and pause live in the chrome's own button. Collapsed, the field shows the URL alone and is
   the tap target.
-- **Row 2** is the pill, a 56 pt round play / pause with a thin progress ring (hidden before
+- **Row 2** is the pill, a 44 pt round play / pause with a thin progress ring (hidden before
   anything has played; the same on the Reader) and ⋯. With nothing loaded ▶ resumes the page
   played last.
 - **Collapse.** Scrolling down collapses the chrome to one row, `[‹ ›][address][▶][icon][⋯]`;
@@ -102,7 +103,7 @@ searching   [ field                    ][icon][✕]             the keyboard is 
 - **The Reader is a destination, not a sheet**: it shows in place under the same chrome with the
   Reader lit, row 2 as everywhere (`[pill][▶ ring][⋯]`), and collapses to one row on scroll like the
   Library and Browser (the field slot is a title chip; the icon, the chip or a swipe up expands). The
-  text's bottom inset stays the row-2 footprint whether the chrome is expanded or collapsed, so the text
+  text's bottom inset stays the collapsed footprint (56) whether the chrome is expanded or collapsed, so the text
   never resizes. There is no Close pill, grabber or pull-down: Library and Browser in the pill leave it
   and never stop audio. Its ⋯ is the reading page's own menu. **Full screen** is a tap in the middle of
   the text, in and out, and nothing else: it removes the whole chrome (no rows, no fade, no band, no top

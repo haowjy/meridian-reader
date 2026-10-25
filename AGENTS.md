@@ -123,7 +123,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Reader, Library, Browser), two rows
   expanded and one collapsed, no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; PR2 to PR4 of the
   redesign are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
-  or circle (radius = height / 2; row heights 52 / 56 / 48 in `ChromeMetrics`, `Features/DesignSystem/Chrome/`), every control glyph
+  or circle (radius = height / 2; one 44 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`), every control glyph
   `BottomChrome.chromeGlyph`, the Reader is a destination under the same chrome (no sheet, Close pill or pull-down; it collapses on scroll, and full screen is a middle tap that removes the chrome), and the compact address pill ends
   in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
   `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
