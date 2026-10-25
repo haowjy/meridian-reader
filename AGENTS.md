@@ -30,8 +30,10 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   UI tests). **Test policy (C133): critical tests only**, guarding costly regressions: the
   engine crash guard and C129 recovery (`EngineCrashGuardTests`), cache integrity (audio in the
   wrong voice never counts as prepared, `PrepareOverviewTests`), a failed save never losing
-  an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), and one
-  smoke UI test (`CoreFlowsUITests.testSaveAndPlayABrowsedArticle`). Add a test only for data
+  an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), one
+  smoke UI test (`CoreFlowsUITests.testSaveAndPlayABrowsedArticle`), and, at the owner's request,
+  the compact chrome: unit tests of its state, layout and scroll controller (`ChromeTests`) and one
+  UI test (`testInPlaceReaderCollapsesOnScrollAndFullScreenIsAMiddleTap`). Add a test only for data
   loss, crashes, store migration or cache integrity; verify everything else on the running app.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
 - One scheme, `MeridianReader`, with two test targets: `MeridianReaderTests` (unit, `Tests/`) and

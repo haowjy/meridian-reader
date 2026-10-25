@@ -31,9 +31,9 @@ final class ChromeScroll {
 
     /// A swipe up on the collapsed row expands it: a drag past `swipeStart` that travels
     /// `swipeDistance` up, more up than across.
-    static let swipeStart: CGFloat = 16
-    static let swipeDistance: CGFloat = 24
-    static func isSwipeUp(_ translation: CGSize) -> Bool {
+    nonisolated static let swipeStart: CGFloat = 16
+    nonisolated static let swipeDistance: CGFloat = 24
+    nonisolated static func isSwipeUp(_ translation: CGSize) -> Bool {
         translation.height < -swipeDistance && abs(translation.height) > abs(translation.width)
     }
 

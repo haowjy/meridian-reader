@@ -43,7 +43,7 @@ Core/
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
 Features/
-  Shell/    ShellState, the compact bottom chrome (`Chrome/`: `ChromeState`, `ChromeGeometry` with `ChromeMetrics`, `ChromeScroll`, `ChromeHost`), ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
+  Shell/    ShellState, the compact bottom chrome (`Chrome/`: `ChromeState`, `ChromeGeometry`, `ChromeScroll`, `ChromeHost`; its `ChromeMetrics` are in `DesignSystem/Chrome/`), ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
   DesignSystem/  tokens (incl. `RegularLayout`: the iPad sidebar, readable-measure and sheet widths)
   Browse/   start page, browser chrome, page actions (PageArticleService), dictation
   Reader/   the Reader, Now Playing (text that follows the audio, scrub row, controls)
@@ -51,7 +51,7 @@ Features/
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a library over its own files
-UITests/    one end-to-end smoke flow (MeridianReaderUITests)
+UITests/    the smoke flow and the in-place Reader chrome flow (MeridianReaderUITests)
 ```
 
 ## Architecture
@@ -73,17 +73,21 @@ UITests/    one end-to-end smoke flow (MeridianReaderUITests)
   band and `ClusteredPlayerDock`, `ReaderSheetScreen`'s `regularReadableMeasure`, `ShellSheetView`'s
   `regularInsetFormSheet` for Voice and Settings). State, data and playback are shared; compact
   chrome is untouched. Sizes live in `RegularLayout`. See NAVIGATION.md → "iPad and regular width".
-- **Compact bottom chrome** (`Features/Shell/Chrome/`, one rule set, no screen-specific cases).
-  `ChromeState` is a pure value: destination, presence (two flags, `collapsed` and the Reader's
-  `fullScreen`), played, history, keyboard, reader mode, editing; its `rows` say two, one or none.
-  `ChromeGeometry` is the one pure layout function from (width, state) to every piece's frame and
-  the fade, sized by `ChromeMetrics` (every size a multiple of a base unit of 4, mirrored by the
-  mockups' `MC.SZ`; the Reader's text keeps `row2Footprint` whether the chrome is expanded or
-  collapsed). `ChromeScroll` is the one scroll controller the Library, the Browser and the Reader
-  feed (`ShellState.chromeScroll`; `ChromeScroll.readerScrollUpReexpands` is the Reader's switch for
-  scrolling up). `ChromeHost` only wires the app's state to those three and draws the pieces
-  (`ChromeControls`, `ChromeSkin`). Full screen is `ReadingChrome.hidden`, mirrored once into
-  `ShellState.isReadingFullScreen` by the reading page in place (`ReadingInPlace`).
+- **Compact bottom chrome** (`Features/Shell/Chrome/` with its tokens in `Features/DesignSystem/Chrome/`;
+  one rule set, no screen-specific cases). `ChromeState` is a pure value: destination, presence (two
+  flags, `collapsed` and the Reader's `fullScreen`), played, history, keyboard, reader mode, editing;
+  its `rows` say two, one or none. `ChromeGeometry` is the one pure layout function from (width,
+  state) to every piece's frame (the edit bar included), the fade, and where the progress and toast
+  overlays sit; it is sized by `ChromeMetrics` (every size a multiple of a base unit of 4, mirrored
+  by the mockups' `MC.SZ`; the Reader's text keeps `row2Footprint` whether the chrome is expanded or
+  collapsed). `ChromeScroll` (`ShellState.chromeScroll`) owns both presence flags and is the one
+  scroll controller the Library, the Browser and the Reader feed; `ChromeScroll.readerScrollUpReexpands`
+  is the Reader's switch for scrolling up, and the Reader's offsets that no finger moved only
+  re-anchor it (`anchor(at:)`). The reading page in place reads and toggles full screen through
+  `ReadingInPlace`, so `ReadingChrome.hidden` has no copy. `ShellState` owns the chrome's destination
+  and the pill's selection (`chromeDestination`, `select`). `ChromeHost` only wires those to the
+  app and draws: `ChromePlayback` (the play button and the resume query), `ChromeBackdrop` (the
+  colour under the pieces), `ChromeControls`, `ChromeSkin`.
 - **Reading pages.** The Reader and Now Playing are one `ReadingPage` (`ReaderSheet` and
   `NowPlayingSheet` supply their bands): `ReadingBars` lays out the text between the top bar and
   the band; compact width draws it in place under the chrome, regular width inside a `Sheet`
@@ -559,7 +563,8 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 ## Tests (C133)
 
 Critical-only: crash guard and recovery policy, prepare cache integrity, no data loss on a
-failed save, no text dropped by the chunker, and one smoke UI test. About 13 s to run. The audit
+failed save, no text dropped by the chunker, one smoke UI test, and (at the owner's request) the
+compact chrome: unit tests of its state, layout and scroll controller and one UI test. About 13 s to run. The audit
 table is in the decision log (C133).
 
 ## Retention and Prepared Audio (C134, C135, C136)
