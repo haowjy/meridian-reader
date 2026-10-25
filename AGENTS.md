@@ -117,10 +117,11 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   symbols alone. Give every button in one a symbol.
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
-- **Bottom chrome (a redesign is in progress, not shipped)**: compact width is moving from the two-surface
-  band (`SurfaceBand`) to one floating chrome with three destinations (Reader, Library, Browser), two rows
-  expanded and one collapsed, still no system tab bar (see `docs/NAVIGATION.md`, "Planned"). Until its PRs
-  merge, change `SurfaceBand`; after, change the chrome host, never one screen. Build controls from `BottomChrome` helpers (`bottomChromeField`,
+- **Bottom chrome (a redesign is in progress; PR1 of four adds the host)**: compact width moves from the
+  two-surface band (`SurfaceBand`, now regular width only) to one floating chrome host
+  (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Reader, Library, Browser), two rows
+  expanded and one collapsed, still no system tab bar (see `docs/NAVIGATION.md`, "Planned"). Change the
+  chrome host, never one screen; on regular width change `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
   (`BottomToolbarLayout`, `BottomToolbarSpanLayout`) so sizing, Dynamic Type and 44 pt taps stay
   consistent.

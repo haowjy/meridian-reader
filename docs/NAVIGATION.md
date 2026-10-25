@@ -67,6 +67,15 @@ their text when it is at its top, which does exactly what that button does.
 ("Two surfaces", the Reader and Now Playing, the ⋯ menu) describe what ships today. When a PR lands, move
 what it changed out of this section and into those sections.
 
+**PR1 (the host, on `bottom-chrome-pr1`):** the compact chrome host (`Features/Shell/Chrome/`) replaces
+`SurfaceBand` on iPhone for the Library and the browser: both rows, the pill, collapse on scroll, the
+play/resume button, the adaptive ‹ › row and the Library search row. Temporary until PR2 to PR4: the
+Reader segment opens what plays, else the page played last (as a sheet, today's Now Playing and Reader),
+else a toast; the Now Playing bar row is gone from compact (play/pause and its ring replace it, Now
+Playing is the Reader segment); the Library ＋ rows and History moved into ⋯; the morph between the
+pill and the icon is a glass morph (iOS 26) or a fade, but ⋯ does not morph into its panel yet;
+collapse is two states with hysteresis, not continuous; ‹ › do not move into ⋯ at large text.
+
 The compact bottom band becomes one floating glass chrome with three destinations and no system tab bar
 (invariant 13: `rg "TabView|UITabBar"` finds nothing):
 

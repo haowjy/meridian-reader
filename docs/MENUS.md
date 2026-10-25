@@ -247,10 +247,15 @@ Row menu: *Delete Audio* (`menuDeleteAudio`) on every row; *Prepare Again* only 
 
 The names for the chrome that runs along the bottom of every screen.
 
-*Planned, not shipped (approved design 5e, `docs/NAVIGATION.md` "Planned"): compact width gets one chrome host with three destinations (Reader, Library, Browser), a play/pause button with a ring and one screen icon when collapsed. `SurfaceBand`, `BandFieldRow`, `BandNowPlayingBar` and the five-slot `BottomToolbarLayout` rows below are replaced as the four PRs land; the new names are added here as each PR merges. The ⋯ menu's content does not change: Everywhere (Prepared Audio, History, Settings, with Settings first and most prominent) over This screen, with a Reader mode row on Browse; Save and ＋ actions move into it from the toolbar slots, through `MenuRegistry` like every other row.*
+*Planned, not shipped (approved design 5e, `docs/NAVIGATION.md` "Planned"): compact width gets one chrome host with three destinations (Reader, Library, Browser), a play/pause button with a ring and one screen icon when collapsed. `SurfaceBand`, `BandFieldRow`, `BandNowPlayingBar` and the five-slot `BottomToolbarLayout` rows below are replaced on compact width as the four PRs land (PR1 added `ChromeHost`, first rows of the table; they remain for regular width); the new names are added here as each PR merges. The ⋯ menu's content does not change: Everywhere (Prepared Audio, History, Settings, with Settings first and most prominent) over This screen, with a Reader mode row on Browse; Save and ＋ actions move into it from the toolbar slots, through `MenuRegistry` like every other row.*
 
 | Name | Kind | What it is |
 |---|---|---|
+| `ChromeHost` | view | Compact width only (PR1): the one chrome above the Library and the browser: two rows expanded, one collapsed, over `ChromeScreen`s from each destination. |
+| `ChromeScreen` | struct | What a destination hands the host: its field, ‹ › callbacks and ids, ⋯ and edit bar. |
+| `ChromeState` | class | Expanded or collapsed, from scroll reports with hysteresis; `expand()` is the icon tap and a new page. |
+| `ChromeGeometry` | struct | The widths and heights of every piece for a width and a state (the mockups' width table). |
+| `ChromeSkin` | enum | `.system` (everything else), `.glass` (iOS 26), `.strip` (earlier iOS, and `-chromeFallback`). |
 | `SurfaceBand` | view | The whole bottom band on the browser and Library surfaces: NP bar row, field row, toolbar row. |
 | `BottomChrome` | enum (constants) | Design-system constants (sizes, spacing) shared by all bottom chrome. |
 | `BottomToolbarLayout` | layout | 5-slot evenly-spaced grid for toolbar rows (browser, Library, Now Playing transport). |

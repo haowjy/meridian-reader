@@ -4,10 +4,13 @@ Navigation state (`ShellState`), the ⋯ menu's content, the Now Playing bar, an
 clustered dock. Working notes and contracts: [`.context/CONTEXT.md`](.context/CONTEXT.md). What the
 user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
 
-- **A chrome redesign is in progress, not shipped.** Compact width is moving from `SurfaceBand` to one
-  chrome host with three destinations (Reader, Library, Browser): `docs/NAVIGATION.md`, "Planned".
-  `ShellState` gains the destination; it still owns navigation. Until the PRs merge, the notes below
-  describe the shipped band.
+- **A chrome redesign is in progress (PR1 of four, not merged).** Compact width moves from `SurfaceBand`
+  to one chrome host (`Chrome/ChromeHost.swift`) with three destinations (Reader, Library, Browser):
+  `docs/NAVIGATION.md`, "Planned". Each destination hands the host a `ChromeScreen` (field, arrows, ⋯);
+  the host owns the pill, the play button, collapse (`ChromeState`, fed by `chromeScrollSource`) and
+  the glass or strip skin (`ChromeSkin`). Screens reserve `ChromeMetrics.footprint` at the bottom
+  (`CompactChromeInsets`) and report their scroll with `CompactChromeScroll`. `SurfaceBand` remains
+  for regular width. Change the host, never one screen.
 - **Two size classes.** iPad layout is gated on `horizontalSizeClass == .regular` and compact (iPhone,
   iPad in a compact window) keeps the phone chrome unchanged. When you touch shell chrome, check both.
 - **Sizes are tokens** in `../DesignSystem/Tokens/RegularLayout.swift`; don't hard-code a width in a view.
