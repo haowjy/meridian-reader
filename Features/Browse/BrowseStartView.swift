@@ -139,13 +139,16 @@ struct BrowseStartView: View {
                 bottomChrome
             }
         }
-        // The page area is clipped to the safe area; when paper shows there (the start page, the
-        // search layer), or the in-place reader, it continues up under the status bar.
+        // The page area is clipped to the safe area; what shows there (paper on the start page and
+        // the search layer, the in-place reader's theme, a web page's own background) continues
+        // up under the status bar.
         .background {
             if !hasPage || search.isActive {
                 Palette.paper.ignoresSafeArea()
             } else if shell.pageReader != nil && !isRegular {
                 readingAppearance.palette(accent: AppAppearance.shared.accent).background.ignoresSafeArea()
+            } else if let page = webStore.pageBackground {
+                Color(uiColor: page).ignoresSafeArea()
             }
         }
     }
