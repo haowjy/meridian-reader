@@ -1,15 +1,18 @@
 import SwiftUI
 
-/// The browser's field capsule: 📄 at the leading end opens the Reader, 🎧 at the trailing end
-/// listens to the page. 🎧 shows only on a readable page (`listen` non-nil) and is a
-/// `PlayStateButton`: grey when the page isn't what you hear, accent with bars when it is.
+/// The browser's field capsule: 📄 at the leading end toggles the page's reader view. At the
+/// trailing end, regular width has 🎧 (listen to the page; shown only on a readable page, `listen`
+/// non-nil; a `PlayStateButton`: grey when the page isn't what you hear, accent with bars when it
+/// is) and compact width has ↻ (`reload`: reload, or stop while the page loads). Compact never
+/// has 🎧: play and pause live in the chrome's own button.
 ///
 /// ```
-/// ( 📄 news.example.org/…              🎧 )
+/// ( 📄 news.example.org/…              ↻ )     compact
+/// ( 📄 news.example.org/…              🎧 )    regular
 /// ```
 ///
 /// `field` is the text itself: the page's address while idle, the `TextField` while editing.
-/// `accessory` sits at the trailing end while editing, in 🎧's place (🎤).
+/// `accessory` sits at the trailing end while editing, in the trailing button's place (🎤).
 struct AddressField<Field: View, Accessory: View>: View {
     enum ReaderButton {
         /// Nothing to read (start page, an unreadable page): 🔍, as in the Library's field.
@@ -20,13 +23,25 @@ struct AddressField<Field: View, Accessory: View>: View {
         case extracting
         /// The page is readable: 📄.
         case available
+        /// The page shows as its reader view: 📄 lit, a tap shows the web page again.
+        case showing
+    }
+
+    /// The compact trailing button.
+    enum ReloadButton {
+        case reload
+        /// The page is loading: ✕ stops it.
+        case stop
     }
 
     var reader: ReaderButton = .hidden
     /// The page's play state; nil when the page isn't readable (no 🎧).
     var listen: PlayState?
+    /// Compact width: ↻ / ✕ at the trailing end; nil (regular width, the start page) draws none.
+    var reload: ReloadButton?
     var onOpenReader: () -> Void = {}
     var onListen: () -> Void = {}
+    var onReload: () -> Void = {}
     @ViewBuilder var field: Field
     @ViewBuilder var accessory: Accessory
 
@@ -45,9 +60,21 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .accessibilityIdentifier("addressListen")
                     .transition(.opacity)
             }
+            if let reload {
+                Button(action: onReload) {
+                    Image(systemName: reload == .stop ? Icons.close : Icons.reload)
+                        .font(.body)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .frame(width: Self.readerSize, height: Self.readerSize)
+                        .tapTarget(Self.readerSize)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(reload == .stop ? Verbs.stopLoading : Verbs.reload)
+                .accessibilityIdentifier("addressReload")
+            }
             accessory
         }
-        .bottomChromeField(leading: Spacing.s, trailing: listen == nil && Accessory.self == EmptyView.self
+        .bottomChromeField(leading: Spacing.s, trailing: listen == nil && reload == nil && Accessory.self == EmptyView.self
                            ? Spacing.s : Spacing.xxs)
     }
 
@@ -66,16 +93,16 @@ struct AddressField<Field: View, Accessory: View>: View {
             ProgressView()
                 .controlSize(.small)
                 .frame(width: Self.readerSize, height: Self.readerSize)
-        case .available:
+        case .available, .showing:
             Button(action: onOpenReader) {
-                Image(systemName: Icons.reader)
+                Image(systemName: reader == .showing ? Icons.readerShowing : Icons.reader)
                     .font(.body)
                     .foregroundStyle(Palette.accent)
                     .frame(width: Self.readerSize, height: Self.readerSize)
                     .tapTarget(Self.readerSize)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(Verbs.openInReader)
+            .accessibilityLabel(reader == .showing ? Verbs.showWebPage : Verbs.openInReader)
             .accessibilityIdentifier("addressReader")
             .transition(.opacity)
         }
@@ -83,10 +110,11 @@ struct AddressField<Field: View, Accessory: View>: View {
 }
 
 extension AddressField where Accessory == EmptyView {
-    init(reader: ReaderButton = .hidden, listen: PlayState? = nil, onOpenReader: @escaping () -> Void = {},
-         onListen: @escaping () -> Void = {}, @ViewBuilder field: () -> Field) {
-        self.init(reader: reader, listen: listen, onOpenReader: onOpenReader, onListen: onListen,
-                  field: field, accessory: { EmptyView() })
+    init(reader: ReaderButton = .hidden, listen: PlayState? = nil, reload: ReloadButton? = nil,
+         onOpenReader: @escaping () -> Void = {}, onListen: @escaping () -> Void = {},
+         onReload: @escaping () -> Void = {}, @ViewBuilder field: () -> Field) {
+        self.init(reader: reader, listen: listen, reload: reload, onOpenReader: onOpenReader, onListen: onListen,
+                  onReload: onReload, field: field, accessory: { EmptyView() })
     }
 }
 
@@ -101,6 +129,15 @@ struct AddressFieldGallery: View {
             }
             PreviewState("unreadable page") {
                 AddressField { Text("maps.example.com") }
+            }
+            PreviewState("compact, readable") {
+                AddressField(reader: .available, reload: .reload) { Text("news.example.org") }
+            }
+            PreviewState("compact, loading") {
+                AddressField(reader: .available, reload: .stop) { Text("news.example.org") }
+            }
+            PreviewState("compact, reader view showing") {
+                AddressField(reader: .showing, reload: .reload) { Text("news.example.org") }
             }
             PreviewState("readable, not playing") {
                 AddressField(reader: .available, listen: .idle) { Text("news.example.org") }

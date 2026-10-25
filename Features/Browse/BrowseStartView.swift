@@ -273,16 +273,24 @@ struct BrowseStartView: View {
             onForward: webStore.goForward,
             field: { focus in
                 AnyView(BrowseAddressField(speech: speech, dictation: dictation,
-                                           onOpenReader: { run { try await $0.openInReader() } }, onListen: listen,
+                                           onOpenReader: { run { try await $0.openInReader() } }, compact: true,
+                                           onReload: reloadOrStop,
                                            onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
             },
             more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) })
         )
     }
 
+    // MARK: - ↻
+
+    /// ↻ reloads the page; ✕ (while it loads) stops it.
+    private func reloadOrStop() {
+        if webStore.isLoading { webStore.stopLoading() } else { webStore.refresh() }
+    }
+
     // MARK: - 🎧
 
-    /// 🎧: pause / resume when the page is what you hear; otherwise extract it and listen now.
+    /// 🎧 (regular width): pause / resume when the page is what you hear; otherwise extract it and listen now.
     /// What's playing keeps playing until this page is ready; a page with nothing to listen to
     /// changes nothing and says so.
     private func listen() {

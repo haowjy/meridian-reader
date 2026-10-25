@@ -13,8 +13,12 @@ struct BrowserBottomChrome: View {
     /// The page is saved in the Library (🔖 filled).
     let isSaved: Bool
     var onOpenReader: () -> Void
-    /// 🎧: listen to the page now, or pause / resume it when it is what you hear.
-    var onListen: () -> Void
+    /// The compact chrome host's field: ↻ / ✕ in place of 🎧.
+    var compact = false
+    /// 🎧 (regular width): listen to the page now, or pause / resume it when it is what you hear.
+    var onListen: () -> Void = {}
+    /// ↻ / ✕ (compact width).
+    var onReload: () -> Void = {}
     var onSubmit: () -> Void
     var onMic: () -> Void
     /// 🔖: save the page to the Library, or remove it.
@@ -146,15 +150,20 @@ struct LoadProgressLine: View {
     }
 }
 
-/// The browser's address field: 📄 / 🎧 on readable pages, 🎤 while searching, the page's address.
-/// In the compact chrome host and the regular band alike.
+/// The browser's address field: 📄 on readable pages (it toggles the page's reader view in compact
+/// width), the page's address, and at the trailing end 🎧 in the regular band or ↻ / ✕ in the compact
+/// chrome host (`compact`; play and pause live in the chrome's own button there). 🎤 while searching.
 struct BrowseAddressField: View {
     @Bindable var speech: SpeechController
     /// Address-bar dictation (nil until the mic is first used).
     let dictation: AddressDictation?
     var onOpenReader: () -> Void
-    /// 🎧: listen to the page now, or pause / resume it when it is what you hear.
-    var onListen: () -> Void
+    /// The compact chrome host's field: ↻ / ✕ in place of 🎧.
+    var compact = false
+    /// 🎧 (regular width): listen to the page now, or pause / resume it when it is what you hear.
+    var onListen: () -> Void = {}
+    /// ↻ / ✕ (compact width).
+    var onReload: () -> Void = {}
     var onSubmit: () -> Void
     var onMic: () -> Void
     let focus: FocusState<Bool>.Binding
@@ -172,7 +181,12 @@ struct BrowseAddressField: View {
     }
 
     private var listenState: PlayState? {
-        listenTarget.map(speech.playState(of:))
+        compact ? nil : listenTarget.map(speech.playState(of:))
+    }
+
+    private var reloadButton: Field.ReloadButton? {
+        guard compact, !search.isActive, web.hasPage else { return nil }
+        return web.isLoading ? .stop : .reload
     }
 
     private typealias Field = AddressField<TextFieldBox, MicBox>
@@ -185,7 +199,8 @@ struct BrowseAddressField: View {
 
     var body: some View {
         @Bindable var search = search
-        Field(reader: readerButton, listen: listenState, onOpenReader: onOpenReader, onListen: onListen) {
+        Field(reader: readerButton, listen: listenState, reload: reloadButton, onOpenReader: onOpenReader,
+              onListen: onListen, onReload: onReload) {
             TextFieldBox(text: $search.text, isDictating: isDictating, focus: focus, onSubmit: onSubmit)
         } accessory: {
             MicBox(shown: search.isActive, isDictating: isDictating,

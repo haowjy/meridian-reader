@@ -106,6 +106,7 @@ final class WebViewStore {
     func goBack() { webView?.goBack() }
     func goForward() { webView?.goForward() }
     func refresh() { webView?.reload() }
+    func stopLoading() { webView?.stopLoading() }
 
     func syncNavigationState() {
         guard let webView else { return }
