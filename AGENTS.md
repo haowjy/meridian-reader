@@ -117,14 +117,14 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 - **Button rows never wrap** (decision D21): two or more buttons side by side go in an
   `ActionButtonRow`, which falls back from full labels to short titles, then no details, then
   symbols alone. Give every button in one a symbol.
-- **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
+- **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `follow`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
 - **Bottom chrome**: compact width draws one floating chrome host
   (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Reader, Library, Browser), two rows
   expanded and one collapsed, no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; PR2 to PR4 of the
   redesign are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
-  or circle (radius = height / 2; one 44 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`), every control glyph
-  `BottomChrome.chromeGlyph`, the Reader is a destination under the same chrome (no sheet, Close pill or pull-down; it collapses on scroll, and full screen is a middle tap that removes the chrome), and the compact address pill ends
+  or circle (radius = height / 2; one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, footprints 116 and 60, hit areas 44), every control glyph
+  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, the Reader re-expands on scroll up too), the Reader is a destination under the same chrome with a glass player card above row 2 (no sheet, Close pill or pull-down; full screen is a middle tap that removes the chrome), and the compact address pill ends
   in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
   `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts

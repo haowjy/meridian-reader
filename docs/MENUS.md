@@ -252,16 +252,18 @@ Row menu: *Delete Audio* (`menuDeleteAudio`) on every row; *Prepare Again* only 
 
 The names for the chrome that runs along the bottom of every screen.
 
-*On compact width the chrome host (`ChromeHost`, `docs/NAVIGATION.md` "Bottom chrome") draws the field, the pill, ▶ and ⋯; the ＋ rows and *History* are rows of its ⋯ (`MenuRegistry`, `compact`). `SurfaceBand` and the five-slot `BottomToolbarLayout` rows below are regular width's. Still planned (PR2 to PR4): the ⋯ panel sectioned with Settings first, growing out of the glass.*
+*On compact width the chrome host (`ChromeHost`, `docs/NAVIGATION.md` "Bottom chrome") draws the field, the pill, ▶ and ⋯; the ＋ rows are rows of its ⋯ (`MenuRegistry`, `compact`) and *History* a tile of it (`MenuContext.tiles`). `SurfaceBand` and the five-slot `BottomToolbarLayout` rows below are regular width's. Still planned (PR2 to PR4): the ⋯ panel sectioned with Settings first, growing out of the glass.*
 
 | Name | Kind | What it is |
 |---|---|---|
 | `ChromeHost` | view | Compact width only: the one chrome above the Library, the browser and the Reader: two rows expanded, one collapsed, over `ChromeScreen`s from each destination. |
 | `ChromeScreen` | struct | What a destination hands the host: its field, ‹ › callbacks and ids, ⋯ and edit bar. |
-| `ChromeState` | struct | What the chrome shows: destination, presence (`collapsed`, `fullScreen`), played, history, keyboard, reader mode. |
-| `ChromeScroll` | class | The one scroll controller: collapsed or not, from scroll reports with hysteresis; `expand()` is the icon tap and a new page. |
-| `ChromeGeometry` | struct | The frames of every piece and the fade for a width and a `ChromeState` (the mockups' width table), sized by `ChromeMetrics`. |
-| `ChromeSkin` | enum | `.system` (everything else), `.glass` (iOS 26), `.strip` (earlier iOS, and `-chromeFallback`). |
+| `ChromeState` | struct | What the chrome shows: destination, collapse progress, `fullScreen`, played, history, keyboard, reader mode. |
+| `ChromeScroll` | class | The one scroll controller: a continuous progress from scroll reports (90 pt a travel, snap at rest); `expand()` is the icon tap and a new page. |
+| `ChromeLayout` | struct | The rect and opacity of every piece for a width and a `ChromeState` (the mockups' `rectsFor` and width table), sized by `ChromeMetrics`. |
+| `ChromePieces` | view | Draws the pieces from a `ChromeLayout`; animatable in the progress. |
+| `ChromeCard` | struct, preference | The Reader's or Now Playing's player card and ⋯ rows, handed to the host. |
+| `ChromeSkin` | enum | `.system` (everything else), `.glass` (iOS 26), `.material` (earlier iOS, and `-chromeFallback`). |
 | `SurfaceBand` | view | The regular-width address / search field with its ✕ while searching. |
 | `ChromeMetrics` | enum (constants) | The compact chrome's one token set (`DesignSystem/Chrome`): heights, gaps, margins, the lit inset. |
 | `BottomChrome` | enum (constants) | Control sizes both widths share (glyph, tap target, field, discs). |
@@ -269,7 +271,7 @@ The names for the chrome that runs along the bottom of every screen.
 | `PlayerCard` | enum | Shared constants (artwork size, progress height) and the flat card surface for `NowPlayingBar`. |
 | `NowPlayingBar` | view | The compact flat card (artwork, title, groove progress line, play/pause) on the `PlayerCard` surface (no shadow), in `SurfaceBand`'s top row. |
 | `NowPlayingBarView` | view | The same card in the Reader's band; hides on Now Playing and while sheets are up. |
-| `ReadingPlayerCard` | view | Title + time card (with optional scrub) on the flat `PlayerCard` surface; used only in the mini bar. |
+| `ReaderPlayerCard` | view | The compact Reader's and Now Playing's 152 pt card (art, title, Voice, Save, scrubber, transport), drawn by the chrome host on its glass. |
 | `ReadingBottomBand` | view | The bottom band of the Reader and Now Playing: integrated controls flat on the page background, separated by a hairline divider. |
 | `ReadingPage` | view | A reading page in place (compact) or in a `Sheet` (regular), laid out by `ReadingBars`. |
 | `ReaderSheet` | view | The Reader's page: its band and Listen over `ReadingPage`. |

@@ -76,7 +76,7 @@ changing the shell code.
 - **Compact width: one chrome host** (`Chrome/ChromeHost.swift`; `docs/NAVIGATION.md` "Bottom
   chrome"). Three destinations (Reader, Library, Browser), at most two rows expanded and one
   collapsed, one play/pause button, one screen icon, glass inside one `GlassEffectContainer` on
-  iOS 26 with a material strip as the fallback. Its fade takes the colour of what is under it: a
+  iOS 26 with a blur and glass tint as the fallback. Its translucent fade takes the colour of what is under it: a
   web page's `underPageBackgroundColor` (`WebViewStore.pageBackground`, KVO), paper, or the reading
   theme. The in-place reader (`BrowsePageReader`) covers a web view that takes no touches, so it
   carries its own left-edge swipe for ‹. The rest of design 5e (PR2 to PR4) is under "Planned"
