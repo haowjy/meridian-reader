@@ -96,7 +96,7 @@ searching   [ field                    ][icon][✕]             the keyboard is 
   played last.
 - **Collapse.** Scrolling down collapses the chrome to one row, `[‹ ›][address][▶][icon][⋯]`;
   the screen icon is plain (document, books or globe). Scrolling up, tapping the icon or a swipe
-  up on the row expands it (invariant 12; on the Reader scrolling up re-expands only with `ReaderChromeScroll.scrollUpReexpands`, off by default). The pill morphs into the icon (iOS 26 glass morph;
+  up on the row expands it (invariant 12; on the Reader scrolling up re-expands only with `ChromeScroll.readerScrollUpReexpands`, off by default). The pill morphs into the icon (iOS 26 glass morph;
   Reduce Motion and the strip cross-fade). Two states with hysteresis (`ChromeScroll`; what is drawn is `ChromeState`, laid out by `ChromeGeometry`).
 - **Searching** (the keyboard up, or its session open): one row, the field, the screen icon and ✕.
 - **The Reader is a destination, not a sheet**: it shows in place under the same chrome with the
@@ -279,7 +279,7 @@ the same spot. ⋯ is never replaced.
   save it or listen to it again (🎧, the Reader's Listen). There is one article per address: saving
   a favorite saves it in place. 🔖 = saved, ☆ = favorite.
 - **The Now Playing bar** (`NowPlayingBarView` → `NowPlayingBar`) shows what you hear in the
-  Reader sheet's band while another article plays: a flat card on the `PlayerCard` surface
+  Reader's band while another article plays: a flat card on the `PlayerCard` surface
   (reading-palette card fill, tile colours, radius, no shadow, progress track) with the article's
   artwork at the shared 40 pt tile size, its title (its site, or its book, when it has none), the
   site and the time left (two parts set apart by space, the time in lighter ink; at the playback
@@ -1207,7 +1207,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Browser (start page / web page) | — | root |
 | Browser → editing the address | ✕ round, right of the field | in place; tap outside or drag down |
 | Browser ⋯ / Reader ⋯ / Now Playing ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
-| ⋯ → Website (Reader, Now Playing) | — | leaves the Reader (the sheet closes on regular width, and the library) and shows / loads the page in the browser; audio continues |
+| ⋯ → Website (Reader, Now Playing) | no shortcut | leaves the Reader (the sheet closes on regular width, and the library) and shows / loads the page in the browser; audio continues |
 | ⋯ → Settings (`SettingsView`); on iPad also the sidebar's Settings | Done | `.sheet` (a form sheet on iPad); Voice, Language, Speed, Appearance, Reading, Prepared Audio and Acknowledgements push inside it |
 | Reader / Now Playing → Aa (`TextAppearanceControl`) | tap outside | popover from Aa |
 | ⋯ → Share | — | `.sheet` (system share sheet) |

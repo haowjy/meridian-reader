@@ -80,7 +80,7 @@ UITests/    one end-to-end smoke flow (MeridianReaderUITests)
   the fade, sized by `ChromeMetrics` (every size a multiple of a base unit of 4, mirrored by the
   mockups' `MC.SZ`; the Reader's text keeps `row2Footprint` whether the chrome is expanded or
   collapsed). `ChromeScroll` is the one scroll controller the Library, the Browser and the Reader
-  feed (`ShellState.chrome`; `ReaderChromeScroll.scrollUpReexpands` is the Reader's switch for
+  feed (`ShellState.chromeScroll`; `ChromeScroll.readerScrollUpReexpands` is the Reader's switch for
   scrolling up). `ChromeHost` only wires the app's state to those three and draws the pieces
   (`ChromeControls`, `ChromeSkin`). Full screen is `ReadingChrome.hidden`, mirrored once into
   `ShellState.isReadingFullScreen` by the reading page in place (`ReadingInPlace`).

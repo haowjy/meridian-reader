@@ -268,7 +268,7 @@ The names for the chrome that runs along the bottom of every screen.
 | `BottomToolbarLayout` | layout | 5-slot evenly-spaced grid for regular width's toolbar rows (browser, Library, Now Playing transport). |
 | `PlayerCard` | enum | Shared constants (artwork size, progress height) and the flat card surface for `NowPlayingBar`. |
 | `NowPlayingBar` | view | The compact flat card (artwork, title, groove progress line, play/pause) on the `PlayerCard` surface (no shadow), in `SurfaceBand`'s top row. |
-| `NowPlayingBarView` | view | The same card in the Reader sheet; hides on Now Playing and while sheets are up. |
+| `NowPlayingBarView` | view | The same card in the Reader's band; hides on Now Playing and while sheets are up. |
 | `ReadingPlayerCard` | view | Title + time card (with optional scrub) on the flat `PlayerCard` surface; used only in the mini bar. |
 | `ReadingBottomBand` | view | The bottom band of the Reader and Now Playing: integrated controls flat on the page background, separated by a hairline divider. |
 | `ReadingPage` | view | A reading page in place (compact) or in a `Sheet` (regular), laid out by `ReadingBars`. |
