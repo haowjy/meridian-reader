@@ -120,7 +120,9 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 - **Bottom chrome (a redesign is in progress; PR1 of four adds the host)**: compact width moves from the
   two-surface band (`SurfaceBand`, now regular width only) to one floating chrome host
   (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Reader, Library, Browser), two rows
-  expanded and one collapsed, still no system tab bar (see `docs/NAVIGATION.md`, "Planned"). Change the
+  expanded and one collapsed, still no system tab bar (see `docs/NAVIGATION.md`, "Planned"). Every piece is a capsule or circle
+  (radius = height / 2; row heights 52 / 56 / 48 in `ChromeMetrics`), the Reader keeps the chrome (row 2 only), and the compact
+  address pill ends in reload, not 🎧 (iPad keeps 🎧). Change the
   chrome host, never one screen; on regular width change `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
   (`BottomToolbarLayout`, `BottomToolbarSpanLayout`) so sizing, Dynamic Type and 44 pt taps stay

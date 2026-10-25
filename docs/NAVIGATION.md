@@ -69,7 +69,10 @@ what it changed out of this section and into those sections.
 
 **PR1 (the host, on `bottom-chrome-pr1`):** the compact chrome host (`Features/Shell/Chrome/`) replaces
 `SurfaceBand` on iPhone for the Library and the browser: both rows, the pill, collapse on scroll, the
-play/resume button, the adaptive ‹ › row and the Library search row. Temporary until PR2 to PR4: the
+play/resume button, the adaptive ‹ › row and the Library search row. The address pill ends in reload (↻,
+✕ while loading) instead of 🎧 on compact width. The Reader keeps the chrome (row 2 only) under the Reader
+sheet and Now Playing, and reader mode for the Browse page replaces the page in place (it moves to PR3 if the
+PR1 build proves unsafe). Temporary until PR2 to PR4: the
 Reader segment opens what plays, else the page played last (as a sheet, today's Now Playing and Reader),
 else a toast; the Now Playing bar row is gone from compact (play/pause and its ring replace it, Now
 Playing is the Reader segment); the Library ＋ rows and History moved into ⋯; the morph between the
@@ -82,19 +85,28 @@ The compact bottom band becomes one floating glass chrome with three destination
 - **Destinations:** a pill `[Reader | Library | Browser]`, three equal segments. **Reader** is the primary
   reader: what reads aloud, else the page played last, else an empty state. This merges Now Playing into
   the Reader destination.
+- **One shape system.** Every floating piece is a capsule or a circle (corner radius = height / 2, one rim,
+  shadow and material, one 19 pt icon size). Heights: row 1 52, row 2 56 (circles 56), the collapsed row 48.
+  The pill's lit segment is an inset capsule, 4 pt on all four sides, radius = the pill's minus 4. Sizes live
+  in `ChromeMetrics`; footprint 126 expanded, 58 collapsed, 66 on the Reader.
 - **Expanded, at most two rows.** Row 1 is the screen's context: Browse `[‹][›][address]` (› dropped with
-  no forward page, both dropped on a new page), Library the search field. Row 2 is the pill, a 44 pt
+  no forward page, both dropped on a new page), Library the search field. Row 2 is the pill, a 56 pt
   round play/pause button with a thin progress ring (hidden before anything has played, and hidden on the
-  Reader itself), and ⋯.
-- **Collapsed, exactly one row:** `[screen content][play/pause if played][screen icon][⋯]`. The screen
-  icon is plain, 44 pt (document, books or globe, no progress); tapping it is the same as swiping up
+  Reader itself), and ⋯. The address field is `[reader icon][URL][reload]`; there is no play or listen
+  button in it on compact width (iPad's regular-width field keeps its 🎧, invariant 11).
+- **Collapsed, exactly one row** (48 pt pieces): `[screen content][play/pause if played][screen icon][⋯]`. The screen
+  icon is plain, 48 pt (document, books or globe, no progress); tapping it is the same as swiping up
   (invariant 12). On the Reader the title chip carries its own pause. The Reader segment morphs into the icon.
-- **Readers:** the primary reader is the destination. Temporary readers are sheets opened from a Library
-  row, the reader-mode button in the address pill, or ⋯ > Reader mode. At most three are open and only one
+- **Readers:** the primary reader is the destination, and it keeps the chrome: `[pill][⋯]` (row 2 only, no
+  play button, field or arrows, never collapsed) under the text and band, Reader lit; its Close pill and
+  pull-down still work, Library and Browser dismiss it and switch. Reader mode for the Browse page replaces
+  the page in place (like Safari Reader): the chrome stays expanded, the address keeps the URL, the reader
+  icon in it is lit and toggles back, and a slim bar holds Aa and Listen. Other temporary readers are sheets
+  opened from a Library row. At most three are open and only one
   plays. *Listen* in a temporary reader makes it the primary and stops the old one.
 - **⋯** is sectioned: Settings (first and most prominent), History, Prepared Audio, then the screen's own
   rows (＋ actions in Library, Save in Browse). The panel grows out of the glass.
-- **Overlays, never rows:** prepare progress and toasts. Every control is at least 44 pt.
+- **Overlays, never rows:** prepare progress and toasts. Every tap target is at least 44 pt.
 - **Widths:** the address field is adaptive: 5e keeps ‹ › until it would drop below the minimum, then
   drops › (5e-2), then both (5e-3); below 360 pt or at large text, ‹ › move into ⋯.
 - **iOS 26:** `.glassEffect` inside one `GlassEffectContainer`. **Earlier iOS** keeps today's thick
