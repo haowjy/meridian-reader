@@ -118,14 +118,16 @@ struct ReaderSheetScreen: View {
                                     onPlayPause: { self.listen(from: nil, start: start) }) {
                     SpeedButton(speech: speech)
                 } more: {
-                    MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
-                        .foregroundStyle(palette.ink)
+                    // Compact width: the chrome's ⋯ (`ReadingPageMoreButton`) is the page's menu.
+                    if sizeClass == .regular {
+                        ReadingPageMoreButton(id: "readerMore").foregroundStyle(palette.ink)
+                    } else {
+                        Color.clear.frame(height: BottomChrome.rowHeight)
+                    }
                 }
             }
             .frame(maxWidth: sizeClass == .regular ? RegularLayout.playerClusterWidth : .infinity)
             .frame(maxWidth: .infinity)
-        } more: {
-            MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
         } floating: {
             // The toast floats above the hairline.
             ZStack(alignment: .top) {

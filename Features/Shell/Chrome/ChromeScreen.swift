@@ -5,12 +5,13 @@ import SwiftUI
 /// of the chrome (the pill, the play button, the collapse) is the host's.
 struct ChromeScreen {
     let destination: ChromeDestination
-    let session: SearchSession
+    /// nil: no field to search in (the Reader).
+    var session: SearchSession?
     /// The ✕ that ends a search: its accessibility identifier and action.
-    let cancelID: String
-    let onCancel: () -> Void
+    var cancelID = ""
+    var onCancel: () -> Void = {}
     /// Starts the session when the idle field is tapped.
-    let begin: () -> Void
+    var begin: () -> Void = {}
     /// ‹ and ›. `canGoBack` / `canGoForward` false drops the button (› alone) or both (a new page).
     var canGoBack = false
     var canGoForward = false
@@ -20,7 +21,7 @@ struct ChromeScreen {
     var onForward: () -> Void = {}
     /// The field (a `SearchField`, an `AddressField`): the host passes the focus binding it keeps in
     /// sync with `session.isFocused`.
-    let field: (FocusState<Bool>.Binding) -> AnyView
+    var field: (FocusState<Bool>.Binding) -> AnyView = { _ in AnyView(EmptyView()) }
     /// The ⋯ button, filling the frame the host gives it.
     let more: AnyView
     /// Library Edit: replaces the pill and ⋯ on row 2 with the selection's actions.

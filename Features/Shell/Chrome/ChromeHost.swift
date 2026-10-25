@@ -13,7 +13,7 @@ import UIKit
 /// ```
 ///
 /// Scrolling down collapses it (`ChromeState`); scrolling up, the icon's tap and a swipe up on the
-/// row expand it. The pill morphs into the icon (iOS 26: one `GlassEffectContainer`, `glassEffectID`;
+/// row expand it (while searching, they lower the keyboard). The pill morphs into the icon (iOS 26: one `GlassEffectContainer`, `glassEffectID`;
 /// Reduce Motion: a cross-fade; earlier iOS: the strip skin). The host never changes the size of
 /// what is under it: screens reserve `ChromeMetrics.footprint` at the bottom and scroll under it.
 ///
@@ -49,20 +49,14 @@ struct ChromeHost: View {
     private var screen: ChromeScreen {
         if onReadingPage { readerScreen } else { shell.isInLibrary ? library : browse }
     }
-    /// The Reader has no field or arrows: row 2 only, ⋯ at its end. The page's own menu stays in
-    /// the sheet's top bar; this one is the screen's (Settings, Saved, Prepared Audio).
+    /// The Reader has no field or arrows: row 2 only, with the reading page's own ⋯ at its end.
     private var readerScreen: ChromeScreen {
-        ChromeScreen(destination: .reader, session: browse.session, cancelID: browse.cancelID, onCancel: browse.onCancel,
-                     begin: browse.begin, field: browse.field,
-                     more: AnyView(MoreMenuButton(id: "chromeReaderMore", chrome: true) { readerMenu }))
+        ChromeScreen(destination: .reader, more: AnyView(ReadingPageMoreButton(id: "chromeReaderMore", chrome: true)))
     }
-    private var readerMenu: MenuContext {
-        let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader, availability: .disabled,
-                             accessibilityHint: String(localized: "Already in the Reader"))
-        return MenuContext(item: [], screen: MenuContext.screenRows(at: .nowPlaying, shell: shell),
-                           tiles: MenuContext.tiles(shell, last: reader), isOnReadingPage: true)
-    }
-    private var session: SearchSession { screen.session }
+    private var session: SearchSession? { screen.session }
+    private var isSearching: Bool { session?.isActive == true }
+    /// One row is drawn: collapsed, or searching.
+    private var isOneRow: Bool { collapsed || isSearching }
     private var wantsCollapsed: Bool { shell.chrome.isScrolledDown && screen.editBar == nil && !onReadingPage
         && shell.pageReader == nil }
 
@@ -81,7 +75,7 @@ struct ChromeHost: View {
     var body: some View {
         GeometryReader { proxy in
             let geometry = ChromeGeometry(.init(
-                width: proxy.size.width, destination: destination, collapsed: collapsed, searching: session.isActive,
+                width: proxy.size.width, destination: destination, collapsed: collapsed, searching: isSearching,
                 canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, hasPlay: hasPlay))
             ZStack(alignment: .topLeading) {
                 pieces(geometry)
@@ -101,23 +95,24 @@ struct ChromeHost: View {
         .accessibilityIdentifier("chromeHost")
         .onAppear {
             collapsed = wantsCollapsed
-            focused = session.isFocused
+            focused = session?.isFocused == true
         }
         .onChange(of: wantsCollapsed) { _, wants in apply(wants) }
         .onChange(of: destination) { _, _ in
             shell.chrome.reset()
-            focused = session.isFocused
+            focused = session?.isFocused == true
         }
         .onChange(of: focused) { _, isFocused in
+            guard let session else { return }
             let wasIdle = !session.isActive
             session.focusChanged(isFocused, begin: screen.begin)
             // Like Safari: a session started by tapping the field selects its text.
             if isFocused, wasIdle, !session.text.isEmpty { Self.selectAllInFocusedField() }
         }
-        .onChange(of: session.isFocused) { _, wanted in
+        .onChange(of: session?.isFocused == true) { _, wanted in
             if focused != wanted { focused = wanted }
         }
-        .gesture(swipeUp, including: collapsed ? .all : .subviews)
+        .gesture(swipeUp, including: isOneRow ? .all : .subviews)
     }
 
     // MARK: - Pieces
@@ -166,7 +161,7 @@ struct ChromeHost: View {
                 .placed(CGRect(x: ChromeMetrics.margin, y: g.more.minY,
                                width: g.more.maxX - ChromeMetrics.margin, height: ChromeMetrics.row2Height))
                 .transition(.opacity)
-        } else if session.isActive {
+        } else if isSearching {
             Button(action: screen.onCancel) { ChromeRoundLabel(symbol: Icons.close) }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Verbs.cancel)
@@ -278,7 +273,7 @@ struct ChromeHost: View {
 
     /// The icon is a swipe up: back to two rows. While searching the row stays one, so it lowers the keyboard.
     private func iconTapped() {
-        if session.isActive {
+        if let session, session.isActive {
             session.lowerKeyboard()
         } else {
             shell.chrome.expand()
@@ -288,9 +283,9 @@ struct ChromeHost: View {
     private var swipeUp: some Gesture {
         DragGesture(minimumDistance: 16)
             .onEnded { value in
-                guard collapsed, !session.isActive, value.translation.height < -24,
+                guard isOneRow, value.translation.height < -24,
                       abs(value.translation.height) > abs(value.translation.width) else { return }
-                shell.chrome.expand()
+                iconTapped()
             }
     }
 

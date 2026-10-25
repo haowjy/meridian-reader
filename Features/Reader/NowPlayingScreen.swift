@@ -35,6 +35,7 @@ struct NowPlayingScreen: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(\.readingAppearance) private var appearance
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     /// The playing page's reading content, looked up by key when the page changes.
     @State private var content: NowPlayingContent?
@@ -146,7 +147,8 @@ struct NowPlayingScreen: View {
                 leading: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                                    onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                     .disabled(actions.readerArticle == nil)),
-                trailing: AnyView(MoreMenuButton(id: "nowPlayingMore") { actions.readingPageMenu(.nowPlaying(goTo(now, actions))) }),
+                // Compact width: the chrome's ⋯ (`ReadingPageMoreButton`) is the page's menu.
+                trailing: sizeClass == .regular ? AnyView(ReadingPageMoreButton(id: "nowPlayingMore")) : nil,
                 speech: speech
             )
         }
@@ -243,19 +245,6 @@ struct NowPlayingScreen: View {
     private func playingFromName(_ now: NowPlaying, saved: Bool) -> String {
         if case .folder = now.playingFrom { return now.playingFrom.name }
         return saved ? Verbs.library : now.playingFrom.name
-    }
-
-    /// ⋯ → *Go to*: the folder the page plays from, or the Library's home for a saved page in
-    /// none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website opens it).
-    /// Playback keeps going.
-    private func goTo(_ now: NowPlaying, _ actions: ArticleActions) -> ArticleMenu.GoTo {
-        if case .folder(let id, _) = now.playingFrom {
-            return ArticleMenu.GoTo(name: now.playingFrom.name, symbol: Icons.folder, availability: .enabled) { [shell, library] in
-                if let folder = library.folder(id: id) { shell.showLibrary(at: library.path(to: folder)) }
-            }
-        }
-        return ArticleMenu.GoTo(name: Verbs.library, symbol: Icons.library,
-                             availability: MenuAvailability(when: actions.isSaved)) { [shell] in shell.showLibrary(at: []) }
     }
 
     /// The playing page changed: its content, and the text following the audio again.

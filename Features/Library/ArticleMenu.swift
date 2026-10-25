@@ -175,4 +175,32 @@ extension ArticleActions {
                            screen: MenuContext.screenRows(at: place.registryPlace, shell: shell),
                            tiles: MenuContext.tiles(shell, last: reader), isOnReadingPage: true)
     }
+
+    /// The reading page on screen, with its ⋯ panel: the playing page on Now Playing, else the
+    /// Reader sheet's. The compact chrome's ⋯ opens it, so the page's menu is built here once for
+    /// both screens.
+    @MainActor
+    static func readingPageMenu(shell: ShellState, library: LibraryStore, speech: SpeechController,
+                                preparedAudio: PrepareCenter, follow: FollowCenter) -> MenuContext {
+        let now = shell.isNowPlayingPresented ? speech.nowPlaying : nil
+        let readerArticle = now.map { library.nowPlayingContent(for: $0.articleKey) } ?? shell.readerArticle
+        let key = now?.articleKey ?? readerArticle?.id
+        let actions = ArticleActions(article: key.flatMap { library.article(key: $0, canonicalURL: readerArticle?.origin.canonicalURL) },
+                                     readerArticle: readerArticle, library: library, shell: shell, speech: speech,
+                                     preparedAudio: preparedAudio, follow: follow)
+        return actions.readingPageMenu(now.map { .nowPlaying(actions.goTo($0)) } ?? .open)
+    }
+
+    /// Now Playing's *Go to <place>*: the folder the page plays from, or the Library's home for a
+    /// saved page in none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website
+    /// opens it). Playback keeps going.
+    private func goTo(_ now: NowPlaying) -> ArticleMenu.GoTo {
+        if case .folder(let id, _) = now.playingFrom {
+            return ArticleMenu.GoTo(name: now.playingFrom.name, symbol: Icons.folder, availability: .enabled) { [shell, library] in
+                if let folder = library.folder(id: id) { shell.showLibrary(at: library.path(to: folder)) }
+            }
+        }
+        return ArticleMenu.GoTo(name: Verbs.library, symbol: Icons.library,
+                                availability: MenuAvailability(when: isSaved)) { [shell] in shell.showLibrary(at: []) }
+    }
 }

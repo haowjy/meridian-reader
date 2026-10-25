@@ -23,7 +23,7 @@ import SwiftUI
 /// and the band, and the floating ▶ plays this page as Listen does. The close pill, the grabber and
 /// a pull down all close it (`onClose`, after it has gone). `floating` floats just above the bottom
 /// band's hairline (a toast).
-struct ReaderSheet<Band: View, Reading: View, More: View, TextAppearance: View, Accessory: View,
+struct ReaderSheet<Band: View, Reading: View, TextAppearance: View, Accessory: View,
                    Banner: View, Floating: View>: View {
     /// What is underneath: "Browser", "Library".
     let backTitle: String
@@ -42,7 +42,6 @@ struct ReaderSheet<Band: View, Reading: View, More: View, TextAppearance: View, 
     @ViewBuilder var text: Reading
     /// The integrated bottom band: title, scrub, transport, all flat on the page background.
     @ViewBuilder var band: Band
-    @ViewBuilder var more: More
     @ViewBuilder var floating: Floating
 
     @State private var chrome = ReadingChrome()
@@ -74,12 +73,11 @@ extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView,
     Floating == EmptyView {
     init(backTitle: String, listenState: PlayState,
          onClose: @escaping () -> Void, onListen: @escaping () -> Void,
-         @ViewBuilder text: () -> Reading, @ViewBuilder band: () -> Band,
-         @ViewBuilder more: () -> More) {
+         @ViewBuilder text: () -> Reading, @ViewBuilder band: () -> Band) {
         self.init(backTitle: backTitle, listenState: listenState,
                   onClose: onClose, onListen: onListen,
                   textAppearance: { EmptyView() }, accessory: { EmptyView() }, banner: { EmptyView() }, text: text,
-                  band: band, more: more, floating: { EmptyView() })
+                  band: band, floating: { EmptyView() })
     }
 }
 
@@ -142,8 +140,6 @@ struct ReaderSheetGallery: View {
                     Image(systemName: Icons.more).toolbarIconFrame()
                 }
             }
-        } more: {
-            Image(systemName: Icons.more).toolbarIconFrame()
         }
         .frame(height: 640)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card))
