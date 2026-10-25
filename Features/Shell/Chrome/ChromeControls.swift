@@ -121,7 +121,7 @@ struct ChromeScreenIcon: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .chromeSurface(Circle(), interactive: true)
+        .chromeSurface(Circle())
         .accessibilityLabel(destination.label)
         .accessibilityHint(String(localized: "Shows the bar"))
         .accessibilityIdentifier("chromeScreenIcon")
@@ -177,7 +177,7 @@ struct ChromeRoundLabel: View {
             .foregroundStyle(Palette.ink)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Circle())
-            .chromeSurface(Circle(), interactive: true)
+            .chromeSurface(Circle())
             .chromeLargeContent(label, symbol: symbol)
     }
 }
@@ -212,7 +212,7 @@ struct ChromePlayButton: View {
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .chromeSurface(Circle(), interactive: true)
+        .chromeSurface(Circle())
         .accessibilityLabel(state.accessibilityLabel)
         .accessibilityIdentifier("chromePlayPause")
         .chromeLargeContent(state.accessibilityLabel, symbol: state == .playing ? Icons.pause : Icons.play)

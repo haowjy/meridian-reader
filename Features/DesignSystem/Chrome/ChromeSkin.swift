@@ -60,28 +60,27 @@ extension EnvironmentValues {
 }
 
 extension View {
-    /// A chrome control's surface in `shape`: glass, or `fill` on the strip and the old band.
-    /// `interactive` makes a button's glass answer a press.
-    func chromeSurface<S: Shape>(_ shape: S, fill: Color = Palette.chrome, interactive: Bool = false) -> some View {
-        modifier(ChromeSurface(shape: shape, fill: fill, interactive: interactive))
+    /// A chrome control's surface in `shape`: glass, or `fill` on the strip and the old band. Every
+    /// chrome piece is tappable, so its glass answers a press.
+    func chromeSurface<S: Shape>(_ shape: S, fill: Color = Palette.chrome) -> some View {
+        modifier(ChromeSurface(shape: shape, fill: fill))
     }
 }
 
 private struct ChromeSurface<S: Shape>: ViewModifier {
     let shape: S
     let fill: Color
-    let interactive: Bool
     @Environment(\.chromeSkin) private var skin
 
     func body(content: Content) -> some View {
         if skin == .glass, #available(iOS 26.0, *) {
-            content.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+            content.glassEffect(.regular.interactive(), in: shape)
         } else if skin == .strip {
-            // The fallback gives every piece the same rim and lift glass has: one hairline, one soft shadow.
+            // The fallback gives every piece the same rim and lift glass has: one hairline, one soft
+            // shadow under the shape (not under the glyphs).
             content
-                .background(fill, in: shape)
+                .background { shape.fill(fill).shadow(color: .black.opacity(0.08), radius: 6, y: 2) }
                 .overlay { shape.stroke(Palette.ink.opacity(0.1), lineWidth: 0.5) }
-                .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
         } else {
             content.background(fill, in: shape)
         }
