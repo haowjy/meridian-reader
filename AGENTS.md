@@ -67,7 +67,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
 | `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `PDF` (PDFKit text extract into pages), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import for EPUB/PDF), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
-| `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
+| `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock; the three-destination chrome is being built here), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/`, `UITests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) and UI flows |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
 | `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); models download at runtime |
@@ -117,7 +117,10 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   symbols alone. Give every button in one a symbol.
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
-- **Bottom chrome**: build controls from `BottomChrome` helpers (`bottomChromeField`,
+- **Bottom chrome (a redesign is in progress, not shipped)**: compact width is moving from the two-surface
+  band (`SurfaceBand`) to one floating chrome with three destinations (Reader, Library, Browser), two rows
+  expanded and one collapsed, still no system tab bar (see `docs/NAVIGATION.md`, "Planned"). Until its PRs
+  merge, change `SurfaceBand`; after, change the chrome host, never one screen. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
   (`BottomToolbarLayout`, `BottomToolbarSpanLayout`) so sizing, Dynamic Type and 44 pt taps stay
   consistent.

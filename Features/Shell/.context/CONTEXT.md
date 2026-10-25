@@ -73,6 +73,11 @@ changing the shell code.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever
   (a layout loop at 100% CPU). The glass grows by frame and corner radius, never by scale.
+- **Planned, not shipped: one chrome host replaces the band on compact width** (approved design 5e,
+  four PRs; `docs/NAVIGATION.md` "Planned"). Three destinations (Reader, Library, Browser), at most two
+  rows expanded and one collapsed, one play/pause button, one screen icon, glass inside one
+  `GlassEffectContainer` on iOS 26 with today's material strip as the fallback. Regular width is
+  untouched. The next bullet describes the band that ships today.
 - **The browser and the Library draw one band** (`SurfaceBand`, D22, rows as D23):
   `BandNowPlayingBar` alone, then the swap and the field, then a `BottomToolbarLayout` whose
   items name their slots (`.toolbarSlot`), one role per slot on both surfaces. Change a row in `SurfaceBand`, not in one surface, or the two drift;

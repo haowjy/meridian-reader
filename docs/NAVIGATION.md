@@ -61,7 +61,43 @@ their text when it is at its top, which does exactly what that button does.
   Under Reduce Motion it fades in and out instead. What is under a sheet takes no touches until it
   has gone.
 
+## Planned: three destinations in one floating chrome (approved design 5e, in progress, not shipped)
+
+**Status:** approved 2026-10-25, being built in four PRs. Until each PR merges, the sections below
+("Two surfaces", the Reader and Now Playing, the ⋯ menu) describe what ships today. When a PR lands, move
+what it changed out of this section and into those sections.
+
+The compact bottom band becomes one floating glass chrome with three destinations and no system tab bar
+(invariant 13: `rg "TabView|UITabBar"` finds nothing):
+
+- **Destinations:** a pill `[Reader | Library | Browser]`, three equal segments. **Reader** is the primary
+  reader: what reads aloud, else the page played last, else an empty state. This merges Now Playing into
+  the Reader destination.
+- **Expanded, at most two rows.** Row 1 is the screen's context: Browse `[‹][›][address]` (› dropped with
+  no forward page, both dropped on a new page), Library the search field. Row 2 is the pill, a 44 pt
+  round play/pause button with a thin progress ring (hidden before anything has played, and hidden on the
+  Reader itself), and ⋯.
+- **Collapsed, exactly one row:** `[screen content][play/pause if played][screen icon][⋯]`. The screen
+  icon is plain, 44 pt (document, books or globe, no progress); tapping it is the same as swiping up
+  (invariant 12). On the Reader the title chip carries its own pause. The Reader segment morphs into the icon.
+- **Readers:** the primary reader is the destination. Temporary readers are sheets opened from a Library
+  row, the reader-mode button in the address pill, or ⋯ > Reader mode. At most three are open and only one
+  plays. *Listen* in a temporary reader makes it the primary and stops the old one.
+- **⋯** is sectioned: Settings (first and most prominent), History, Prepared Audio, then the screen's own
+  rows (＋ actions in Library, Save in Browse). The panel grows out of the glass.
+- **Overlays, never rows:** prepare progress and toasts. Every control is at least 44 pt.
+- **Widths:** the address field is adaptive: 5e keeps ‹ › until it would drop below the minimum, then
+  drops › (5e-2), then both (5e-3); below 360 pt or at large text, ‹ › move into ⋯.
+- **iOS 26:** `.glassEffect` inside one `GlassEffectContainer`. **Earlier iOS** keeps today's thick
+  material strip. Reduce Motion turns the morph into cross-fades.
+- **iPad (regular width):** unchanged: sidebar and clustered dock, no pill.
+
+Source of truth until it ships: the mockups and the audit and build plan in the project context
+(`work/bottom-chrome/`, outside this repo), and the decision `three-destination-bottom-chrome` in the project KB.
+
 ## Two surfaces: the Library and the browser (no tab bar)
+
+*Shipped behavior. The three-destination chrome above replaces this band on compact width as the build lands.*
 
 There is no tab bar. The app has two surfaces, swapped by the icon before the field (📚 on the
 browser, 🌐 on the Library): the **Library**, the folder tree, and the **browser**, a web page or
