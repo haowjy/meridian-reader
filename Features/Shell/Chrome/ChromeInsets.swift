@@ -19,7 +19,6 @@ extension View {
 /// last row clear of the chrome.
 struct CompactChromeInsets: ViewModifier {
     let isCompact: Bool
-    @Environment(ShellState.self) private var shell
 
     func body(content: Content) -> some View {
         if isCompact {

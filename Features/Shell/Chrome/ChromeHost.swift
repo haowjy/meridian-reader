@@ -17,7 +17,7 @@ import UIKit
 /// Reduce Motion: a cross-fade; earlier iOS: the strip skin). The host never changes the size of
 /// what is under it: screens reserve `ChromeMetrics.footprint` at the bottom and scroll under it.
 ///
-/// It owns the field's focus (kept in sync with the session, as `SurfaceBand` did), the play /
+/// It owns the field's focus (kept in sync with the session), the play /
 /// pause button's state and the progress and toast overlays; each destination supplies its field,
 /// arrows and ⋯ as a `ChromeScreen`.
 struct ChromeHost: View {
@@ -180,7 +180,7 @@ struct ChromeHost: View {
                 return doc.progress(atUTF16Offset: now.isFinished ? doc.utf16Length : speech.spokenUTF16Offset)
             }, action: speech.pressNowPlaying)
         }
-        guard let article = resume, article.isLive else { return nil }
+        guard let article = resume else { return nil }
         let actions = libraryActions
         return ChromePlayButton(state: actions.playState(of: article), progress: {
             switch actions.progress(of: article) {

@@ -39,8 +39,6 @@ enum ChromeMetrics {
     /// ‹ alone is a circle; with › it is a capsule of two circles' width.
     static let navSingleWidth: CGFloat = row1Height
     static let navPairWidth: CGFloat = 2 * row1Height
-    static let collapsedNavSingleWidth: CGFloat = collapsedHeight
-    static let collapsedNavPairWidth: CGFloat = 2 * collapsedHeight
 
     /// The narrowest address field before the arrows give way to it.
     static let minimumField: CGFloat = 120

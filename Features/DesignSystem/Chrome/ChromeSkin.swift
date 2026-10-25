@@ -46,7 +46,7 @@ extension EnvironmentValues {
 
 extension View {
     /// A chrome control's surface in `shape`: glass, or `fill` on the strip and the old band.
-    /// `tint` colours the glass (the lit segment); `interactive` makes a button's glass answer a press.
+    /// `interactive` makes a button's glass answer a press.
     func chromeSurface<S: Shape>(_ shape: S, fill: Color = Palette.chrome, interactive: Bool = false) -> some View {
         modifier(ChromeSurface(shape: shape, fill: fill, interactive: interactive))
     }

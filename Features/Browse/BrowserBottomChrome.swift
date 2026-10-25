@@ -13,12 +13,8 @@ struct BrowserBottomChrome: View {
     /// The page is saved in the Library (🔖 filled).
     let isSaved: Bool
     var onOpenReader: () -> Void
-    /// The compact chrome host's field: ↻ / ✕ in place of 🎧.
-    var compact = false
-    /// 🎧 (regular width): listen to the page now, or pause / resume it when it is what you hear.
+    /// 🎧: listen to the page now, or pause / resume it when it is what you hear.
     var onListen: () -> Void = {}
-    /// ↻ / ✕ (compact width).
-    var onReload: () -> Void = {}
     var onSubmit: () -> Void
     var onMic: () -> Void
     /// 🔖: save the page to the Library, or remove it.
@@ -42,19 +38,13 @@ struct BrowserBottomChrome: View {
     private var regularChrome: some View {
         VStack(spacing: 0) {
             SurfaceBand(
-                swap: nil,
                 session: search,
                 cancelID: "addressCancel",
                 onCancel: shell.endAddressSearch,
-                begin: { search.begin(with: web.currentURL?.absoluteString ?? "") },
-                isBarCovered: shell.reader != nil,
-                showsNowPlayingBar: false,
-                showsToolbar: false
+                begin: { search.begin(with: web.currentURL?.absoluteString ?? "") }
             ) { focus in
                 BrowseAddressField(speech: speech, dictation: dictation, onOpenReader: onOpenReader, onListen: onListen,
                                    onSubmit: onSubmit, onMic: onMic, focus: focus)
-            } toolbar: {
-                EmptyView()
             }
             if !search.isActive {
                 ClusteredPlayerDock(speech: speech, isCovered: shell.reader != nil,

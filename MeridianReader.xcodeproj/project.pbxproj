@@ -235,6 +235,7 @@
 		A020FF0BDE5F04A08F5FF9E2 /* SearchSessionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8CA18AF411C685E3212B464 /* SearchSessionOverlay.swift */; };
 		A264E85279F0302CA22BF028 /* PlayedNotSavedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A5C9144F982FF6E57C49A9 /* PlayedNotSavedTests.swift */; };
 		A29580FD260C74CA3D8D6589 /* ContentBlocker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEEF76E6F8E780EDD8BF0645 /* ContentBlocker.swift */; };
+		A44A386FD8F66AA1EA4F2FCC /* BandToolbarButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B0D1CAA887084CCB666A75 /* BandToolbarButton.swift */; };
 		A450148AEAB862777CCA56BB /* ArticleExtracting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8A296DA5C750F41A7D56DB0 /* ArticleExtracting.swift */; };
 		A47AB2900B1D41A8310416F9 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250C5787F3F0712067BB6853 /* AppAppearance.swift */; };
 		A51D243B909ED8A1F6F714F6 /* FollowStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 193CD2B8886A3DEB7F98704E /* FollowStatus.swift */; };
@@ -329,7 +330,6 @@
 		D7C022B12D446754F2DECC34 /* ReadingPagination.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67DE239E333051B09D3E6BC /* ReadingPagination.swift */; };
 		D9DD77AF091F9EB7F751E5EC /* SystemBars.swift in Sources */ = {isa = PBXBuildFile; fileRef = 526BBFF20A689960CBD8A475 /* SystemBars.swift */; };
 		D9F32BC84B8B1401C69C5EC0 /* PhononModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E8B73537492457896C6BAB9 /* PhononModelStore.swift */; };
-		DA72AD19FB33B9CE5F3C59CC /* BandFieldRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07A758E5648CD4CDAFB5A38 /* BandFieldRow.swift */; };
 		DAE552B8E2F9BCCE10B441EF /* ChromeInsets.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4D9597E4EB219F67F464AE /* ChromeInsets.swift */; };
 		DB97742451A94746233BF8FA /* BookImportActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEED72F038103FDD7C6E3093 /* BookImportActions.swift */; };
 		DC09A31C2B13A44A9C470C67 /* ChromeControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEADEB66E0E9278831B86E21 /* ChromeControls.swift */; };
@@ -765,7 +765,6 @@
 		DF649183841240A7A78E6E55 /* SubParagraphPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubParagraphPosition.swift; sourceTree = "<group>"; };
 		DF9FB60A8054F73CCF99C94C /* KokoroHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroHost.swift; sourceTree = "<group>"; };
 		E0252370C6D870C0912E4F34 /* ActivityShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityShareSheet.swift; sourceTree = "<group>"; };
-		E07A758E5648CD4CDAFB5A38 /* BandFieldRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandFieldRow.swift; sourceTree = "<group>"; };
 		E08E3E8F23704EE56A50F10E /* ReaderScrubRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderScrubRow.swift; sourceTree = "<group>"; };
 		E08F7C45ECB0043D3D3F5E02 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
 		E106CE193D53C1C3A4B78ED5 /* voice-preview-kokoro-bm_fable.m4a */ = {isa = PBXFileReference; path = "voice-preview-kokoro-bm_fable.m4a"; sourceTree = "<group>"; };
@@ -785,6 +784,7 @@
 		E78CD528BC069DA62752253A /* EPUBContents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBContents.swift; sourceTree = "<group>"; };
 		E7BD1C7A2846DAF77E88C0AC /* HTMLReadingView+Pages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HTMLReadingView+Pages.swift"; sourceTree = "<group>"; };
 		E8C006190BE56BD07BE4D6DB /* LibraryTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryTestSupport.swift; sourceTree = "<group>"; };
+		E9B0D1CAA887084CCB666A75 /* BandToolbarButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BandToolbarButton.swift; sourceTree = "<group>"; };
 		EB6288CC82005F3C9626F13E /* FolderHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderHeader.swift; sourceTree = "<group>"; };
 		EBE87CED22585911F468DF75 /* BookIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookIdentity.swift; sourceTree = "<group>"; };
 		EC3281E7C6A0D516C612ED2D /* RetentionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionTests.swift; sourceTree = "<group>"; };
@@ -1202,7 +1202,7 @@
 		707F13C6F5B6EBD314C6F7AE /* Chrome */ = {
 			isa = PBXGroup;
 			children = (
-				E07A758E5648CD4CDAFB5A38 /* BandFieldRow.swift */,
+				E9B0D1CAA887084CCB666A75 /* BandToolbarButton.swift */,
 				73E94E5E93EE460FD354D960 /* BottomChrome.swift */,
 				5C27B71CA4EFC5B4693E6629 /* ChromeSkin.swift */,
 				935F458969E94244662AB111 /* MorphMenu.swift */,
@@ -1877,7 +1877,7 @@
 				E3F5BF101ED8764252458C56 /* BackgroundRenderBursts.swift in Sources */,
 				96A5789EB67A4699AFD5C754 /* BackupExclusion.swift in Sources */,
 				44EE514230EB8B3E62C1F199 /* BakeConditions.swift in Sources */,
-				DA72AD19FB33B9CE5F3C59CC /* BandFieldRow.swift in Sources */,
+				A44A386FD8F66AA1EA4F2FCC /* BandToolbarButton.swift in Sources */,
 				B79B6816338F110088157F2B /* BookChapterFinalizer.swift in Sources */,
 				BB6DD8EA504A7CA4DF5074A5 /* BookIdentity.swift in Sources */,
 				DB97742451A94746233BF8FA /* BookImportActions.swift in Sources */,

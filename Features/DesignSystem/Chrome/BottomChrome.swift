@@ -1,16 +1,13 @@
 import SwiftUI
 
-/// The one bottom-chrome design, shared by the browser, the library and the reader
-/// (docs/NAVIGATION.md). The browser and the Library draw the same three-row band, so swapping
-/// between them changes no pixel of its frame:
+/// The shared sizes and helpers of the bottom chrome (docs/NAVIGATION.md). Compact width draws
+/// the floating chrome host (`ChromeHost`); regular width draws the address band over the
+/// clustered dock, with a three-row toolbar made of these helpers:
 ///
 /// ```
-/// ┌ .bar band ────────────────────────────────────┐
-/// │ ╭ Now Playing bar (or placeholder) ─────────╮ │  ← the full row; ⏸ over ⋯'s slot
-/// │ ╰───────────────────────────────────────────╯ │
-/// │ [⇄] ( field capsule: address / Library search ) │  ← the swap, then `bottomChromeField()`
-/// │  [‹]   [›]   [＋/🔖]  [🕘]   [⋯]              │  ← `BottomToolbarLayout`, explicit slots,
-/// └───────────────────────────────── home indicator ┘    ⋯ always slot 5
+/// [ field capsule: address / Library search ]    ← `bottomChromeField()`
+///  [‹]   [›]   [＋/🔖]  [🕘]   [⋯]                ← `BottomToolbarLayout`, explicit slots,
+///                                                   ⋯ always slot 5
 /// ```
 ///
 /// The Reader and Now Playing share one band (`ReadingBottomBand`): integrated controls
@@ -304,9 +301,7 @@ struct BottomToolbarGallery: View {
             PreviewState("browser") {
                 band {
                     barRow(playing)
-                    fieldRow(Icons.library) {
-                        AddressField(reader: .available, listen: .idle) { Text("news.example.org") }
-                    }
+                    AddressField(reader: .available, listen: .idle) { Text("news.example.org") }
                     BottomToolbarLayout {
                         icon(Icons.back).toolbarSlot(0)
                         icon(Icons.forward).disabled(true).toolbarSlot(1)
@@ -319,7 +314,7 @@ struct BottomToolbarGallery: View {
             PreviewState("library, nothing played") {
                 band {
                     barRow(NowPlayingBar.placeholder())
-                    fieldRow(Icons.browser) { SearchField(text: .constant("")) }
+                    SearchField(text: .constant(""))
                     BottomToolbarLayout {
                         icon(Icons.back).disabled(true).toolbarSlot(0)
                         icon(Icons.forward).disabled(true).toolbarSlot(1)
@@ -356,12 +351,6 @@ struct BottomToolbarGallery: View {
 
     private func barRow(_ bar: NowPlayingBar) -> some View {
         bar.padding(.bottom, Spacing.xxs)
-    }
-
-    /// The swap, a toolbar button tight to the leading edge, then the field.
-    private func fieldRow<Field: View>(_ swap: String, @ViewBuilder field: () -> Field) -> some View {
-        BandFieldRow(swap: BandSwap(systemImage: swap, label: "Swap", hint: "", identifier: "preview", action: {}),
-                     field: field)
     }
 
     private func band<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {

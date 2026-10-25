@@ -1,76 +1,37 @@
 import SwiftUI
 import UIKit
 
-/// The bottom band the browser and the Library share (decisions D22 and D23): built here once, so
-/// it sits at the same height with every control at the same place on both, and swapping surfaces
-/// changes only what the controls say.
-///
-/// ```
-/// ╭ Now Playing bar, or the last played, or "Nothing playing"          ╮   ← always there
-/// [🌐/📚] ( 🔍 address field / Search Library                          )
-/// [‹]  [›]  [＋/🔖]  [🕘]  [⋯]                                            ← same role per slot
-/// ```
-///
-/// Searching (Safari-style), the first row and the toolbar step aside so the field sits on the
-/// keyboard, with a round ✕ beside it that ends the session. Lowering the keyboard keeps the
-/// session (`lowersKeyboardOnPullDown`). The band owns the field's focus and keeps it in sync with
-/// `session.isFocused`.
-struct SurfaceBand<Field: View, Toolbar: View>: View {
-    /// The swap to the other surface, at the leading edge of the field's row (row 2).
-    var swap: BandSwap?
+/// The regular-width address / search band: the field, with a round ✕ beside it that ends the
+/// session while searching (Safari-style). Lowering the keyboard keeps the session
+/// (`lowersKeyboardOnPullDown`). The band owns the field's focus and keeps it in sync with
+/// `session.isFocused`. Compact width draws its chrome in `ChromeHost`.
+struct SurfaceBand<Field: View>: View {
     let session: SearchSession
     let cancelID: String
     let onCancel: () -> Void
     /// Starts the session when the idle field is tapped (the surface's own start: the browser's
     /// with the page address, the Library's with the screen it searches).
     let begin: () -> Void
-    /// The surface is under the Reader sheet, which shows the bar itself.
-    var isBarCovered = false
-    /// Regular-width shell: Now Playing moves to `ClusteredPlayerDock`; omit the phone bar row.
-    var showsNowPlayingBar = true
-    /// Regular-width shell: five-slot toolbar may live in the main-pane top chrome instead.
-    var showsToolbar = true
     @ViewBuilder var field: (FocusState<Bool>.Binding) -> Field
-    @ViewBuilder var toolbar: () -> Toolbar
 
-    @Environment(\.speechController) private var speech
     /// The field's focus, kept in sync with `session.isFocused`; `field` attaches it to its
     /// `TextField`.
     @FocusState private var focused: Bool
 
     var body: some View {
-        VStack(spacing: BottomChrome.rowSpacing) {
-            if showsNowPlayingBar, !session.isActive {
-                // Row 1: Now Playing alone, full width (D23). Compact only; regular uses ClusteredPlayerDock.
-                BandNowPlayingBar(speech: speech, isCovered: isBarCovered)
-                    .tint(Palette.ink)
-                    .padding(.bottom, Spacing.xxs)
-            }
-            // Row 2: the swap (the toolbar's own button, 44 pt, tight to the leading edge), then
-            // the field filling the rest. While searching the swap steps aside with the toolbar,
-            // and ✕ ends the search (it stays after a swipe-down lowered the keyboard).
-            HStack(spacing: Spacing.xs) {
-                BandFieldRow(swap: session.isActive ? nil : swap) {
-                    field($focused)
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier("bandField")
+        HStack(spacing: Spacing.xs) {
+            field($focused)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("bandField")
+            if session.isActive {
+                Button(action: onCancel) {
+                    Image(systemName: Icons.close)
+                        .foregroundStyle(Palette.ink)
+                        .roundFieldControl(fill: Palette.chrome)
                 }
-                if session.isActive {
-                    Button(action: onCancel) {
-                        Image(systemName: Icons.close)
-                            .foregroundStyle(Palette.ink)
-                            .roundFieldControl(fill: Palette.chrome)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Verbs.cancel)
-                    .accessibilityIdentifier(cancelID)
-                }
-            }
-            if showsToolbar, !session.isActive {
-                toolbar()
-                    // Tint, not foregroundStyle: a foreground style overrides the dimming SwiftUI
-                    // gives disabled buttons, so a slot with nothing to do would look tappable.
-                    .tint(Palette.ink)
+                .buttonStyle(.plain)
+                .accessibilityLabel(Verbs.cancel)
+                .accessibilityIdentifier(cancelID)
             }
         }
         .bottomChromeBand(bottomPadding: session.isActive ? Spacing.xs : 0)

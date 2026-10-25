@@ -51,18 +51,14 @@ struct LibrarySurface: View {
                 // Keep search field when active; otherwise a slim clustered dock with library tools.
                 if search.isActive {
                     SurfaceBand(
-                        swap: nil,
                         session: search,
                         cancelID: "librarySearchCancel",
                         onCancel: shell.endLibrarySearch,
-                        begin: shell.beginLibrarySearch,
-                        isBarCovered: shell.reader != nil,
-                        showsNowPlayingBar: false,
-                        showsToolbar: false
+                        begin: shell.beginLibrarySearch
                     ) { focus in
                         SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt, focus: focus,
                                     fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard)
-                    } toolbar: { EmptyView() }
+                    }
                 }
                 ClusteredPlayerDock(speech: speech, isCovered: shell.reader != nil, trailingTools: AnyView(libraryRegularTools))
                     .overlay(alignment: .top) { PrepareProgressEdge() }

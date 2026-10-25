@@ -22,53 +22,6 @@ struct NowPlayingBarView: View {
     }
 }
 
-/// The Now Playing bar in the band the browser and the Library share (`SurfaceBand`), the full
-/// width of its first row. It is always there, at one height, so the band never changes size:
-///
-/// - what you hear, as in the Reader (`speech.nowPlaying`);
-/// - nothing bound (before anything plays this launch, after Stop Listening, or once the page you
-///   heard is removed or deleted): the page played last that is still in the Library or played
-///   without saving (`LibraryQueries.lastPlayed`), paused, with ▶ to resume it from its place and
-///   a tap to open it;
-/// - no such page (nothing played yet, or every page played since removed or deleted): the
-///   greyed placeholder, "Nothing playing".
-///
-/// Under the Reader sheet (which shows its own bar), Now Playing and other sheets it keeps its
-/// space but shows nothing, so there is only ever one bar.
-struct BandNowPlayingBar: View {
-    @Bindable var speech: SpeechController
-    /// The surface is under the Reader sheet.
-    var isCovered = false
-
-    @Environment(ShellState.self) private var shell
-    @Environment(FollowCenter.self) private var follow
-    @Environment(LibraryStore.self) private var library
-    @Environment(PrepareCenter.self) private var preparedAudio
-    @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Article]
-
-    private var isHidden: Bool {
-        isCovered || shell.isNowPlayingPresented || shell.sheet != nil
-    }
-
-    var body: some View {
-        Group {
-            if isHidden {
-                NowPlayingBar.placeholder()
-                    .hidden()
-                    .accessibilityHidden(true)
-            } else if let now = speech.nowPlaying {
-                BarProgress(speech: speech, now: now)
-            } else if let article = lastPlayed.first(where: \.isLive) {
-                ResumeBar(article: article, actions: ArticleActions(article: article, library: library, shell: shell, speech: speech,
-                                                           preparedAudio: preparedAudio, follow: follow))
-            } else {
-                NowPlayingBar.placeholder()
-            }
-        }
-        .transition(.opacity)
-    }
-}
-
 /// The bar itself. Its own view because it reads the live offset (progress, time left), which
 /// moves several times a second while playing: only the bar redraws for it. Its page, queried
 /// once by the session's key (not fetched on each redraw), is what its menu acts on.
@@ -110,63 +63,6 @@ private struct BarProgress: View {
                                                        shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow),
                                   onStop: speech.stop))
         )
-    }
-}
-
-/// The page played last, while nothing is bound: ▶ plays it from its place (the row's ▶,
-/// `LibraryActions.play`), a tap opens it (`LibraryActions.open`), and its long press is its
-/// menu (Stop Listening dimmed: nothing is loaded). Its state still comes from the session, so ▶
-/// turns into a spinner while it starts.
-private struct ResumeBar: View {
-    let article: Article
-    let actions: ArticleActions
-
-    @State private var cover = BarCover()
-
-    var body: some View {
-        // A delete being saved can redraw this once more after the page's data is gone; reading
-        // it then traps (`isLive`), so the placeholder stands in.
-        if article.isLive {
-            bar
-        } else {
-            NowPlayingBar.placeholder()
-        }
-    }
-
-    @ViewBuilder private var bar: some View {
-        let library = actions.libraryActions
-        let progress = library.progress(of: article)
-        NowPlayingBar(
-            title: article.lineOne,
-            detail: detail(progress),
-            artwork: cover.image(for: article.listenKey, data: article.artworkData),
-            artworkLetter: article.artworkLetter,
-            progress: fraction(progress),
-            state: library.playState(of: article),
-            identifier: "nowPlayingBarResume",
-            onOpen: { library.open(article) },
-            onPlayPause: { library.play(article) },
-            menu: AnyView(BarMenu(actions: actions, onStop: nil))
-        )
-    }
-
-    /// Its folder (as Recent's rows), else its source (untitled, line one is already that), then the time left or the full ring and Finished.
-    private func detail(_ progress: ListRow.Progress) -> [DetailPart] {
-        let source = (article.folder?.name ?? ArticleRowTitle.lineTwoSource(title: article.givenTitle, source: article.source))
-            .map { [DetailPart($0)] } ?? []
-        switch progress {
-        case .partWay(_, let minutesLeft): return source + [DetailPart(ListeningTime.leftLabel(minutes: minutesLeft))]
-        case .finished: return [.finished]
-        default: return source
-        }
-    }
-
-    private func fraction(_ progress: ListRow.Progress) -> Double {
-        switch progress {
-        case .partWay(let fraction, _): fraction
-        case .finished: 1
-        default: 0
-        }
     }
 }
 
