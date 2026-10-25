@@ -358,9 +358,11 @@ struct BrowseStartView: View {
             default: return nil
             }
         }
-        let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
+        let showing = shell.pageReader != nil
+        let reader = MenuRow(id: "moreReaderToggle", title: showing ? Verbs.showWebPage : Verbs.reader,
+                             icon: showing ? Icons.readerShowing : Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
-                             accessibilityHint: shell.pageReader != nil ? Verbs.showWebPage : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
+                             accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
         return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
                            tiles: MenuContext.tiles(shell, last: reader))
     }
