@@ -74,6 +74,28 @@ final class ChromeTests: XCTestCase {
         XCTAssertNil(g.fade)
     }
 
+    func testEditingReplacesRowTwoWithTheEditBar() {
+        let g = geometry(ChromeState(destination: .library, played: true, editing: true))
+        XCTAssertEqual(g.rows, .two)
+        XCTAssertEqual(g.editBar, CGRect(x: M.margin, y: M.footprint - M.bottomPadding - M.row2Height,
+                                         width: width - 2 * M.margin, height: M.row2Height))
+        XCTAssertTrue([g.pill, g.play, g.more].allSatisfy { $0 == nil }, "no pill, ▶ or ⋯ under the bar")
+        XCTAssertNotNil(g.field, "the screen's own row 1 stays")
+    }
+
+    func testEdgeOverlaysSitOnTheTopPieceExceptOnTheExpandedReader() {
+        let browse = geometry(ChromeState(destination: .browse))
+        XCTAssertEqual(browse.overlayTop, browse.top - M.topPadding)
+        XCTAssertNil(geometry(ChromeState(destination: .reader)).overlayTop, "the expanded Reader floats its own")
+        XCTAssertNotNil(geometry(ChromeState(destination: .reader, presence: ChromePresence(collapsed: true))).overlayTop)
+        XCTAssertNil(geometry(ChromeState(destination: .reader, presence: ChromePresence(fullScreen: true))).overlayTop)
+    }
+
+    func testBackdropCoversFromTheTopPieceDown() {
+        let g = geometry(ChromeState(destination: .library))
+        XCTAssertEqual(g.fade?.height, M.footprint - (g.top - M.topPadding))
+    }
+
     func testKeyboardIsOneRowWithoutPlayOrArrows() {
         let g = geometry(ChromeState(destination: .browse, played: true, canGoBack: true, canGoForward: true, keyboard: true))
         XCTAssertEqual(g.rows, .one)
@@ -83,6 +105,12 @@ final class ChromeTests: XCTestCase {
     }
 
     // MARK: Scroll
+
+    func testSwipeUpIsPastTheDistanceAndMoreUpThanAcross() {
+        XCTAssertTrue(ChromeScroll.isSwipeUp(CGSize(width: 5, height: -40)))
+        XCTAssertFalse(ChromeScroll.isSwipeUp(CGSize(width: 5, height: -20)))
+        XCTAssertFalse(ChromeScroll.isSwipeUp(CGSize(width: 60, height: -40)))
+    }
 
     @MainActor
     private func scroll(_ chrome: ChromeScroll, to offsets: [CGFloat], upExpands: Bool = true) {

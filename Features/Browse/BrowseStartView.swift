@@ -283,7 +283,6 @@ struct BrowseStartView: View {
         let actions = pageActions(libraryPage)
         let search = search
         return ChromeScreen(
-            destination: .browse,
             session: search,
             cancelID: "addressCancel",
             onCancel: shell.endAddressSearch,

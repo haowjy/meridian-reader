@@ -31,6 +31,14 @@ final class ChromeScroll {
     /// scroll-to-top), not a finger, and restarts the count.
     private static let jump: CGFloat = 400
 
+    /// A swipe up on the collapsed row expands it: a drag past `swipeStart` that travels
+    /// `swipeDistance` up, more up than across.
+    static let swipeStart: CGFloat = 16
+    static let swipeDistance: CGFloat = 24
+    static func isSwipeUp(_ translation: CGSize) -> Bool {
+        translation.height < -swipeDistance && abs(translation.height) > abs(translation.width)
+    }
+
     @ObservationIgnored private var last: CGFloat = 0
     @ObservationIgnored private var anchor: CGFloat = 0
     @ObservationIgnored private var movingDown = true

@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 import UIKit
 
@@ -30,12 +29,9 @@ struct ChromeHost: View {
 
     @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
-    @Environment(LibraryStore.self) private var libraryStore
-    @Environment(FollowCenter.self) private var follow
-    @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.readingAppearance) private var readingAppearance
-    @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Article]
+    private let playback = ChromePlayback()
     @FocusState private var focused: Bool
     @Namespace private var morph
     /// Reduce Motion: the old presence, drawn while the chrome fades out before the new one fades in.
@@ -44,20 +40,19 @@ struct ChromeHost: View {
 
     private let skin = ChromeSkin.current
 
-    /// The Reader is lit while the Reader or Now Playing is up; otherwise the surface under.
-    private var destination: ChromeDestination {
-        if onReadingPage { .reader } else { shell.isInLibrary ? .library : .browse }
-    }
-    private var onReadingPage: Bool { shell.reader != nil || shell.isNowPlayingPresented }
+    private var destination: ChromeDestination { shell.chromeDestination }
     private var screen: ChromeScreen {
-        if onReadingPage { readerScreen } else { shell.isInLibrary ? library : browse }
+        switch destination {
+        case .reader: readerScreen
+        case .library: library
+        case .browse: browse
+        }
     }
     /// The Reader has no arrows or search: its field slot is the title chip, and its ⋯ is the reading
     /// page's own menu.
     private var readerScreen: ChromeScreen {
         let (title, detail) = readerTitle
         return ChromeScreen(
-            destination: .reader,
             field: { _ in AnyView(ChromeTitleChip(title: title, detail: detail, action: iconTapped)) },
             more: AnyView(ReadingPageMoreButton(id: "chromeReaderMore", chrome: true)))
     }
@@ -74,12 +69,8 @@ struct ChromeHost: View {
     private var session: SearchSession? { screen.session }
     private var isSearching: Bool { session?.isActive == true }
 
-    /// The page played last, while nothing is bound: the play button resumes it.
-    private var resume: Article? { speech.nowPlaying == nil ? lastPlayed.first(where: \.isLive) : nil }
-    private var hasPlay: Bool { speech.nowPlaying != nil || resume != nil }
-
     private var state: ChromeState {
-        ChromeState(destination: destination, presence: held ?? shell.chrome.presence, played: hasPlay, canGoBack: screen.canGoBack,
+        ChromeState(destination: destination, presence: held ?? shell.chrome.presence, played: playback.isAvailable, canGoBack: screen.canGoBack,
                     canGoForward: screen.canGoForward, keyboard: isSearching, readerMode: destination == .browse && shell.pageReader != nil,
                     editing: screen.editBar != nil)
     }
@@ -87,7 +78,7 @@ struct ChromeHost: View {
     /// What the page under the chrome is drawn in: the reading theme on the Reader, Now Playing and
     /// the Browser's in-place reader view; nil elsewhere (the app's own surface).
     private var readingPalette: ReadingPalette? {
-        guard onReadingPage || shell.pageReader != nil else { return nil }
+        guard destination == .reader || shell.pageReader != nil else { return nil }
         return readingAppearance.palette(accent: AppAppearance.shared.accent)
     }
     /// Opaque, in the colour of what is under it: the reading theme, a web page's own background,
@@ -109,9 +100,12 @@ struct ChromeHost: View {
             .chromeGlassContainer()
             .frame(width: proxy.size.width, height: ChromeMetrics.footprint, alignment: .topLeading)
             .opacity(dip)
-            .animation(reduceMotion ? nil : Motion.standard, value: geometry)
-            .background(alignment: .bottom) { strip(geometry) }
+            .background(alignment: .bottom) { ChromeBackdrop(fade: geometry.fade, skin: skin, underColor: underColor) }
             .overlay(alignment: .top) { overlays(geometry) }
+            // Collapsing and expanding are `standard`; a different destination (set last, so it
+            // wins when both change) is `snappy`. The backdrop and overlays come and go with it.
+            .animation(reduceMotion ? nil : Motion.standard, value: geometry)
+            .animation(reduceMotion ? nil : Motion.snappy, value: destination)
         }
         .frame(height: ChromeMetrics.footprint)
         .environment(\.chromeSkin, skin)
@@ -165,7 +159,7 @@ struct ChromeHost: View {
                 }
                 .placed(fieldFrame)
         }
-        if let play = g.play, let button = playButton {
+        if let play = g.play, let button = playback.button {
             button.placed(play).transition(.opacity)
         }
         if let icon = g.icon {
@@ -173,21 +167,21 @@ struct ChromeHost: View {
                 .chromeMorph("screen", in: morph)
                 .placed(icon)
                 .transition(.opacity)
-        } else if let pill = g.pill, screen.editBar == nil {
-            ChromePill(lit: destination, hasReader: hasPlay, onSelect: select)
+        } else if let pill = g.pill {
+            ChromePill(lit: destination, hasReader: playback.isAvailable, onSelect: playback.select)
                 .chromeMorph("screen", in: morph)
                 .placed(pill)
                 .transition(.opacity)
         }
+        if let bar = g.editBar, let edit = screen.editBar {
+            edit
+                .frame(maxHeight: .infinity)
+                .chromeSurface(Capsule())
+                .placed(bar)
+                .transition(.opacity)
+        }
         if let more = g.more {
-            if let edit = screen.editBar, g.rows == .two {
-                edit
-                    .frame(maxHeight: .infinity)
-                    .chromeSurface(Capsule())
-                    .placed(CGRect(x: ChromeMetrics.margin, y: more.minY,
-                                   width: more.maxX - ChromeMetrics.margin, height: ChromeMetrics.row2Height))
-                    .transition(.opacity)
-            } else if isSearching {
+            if isSearching {
                 Button(action: screen.onCancel) { ChromeRoundLabel(symbol: Icons.close, label: Verbs.cancel) }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Verbs.cancel)
@@ -199,100 +193,22 @@ struct ChromeHost: View {
         }
     }
 
-    /// ▶ / ⏸ beside the pill: pause or resume what is bound, or resume the page played last.
-    private var playButton: ChromePlayButton? {
-        if let now = speech.nowPlaying {
-            return ChromePlayButton(state: speech.playState(of: .article(now.articleKey)), progress: {
-                let doc = speech.document
-                return doc.progress(atUTF16Offset: now.isFinished ? doc.utf16Length : speech.spokenUTF16Offset)
-            }, action: speech.pressNowPlaying)
-        }
-        guard let article = resume else { return nil }
-        let actions = libraryActions
-        return ChromePlayButton(state: actions.playState(of: article), progress: {
-            switch actions.progress(of: article) {
-            case .partWay(let fraction, _): fraction
-            case .finished: 1
-            default: 0
-            }
-        }, action: { actions.play(article) })
-    }
-
-    private var libraryActions: LibraryActions {
-        LibraryActions(library: libraryStore, speech: speech, shell: shell, follow: follow)
-    }
-
-    // MARK: - The colour under the pieces
-
-    /// The strip (earlier iOS): one thick material behind the rows, as tall as the layout, down
-    /// through the safe area. Glass floats on the content instead: the page's own background,
-    /// opaque from the top of the top piece down and fading in over the fade's rise above it, so
-    /// page text never shows through behind the pieces (the strip does that job on the fallback).
-    @ViewBuilder
-    private func strip(_ g: ChromeGeometry) -> some View {
-        if let edge = g.fade {
-            if skin == .strip {
-                Color.clear
-                    .frame(height: ChromeMetrics.footprint - edge.solidTop)
-                    .background(alignment: .bottom) { Rectangle().fill(.bar).ignoresSafeArea(edges: .bottom) }
-                    .overlay(alignment: .top) { Divider() }
-                    .animation(reduceMotion ? nil : Motion.standard, value: g)
-            } else if skin == .glass {
-                Color.clear
-                    .frame(height: ChromeMetrics.footprint - edge.solidTop)
-                    .background(alignment: .bottom) { underColor.ignoresSafeArea(edges: .bottom) }
-                    .overlay(alignment: .top) {
-                        LinearGradient(colors: [underColor.opacity(0), underColor], startPoint: .top, endPoint: .bottom)
-                            .frame(height: edge.rise)
-                            .offset(y: -edge.rise)
-                    }
-                    .allowsHitTesting(false)
-                    .animation(reduceMotion ? nil : Motion.standard, value: g)
-            }
-        }
-    }
-
     // MARK: - Overlays
 
-    /// The prepare progress and the toast sit on the layout's top edge, never in a row of their
-    /// own. The expanded Reader and Now Playing float their own above their band, and full screen
-    /// shows none.
+    /// The prepare progress and the toast sit on the layout's top edge, never in a row of their own.
     @ViewBuilder
     private func overlays(_ g: ChromeGeometry) -> some View {
-        if g.rows == .one || (g.rows == .two && !onReadingPage) {
+        if let top = g.overlayTop {
             VStack(spacing: 0) {
                 PrepareProgressEdge()
                 ShellToastLayer()
             }
-            .offset(y: g.top - ChromeMetrics.topPadding)
-            .animation(reduceMotion ? nil : Motion.standard, value: g)
+            .offset(y: top)
+            .transition(.opacity)
         }
     }
 
     // MARK: - Actions
-
-    private func select(_ target: ChromeDestination) {
-        // The lit Reader is where you already are.
-        guard target != .reader || destination != .reader else { return }
-        switch target {
-        case .library: shell.openLibrary()
-        case .browse: shell.showBrowser()
-        case .reader: openReader()
-        }
-    }
-
-    /// The Reader segment, until the Reader is a screen of its own: what is playing opens as Now
-    /// Playing, else the page played last opens in the Reader; with neither, a note.
-    private func openReader() {
-        if speech.nowPlaying != nil {
-            shell.showNowPlaying()
-        } else if let article = resume {
-            libraryActions.open(article)
-        } else {
-            shell.showToast(ShellToast(message: String(localized: "Nothing to read yet. Open a page and tap Reader."),
-                                       systemImage: Icons.reader))
-        }
-    }
 
     /// The icon, the title chip and a swipe up on the row: back to two rows. While searching the
     /// row stays one, so it lowers the keyboard.
@@ -305,10 +221,9 @@ struct ChromeHost: View {
     }
 
     private var swipeUp: some Gesture {
-        DragGesture(minimumDistance: 16)
+        DragGesture(minimumDistance: ChromeScroll.swipeStart)
             .onEnded { value in
-                guard state.rows == .one, value.translation.height < -24,
-                      abs(value.translation.height) > abs(value.translation.width) else { return }
+                guard state.rows == .one, ChromeScroll.isSwipeUp(value.translation) else { return }
                 iconTapped()
             }
     }

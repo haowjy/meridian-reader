@@ -242,6 +242,33 @@ final class ShellState {
         if case .library = surface { true } else { false }
     }
 
+    // MARK: - The chrome's destination
+
+    /// The Reader is lit while the Reader or Now Playing is up; otherwise the surface under.
+    var chromeDestination: ChromeDestination {
+        if reader != nil || isNowPlayingPresented { .reader } else if isInLibrary { .library } else { .browse }
+    }
+
+    /// A tap on a segment of the chrome's pill. The lit segment is where you already are. The
+    /// Reader segment, until the Reader is a screen of its own: what is playing opens as Now
+    /// Playing, else `resume` opens the page played last in the Reader; with neither, a note.
+    func select(_ target: ChromeDestination, isPlaying: Bool, resume: (() -> Void)?) {
+        guard target != chromeDestination else { return }
+        switch target {
+        case .library: openLibrary()
+        case .browse: showBrowser()
+        case .reader:
+            if isPlaying {
+                showNowPlaying()
+            } else if let resume {
+                resume()
+            } else {
+                showToast(ShellToast(message: String(localized: "Nothing to read yet. Open a page and tap Reader."),
+                                     systemImage: Icons.reader))
+            }
+        }
+    }
+
     // MARK: - The Reader
 
     /// The Reader on `article`, over the surface on screen. The page you hear opens as Now

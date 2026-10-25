@@ -45,7 +45,6 @@ struct LibraryChrome {
     func chromeScreen() -> ChromeScreen {
         let search = search
         return ChromeScreen(
-            destination: .library,
             session: search,
             cancelID: "librarySearchCancel",
             onCancel: shell.endLibrarySearch,

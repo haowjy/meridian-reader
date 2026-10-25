@@ -80,6 +80,7 @@ enum ChromeMetrics {
 /// expanded    [‹ ›][ address / search                  ]        row 1 (52); the Reader has none
 ///             [ Reader | Library | Browser ][▶][⋯]              row 2 (56), every screen
 /// collapsed   [‹ ›][ address ][▶][icon][⋯]                      one row (48); the Reader's field is its title chip
+/// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
 /// keyboard    [ field                    ][icon][✕]             one row, no ▶, no arrows
 /// full screen (nothing)                                         no pieces, no fade
 /// ```
@@ -92,6 +93,8 @@ struct ChromeGeometry: Equatable {
     /// The pill (expanded only).
     var pill: CGRect?
     var play: CGRect?
+    /// A Library selection's actions: row 2 whole, in place of the pill, ▶ and ⋯.
+    var editBar: CGRect?
     /// The current-screen icon (one row only).
     var icon: CGRect?
     /// ⋯, or ✕ while the keyboard is up.
@@ -104,13 +107,20 @@ struct ChromeGeometry: Equatable {
     struct Fade: Equatable {
         var solidTop: CGFloat
         var rise: CGFloat
+        /// What the colour behind the pieces covers, down to the box's bottom.
+        var height: CGFloat { ChromeMetrics.footprint - solidTop }
     }
+
+    /// Where the prepare progress and the toast sit (the top edge of the highest piece), or nil
+    /// when something else carries them: the expanded Reader and Now Playing float their own above
+    /// their band, and full screen shows none.
+    var overlayTop: CGFloat?
 
     var navigation: CGRect? { back.map { b in forward.map { b.union($0) } ?? b } }
 
     /// The top edge of the highest piece (the box's top when there is none).
     var top: CGFloat {
-        [field?.minY, back?.minY, forward?.minY, pill?.minY, play?.minY, icon?.minY, more?.minY]
+        [field?.minY, back?.minY, forward?.minY, pill?.minY, play?.minY, editBar?.minY, icon?.minY, more?.minY]
             .compactMap { $0 }.min() ?? ChromeMetrics.footprint
     }
 
@@ -154,15 +164,19 @@ struct ChromeGeometry: Equatable {
         case .two:
             let h2 = M.row2Height
             let row2 = bottom - h2
-            let moreFrame = CGRect(x: w - M.margin - h2, y: row2, width: h2, height: h2)
-            more = moreFrame
-            var right = moreFrame.minX - M.gap
-            if state.played {
-                let p = CGRect(x: right - h2, y: row2, width: h2, height: h2)
-                play = p
-                right = p.minX - M.gap
+            if state.editing {
+                editBar = CGRect(x: M.margin, y: row2, width: w - 2 * M.margin, height: h2)
+            } else {
+                let moreFrame = CGRect(x: w - M.margin - h2, y: row2, width: h2, height: h2)
+                more = moreFrame
+                var right = moreFrame.minX - M.gap
+                if state.played {
+                    let p = CGRect(x: right - h2, y: row2, width: h2, height: h2)
+                    play = p
+                    right = p.minX - M.gap
+                }
+                pill = CGRect(x: M.margin, y: row2, width: max(0, right - M.margin), height: h2)
             }
-            pill = CGRect(x: M.margin, y: row2, width: max(0, right - M.margin), height: h2)
 
             if !isReader {
                 let h1 = M.row1Height
@@ -181,6 +195,7 @@ struct ChromeGeometry: Equatable {
             // no rise while it is expanded.
             let rise = isReader && rows == .two ? 0 : M.fadeHeight
             fade = Fade(solidTop: top - M.topPadding, rise: rise)
+            if rows == .one || !isReader { overlayTop = top - M.topPadding }
         }
     }
 

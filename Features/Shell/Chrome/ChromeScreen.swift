@@ -4,7 +4,6 @@ import SwiftUI
 /// search session), the arrows, the ⋯ button. The browser and the Library each build one; the rest
 /// of the chrome (the pill, the play button, the collapse) is the host's.
 struct ChromeScreen {
-    let destination: ChromeDestination
     /// nil: no field to search in (the Reader).
     var session: SearchSession?
     /// The ✕ that ends a search: its accessibility identifier and action.
