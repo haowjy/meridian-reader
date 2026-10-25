@@ -46,14 +46,21 @@ final class ReadingChrome {
     /// Compact width: where the text's own scrolling goes (the chrome host's collapse), as an
     /// offset from the text's top; set by `ReadingInPlace`. Not called in full screen.
     @ObservationIgnored var onUserScroll: (CGFloat) -> Void = { _ in }
+    /// Compact width: the text moved without a finger deciding anything (a restore, following the
+    /// audio, a scrub, or any move in full screen); the collapse measures from here next.
+    @ObservationIgnored var onScrollAnchor: (CGFloat) -> Void = { _ in }
     /// Compact width: the bars came back by a pull down at the top; the chrome expands with them.
     @ObservationIgnored var onPulledDownAtTop: () -> Void = {}
     @ObservationIgnored private var floatingTimer: Task<Void, Never>?
 
     /// A finger scrolled the text to `offset` (0 at its top). Full screen takes no part in it.
     func userScrolled(to offset: CGFloat) {
-        guard !hidden else { return }
-        onUserScroll(offset)
+        if hidden { onScrollAnchor(offset) } else { onUserScroll(offset) }
+    }
+
+    /// The text is at `offset` without a finger having moved it.
+    func textMoved(to offset: CGFloat) {
+        onScrollAnchor(offset)
     }
 
     /// A pull down at the top of the text in full screen: the bars come back, expanded.

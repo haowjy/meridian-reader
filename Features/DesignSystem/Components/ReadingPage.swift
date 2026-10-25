@@ -18,6 +18,8 @@ struct ReadingInPlace {
     var bottomClearance: CGFloat
     /// The text, scrolled by a finger, to this offset from its top.
     var scrolled: (CGFloat) -> Void
+    /// The text moved without a finger deciding anything: the collapse measures from here.
+    var anchored: (CGFloat) -> Void
     /// The bars came back by a pull down at the top of the text.
     var pulledDownAtTop: () -> Void
     /// Full screen began or ended: the whole chrome goes or comes back.
@@ -104,6 +106,7 @@ private struct InPlaceFrame<Header: View, Content: View, Band: View, OverText: V
             .systemBars(lightStatusBar: palette.isDark, hidden: chrome.hidden)
             .onAppear {
                 chrome.onUserScroll = place.scrolled
+                chrome.onScrollAnchor = place.anchored
                 chrome.onPulledDownAtTop = place.pulledDownAtTop
             }
             .onChange(of: chrome.hidden, initial: true) { _, hidden in place.fullScreenChanged(hidden) }

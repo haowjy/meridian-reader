@@ -117,4 +117,17 @@ final class ChromeTests: XCTestCase {
         scroll(on, to: up, upExpands: true)
         XCTAssertFalse(on.isScrolledDown)
     }
+
+    @MainActor
+    func testAProgrammaticMoveReanchorsWithoutDecidingTheCollapse() {
+        let chrome = ChromeScroll()
+        chrome.anchor(at: 295)
+        XCTAssertFalse(chrome.isScrolledDown)
+        chrome.scrolled(to: 290, upExpands: false)
+        XCTAssertFalse(chrome.isScrolledDown, "a restored spot is not the start of a scroll up from 0")
+        chrome.scrolled(to: 330, upExpands: false)
+        XCTAssertTrue(chrome.isScrolledDown)
+        chrome.anchor(at: 0)
+        XCTAssertFalse(chrome.isScrolledDown, "a move to the top expands")
+    }
 }

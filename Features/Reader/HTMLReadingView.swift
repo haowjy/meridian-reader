@@ -650,9 +650,9 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// Hands a pull at the top of the text to the sheet around it (`SheetPullHandoff`), and reports the finger.
         let pullHandoff = ScrollPullHandoff()
 
-        /// Where a finger scrolling the text goes: the compact chrome's collapse (`ReadingChrome`).
-        /// Programmatic scrolls (following the audio, a scrub, a restore) are neither dragging nor
-        /// decelerating, so they never reach it.
+        /// Where the text's offset goes: the compact chrome's collapse (`ReadingChrome`). A finger's
+        /// scroll (dragging or decelerating) decides it; any other move (following the audio, a
+        /// scrub, a restore) only moves the point the next finger scroll is measured from.
         private var offsetObservation: NSKeyValueObservation?
 
         /// Notes a finger drag through the scroll view's pan (WebKit owns its delegate;
@@ -661,7 +661,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// snaps to a page). Following stops once the drag moves the text: a pull of the sheet alone
         /// (a pull down from the top) keeps following, as it moves nothing.
         func observeDragging(_ scrollView: UIScrollView) {
-            pullHandoff.onDragBegan = { [weak self] in self?.userTookOver() }
+            pullHandoff.onDragBegan = { [weak self] in
+                self?.userTookOver()
+                self?.chrome?.textMoved(to: Self.scrolledIn(scrollView))
+            }
             pullHandoff.onMove = { [weak self] delta in
                 guard let self, !jumpMode, delta > 0, Self.scrolledIn(scrollView) <= 0 else { return }
                 chrome?.pulledDownAtTop()
@@ -670,13 +673,13 @@ struct HTMLReadingWebView: UIViewRepresentable {
             pullHandoff.onRelease = { [weak self] velocity in self?.layout.dragEnded(velocity: velocity) }
             pullHandoff.attach(to: scrollView)
             offsetObservation = scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scrollView, _ in
-                guard scrollView.isDragging || scrollView.isDecelerating else { return }
+                let byFinger = scrollView.isDragging || scrollView.isDecelerating
                 let farthest = scrollView.contentSize.height + scrollView.adjustedContentInset.bottom
                     + scrollView.adjustedContentInset.top - scrollView.bounds.height
                 let offset = min(Self.scrolledIn(scrollView), max(farthest, 0))
-                Task { @MainActor in
+                MainActor.assumeIsolated {
                     guard let self, !self.jumpMode else { return }
-                    self.chrome?.userScrolled(to: offset)
+                    if byFinger { self.chrome?.userScrolled(to: offset) } else { self.chrome?.textMoved(to: offset) }
                 }
             }
         }

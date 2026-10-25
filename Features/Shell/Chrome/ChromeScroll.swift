@@ -58,6 +58,16 @@ final class ChromeScroll {
         }
     }
 
+    /// The offset moved without a finger (a restore, following the audio, a scrub), or in a state
+    /// where the finger decides nothing (full screen): the next report measures from here, and no
+    /// collapse is decided by the move itself. The top still always expands (a status-bar tap).
+    func anchor(at offset: CGFloat) {
+        last = offset
+        anchor = offset
+        movingDown = true
+        if offset <= 1 { set(false) }
+    }
+
     /// Back to two rows: the icon's tap, a swipe up on the collapsed row, a new screen.
     func expand() {
         anchor = last

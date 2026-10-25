@@ -345,6 +345,7 @@ final class ShellState {
             collapsed: chrome.isScrolledDown,
             bottomClearance: ChromeMetrics.row2Footprint,
             scrolled: { [chrome] in chrome.scrolled(to: $0, upExpands: ReaderChromeScroll.scrollUpReexpands) },
+            anchored: { [chrome] in chrome.anchor(at: $0) },
             pulledDownAtTop: { [chrome] in chrome.expand() },
             fullScreenChanged: { [weak self] in self?.isReadingFullScreen = $0 })
     }
