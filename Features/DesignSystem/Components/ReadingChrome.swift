@@ -12,7 +12,9 @@ import UIKit
 ///
 /// - **Full screen is a tap in the middle of the text, in and out, and nothing else**
 ///   (`tappedCentre`). Scrolling never enters or leaves it; a tap at either edge turns a screen
-///   (`revealFloatingControl`) and leaves the bars as they are (`TapZone`).
+///   (`revealFloatingControl`) and leaves the bars as they are (`TapZone`). On regular width a pull
+///   down at the top of the text brings the bars back (`pulledDownAtTop`); compact full screen is
+///   left by the middle tap alone.
 /// - In full screen a small play / pause floats at the bottom right (`floatingControl`) for
 ///   `floatingDuration` after full screen begins, an edge tap (a page turn) or a tap on it. A tap
 ///   in the middle brings the bars back instead, and they carry the play control.
@@ -72,6 +74,13 @@ final class ReadingChrome {
     /// The text is at `offset` without a finger having moved it.
     func textMoved(to offset: CGFloat) {
         onScrollAnchor(offset)
+    }
+
+    /// A pull down at the top of the text in full screen brings the bars back (regular width, where
+    /// the chrome owns no copy of full screen).
+    func pulledDownAtTop() {
+        guard fullScreen == nil else { return }
+        show()
     }
 
     /// A tap in the middle of the text: full screen toggles.

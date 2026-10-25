@@ -46,8 +46,9 @@ Regular width keeps the Reader and Now Playing sheets ("iPad and regular width")
   drags, text selection and ☝︎ taps are untouched, and the scrubber and the bottom row aren't
   text, so they never pull. In Now Playing a pull alone keeps following the audio (it moves
   nothing); once the drag moves the text, following stops as for any drag. In full screen the
-  text hands no pull to the sheet: a pull down at its top only rubber-bands (the bars come back by
-  the middle tap alone), and a pull that begins with them showing closes the sheet as above.
+  text hands no pull to the sheet: a pull down at its top only rubber-bands and brings the bars
+  back, and a pull that begins with them showing closes the sheet as above. (Compact full screen,
+  which is the chrome's, is left by the middle tap alone.)
 - It moves like a system sheet: it rises from the bottom and leaves the same way. The surface
   stays as it is underneath (the page or start page, the Library's screen), so the pull reveals
   where you're going back to: the sheet follows the finger (up only with rubber-band resistance;
@@ -1046,7 +1047,8 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   full screen begins; an edge tap (a page turn), or a tap on it, brings it back for another 3 s. A
   tap in the middle leaves full screen instead, with the chrome's play control. It isn't there while
   the bars show.
-- **At the top**, a pull down in full screen only rubber-bands: scrolling and pulling never leave it
+- **At the top**, a pull down in full screen rubber-bands and, on regular width, brings the bars
+  back; scrolling never leaves it, and compact full screen is left by the middle tap alone
   (on regular width it never closes the sheet; a pull that begins with the bars showing closes it as
   usual, and while it pulls the sheet it never hides or shows the bars).
 - *Jump to Audio* shows only with the bars up, just above the bottom band, and only while the

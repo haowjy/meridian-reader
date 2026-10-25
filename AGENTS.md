@@ -33,7 +33,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), one
   smoke UI test (`CoreFlowsUITests.testSaveAndPlayABrowsedArticle`), and, at the owner's request,
   the compact chrome: unit tests of its state, layout and scroll controller (`ChromeTests`) and one
-  UI test (`testInPlaceReaderCollapsesOnScrollAndFullScreenIsAMiddleTap`). Add a test only for data
+  UI test (`testInPlaceReaderFoldsOnScrollAndFullScreenIsAMiddleTap`). Add a test only for data
   loss, crashes, store migration or cache integrity; verify everything else on the running app.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
 - One scheme, `MeridianReader`, with two test targets: `MeridianReaderTests` (unit, `Tests/`) and
@@ -117,7 +117,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 - **Button rows never wrap** (decision D21): two or more buttons side by side go in an
   `ActionButtonRow`, which falls back from full labels to short titles, then no details, then
   symbols alone. Give every button in one a symbol.
-- **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `follow`, `settle`, `dismiss`) and its
+- **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
 - **Bottom chrome**: compact width draws one floating chrome host
   (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Reader, Library, Browser), two rows

@@ -90,6 +90,9 @@ final class ScrollPullHandoff: NSObject {
     var onDragBegan: () -> Void = {}
     /// The drag moved the content, once per drag: a pull of the sheet alone doesn't call it.
     var onScroll: () -> Void = {}
+    /// The finger moved this far down (negative: up) since the last movement, while it doesn't
+    /// pull the sheet.
+    var onMove: (CGFloat) -> Void = { _ in }
     /// The drag ended without pulling the sheet, the finger's speed at release (points per
     /// second, down positive; 0 for a cancelled touch). Called after the scroll view has begun
     /// its own deceleration.
@@ -154,6 +157,9 @@ final class ScrollPullHandoff: NSObject {
             reportedScroll = true
             onScroll()
         }
+        // Movement that pulls the sheet (or lets it back) isn't the reader's: it never shows or
+        // hides anything over the text.
+        if before == 0, t.pull == 0 { onMove(delta) }
     }
 
     /// `lifted`: the finger lifted (else the touch was cancelled, and the sheet springs back).
