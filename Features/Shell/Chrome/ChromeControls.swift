@@ -169,7 +169,7 @@ struct ChromeNavigation: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let side = ChromeMetrics.barHeight
+            let side = ChromeMetrics.navSingleWidth
             HStack(spacing: 0) {
                 button(Icons.back, label: Verbs.back, id: backID, action: onBack)
                     .frame(width: side)

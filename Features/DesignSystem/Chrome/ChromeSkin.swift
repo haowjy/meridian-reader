@@ -90,7 +90,9 @@ private struct ChromeSurface<S: InsettableShape>: ViewModifier {
         switch skin {
         case .glass:
             if #available(iOS 26.0, *) {
-                content.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+                content
+                    .glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+                    .glassEffectTransition(.materialize)
             } else {
                 content.background(fill, in: shape)
             }

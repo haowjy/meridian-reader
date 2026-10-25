@@ -96,8 +96,10 @@ played, 145 with ▶, 201 without arrows; the Library's search 257, 201 with ▶
   edge and a soft shadow under each shape. Page content shows through and between the pieces. Behind
   them only a translucent fade (`ChromeFade`): clear 50 pt above the top piece, the colour of what is
   under (a web page's own background, paper on the start page, the search layer and the Library, the
-  reading theme on readers) at 70% of the way down, at 90% opacity. A piece that has faded away
-  leaves the tree (glass ignores an opacity above it) and returns with a cross-fade.
+  reading theme on readers) at 70% of the way down, at 90% opacity. A piece that is not shown
+  leaves the tree (inside the glass container an opacity above a piece's glass is ignored) and the
+  glass materializes in and out with a content cross-fade; the whole host's opacity (outside the
+  container) does fade glass, which is how Reduce Motion cross-fades.
 - **Row 1** is the screen's context: on the Browser `[‹][›][address]` (› dropped with no forward
   page, both dropped on a new page), on the Library its search field, on the Reader the player card.
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads); the reader icon shows

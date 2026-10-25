@@ -1,12 +1,12 @@
 import SwiftUI
 
 /// Draws the compact chrome's pieces where `ChromeLayout` puts them. Animatable in the fold
-/// (`ChromeState.progress`): while a finger scrolls, the host animates the progress and this body
-/// runs every frame, so every piece is the mockups' `mix(expanded, collapsed, progress)` and the
+/// (`ChromeState.progress`): while a finger scrolls, the host feeds it the smoothed progress
+/// (`ChromeScroll.displayed`) and this body runs every frame, so every piece is the mockups' `mix(expanded, collapsed, progress)` and the
 /// pill's lit segment travels into the screen icon. Anything else that changes (the keyboard, the
 /// arrows, ▶) is a discrete step the host animates as the frames move.
 ///
-/// All pieces are always in the tree, as in the mockups; one that has faded away takes no touches.
+/// A piece is in the tree only while `ChromePiece.isShown`.
 struct ChromePieces: View, Animatable {
     @Environment(ShellState.self) private var shell
     var state: ChromeState
@@ -16,7 +16,6 @@ struct ChromePieces: View, Animatable {
     let readerTitle: String
     let play: ChromePlayButton?
     let hasReader: Bool
-    let isSearching: Bool
     let underColor: Color
     let focus: FocusState<Bool>.Binding
     let onSelect: (ChromeDestination) -> Void
@@ -65,16 +64,17 @@ struct ChromePieces: View, Animatable {
 
     // MARK: - Pieces
 
-    /// `content` in `piece`'s rect. A piece that has faded away is not in the tree at all: Liquid
-    /// Glass ignores an `opacity` above it, so one that only faded would stay drawn. It comes and
-    /// goes with a cross-fade (`ChromeHost` animates the step).
+    /// `content` in `piece`'s rect. A piece that is not shown is not in the tree at all: inside the
+    /// glass container an `opacity` above a piece's glass is ignored (the shape stays at full
+    /// strength), so one that only faded would stay drawn. It comes and goes as the glass
+    /// materializes in and out, with its content cross-fading (`ChromeHost` animates the step). The
+    /// whole host's opacity, outside the container, does fade glass: that is the Reduce Motion dip.
     @ViewBuilder
     private func piece(_ piece: ChromePiece, @ViewBuilder _ content: () -> some View) -> some View {
-        if piece.opacity > 0.01 {
+        if piece.isShown {
             content()
                 .frame(width: piece.rect.width, height: piece.rect.height)
                 .offset(x: piece.rect.minX, y: piece.rect.minY)
-                .allowsHitTesting(piece.isInteractive)
                 .transition(.opacity)
         }
     }
@@ -121,7 +121,7 @@ struct ChromePieces: View, Animatable {
     /// ⋯, or ✕ while a search is editing.
     @ViewBuilder
     private var more: some View {
-        if isSearching {
+        if state.keyboard {
             Button(action: screen.onCancel) { ChromeRoundLabel(symbol: Icons.close, label: Verbs.cancel) }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Verbs.cancel)

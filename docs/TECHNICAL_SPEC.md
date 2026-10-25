@@ -83,9 +83,11 @@ UITests/    the smoke flow and the in-place Reader chrome flow (MeridianReaderUI
   mockups' `SZ`, checked by `tools/check-tokens.js`). `ChromeScroll` (`ShellState.chromeScroll`) owns
   the progress and `fullScreen` and is the one scroll controller the Library, the Browser and the
   Reader feed (`progress += dy / 90`, snap 150 ms after the finger stops; Reader offsets that no
-  finger moved only re-anchor it, `anchor(at:)`; locked while the keyboard or ⋯ is up). The host
-  animates the progress with `Motion.follow` (the prototype's 55 ms smoothing) and `ChromePieces`,
-  animatable in it, draws every piece each frame; any other change is one `Motion.standard` step. The
+  finger moved only re-anchor it, `anchor(at:)`; locked while the keyboard or ⋯ is up). `ChromeScroll.displayed`
+  chases the progress with a per-frame exponential filter (`ChromeScroll.smoothing`, the prototype's
+  55 ms time constant, stepped by a display link) and `ChromePieces`, animatable in it, draws every
+  piece each frame; any other change is one `Motion.standard` step. Under Reduce Motion the fold is
+  binary and every change of form (fold, keyboard, full screen) is a cross-fade of the whole host. The
   reading page in place reads and toggles full screen through `ReadingInPlace`, so
   `ReadingChrome.hidden` has no copy. `ShellState` owns the chrome's destination and the pill's
   selection (`chromeDestination`, `select`). `ChromeHost` only wires those to the app: `ChromePlayback`

@@ -16,10 +16,6 @@ enum Motion {
     static let standardBounce: CGFloat = 0.14
     /// Small state changes: chrome, the scrub thumb, banners.
     static let snappy = Animation.spring(response: 0.25, dampingFraction: 0.9)
-    /// The compact chrome folding and unfolding with the scroll: the finger sets a target many times
-    /// a second and this smooths them, with the snap at rest. Not a spring, so each new target
-    /// continues from where the last left it.
-    static let follow = Animation.easeOut(duration: 0.2)
     /// A drag released short of committing, springing back to rest.
     static let settle = Animation.spring(response: 0.3, dampingFraction: 0.85)
 
