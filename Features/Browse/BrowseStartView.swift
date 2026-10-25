@@ -106,7 +106,9 @@ struct BrowseStartView: View {
                                 bottomInset: isRegular ? 0 : ChromeMetrics.footprint,
                                 onScroll: isRegular ? nil : { [chrome = shell.chrome] in chrome.scrolled(to: $0) })
                             .opacity(hasPage ? 1 : 0)
-                            .allowsHitTesting(hasPage)
+                            // Under the in-place reader the page is neither touched nor read aloud.
+                            .allowsHitTesting(hasPage && shell.pageReader == nil)
+                            .accessibilityHidden(shell.pageReader != nil)
                             .onAppear { browseWebViewMounted = true }
                     }
 
