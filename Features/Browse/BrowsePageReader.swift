@@ -40,13 +40,18 @@ struct BrowsePageReader: View {
         .readingSurface(palette)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("browsePageReader")
+        .task(id: WarmKey(id: article.id, count: article.document.count)) {
+            speech.warmUp(article, from: start, saved: page?.isSavedToLibrary == true)
+        }
     }
 
     private func listen(from start: ListenSpot) {
-        speech.localTTS.prepareListenIdentity(key: article.id, paragraphs: article.document.paragraphs,
-                                              trustedParagraphs: article.trustedParagraphs,
-                                              legacyKeys: article.legacyCacheKeys, isLivePlayback: false)
         speech.listen(to: article, at: start)
         shell.showNowPlaying()
+    }
+
+    private struct WarmKey: Hashable {
+        let id: UUID
+        let count: Int
     }
 }

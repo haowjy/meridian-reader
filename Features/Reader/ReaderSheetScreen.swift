@@ -134,7 +134,7 @@ struct ReaderSheetScreen: View {
             }
         }
         .task(id: WarmKey(id: readerArticle.id, count: readerArticle.document.count)) {
-            prepareListen(from: start, saved: actions.isSaved)
+            speech.warmUp(readerArticle, from: start, saved: actions.isSaved)
         }
     }
 
@@ -220,30 +220,6 @@ struct ReaderSheetScreen: View {
         let handOver = scroll.handOver
         speech.listen(to: readerArticle, at: spot)
         shell.turnReaderIntoNowPlaying(handOver: handOver)
-    }
-
-    /// Identity alignment + the first audio for this article, so Listen starts quickly. The Reader
-    /// never shows what is playing, so this never touches live playback.
-    private func prepareListen(from start: ListenSpot, saved: Bool) {
-        guard sessionReady else { return }
-        let paragraphs = readerArticle.document.paragraphs
-        ListenTimingLog.log("reader_open", [
-            "key": ListenTimingLog.shortKey(readerArticle.id),
-            "paragraphs": paragraphs.count,
-            "chars": paragraphs.reduce(0) { $0 + $1.count },
-            "resume_p": start.paragraph,
-            "local_ready": speech.localTTS.usesLocalEngine,
-            "saved": saved,
-        ])
-        speech.localTTS.prepareListenIdentity(
-            key: readerArticle.id,
-            paragraphs: paragraphs,
-            trustedParagraphs: readerArticle.trustedParagraphs,
-            legacyKeys: readerArticle.legacyCacheKeys,
-            isLivePlayback: false
-        )
-        speech.localTTS.openArticle(cacheKey: readerArticle.id, paragraphs: paragraphs, from: start.paragraph,
-                                    isEphemeral: !saved)
     }
 
     private struct WarmKey: Hashable {
