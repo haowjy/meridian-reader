@@ -61,6 +61,12 @@ private struct ChromeSurface<S: Shape>: ViewModifier {
     func body(content: Content) -> some View {
         if skin == .glass, #available(iOS 26.0, *) {
             content.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+        } else if skin == .strip {
+            // The fallback gives every piece the same rim and lift glass has: one hairline, one soft shadow.
+            content
+                .background(fill, in: shape)
+                .overlay { shape.stroke(Palette.ink.opacity(0.1), lineWidth: 0.5) }
+                .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
         } else {
             content.background(fill, in: shape)
         }

@@ -1,14 +1,26 @@
 import CoreGraphics
 
-/// The three places the chrome's pill switches between. The Reader is a destination in the
-/// design, but until it has its own screen (PR2) the pill's Reader segment opens what is playing
-/// or was last played, and the lit segment is always the Library or the Browser.
+/// The three places the chrome's pill switches between. The Reader is a destination: it keeps
+/// the chrome (row 2 only) under the article, so `.reader` is the lit segment while the Reader or
+/// Now Playing is up.
 enum ChromeDestination: CaseIterable, Equatable {
     case reader, library, browse
 }
 
 /// The compact bottom chrome's sizes, from the approved mockups (`width-table.md`). Everything
 /// that sets a size reads from here; `ChromeGeometry` places the pieces with them.
+///
+/// One shape language: every floating piece is a Capsule or a Circle, so its corner radius is
+/// half its height, and a circle's diameter is its row's height. Three heights, no others:
+///
+/// ```
+/// row 1   52   ‹ (circle) or ‹ › (capsule), the address field, the Library search
+/// row 2   56   the pill, ▶ (circle), ⋯ (circle)
+/// one row 48   every piece when collapsed or searching
+/// ```
+///
+/// The pill's lit segment is a capsule inset by `litInset` on all four sides, so its radius is
+/// the pill's radius minus the inset (concentric), as in Apple Music's and Reddit's tab capsules.
 enum ChromeMetrics {
     /// Left and right margin; also the gap between a row's pieces and the screen edge.
     static let margin: CGFloat = 12
@@ -18,38 +30,31 @@ enum ChromeMetrics {
     static let topPadding: CGFloat = 4
     static let bottomPadding: CGFloat = 6
 
-    // Expanded
-    /// The pill and ⋯ on row 2, and the row 1 slot (the field or the Library's search).
-    static let rowHeight: CGFloat = 56
-    static let browseFieldHeight: CGFloat = 52
-    static let libraryFieldHeight: CGFloat = 56
-    static let navHeight: CGFloat = 48
-    /// The arrows' capsule: 92 wide with both, 48 with ‹ alone.
-    static let navPairWidth: CGFloat = 92
-    static let navSingleWidth: CGFloat = 48
-    static let moreExpanded: CGFloat = 56
-
-    // Collapsed: one row of 48
-    static let collapsedRowHeight: CGFloat = 48
-    static let collapsedFieldHeight: CGFloat = 48
-    static let collapsedNavHeight: CGFloat = 44
-    static let collapsedNavButtonWidth: CGFloat = 44
-    static let moreCollapsed: CGFloat = 48
-    /// The collapsed current-screen icon, and the play/pause button.
-    static let iconSize: CGFloat = 44
-    static let playSize: CGFloat = 44
+    /// Row 1 (expanded): the arrows, the address field, the Library search.
+    static let row1Height: CGFloat = 52
+    /// Row 2 (expanded): the pill, ▶, ⋯ and the edit bar.
+    static let row2Height: CGFloat = 56
+    /// The one row (collapsed or searching): every piece.
+    static let collapsedHeight: CGFloat = 48
+    /// ‹ alone is a circle; with › it is a capsule of two circles' width.
+    static let navSingleWidth: CGFloat = row1Height
+    static let navPairWidth: CGFloat = 2 * row1Height
+    static let collapsedNavSingleWidth: CGFloat = collapsedHeight
+    static let collapsedNavPairWidth: CGFloat = 2 * collapsedHeight
 
     /// The narrowest address field before the arrows give way to it.
     static let minimumField: CGFloat = 120
-    /// The pill's lit segment is inset from its segment: 1 pt each side, 4 pt top and bottom.
-    static let litInsetX: CGFloat = 1
-    static let litInsetY: CGFloat = 4
+    /// The pill's lit segment is inset from the pill's edge and from its neighbours by this much,
+    /// on all four sides.
+    static let litInset: CGFloat = 4
 
     /// What the chrome reserves at the bottom of a scrolling screen (expanded), above the safe
     /// area: the same on every destination, so a screen never resizes when the chrome collapses.
-    static let footprint: CGFloat = topPadding + rowHeight + gap + rowHeight + bottomPadding
+    static let footprint: CGFloat = topPadding + row1Height + gap + row2Height + bottomPadding
     /// One row high: what a screen keeps clear while the chrome is collapsed or searching.
-    static let collapsedFootprint: CGFloat = topPadding + collapsedRowHeight + bottomPadding
+    static let collapsedFootprint: CGFloat = topPadding + collapsedHeight + bottomPadding
+    /// The Reader keeps only row 2: what its text keeps clear.
+    static let readerFootprint: CGFloat = topPadding + row2Height + bottomPadding
 }
 
 /// Where each piece of the chrome sits, in a box `width` wide and `ChromeMetrics.footprint` high
@@ -57,9 +62,10 @@ enum ChromeMetrics {
 /// frames, so the widths in `width-table.md` are checkable without a screen.
 ///
 /// ```
-/// expanded   [‹ ›][ address / search                  ]        row 1
-///            [ Reader | Library | Browser ][▶][⋯]              row 2
-/// collapsed  [‹ ›][ address ][▶][icon][⋯]                      one row
+/// expanded   [‹ ›][ address / search                  ]        row 1 (52)
+///            [ Reader | Library | Browser ][▶][⋯]              row 2 (56)
+/// reader     [ Reader | Library | Browser          ][⋯]        row 2 only
+/// collapsed  [‹ ›][ address ][▶][icon][⋯]                      one row (48)
 /// searching  [ field                    ][icon][✕]             one row
 /// ```
 struct ChromeGeometry: Equatable {
@@ -77,7 +83,8 @@ struct ChromeGeometry: Equatable {
         var hasPlay = false
     }
 
-    var field: CGRect
+    /// The address or search field; nil on the Reader, which has none.
+    var field: CGRect?
     /// The ‹ and › buttons, nil when dropped.
     var back: CGRect?
     var forward: CGRect?
@@ -95,21 +102,21 @@ struct ChromeGeometry: Equatable {
     init(_ input: Input) {
         typealias M = ChromeMetrics
         let w = input.width
-        let one = input.collapsed || input.searching
+        let isReader = input.destination == .reader
+        let one = (input.collapsed || input.searching) && !isReader
         isCollapsed = one
         let isBrowse = input.destination == .browse
         let bottom = M.footprint - M.bottomPadding
 
         if one {
-            let rowTop = bottom - M.collapsedRowHeight
-            more = CGRect(x: w - M.margin - M.moreCollapsed, y: rowTop, width: M.moreCollapsed, height: M.moreCollapsed)
-            let iconRect = CGRect(x: more.minX - M.gap - M.iconSize, y: rowTop + (M.collapsedRowHeight - M.iconSize) / 2,
-                                  width: M.iconSize, height: M.iconSize)
-            icon = iconRect
-            var right = iconRect.minX - M.gap
+            // One row: every piece is `collapsedHeight` high, circles that wide.
+            let d = M.collapsedHeight
+            let rowTop = bottom - d
+            more = CGRect(x: w - M.margin - d, y: rowTop, width: d, height: d)
+            icon = CGRect(x: more.minX - M.gap - d, y: rowTop, width: d, height: d)
+            var right = (icon?.minX ?? 0) - M.gap
             if input.hasPlay, !input.searching {
-                let p = CGRect(x: right - M.playSize, y: rowTop + (M.collapsedRowHeight - M.playSize) / 2,
-                               width: M.playSize, height: M.playSize)
+                let p = CGRect(x: right - d, y: rowTop, width: d, height: d)
                 play = p
                 right = p.minX - M.gap
             } else {
@@ -123,39 +130,42 @@ struct ChromeGeometry: Equatable {
             if isBrowse, !input.searching, input.canGoBack || input.canGoForward {
                 arrows = input.canGoForward ? 2 : 1
                 if input.hasPlay { arrows = min(arrows, 1) }
-                while arrows > 0, right - (M.margin + CGFloat(arrows) * M.collapsedNavButtonWidth + M.gap) < M.minimumField {
+                while arrows > 0, right - (M.margin + CGFloat(arrows) * d + M.gap) < M.minimumField {
                     arrows -= 1
                 }
             }
-            let navTop = rowTop + (M.collapsedRowHeight - M.collapsedNavHeight) / 2
-            (back, forward) = Self.arrows(count: arrows, left: M.margin, top: navTop,
-                                          button: M.collapsedNavButtonWidth, height: M.collapsedNavHeight)
-            let left = M.margin + (arrows > 0 ? CGFloat(arrows) * M.collapsedNavButtonWidth + M.gap : 0)
-            field = CGRect(x: left, y: rowTop, width: max(0, right - left), height: M.collapsedFieldHeight)
+            (back, forward) = Self.arrows(count: arrows, left: M.margin, top: rowTop, button: d, height: d)
+            let left = M.margin + (arrows > 0 ? CGFloat(arrows) * d + M.gap : 0)
+            field = CGRect(x: left, y: rowTop, width: max(0, right - left), height: d)
         } else {
-            let row2 = bottom - M.rowHeight
-            more = CGRect(x: w - M.margin - M.moreExpanded, y: row2, width: M.moreExpanded, height: M.moreExpanded)
+            let h2 = M.row2Height
+            let row2 = bottom - h2
+            more = CGRect(x: w - M.margin - h2, y: row2, width: h2, height: h2)
             var right = more.minX - M.gap
-            if input.hasPlay {
-                let p = CGRect(x: right - M.playSize, y: row2 + (M.rowHeight - M.playSize) / 2,
-                               width: M.playSize, height: M.playSize)
+            if input.hasPlay, !isReader {
+                let p = CGRect(x: right - h2, y: row2, width: h2, height: h2)
                 play = p
                 right = p.minX - M.gap
             } else {
                 play = nil
             }
-            pill = CGRect(x: M.margin, y: row2, width: max(0, right - M.margin), height: M.rowHeight)
+            pill = CGRect(x: M.margin, y: row2, width: max(0, right - M.margin), height: h2)
             icon = nil
 
-            let row1 = row2 - M.gap - M.rowHeight
-            let arrows = isBrowse && (input.canGoBack || input.canGoForward) ? (input.canGoForward ? 2 : 1) : 0
-            let navTop = row1 + (M.rowHeight - M.navHeight) / 2
-            let navWidth = arrows == 2 ? M.navPairWidth : arrows == 1 ? M.navSingleWidth : 0
-            (back, forward) = Self.arrows(count: arrows, left: M.margin, top: navTop,
-                                          button: navWidth / CGFloat(max(arrows, 1)), height: M.navHeight)
-            let left = M.margin + (arrows > 0 ? navWidth + M.gap : 0)
-            let height = isBrowse ? M.browseFieldHeight : M.libraryFieldHeight
-            field = CGRect(x: left, y: row1 + (M.rowHeight - height) / 2, width: max(0, w - M.margin - left), height: height)
+            if isReader {
+                field = nil
+                back = nil
+                forward = nil
+            } else {
+                let h1 = M.row1Height
+                let row1 = row2 - M.gap - h1
+                let arrows = isBrowse && (input.canGoBack || input.canGoForward) ? (input.canGoForward ? 2 : 1) : 0
+                let navWidth = arrows == 2 ? M.navPairWidth : arrows == 1 ? M.navSingleWidth : 0
+                (back, forward) = Self.arrows(count: arrows, left: M.margin, top: row1,
+                                              button: navWidth / CGFloat(max(arrows, 1)), height: h1)
+                let left = M.margin + (arrows > 0 ? navWidth + M.gap : 0)
+                field = CGRect(x: left, y: row1, width: max(0, w - M.margin - left), height: h1)
+            }
         }
     }
 

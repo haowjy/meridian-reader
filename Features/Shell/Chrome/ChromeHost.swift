@@ -101,16 +101,18 @@ struct ChromeHost: View {
                 .placed(nav)
                 .transition(.opacity)
         }
-        screen.field($focused)
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("bandField")
-            .environment(\.chromeFieldHeight, g.field.height)
-            .overlay {
-                if destination == .browse {
-                    LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())
+        if let fieldFrame = g.field {
+            screen.field($focused)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("bandField")
+                .environment(\.chromeFieldHeight, fieldFrame.height)
+                .overlay {
+                    if destination == .browse {
+                        LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())
+                    }
                 }
-            }
-            .placed(g.field)
+                .placed(fieldFrame)
+        }
         if let play = g.play, let button = playButton {
             button.placed(play).transition(.opacity)
         }
@@ -132,7 +134,7 @@ struct ChromeHost: View {
                 .frame(maxHeight: .infinity)
                 .chromeSurface(Capsule())
                 .placed(CGRect(x: ChromeMetrics.margin, y: g.more.minY,
-                               width: g.more.maxX - ChromeMetrics.margin, height: ChromeMetrics.rowHeight))
+                               width: g.more.maxX - ChromeMetrics.margin, height: ChromeMetrics.row2Height))
                 .transition(.opacity)
         } else if session.isActive {
             Button(action: screen.onCancel) { ChromeRoundLabel(symbol: Icons.close) }
@@ -290,7 +292,7 @@ private extension View {
 extension ChromeGeometry {
     /// The top edge of the highest piece.
     var top: CGFloat {
-        [field.minY, back?.minY, forward?.minY, pill?.minY, play?.minY, icon?.minY, more.minY]
+        [field?.minY, back?.minY, forward?.minY, pill?.minY, play?.minY, icon?.minY, more.minY]
             .compactMap { $0 }.min() ?? 0
     }
 }

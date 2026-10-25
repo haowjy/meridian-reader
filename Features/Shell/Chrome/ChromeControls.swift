@@ -29,7 +29,8 @@ extension ChromeDestination {
 }
 
 /// `[ Reader | Library | Browser ]`: three equal segments in one capsule, the lit one the screen
-/// you are on. The Reader segment shows what is playing: bars while it plays, the plain document
+/// you are on, an inset capsule (equal padding, concentric corners). Every segment has the same icon
+/// and label size and weight; lit differs by tint and capsule only. The Reader segment shows what is playing: bars while it plays, the plain document
 /// while paused, dimmed when there is nothing to open.
 struct ChromePill: View {
     let lit: ChromeDestination
@@ -39,12 +40,15 @@ struct ChromePill: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let segment = proxy.size.width / CGFloat(ChromeDestination.allCases.count)
+            // The segments share the width left inside the inset, so the lit capsule is inset
+            // equally on all four sides and its radius is the pill's minus the inset.
+            let inset = ChromeMetrics.litInset
+            let segment = (proxy.size.width - 2 * inset) / CGFloat(ChromeDestination.allCases.count)
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(Palette.accent.opacity(0.2))
-                    .frame(width: segment - 2 * ChromeMetrics.litInsetX, height: proxy.size.height - 2 * ChromeMetrics.litInsetY)
-                    .offset(x: segment * CGFloat(lit.segment) + ChromeMetrics.litInsetX)
+                    .frame(width: segment, height: proxy.size.height - 2 * inset)
+                    .offset(x: segment * CGFloat(lit.segment) + inset)
                     .animation(Motion.snappy, value: lit)
                 HStack(spacing: 0) {
                     ForEach(ChromeDestination.allCases, id: \.self) { destination in
@@ -56,6 +60,7 @@ struct ChromePill: View {
                             .accessibilityAddTraits(destination == lit ? .isSelected : [])
                     }
                 }
+                .padding(.horizontal, inset)
             }
         }
         .chromeSurface(Capsule())
@@ -78,7 +83,7 @@ struct ChromePill: View {
             .font(.system(size: 22))
             .frame(height: 26)
             Text(destination.label)
-                .font(.system(size: 11, weight: isLit ? .semibold : .medium))
+                .font(.system(size: 11, weight: .medium))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
@@ -98,7 +103,7 @@ struct ChromeScreenIcon: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: destination.symbol)
-                .font(.system(size: 20))
+                .font(.system(size: BottomChrome.iconSize, weight: .medium))
                 .foregroundStyle(Palette.accent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Circle())
@@ -133,7 +138,7 @@ struct ChromeNavigation: View {
     private func button(_ symbol: String, label: String, id: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: BottomChrome.iconSize, weight: .medium))
                 .foregroundStyle(Palette.ink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
@@ -180,12 +185,12 @@ struct ChromePlayButton: View {
                     ProgressView().controlSize(.small)
                 } else {
                     Image(systemName: state == .playing ? Icons.pause : Icons.play)
-                        .font(.system(size: 16))
+                        .font(.system(size: BottomChrome.iconSize, weight: .medium))
                         .foregroundStyle(state.isCurrent ? Palette.accent : Palette.ink)
                         .contentTransition(.symbolEffect(.replace))
                 }
             }
-            .padding(3)
+            .padding(4)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Circle())
         }
