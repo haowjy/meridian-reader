@@ -3,15 +3,14 @@
 **If a screen shows ‹, you can swipe back from the left edge. If it shows ✕ (or is a sheet with a
 grabber), you can pull it down.** Either gesture must do exactly what tapping the button does.
 
-The two reading sheets have no ✕: each closes with the labelled pill at the top left of its top
-bar, the Reader's "‹ Browser" / "‹ Library", Now Playing's "⌄ Library" (named for where it plays
-from). Both carry a grabber and pull down from their header, or from
-their text when it is at its top, which does exactly what that button does.
+The Reader is not a sheet: on compact width it is a destination in the bottom chrome's pill, so it has
+no ✕, back pill, grabber or pull-down; Library and Browser in the pill leave it ("Bottom chrome", below).
+Regular width keeps the Reader and Now Playing sheets ("iPad and regular width").
 
 | Button | Presentation | Gesture | Provided by |
 |--------|--------------|---------|-------------|
 | ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | UIKit, with the system back button |
-| ✕ | modal: `.sheet`, or the design system's `Sheet` (the Reader, Now Playing) | swipe down | `.sheet` does it natively; `Sheet` implements it (see below) |
+| ✕ | modal: `.sheet`, or the design system's `Sheet` (Follow's chapter preview; the regular-width Reader and Now Playing) | swipe down | `.sheet` does it natively; `Sheet` implements it (see below) |
 
 ## ‹ = push + swipe-back
 
@@ -36,11 +35,9 @@ their text when it is at its top, which does exactly what that button does.
   its top: the Move tree, the import sheet (except while it works), History,
   Settings, Prepared Audio, Edit Details. Their *Done*, *Cancel*, *Save* and *Import* are one
   pill, the neutral one the Reader's close pill is (`SheetBarButton`).
-- The Reader and Now Playing are the design system's `Sheet` (in place, not a `.sheet` or
-  `fullScreenCover`): pulling the header (grabber or the top bar with its close pill) down calls the same close
-  action as its button. Closing never stops audio: the Now Playing bar shows what is playing. In
-  full screen (below) the header is hidden; the first pull down brings it back, the next one
-  closes.
+- The design system's `Sheet` (Follow's chapter preview, and the Reader and Now Playing on regular width,
+  in place, not a `.sheet` or `fullScreenCover`): pulling the header (grabber or the top bar) down calls
+  the same close action as its button. Closing never stops audio.
 - **The text pulls the sheet too, from its top**, so a sheet closes one-handed from the lower half
   of the screen (`SheetPullHandoff`). A drag on the text that begins with the text at its top and
   goes down moves the sheet instead of bouncing the text, which stays put; moving back up lowers
@@ -64,20 +61,21 @@ their text when it is at its top, which does exactly what that button does.
 ## Bottom chrome (compact width)
 
 On iPhone (any compact width) one floating chrome host (`Features/Shell/Chrome/ChromeHost.swift`)
-sits over every destination: the Browser, the Library, and the Reader (the Reader sheet and Now
-Playing). There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
+sits over every destination: the Browser, the Library, and the Reader (the Reader and Now Playing,
+in place, not sheets). There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
 Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular width", below).
 
 ```
 expanded    [‹ ›][ address / Search Library          ]        row 1: the screen's own
             [ Reader | Library | Browser ][▶][  ⋯  ]          row 2: where you are, play, menu
-collapsed   [‹ ›][ address ][▶][icon][⋯]                      scrolled down: one row
+collapsed   [‹ ›][ address ][▶][icon][⋯]                      scrolled down: one row (Library: search; Reader: title chip)
+full screen (Reader only)  nothing                             a middle tap; a ▶ / ⏸ floats for 3 s
 searching   [ field                    ][icon][✕]             the keyboard is up
 ```
 
 - **The pill** `[Reader | Library | Browser]`: three equal segments, the lit one the screen you
   are on (an inset capsule, 4 pt on all four sides, its glyph accent, labels ink). The Reader
-  segment shows bars while something plays and the plain document while paused; with nothing
+  segment is a plain document glyph, playing or not; ▶ and the lit state say what plays. With nothing
   playing and nothing played it is dimmed (never while lit). It opens what plays (Now Playing),
   else the page played last, else a toast.
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2) on one
@@ -94,17 +92,23 @@ searching   [ field                    ][icon][✕]             the keyboard is 
   play and pause live in the chrome's own button. Collapsed, the field shows the URL alone and is
   the tap target.
 - **Row 2** is the pill, a 56 pt round play / pause with a thin progress ring (hidden before
-  anything has played, and on the Reader itself) and ⋯. With nothing loaded ▶ resumes the page
+  anything has played; the same on the Reader) and ⋯. With nothing loaded ▶ resumes the page
   played last.
 - **Collapse.** Scrolling down collapses the chrome to one row, `[‹ ›][address][▶][icon][⋯]`;
   the screen icon is plain (document, books or globe). Scrolling up, tapping the icon or a swipe
-  up on the row expands it (invariant 12). The pill morphs into the icon (iOS 26 glass morph;
+  up on the row expands it (invariant 12; on the Reader scrolling up re-expands only with `ReaderChromeScroll.scrollUpReexpands`, off by default). The pill morphs into the icon (iOS 26 glass morph;
   Reduce Motion and the strip cross-fade). Two states with hysteresis (`ChromeState`).
 - **Searching** (the keyboard up, or its session open): one row, the field, the screen icon and ✕.
-- **The Reader keeps the chrome**: row 2 only (`[pill][⋯]`, no play button, field or arrows),
-  never collapsed, under the Reader sheet and Now Playing, Reader lit. Its ⋯ is the reading
-  page's own menu, so the transport has no ⋯ of its own on compact width. The sheet's Close pill
-  and pull-down still work; Library and Browser dismiss it and switch.
+- **The Reader is a destination, not a sheet**: it shows in place under the same chrome with the
+  Reader lit, row 2 as everywhere (`[pill][▶ ring][⋯]`), and collapses to one row on scroll like the
+  Library and Browser (the field slot is a title chip; the icon, the chip or a swipe up expands). The
+  text's bottom inset stays the row-2 footprint whether the chrome is expanded or collapsed, so the text
+  never resizes. There is no Close pill, grabber or pull-down: Library and Browser in the pill leave it
+  and never stop audio. Its ⋯ is the reading page's own menu. **Full screen** is a tap in the middle of
+  the text, in and out, and nothing else: it removes the whole chrome (no rows, no fade, no band, no top
+  bar, no status bar); scrolling does nothing to it, a ▶ / ⏸ floats for 3 s, and a pull down at the top
+  also brings the chrome back (as `ReadingChrome` always has). Leaving full screen returns to what
+  the chrome was (collapsed stays collapsed).
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
   `BrowsePageReader`): the chrome stays expanded, the address keeps the URL, the reader icon sits
   in a lit capsule and toggles back, and a slim bar under the status bar holds Aa and Listen. The
@@ -129,9 +133,10 @@ project context, `work/bottom-chrome/`, outside this repo; the decision
 `three-destination-bottom-chrome` in the project KB):
 
 - **Reader as the primary reader:** what reads aloud, else the page played last, else an empty
-  state, merging Now Playing into the Reader destination. Other temporary readers are sheets
-  opened from a Library row; at most three are open and only one plays; *Listen* in a temporary
-  reader makes it the primary and stops the old one.
+  state, merging Now Playing into the Reader destination. The temporary-reader sheet (a Library
+  row opening a sheet; at most three open, one plays; *Listen* making it the primary) is not part
+  of the design any more: the Reader has no sheet, Close pill or pull-down, so what a Library tap on
+  an article that is not playing does is undecided (Jimmy's call, PR3).
 - **⋯ sectioned** (Settings first and most prominent, History, Prepared Audio, then the screen's
   own rows), its panel growing out of the glass.
 - **Widths:** below 360 pt or at large text, ‹ › move into ⋯.
@@ -776,15 +781,14 @@ tree in the selected tab, each with its location.
 ## The Reader and Now Playing (what you see, what you hear)
 
 What you **see** and what you **hear** are separate, in three layers: the surface (the browser or
-the Library), the **Reader sheet** over it for reading any article, and **Now Playing** over
-everything for what you hear. The Now Playing bar is the one bridge between them: tapping it opens
-Now Playing. Navigating never changes what you hear, and a play button never navigates. The Reader
+the Library), the **Reader** for reading any article (a destination in the pill on compact width, a
+sheet on regular width), and **Now Playing** for what you hear. On compact width the chrome's ▶ is the
+one bridge between them; on regular width the Now Playing bar is: tapping it opens Now Playing. Navigating never changes what you hear, and a play button never navigates. The Reader
 never shows the article you hear: opening the Reader of that article (📄, a Favorites tile, a Library
 row) opens Now Playing instead.
 
-**The two sheets share their chrome** (decision D24), so Listen turns the Reader into Now Playing
-with nothing moving but what has to: the same top bar (`SheetTopBar`: the close pill at the top
-left, **Aa** then ☝︎ at the top right, at the article margin), one shared bottom band
+**The Reader and Now Playing share their chrome** (decision D24), so Listen turns the Reader into Now Playing
+with nothing moving but what has to: the same top bar (**Aa** then ☝︎ at the top right, at the article margin; on regular width the sheet's close pill is at the top left), one shared bottom band
 (`ReadingBottomBand`: integrated controls flat on the page background, separated by a hairline
 divider — title row, scrub track, transport row, no card, no shadow), the same
 ⋯ menu (Now Playing adds *Go to*), and the same colours and type (the reading theme, below). They
@@ -793,7 +797,9 @@ Reader has ⋯, disabled ⏮/⏭ and a round ▶ that starts Listen; Now Playing
 the speed, and its text follows the audio (the Reader's sits under a heading and never moves by
 itself).
 
-### The Reader sheet
+### The Reader
+
+Below, the grabber and the pill at the top left are the regular-width sheet's; on compact width the Reader is in place with no grabber and no pill.
 
 ```
 ┌──────────────────────────────────────┐
@@ -817,9 +823,10 @@ style always wins over an article's own styles (an extracted article's styleshee
 and an extracted title drops a trailing site name ("Speech synthesis - Wikipedia" reads "Speech
 synthesis").
 
-- **A sheet over the surface that opened it** (`ReaderSheetScreen`, `ShellState.reader`). From
-  the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library
-  *‹ Library*. The pill, the grabber and a pull down all close it to exactly where you were.
+- **In place on compact width, a sheet over the surface that opened it on regular width**
+  (`ReaderSheetScreen`, `ShellState.reader`). On compact width, Library or Browser in the pill leaves it
+  to where you were. On regular width, from the browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the
+  Library *‹ Library*; the pill, the grabber and a pull down close it to exactly where you were.
 - **The bottom band** sits flat on the page background: the artwork tile, the article
   title (one line, clipped), the time detail (*9 min*, *6 min left*, *Finished*) and 🔖 in a
   title row; a thin scrub track at position 0; and a transport row with 1× at the leading edge,
@@ -892,8 +899,8 @@ synthesis").
 - **Opens from** the bar (tap, swipe up), from opening the Reader of the article that is playing,
   from Listen in the Reader (in place, D2) and from crash resume. It presents over everything
   (`ShellState.isNowPlayingPresented`) and holds no article of its own: it shows what you hear.
-  **The close pill or a pull down (on the header, or on the text at its top) shrinks it into the
-  bar**, back on
+  **On compact width Library or Browser in the pill leaves it; on regular width the close pill or a
+  pull down shrinks it into the bar**, back on
   what was underneath (the browser, the Library, or a Reader of another page), untouched.
 - **It reads like the Reader**: the same reading theme, typeface, size and spacing (see "Reading
   appearance" below). Over a light app, a dark theme (Dark, Black) gives it light status bar
@@ -908,7 +915,7 @@ synthesis").
 - **The bottom band** (flat on the page background, no card, no shadow) shows the artwork tile,
   the title (`ArticleRowTitle.lineOne`) and the time left (*9 min left*; *Finished* at the end)
   in a title row, then the scrub row with the speed control, status notes and the transport.
-- **The close pill names where it plays from** (*⌄ Pride and Prejudice*; VoiceOver: *Close Now
+- **On regular width the close pill names where it plays from** (*⌄ Pride and Prejudice*; VoiceOver: *Close Now
   Playing*, *Playing from …*): the folder the article is in, a book, a series or one you
   made; *Library* for a saved article in no folder; the site for an article you haven't saved. Tapping
   it only closes. **⋯ → *Go to <name>*** (the first row) closes Now Playing onto the Library at
@@ -992,35 +999,34 @@ synthesis").
 
 ### Full screen (the Reader and Now Playing)
 
-Both sheets read full screen the same way (`ReadingChrome`); Follow's chapter preview doesn't.
+The Reader and Now Playing read full screen the same way (`ReadingChrome`); Follow's chapter preview doesn't.
 
-- **Scrolling the text down** (the finger moving up about 16 pt without turning back) hides the
-  grabber, the top bar and the bottom band together: they slide off their edges and fade (fade
-  only under Reduce Motion). The status bar fades out with them (and back in with them, in every
-  theme), the home indicator dims, and the strip above the sheet takes the article's colour, so only
-  the text shows. In Scroll the text's top edge fades into the page over a line's height, and a
-  drag let go comes to rest as an edge tap lands, with a whole line under the fade (where its
-  glide would stop, moved to the nearest line), so no line rests cut by the screen's edge. **Scrolling up a little**
-  (about 8 pt) or **a tap in the middle of the text** brings them back over the text; the text
-  doesn't move either way. The next scroll down or middle tap hides them again. Scrolls the app
-  makes (following the audio, a scrub, opening at a spot) never do. The bars stay while VoiceOver
-  runs, while ☝︎ is on, and while Aa or ⋯ is open.
+- **Full screen is a tap in the middle of the text, in and out, and nothing else.** On compact
+  width it removes the whole chrome: both rows, the fade, the band, the top bar and the status bar
+  go (fade only under Reduce Motion), the home indicator dims, and the text shows alone, never
+  moving. **Scrolling does nothing to the chrome in full screen, and scrolling never enters or
+  leaves it.** Leaving full screen returns to what the chrome was before (collapsed stays collapsed).
+  On regular width the sheet's grabber, top bar and bottom band hide and show together the same way.
+  The app's own scrolls (following the audio, a scrub, opening at a spot) never change it. The bars
+  stay while VoiceOver runs, while ☝︎ is on, and while Aa or ⋯ is open.
+- **Not in full screen**, scrolling down collapses the chrome to its one row (above); the text
+  never moves for it.
 - **Taps on the text** (not on a link; ☝︎ keeps its paragraph taps): the right 30% of the width
   goes forward a screen, the left 30% back one (the visible text less one line, landing with a
   whole line at the top: below the top bar, or below the fade in full screen; on the
-  `Motion.standard` spring, a jump under Reduce Motion, never past either end), the middle shows or
-  hides the bars. The first 48 pt from the left edge do nothing, so an edge swipe never turns a
+  `Motion.standard` spring, a jump under Reduce Motion, never past either end), the middle enters or
+  leaves full screen. The first 48 pt from the left edge do nothing, so an edge swipe never turns a
   page. Edge taps leave the bars as they are. In Now Playing a page turn stops following the audio
   as a drag does, and *Jump to Audio* appears.
 - **A small ▶ / ⏸ floats at the bottom right** in full screen (a 44 pt accent disc with the
   shadow, above the home indicator, at the article margin): Now Playing's plays and pauses
   what you hear; the Reader's is its Listen (and turns it into Now Playing). It fades out 3 s after
   full screen begins; an edge tap (a page turn), or a tap on it, brings it back for another 3 s. A
-  tap in the middle brings the bars back instead, with their play control. It isn't there while
+  tap in the middle leaves full screen instead, with the chrome's play control. It isn't there while
   the bars show.
-- **At the top**, a pull down in full screen rubber-bands and brings the bars back, never closing
-  the sheet; a pull that begins with the bars showing closes it as usual, and while it pulls the
-  sheet it never hides or shows the bars.
+- **At the top**, a pull down in full screen rubber-bands and brings the chrome and the bars back (on
+  regular width never closing the sheet; a pull that begins with the bars showing closes it as
+  usual, and while it pulls the sheet it never hides or shows the bars).
 - *Jump to Audio* shows only with the bars up, just above the bottom band, and only while the
   text is away from the audio. It never shows in full screen, in Scroll or Pages: there the
   floating ▶ (unchanged: bottom right, fades after 3 s) is the only control over the text (C128,
@@ -1069,7 +1075,7 @@ time; Follow's chapter preview always scrolls.
   CSS columns a screen wide, in the web view's own scroll view with paging on, so a page tracks
   the finger 1:1 and settles with the system's physics; a tap at the right edge zone slides to the
   next page, at the left edge zone to the one before (the scroll view's own animation; at once
-  under Reduce Motion); the middle shows or hides the bars. The first 48 pt from the left edge
+  under Reduce Motion); the middle enters or leaves full screen. The first 48 pt from the left edge
   stay the system's: a swipe or tap that begins there turns nothing. Pages never scroll
   vertically, so a pull down on the text doesn't close the sheet there (the grabber and the
   close pill do).
@@ -1199,7 +1205,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Browser (start page / web page) | — | root |
 | Browser → editing the address | ✕ round, right of the field | in place; tap outside or drag down |
 | Browser ⋯ / Reader ⋯ / Now Playing ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
-| ⋯ → Website (Reader, Now Playing) | — | closes the sheet (and leaves the library) and shows / loads the page in the browser; audio continues |
+| ⋯ → Website (Reader, Now Playing) | — | leaves the Reader (the sheet closes on regular width, and the library) and shows / loads the page in the browser; audio continues |
 | ⋯ → Settings (`SettingsView`); on iPad also the sidebar's Settings | Done | `.sheet` (a form sheet on iPad); Voice, Language, Speed, Appearance, Reading, Prepared Audio and Acknowledgements push inside it |
 | Reader / Now Playing → Aa (`TextAppearanceControl`) | tap outside | popover from Aa |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
@@ -1212,8 +1218,8 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it holding the chapter's article, pulled down to close (from its top) |
 | Following (`FollowingSheet`): a story's status line | Done | `.sheet`, medium and large |
-| Reader sheet (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface; pull the header down |
-| Now Playing (`NowPlayingScreen`): the bar, the Reader of the playing article, Listen, crash resume | *⌄ <playing from>* pill, top left | `Sheet` over everything; pull the header down |
+| Reader (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | compact: Library or Browser in the pill; regular: *‹ Browser* / *‹ Library* pill, top left | compact: in place under the chrome; regular: `Sheet` over the surface, pull the header down |
+| Now Playing (`NowPlayingScreen`): ▶ or the bar, the Reader of the playing article, Listen, crash resume | compact: Library or Browser in the pill; regular: *⌄ <playing from>* pill, top left | compact: in place under the chrome; regular: `Sheet` over everything, pull the header down |
 | Listen debug panel | Done | `.sheet` (over Settings when opened from it) |
 | Speed picker | — | popover |
 

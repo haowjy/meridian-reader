@@ -9,8 +9,8 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   the host owns the pill, the play button, collapse (`ChromeState`, fed by `chromeScrollSource`) and
   the glass or strip skin (`ChromeSkin`; App sets `ChromeSkin.forcesStrip` for `-chromeFallback`). Screens reserve `ChromeMetrics.footprint` at the bottom
   (`CompactChromeInsets`) and report their scroll with `CompactChromeScroll`. `SurfaceBand` remains
-  for regular width. Every piece is a capsule or circle (radius = height / 2), heights 52 / 56 / 48; the Reader keeps
-  the chrome (row 2 only, footprint `readerFootprint`); the compact address pill ends in reload (iPad's field keeps 🎧).
+  for regular width. Every piece is a capsule or circle (radius = height / 2), heights 52 / 56 / 48; the Reader is a destination under
+  the chrome (collapses like the other screens; full screen removes it); the compact address pill ends in reload (iPad's field keeps 🎧).
   Change the host, never one screen.
 - **Two size classes.** iPad layout is gated on `horizontalSizeClass == .regular` and compact (iPhone,
   iPad in a compact window) draws the chrome host; regular width keeps `SurfaceBand` and the dock. When you touch shell chrome, check both.
