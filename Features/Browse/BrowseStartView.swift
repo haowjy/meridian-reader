@@ -248,6 +248,7 @@ struct BrowseStartView: View {
         }
         .animation(isRegular || reduceMotion ? nil : Motion.snappy, value: ReadingLayers(reader: shell.reader?.presentation,
                                                                               nowPlaying: shell.nowPlayingPresentation))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Compact: the one bottom chrome, over the browser, the Library, the Reader and Now
         // Playing alike. The Reader is a destination: it keeps the pill (row 2) under its text, and
         // the Reader or Now Playing hands the chrome the card it draws above it.

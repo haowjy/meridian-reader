@@ -39,10 +39,10 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertEqual(rows.count, 1, "one row per page")
     }
 
-    /// The Reader opened from the Library is in place under the chrome: scrolling down collapses the
-    /// chrome to one row, a tap in the middle of the text removes it and another brings it back
-    /// (collapsed, as it was), and there is no Close pill.
-    func testInPlaceReaderCollapsesOnScrollAndFullScreenIsAMiddleTap() throws {
+    /// The Reader opened from the Library is in place under the chrome: scrolling down folds the
+    /// chrome to one row and scrolling up unfolds it again, a tap in the middle of the text removes
+    /// it and another brings it back, and there is no Close pill.
+    func testInPlaceReaderFoldsOnScrollAndFullScreenIsAMiddleTap() throws {
         let app = launchLibrary()
         // A row's tap plays it; its menu's Read opens the Reader.
         tapWhenHittable(libraryCell(app, "Demo Listen Article").buttons["rowMore"])
@@ -52,18 +52,25 @@ final class CoreFlowsUITests: XCTestCase {
 
         let pill = app.buttons["chromeLibrary"], icon = app.buttons["chromeScreenIcon"]
         XCTAssertTrue(pill.exists && !icon.exists, "expanded: the pill")
+        XCTAssertTrue(app.otherElements["readingPlayerCard"].exists, "the player card is above it")
         XCTAssertFalse(app.buttons["readerClose"].exists, "no Close pill")
 
-        // Ends held still, so nothing glides on and a later tap is a tap.
+        // Each drag ends held still, so nothing glides on and a later tap is a tap.
         let text = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        text.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)),
-                   withVelocity: .slow, thenHoldForDuration: 0.3)
-        XCTAssertTrue(eventually { icon.exists && !pill.exists }, "scrolling down collapses to one row")
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
+        let low = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
+        text.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.3)
+        XCTAssertTrue(eventually { icon.exists && !pill.exists }, "scrolling down folds to one row")
 
+        top.press(forDuration: 0.05, thenDragTo: low, withVelocity: .slow, thenHoldForDuration: 0.3)
+        XCTAssertTrue(eventually { pill.exists && !icon.exists }, "scrolling up unfolds it: the Reader scrolls like the rest")
+
+        text.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.3)
+        XCTAssertTrue(eventually { icon.exists && !pill.exists })
         text.tap()
         XCTAssertTrue(eventually { !icon.exists && !pill.exists && !more.exists }, "a middle tap removes the chrome")
         text.tap()
-        XCTAssertTrue(eventually { icon.exists && more.exists }, "another brings it back, still collapsed")
+        XCTAssertTrue(eventually { icon.exists && more.exists }, "another brings it back, still folded")
         XCTAssertFalse(pill.exists)
     }
 }

@@ -65,14 +65,18 @@ struct ChromePieces: View, Animatable {
 
     // MARK: - Pieces
 
-    /// `content` in `piece`'s rect and opacity.
+    /// `content` in `piece`'s rect. A piece that has faded away is not in the tree at all: Liquid
+    /// Glass ignores an `opacity` above it, so one that only faded would stay drawn. It comes and
+    /// goes with a cross-fade (`ChromeHost` animates the step).
+    @ViewBuilder
     private func piece(_ piece: ChromePiece, @ViewBuilder _ content: () -> some View) -> some View {
-        content()
-            .frame(width: piece.rect.width, height: piece.rect.height)
-            .offset(x: piece.rect.minX, y: piece.rect.minY)
-            .opacity(piece.opacity)
-            .allowsHitTesting(piece.isInteractive)
-            .accessibilityHidden(!piece.isInteractive)
+        if piece.opacity > 0.01 {
+            content()
+                .frame(width: piece.rect.width, height: piece.rect.height)
+                .offset(x: piece.rect.minX, y: piece.rect.minY)
+                .allowsHitTesting(piece.isInteractive)
+                .transition(.opacity)
+        }
     }
 
     /// The address, the search, or on the Reader the card that folds into the title chip. The first
