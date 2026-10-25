@@ -54,7 +54,7 @@ enum MenuRegistry {
         // A prepare
         case reprepare, removePrepare
         // A screen's own rows
-        case newFolder, importFile, pasteText, follow, sort, reload, preparedAudio, settings
+        case newFolder, importFile, pasteText, follow, sort, reload, preparedAudio, history, settings
         // The Prepared Audio list's own ⋯ (C135)
         case deleteAllPrepared, clearListeningAudio
     }
@@ -96,6 +96,8 @@ enum MenuRegistry {
         var hasWebPage = false
         /// *Follow…* can run (the browser: a web page is up).
         var canFollow = true
+        /// The compact chrome draws the ⋯, and it has no 🕘 button: *History* is a row.
+        var compact = false
         /// Kept for menu compatibility; always false since C149.
         var isFixedOrder = false
     }
@@ -195,6 +197,8 @@ enum MenuRegistry {
              applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
         Spec(option: .reload, kind: .screen, places: [.browser], enabled: { $0.hasWebPage }, greyIf: "no page up"),
         Spec(option: .preparedAudio, kind: .screen, places: panelPlaces),
+        Spec(option: .history, kind: .screen, places: panelPlaces, applies: { $0.compact },
+             hiddenIf: "regular width (🕘 is in the toolbar)"),
         // The Prepared Audio list's ⋯: each only while its section has rows.
         Spec(option: .deleteAllPrepared, kind: .screen, places: [.preparedAudio], applies: { $0.hasPrepared },
              hiddenIf: "nothing prepared"),

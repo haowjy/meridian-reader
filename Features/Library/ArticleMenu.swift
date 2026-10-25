@@ -167,12 +167,12 @@ extension ArticleActions {
     /// The ⋯ panel of the Reader and Now Playing (decision D24, C140): the page's menu, then
     /// *Prepared Audio*, then `[Settings][Saved][Reader]`. Reader is disabled: already reading.
     /// Website is reachable via Share in the article's own menu rows.
-    func readingPageMenu(_ place: ArticleMenu.Place) -> MenuContext {
+    func readingPageMenu(_ place: ArticleMenu.Place, compact: Bool) -> MenuContext {
         let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader,
                              availability: .disabled,
                              accessibilityHint: String(localized: "Already in the Reader"))
         return MenuContext(item: ArticleMenu(actions: self, place: place).rows,
-                           screen: MenuContext.screenRows(at: place.registryPlace, shell: shell),
+                           screen: MenuContext.screenRows(at: place.registryPlace, compact: compact, shell: shell),
                            tiles: MenuContext.tiles(shell, last: reader), isOnReadingPage: true)
     }
 
@@ -181,14 +181,14 @@ extension ArticleActions {
     /// both screens.
     @MainActor
     static func readingPageMenu(shell: ShellState, library: LibraryStore, speech: SpeechController,
-                                preparedAudio: PrepareCenter, follow: FollowCenter) -> MenuContext {
+                                preparedAudio: PrepareCenter, follow: FollowCenter, compact: Bool) -> MenuContext {
         let now = shell.isNowPlayingPresented ? speech.nowPlaying : nil
         let readerArticle = now.map { library.nowPlayingContent(for: $0.articleKey) } ?? shell.readerArticle
         let key = now?.articleKey ?? readerArticle?.id
         let actions = ArticleActions(article: key.flatMap { library.article(key: $0, canonicalURL: readerArticle?.origin.canonicalURL) },
                                      readerArticle: readerArticle, library: library, shell: shell, speech: speech,
                                      preparedAudio: preparedAudio, follow: follow)
-        return actions.readingPageMenu(now.map { .nowPlaying(actions.goTo($0)) } ?? .open)
+        return actions.readingPageMenu(now.map { .nowPlaying(actions.goTo($0)) } ?? .open, compact: compact)
     }
 
     /// Now Playing's *Go to <place>*: the folder the page plays from, or the Library's home for a

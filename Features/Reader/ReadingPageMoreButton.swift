@@ -16,7 +16,7 @@ struct ReadingPageMoreButton: View {
     var body: some View {
         MoreMenuButton(id: id, chrome: chrome) {
             ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
-                                           preparedAudio: preparedAudio, follow: follow)
+                                           preparedAudio: preparedAudio, follow: follow, compact: chrome)
         }
     }
 }

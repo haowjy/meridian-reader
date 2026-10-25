@@ -20,13 +20,19 @@ struct MenuContext {
     var isOnReadingPage = false
 
     /// A screen's own block, from `MenuRegistry` (C98): *Sort*, *Follow…*, *Reload* where they
-    /// apply, then *Prepared Audio* last. `custom` gives the rows only a screen can make (its
-    /// *Sort*, *Follow…*, *Reload*). Settings is a tile (C140), not a list row.
+    /// apply, then *Prepared Audio* and, in the compact chrome's ⋯ (`compact`), *History*.
+    /// `custom` gives the rows only a screen can make (its *Sort*, *Follow…*, *Reload*). Settings
+    /// is a tile (C140), not a list row.
     @MainActor
-    static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(), shell: ShellState,
-                           custom: (MenuRegistry.Option) -> MenuRow? = { _ in nil }) -> [MenuRow] {
-        MenuRegistry.rows(.screen, at: place, facts) { option in
+    static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(), compact: Bool,
+                           shell: ShellState, custom: (MenuRegistry.Option) -> MenuRow? = { _ in nil }) -> [MenuRow] {
+        var facts = facts
+        facts.compact = compact
+        return MenuRegistry.rows(.screen, at: place, facts) { option in
             if let row = custom(option) { return row }
+            if option == .history {
+                return MenuRow(id: "moreHistory", title: Verbs.history, icon: Icons.history) { shell.present(.history) }
+            }
             return MenuRow(id: "morePreparedAudio", title: Verbs.preparedAudio, icon: Icons.preparedAudio) { shell.present(.preparedAudio) }
         }
     }

@@ -346,7 +346,7 @@ struct BrowseStartView: View {
         facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
         facts.hasWebPage = hasPage
         // No *New Search*: a tap on the address field starts one (C98).
-        let screen = MenuContext.screenRows(at: .browser, facts: facts, shell: shell) { option in
+        let screen = MenuContext.screenRows(at: .browser, facts: facts, compact: !isRegular, shell: shell) { option in
             switch option {
             case .follow:
                 return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) {
@@ -358,14 +358,10 @@ struct BrowseStartView: View {
             default: return nil
             }
         }
-        // The compact chrome has no 🕘 button: History is a row of ⋯.
-        let rows = isRegular ? screen : screen + [MenuRow(id: "moreHistory", title: Verbs.history, icon: Icons.history) {
-            shell.present(.history)
-        }]
         let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: shell.pageReader != nil ? Verbs.showWebPage : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
-        return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: rows,
+        return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
                            tiles: MenuContext.tiles(shell, last: reader))
     }
 

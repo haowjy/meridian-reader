@@ -32,12 +32,12 @@ struct LibraryScreenMenu {
     /// The screen's rows (C98, C100): *Sort ›* (not in a folder that keeps its own order),
     /// *Prepared Audio*; then `[Settings][Saved][Reader]`. Reader opens Now Playing when audio
     /// is playing, greyed otherwise.
-    var menu: MenuContext {
+    func menu(compact: Bool) -> MenuContext {
         let folder = topFolder
         var facts = MenuRegistry.Facts()
         facts.isFixedOrder = false
         let screenRows = MenuContext.screenRows(at: folder == nil ? .libraryHome : .folderScreen, facts: facts,
-                                                shell: shell) { option in
+                                                compact: compact, shell: shell) { option in
             option == .sort ? sortRow(folder) : nil
         }
         let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader,

@@ -191,18 +191,21 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | prepared audio | never | never |
+| history | regular width (🕘 is in the toolbar) | never |
 
 ### screen at nowPlaying
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | prepared audio | never | never |
+| history | regular width (🕘 is in the toolbar) | never |
 
 ### screen at browser
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | follow | never | browser: no web page up |
+| history | regular width (🕘 is in the toolbar) | never |
 
 ### screen at edit
 
@@ -218,6 +221,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 |---|---|---|
 | sort | never | never |
 | prepared audio | never | never |
+| history | regular width (🕘 is in the toolbar) | never |
 
 ### screen at folderScreen
 
@@ -225,6 +229,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 |---|---|---|
 | sort | never | never |
 | prepared audio | never | never |
+| history | regular width (🕘 is in the toolbar) | never |
 
 ### screen at add
 

@@ -31,16 +31,13 @@ struct LibraryChrome {
         return folder.map { LibraryHomeTab.searchPrompt(naming: $0.name) } ?? shell.homeTab.searchPrompt
     }
 
-    /// The compact ⋯: the screen's menu, with what the old toolbar's ＋ and 🕘 did as rows of it
-    /// (*New Folder…*, *Import from…*, *Paste Text…*, *History*), so they stay one tap from ⋯.
+    /// The compact ⋯: the screen's menu, with what the old toolbar's ＋ did as rows of it
+    /// (*New Folder…*, *Import from…*, *Paste Text…*), so they stay one tap from ⋯.
     var compactMenu: MenuContext {
-        var menu = screenMenu.menu
+        var menu = screenMenu.menu(compact: true)
         // Favorites only lists starred items; nothing is created there (C150).
         let creates = !(shell.libraryPath.isEmpty && shell.homeTab == .favorites)
         menu.screen = (creates ? screenMenu.createRows : []) + menu.screen
-        menu.screen.append(MenuRow(id: "moreHistory", title: Verbs.history, icon: Icons.history) { [shell] in
-            shell.present(.history)
-        })
         return menu
     }
 

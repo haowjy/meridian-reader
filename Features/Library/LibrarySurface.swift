@@ -100,7 +100,7 @@ struct LibrarySurface: View {
                 }
                 BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
                                   identifier: "libraryHistory") { shell.present(.history) }
-                MoreMenuButton(id: "libraryMore") { screenMenu.menu }
+                MoreMenuButton(id: "libraryMore") { screenMenu.menu(compact: false) }
                     .turnOffPrepareQuestion(turningOff)
             }
             .tint(Palette.ink)
