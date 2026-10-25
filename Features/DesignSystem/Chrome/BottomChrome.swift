@@ -27,6 +27,8 @@ enum BottomChrome {
     static func fieldFill(_ reading: ReadingPalette?) -> Color { reading?.card ?? Palette.chrome }
     /// Toolbar glyph size.
     static let iconSize: CGFloat = 19
+    /// Every control glyph in the compact chrome, the field's controls too: fixed, medium.
+    static let chromeGlyph = Font.system(size: iconSize, weight: .medium)
     /// Text standing in for a field control (the speed). Like the glyphs it keeps its size at
     /// large text sizes, so the controls never crowd.
     static let toolbarTextSize: CGFloat = 17
@@ -92,7 +94,8 @@ extension View {
     }
 
     /// A small control inside the field capsule (mic, Jump, bookmark): 36 pt with a body-size
-    /// glyph, growing with Dynamic Type like the capsule; taps land anywhere in 44 pt.
+    /// glyph, growing with Dynamic Type like the capsule; taps land anywhere in 44 pt. In the
+    /// compact chrome's field: the chrome's fixed glyph in a 30 pt frame.
     func fieldControlFrame() -> some View {
         modifier(FieldControlFrame())
     }
@@ -159,13 +162,23 @@ private struct BottomChromeField: ViewModifier {
 
 private struct FieldControlFrame: ViewModifier {
     @ScaledMetric(relativeTo: .body) private var size = BottomChrome.fieldControlSize
+    @Environment(\.chromeFieldHeight) private var chromeHeight
 
     func body(content: Content) -> some View {
-        let side = BottomChrome.grown(size, from: BottomChrome.fieldControlSize)
-        content
-            .font(.body)
-            .frame(width: side, height: side)
-            .tapTarget(side)
+        if chromeHeight != nil {
+            // In the compact chrome's fixed-height field: the chrome's glyph, in the field's slot.
+            content
+                .font(BottomChrome.chromeGlyph)
+                .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
+                .tapTarget(Glyph.fieldLeading)
+                .accessibilityShowsLargeContentViewer()
+        } else {
+            let side = BottomChrome.grown(size, from: BottomChrome.fieldControlSize)
+            content
+                .font(.body)
+                .frame(width: side, height: side)
+                .tapTarget(side)
+        }
     }
 }
 

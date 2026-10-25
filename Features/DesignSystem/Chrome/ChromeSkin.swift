@@ -88,6 +88,11 @@ private struct ChromeSurface<S: Shape>: ViewModifier {
 }
 
 extension View {
+    /// The chrome's fixed-size glyphs don't grow with text; a long press shows this one large.
+    func chromeLargeContent(_ label: String, symbol: String) -> some View {
+        accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }
+    }
+
     /// Gives the glass shape an identity inside a `GlassEffectContainer`, so two shapes that share
     /// `id` (the pill and the collapsed icon) morph into each other as one is swapped for the other.
     func chromeMorph(_ id: String, in namespace: Namespace.ID) -> some View {

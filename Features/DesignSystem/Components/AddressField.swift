@@ -53,6 +53,8 @@ struct AddressField<Field: View, Accessory: View>: View {
 
     /// The 📄 glyph's frame.
     private static var readerSize: CGFloat { Glyph.fieldLeading }
+    /// The field's control glyphs: the chrome's own in the compact chrome, else body text size.
+    private var controlFont: Font { chromeHeight != nil ? BottomChrome.chromeGlyph : .body }
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
@@ -69,7 +71,7 @@ struct AddressField<Field: View, Accessory: View>: View {
             if let reload, !showsAddressOnly {
                 Button(action: onReload) {
                     Image(systemName: reload == .stop ? Icons.close : Icons.reload)
-                        .font(.body)
+                        .font(controlFont)
                         .foregroundStyle(Palette.secondaryInk)
                         .frame(width: Self.readerSize, height: Self.readerSize)
                         .tapTarget(Self.readerSize)
@@ -77,6 +79,8 @@ struct AddressField<Field: View, Accessory: View>: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(reload == .stop ? Verbs.stopLoading : Verbs.reload)
                 .accessibilityIdentifier("addressReload")
+                .chromeLargeContent(reload == .stop ? Verbs.stopLoading : Verbs.reload,
+                                    symbol: reload == .stop ? Icons.close : Icons.reload)
             }
             accessory
         }
@@ -89,7 +93,7 @@ struct AddressField<Field: View, Accessory: View>: View {
     private var leading: some View {
         switch reader {
         // 🔍 when there is nothing to read or while editing: the same slot, glyph and frame as
-        // the Library's `SearchField`, so both fields line up.
+        // the Library's `SearchField`, so both fields line up. A caption-size hint, not a control.
         case .hidden, .searching:
             Image(systemName: Icons.search)
                 .font(.caption)
@@ -103,7 +107,7 @@ struct AddressField<Field: View, Accessory: View>: View {
         case .available:
             Button(action: onOpenReader) {
                 Image(systemName: Icons.reader)
-                    .font(.body)
+                    .font(controlFont)
                     .foregroundStyle(Palette.accent)
                     .frame(width: Self.readerSize, height: Self.readerSize)
                     .tapTarget(Self.readerSize)
@@ -111,6 +115,7 @@ struct AddressField<Field: View, Accessory: View>: View {
             .buttonStyle(.plain)
             .accessibilityLabel(Verbs.openInReader)
             .accessibilityIdentifier("addressReader")
+            .chromeLargeContent(Verbs.openInReader, symbol: Icons.reader)
             .transition(.opacity)
         case .showing:
             // The reader view shows: the icon sits in a lit capsule inset from the field's edge,
@@ -118,7 +123,7 @@ struct AddressField<Field: View, Accessory: View>: View {
             let side = chromeHeight ?? BottomChrome.rowHeight
             Button(action: onOpenReader) {
                 Image(systemName: Icons.readerShowing)
-                    .font(.body)
+                    .font(controlFont)
                     .foregroundStyle(Palette.accent)
                     .frame(width: side, height: side)
                     .background { Circle().fill(Palette.lit).padding(BottomChrome.litInset) }
@@ -128,6 +133,7 @@ struct AddressField<Field: View, Accessory: View>: View {
             .accessibilityLabel(Verbs.showWebPage)
             .accessibilityAddTraits(.isSelected)
             .accessibilityIdentifier("addressReader")
+            .chromeLargeContent(Verbs.showWebPage, symbol: Icons.readerShowing)
             .transition(.opacity)
         }
     }

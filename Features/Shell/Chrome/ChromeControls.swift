@@ -28,13 +28,6 @@ extension ChromeDestination {
     var segment: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
-extension View {
-    /// The chrome's fixed-size glyphs don't grow with text; a long press shows this one large.
-    func chromeLargeContent(_ label: String, symbol: String) -> some View {
-        accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }
-    }
-}
-
 /// `[ Reader | Library | Browser ]`: three equal segments in one capsule, the lit one the screen
 /// you are on, an inset capsule (equal padding, concentric corners). Every segment has the same icon
 /// and label size and weight; lit differs by the glyph's tint and the capsule only (labels stay ink,
@@ -91,7 +84,7 @@ struct ChromePill: View {
                     Image(systemName: destination.symbol)
                 }
             }
-            .font(.system(size: BottomChrome.iconSize, weight: .medium))
+            .font(BottomChrome.chromeGlyph)
             .foregroundStyle(isLit || (destination == .reader && reader?.isCurrent == true) ? Palette.accent : Palette.ink)
             .frame(height: ChromeMetrics.segmentGlyphHeight)
             Text(destination.label)
@@ -115,7 +108,7 @@ struct ChromeScreenIcon: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: destination.symbol)
-                .font(.system(size: BottomChrome.iconSize, weight: .medium))
+                .font(BottomChrome.chromeGlyph)
                 .foregroundStyle(Palette.accent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Circle())
@@ -151,7 +144,7 @@ struct ChromeNavigation: View {
     private func button(_ symbol: String, label: String, id: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: BottomChrome.iconSize, weight: .medium))
+                .font(BottomChrome.chromeGlyph)
                 .foregroundStyle(Palette.ink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
@@ -173,7 +166,7 @@ struct ChromeRoundLabel: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: BottomChrome.iconSize, weight: .medium))
+            .font(BottomChrome.chromeGlyph)
             .foregroundStyle(Palette.ink)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Circle())
@@ -202,7 +195,7 @@ struct ChromePlayButton: View {
                     ProgressView().controlSize(.small)
                 } else {
                     Image(systemName: state == .playing ? Icons.pause : Icons.play)
-                        .font(.system(size: BottomChrome.iconSize, weight: .medium))
+                        .font(BottomChrome.chromeGlyph)
                         .foregroundStyle(state.isCurrent ? Palette.accent : Palette.ink)
                         .contentTransition(.symbolEffect(.replace))
                 }
