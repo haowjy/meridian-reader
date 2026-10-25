@@ -231,8 +231,14 @@ struct BrowseStartView: View {
         ZStack {
             if shell.isInLibrary {
                 LibrarySurface(chrome: libraryChrome)
-                    .covered(shell.reader != nil || shell.isNowPlayingPresented)
+                    .covered(shell.reader != nil || shell.isNowPlayingPresented || shell.libraryReader != nil)
                     .transition(.opacity)
+                // Library Read: the page's text in place of the Library, which stays under it as it was.
+                if let article = shell.libraryReader, !isRegular {
+                    BrowsePageReader(article: article, speech: speech, onEdgeSwipeBack: shell.closeLibraryReader)
+                        .covered(shell.reader != nil || shell.isNowPlayingPresented)
+                        .transition(.opacity)
+                }
             }
             if let reader = shell.reader {
                 ReaderSheetScreen(state: reader, speech: speech)
@@ -247,7 +253,9 @@ struct BrowseStartView: View {
             }
         }
         .animation(isRegular || reduceMotion ? nil : Motion.snappy, value: ReadingLayers(reader: shell.reader?.presentation,
-                                                                              nowPlaying: shell.nowPlayingPresentation))
+                                                                              nowPlaying: shell.nowPlayingPresentation,
+                                                                              libraryReader: shell.libraryReader != nil))
+        .onChange(of: isRegular, initial: true) { _, regular in shell.readsInPlace = !regular }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Compact: the one bottom chrome, over the browser, the Library, the Reader and Now
         // Playing alike. The Reader is a destination: it keeps the pill (row 2) under its text, and
@@ -263,6 +271,7 @@ struct BrowseStartView: View {
     private struct ReadingLayers: Equatable {
         var reader: UUID?
         var nowPlaying: UUID?
+        var libraryReader: Bool
     }
 
     // MARK: - Compact bottom chrome

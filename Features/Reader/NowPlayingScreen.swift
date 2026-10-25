@@ -134,7 +134,7 @@ struct NowPlayingScreen: View {
             } scrub: {
                 playerScrub(spot: spot) { EmptyView() }
             } appearance: {
-                TextAppearanceControl()
+                TextAppearanceControl(arrowEdge: .bottom)
             } speed: {
                 SpeedButton(speech: speech)
             }

@@ -3,7 +3,7 @@ import SwiftUI
 extension ChromeDestination {
     var symbol: String {
         switch self {
-        case .reader: Icons.reader
+        case .reader: Icons.listen
         case .library: Icons.library
         case .browse: Icons.browser
         }
@@ -11,7 +11,7 @@ extension ChromeDestination {
 
     var label: String {
         switch self {
-        case .reader: Verbs.reader
+        case .reader: Verbs.listen
         case .library: Verbs.library
         case .browse: Verbs.browser
         }
@@ -19,7 +19,7 @@ extension ChromeDestination {
 
     var identifier: String {
         switch self {
-        case .reader: "chromeReader"
+        case .reader: "chromeListen"
         case .library: "chromeLibrary"
         case .browse: "chromeBrowser"
         }
@@ -28,13 +28,13 @@ extension ChromeDestination {
     var segment: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
-/// `[ Reader | Library | Browser ]`, and the screen icon it folds into: one capsule whose rect the
+/// `[ Listen | Library | Browser ]`, and the screen icon it folds into: one capsule whose rect the
 /// layout animates between the full pill and the icon's circle. Folding is the lit segment's glyph
 /// sliding to the middle while the other segments, their labels and the lit wash fade, so the
 /// lit segment is the icon. Every segment has the same icon and label size and weight; lit differs
 /// by the glyph's tint and the wash only (labels stay ink, which holds 4.5:1 on the wash in every
-/// accent). The Reader segment is the plain document whether or not anything plays (▶ and the lit
-/// segment say what plays); it is dimmed when there is nothing to open and it is not lit.
+/// accent). The Listen segment (`.reader`, the destination's internal name) is the headphones whether or not anything
+/// plays (▶ and the lit segment say what plays); it is dimmed when there is nothing to open and it is not lit.
 ///
 /// Expanded, each segment is a button; folded (past half), the whole circle is one: a tap on the icon
 /// is a swipe up.

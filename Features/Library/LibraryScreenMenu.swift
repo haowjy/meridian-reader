@@ -40,7 +40,7 @@ struct LibraryScreenMenu {
                                                 shell: shell) { option in
             option == .sort ? sortRow(folder) : nil
         }
-        let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader,
+        let reader = MenuRow(id: "moreListen", title: Verbs.listen, icon: Icons.listen,
                              availability: MenuAvailability(when: speech.nowPlaying != nil),
                              accessibilityHint: String(localized: "Go to Now Playing")) { [shell] in
             shell.showNowPlaying()

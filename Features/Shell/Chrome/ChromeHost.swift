@@ -13,7 +13,7 @@ import UIKit
 /// full screen (nothing)                                         the Reader's middle tap
 /// ```
 ///
-/// Scrolling folds it by degrees in both directions (`ChromeScroll`); the icon's tap, a swipe up on
+/// Scrolling down folds it by degrees, scrolling up never unfolds it (`ChromeScroll`); the icon's tap, a swipe up on
 /// the row and the top of the text expand it (while searching, they lower the keyboard). The host
 /// never changes the size of what is under it: screens reserve `ChromeMetrics.footprint` (the
 /// Reader `readerFootprint`) at the bottom and scroll under it. Reduce Motion: no travel, every
@@ -71,7 +71,7 @@ struct ChromeHost: View {
     private var live: ChromeState {
         ChromeState(destination: destination, progress: reduceMotion ? (scroll.isCollapsed ? 1 : 0) : 0, fullScreen: scroll.fullScreen, played: playback.isAvailable,
                     canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, keyboard: isSearching,
-                    readerMode: destination == .browse && shell.pageReader != nil, editing: screen.editBar != nil)
+                    readerMode: (destination == .browse && shell.pageReader != nil) || (destination == .library && shell.libraryReader != nil), editing: screen.editBar != nil)
     }
 
     private var state: ChromeState { reduceMotion ? shown ?? live : live }
@@ -79,7 +79,7 @@ struct ChromeHost: View {
     /// What the page under the chrome is drawn in: the reading theme on the Reader, Now Playing and
     /// the Browser's in-place reader view; nil elsewhere (the app's own surface).
     private var readingPalette: ReadingPalette? {
-        guard destination == .reader || shell.pageReader != nil else { return nil }
+        guard destination == .reader || shell.pageReader != nil || shell.libraryReader != nil else { return nil }
         return readingAppearance.palette(accent: AppAppearance.shared.accent)
     }
     /// The colour of what is under the chrome: the reading theme, a web page's own background, or

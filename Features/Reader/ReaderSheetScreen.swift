@@ -171,7 +171,7 @@ struct ReaderSheetScreen: View {
         } scrub: {
             readerScrubTrack
         } appearance: {
-            TextAppearanceControl()
+            TextAppearanceControl(arrowEdge: .bottom)
         } speed: {
             SpeedButton(speech: speech)
         }

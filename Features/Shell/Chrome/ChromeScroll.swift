@@ -4,9 +4,12 @@ import QuartzCore
 
 /// The one owner of how far the compact chrome has folded, and its scroll controller, fed by the
 /// Library, the Browser and the Reader alike. Scroll views report their offset; this keeps a
-/// continuous `progress` (0 expanded, 1 collapsed) that follows the finger in both directions:
-/// `progress += dy / travel`, 0 at the top, and once the finger has been still for `settleDelay`
-/// it snaps to the end the last scroll was heading for. It is the mockups' `bindScroll`, and
+/// continuous `progress` (0 expanded, 1 collapsed) that follows the finger on the way down only:
+/// `progress += dy / travel` for a scroll down, and a scroll up never gives a row back (decided:
+/// the second row is too big to pop out on every reverse flick). The chrome comes back by the
+/// screen icon's tap, a swipe up on the bar, or the very top of the text (0 at the top). Once the
+/// finger has been still for `settleDelay` a half-folded chrome finishes folding. It is the
+/// mockups' `bindScroll` without its reverse follow, and
 /// `displayed` is its per-frame smoothing: an exponential filter with a `smoothing` time constant,
 /// stepped by a display link while it still has ground to cover. What is drawn follows `displayed`;
 /// rules (`isCollapsed`, the swipe) read `progress`.
@@ -48,7 +51,6 @@ final class ChromeScroll {
     }
 
     @ObservationIgnored private var last: CGFloat = 0
-    @ObservationIgnored private var lastDelta: CGFloat = 0
     @ObservationIgnored private var settling: Task<Void, Never>?
     @ObservationIgnored private var ticker: FrameTicker?
     @ObservationIgnored private var lastFrame: CFTimeInterval = 0
@@ -64,8 +66,8 @@ final class ChromeScroll {
             return
         }
         guard delta != 0, abs(delta) <= Self.jump else { return }
-        lastDelta = delta
-        set(min(1, max(0, progress + delta / Self.travel)))
+        guard delta > 0 else { return }
+        set(min(1, progress + delta / Self.travel))
         scheduleSettle()
     }
 
@@ -77,10 +79,10 @@ final class ChromeScroll {
         if offset <= Self.topEdge { set(0) }
     }
 
-    /// Snaps to the end the last scroll was heading for (down: collapsed, up: expanded).
+    /// Finishes a fold the finger stopped partway through: scrolling only ever folds.
     func settle() {
         settling?.cancel()
-        if progress > 0, progress < 1 { set(lastDelta > 0 ? 1 : 0) }
+        if progress > 0, progress < 1 { set(1) }
     }
 
     /// Back to two rows: the icon's tap, a swipe up on the collapsed row, a new screen.
@@ -98,7 +100,6 @@ final class ChromeScroll {
     func reset() {
         setFullScreen(false)
         last = 0
-        lastDelta = 0
         expand()
     }
 

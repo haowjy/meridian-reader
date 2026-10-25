@@ -174,7 +174,7 @@ final class ChromeTests: XCTestCase {
     private func scroll(_ chrome: ChromeScroll, to offsets: [CGFloat]) { offsets.forEach { chrome.scrolled(to: $0) } }
 
     @MainActor
-    func testProgressFollowsTheFingerBothWaysAtNinetyPointsATravel() {
+    func testProgressFollowsTheFingerDownAtNinetyPointsATravelAndNeverBackUp() {
         let chrome = ChromeScroll()
         chrome.anchor(at: 10)
         scroll(chrome, to: [55])
@@ -182,25 +182,27 @@ final class ChromeTests: XCTestCase {
         scroll(chrome, to: [100])
         XCTAssertEqual(chrome.progress, 1, "clamped")
         scroll(chrome, to: [55])
-        XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "scrolling up unfolds it again")
+        XCTAssertEqual(chrome.progress, 1, "scrolling up gives no row back")
+        scroll(chrome, to: [20])
+        XCTAssertEqual(chrome.progress, 1, "not even most of the way up")
         scroll(chrome, to: [3])
-        XCTAssertEqual(chrome.progress, 0, "the top is always expanded")
+        XCTAssertEqual(chrome.progress, 0, "only the very top expands it")
         XCTAssertFalse(chrome.isCollapsed)
     }
 
     @MainActor
-    func testItSnapsToTheEndTheLastScrollWasHeadingFor() {
+    func testAHalfFoldFinishesFoldingAndReverseScrollNeverReExpands() {
         let down = ChromeScroll()
         down.anchor(at: 10)
         scroll(down, to: [40])
         down.settle()
         XCTAssertEqual(down.progress, 1)
         XCTAssertTrue(down.isCollapsed)
-        let up = ChromeScroll()
-        up.anchor(at: 10)
-        scroll(up, to: [200, 170, 150, 130, 120])
-        up.settle()
-        XCTAssertEqual(up.progress, 0, "last move was up: expanded")
+        let reverse = ChromeScroll()
+        reverse.anchor(at: 10)
+        scroll(reverse, to: [40, 30, 20, 12, 10])
+        reverse.settle()
+        XCTAssertEqual(reverse.progress, 1, "a half fold that turns back still ends folded")
     }
 
     @MainActor

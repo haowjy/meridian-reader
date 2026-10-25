@@ -34,6 +34,8 @@ private struct PlayerCardSurface: ViewModifier {
 
 private enum CardLayout {
     static let art: CGFloat = 36
+    /// The title row's two round controls (Voice, bookmark).
+    static let control: CGFloat = 36
     /// The scrubber row is `fieldControlSize` high with its track in the middle: pulled up so
     /// the track sits 64 pt from the card's top.
     static let scrubTop: CGFloat = 46
@@ -129,9 +131,15 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            voice
-            save
+            // Two fixed 36 pt controls flush right (the mockup's card): the bookmark's own frame
+            // is as wide as it is offered, so without a width it would share the row with the title.
+            HStack(spacing: Spacing.xs) {
+                voice
+                save.frame(width: CardLayout.control)
+            }
+            .fixedSize()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: CardLayout.art)
     }
 

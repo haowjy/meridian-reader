@@ -165,12 +165,12 @@ struct ArticleMenu: View {
 
 extension ArticleActions {
     /// The ⋯ panel of the Reader and Now Playing (decision D24, C140): the page's menu, then
-    /// *Prepared Audio*, then `[Settings][Saved][Reader]` (`[Settings][Saved][History][Reader]` on compact width). Reader is disabled: already reading.
+    /// *Prepared Audio*, then `[Settings][Saved][Listen]` (`[Settings][Saved][History][Listen]` on compact width). Listen is disabled: already reading.
     /// Website is reachable via Share in the article's own menu rows.
     func readingPageMenu(_ place: ArticleMenu.Place, compact: Bool) -> MenuContext {
-        let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader,
+        let reader = MenuRow(id: "moreListen", title: Verbs.listen, icon: Icons.listen,
                              availability: .disabled,
-                             accessibilityHint: String(localized: "Already in the Reader"))
+                             accessibilityHint: String(localized: "Already in Listen"))
         return MenuContext(item: ArticleMenu(actions: self, place: place).rows,
                            screen: MenuContext.screenRows(at: place.registryPlace, shell: shell),
                            tiles: MenuContext.tiles(shell, compact: compact, last: reader), isOnReadingPage: true)

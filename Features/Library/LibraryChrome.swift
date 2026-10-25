@@ -49,8 +49,11 @@ struct LibraryChrome {
             cancelID: "librarySearchCancel",
             onCancel: shell.endLibrarySearch,
             begin: shell.beginLibrarySearch,
-            canGoBack: false,
+            // Reading a page in place: ‹ puts the Library back.
+            canGoBack: shell.libraryReader != nil,
             canGoForward: false,
+            backID: "libraryReaderBack",
+            onBack: shell.closeLibraryReader,
             field: { focus in
                 AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt,
                                     focus: focus, fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard))

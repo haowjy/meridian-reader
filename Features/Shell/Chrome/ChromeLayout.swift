@@ -90,7 +90,7 @@ struct ChromeLayout: Equatable {
 
         // ‹ ›: both circles expanded. Folded, › gives way while ▶ shows, and the arrows give way to a
         // field that would be narrower than `minimumField` (never while the keyboard is up).
-        let back: CGFloat = isBrowse && s.canGoBack ? 1 : 0
+        let back: CGFloat = (isBrowse || s.readerMode) && s.canGoBack ? 1 : 0
         let forward: CGFloat = isBrowse && s.canGoForward ? 1 : 0
         var foldedBack = s.keyboard ? 0 : back
         var foldedForward = s.keyboard ? 0 : forward * (1 - played)

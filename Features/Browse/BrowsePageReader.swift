@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The Browser's page as the Reader draws it, in place of the page (Safari's Reader): under the same
 /// bottom chrome, whose address pill keeps the URL and whose reader icon, lit, puts the page back.
-/// A slim bar on top has Aa and Listen. Listen plays the page and raises Now Playing, the primary
-/// reader; this view is only a temporary one, so it ends there. Links navigate the browser.
+/// A slim bar on top has Aa and Listen. Listen plays the page and raises Now Playing (the Listen
+/// destination); this view is only a temporary one, so it ends there. Also the Library's Read. Links navigate the browser.
 struct BrowsePageReader: View {
     let article: ReaderArticle
     @Bindable var speech: SpeechController
@@ -21,12 +21,15 @@ struct BrowsePageReader: View {
         let page = library.article(key: article.id, canonicalURL: article.origin.canonicalURL)
         let start = page?.listenStart ?? ListenSpot(paragraph: article.resumeParagraph)
         let label = article.listenLabel(from: start, finished: page?.finishedAt != nil, rate: speech.rateMultiplier)
+        let hearing = shell.isHearingArticle(of: article)
         VStack(spacing: 0) {
             HStack(spacing: Spacing.s) {
                 TextAppearanceControl()
                 Spacer(minLength: 0)
-                PillButton(label.title, detail: label.detail, systemImage: Icons.play, size: .compact) {
-                    listen(from: start)
+                // The page you hear: the pill goes to Now Playing instead of starting it over.
+                PillButton(hearing ? String(localized: "Now Playing") : label.title, detail: hearing ? nil : label.detail,
+                           systemImage: Icons.play, size: .compact) {
+                    if hearing { shell.showNowPlaying() } else { listen(from: start) }
                 }
                 .disabled(article.document.isEmpty)
                 .accessibilityIdentifier("pageReaderListen")

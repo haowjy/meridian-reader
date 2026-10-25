@@ -92,7 +92,7 @@ struct ArticleActions {
     func read() {
         shell.sheet = nil
         if let article {
-            libraryActions.open(article)
+            libraryActions.read(article)
         } else if let url {
             shell.navigate(to: url)
         }
