@@ -25,14 +25,13 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(eventually(8) { play.exists && play.label == "Pause" }, "playing")
         let bookmark = app.buttons["nowPlayingBookmark"]
         XCTAssertEqual(bookmark.value as? String, "Not saved")
+        idle(1)  // Now Playing cross-fades in; a tap during it doesn't land
         bookmark.tap()
         XCTAssertTrue(eventually { bookmark.value as? String == "Saved" })
         XCTAssertEqual(play.label, "Pause", "Save must not stop playback")
-        XCTAssertTrue(app.buttons["nowPlayingClose"].exists, "Save must not leave Now Playing")
+        XCTAssertTrue(play.exists, "Save must not leave Now Playing")
         play.tap()
 
-        app.buttons["nowPlayingClose"].tap()
-        XCTAssertTrue(eventually { !app.buttons["nowPlayingClose"].exists })
         tapWhenHittable(app.buttons["chromeLibrary"])
         XCTAssertTrue(appears(app.libraryHome, timeout: 5))
         let rows = app.cells.staticTexts.matching(NSPredicate(format: "label == %@", "Second page"))
@@ -40,5 +39,33 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertEqual(rows.count, 1, "one row per page")
     }
 
+    /// The Reader is a destination under the chrome: scrolling down collapses it to one row, a tap in
+    /// the middle of the text removes the whole chrome and another brings it back (collapsed, as it
+    /// was), and there is no Close pill.
+    func testReaderCollapsesOnScrollAndFullScreenIsAMiddleTap() throws {
+        let app = launch(["-browseTestPages"])
+        let link = app.links["Next page"]
+        XCTAssertTrue(appears(link, timeout: 10))
+        link.tap()
+        tapWhenHittable(find(app, "addressReader"))
+        let listen = app.buttons["pageReaderListen"]
+        XCTAssertTrue(appears(listen, timeout: 10))
+        tapWhenHittable(listen)
+        XCTAssertTrue(appears(app.buttons["listenPlayPause"], timeout: 10), "Now Playing, in place")
 
+        let pill = app.buttons["chromeLibrary"], icon = app.buttons["chromeScreenIcon"]
+        XCTAssertTrue(pill.exists && !icon.exists, "expanded: the pill")
+        XCTAssertFalse(app.buttons["nowPlayingClose"].exists || app.buttons["readerClose"].exists, "no Close pill")
+
+        let text = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        text.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)))
+        XCTAssertTrue(eventually { icon.exists && !pill.exists }, "scrolling down collapses to one row")
+
+        idle(1)  // a touch that stops a scroll is never a tap
+        text.tap()
+        XCTAssertTrue(eventually { !icon.exists && !pill.exists && !app.buttons["chromePlayPause"].exists },
+                      "a middle tap removes the chrome")
+        text.tap()
+        XCTAssertTrue(eventually { icon.exists }, "another brings it back, still collapsed")
+    }
 }

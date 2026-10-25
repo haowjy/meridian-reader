@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// The Reader sheet (`ReaderSheet`): one page for reading, over the surface that opened it, with
-/// its own Listen. The close pill names what is underneath ("‹ Browser", "‹ Library"); it, the
-/// grabber and a pull down close it to exactly where you were. Its top bar, 🔖 and ⋯ are Now
-/// Playing's too (decision D24), so Listen turns one into the other with nothing moving. Playback never stops for it.
+/// The Reader (`ReaderSheet`): one page for reading, with its own Listen. On compact width it is a
+/// destination in the chrome's pill, in place under the bottom chrome; Library and Browser in the
+/// pill leave it to exactly where you were. On regular width it is a sheet over the surface that
+/// opened it, closed by the close pill ("‹ Browser", "‹ Library"), the grabber and a pull down. Its
+/// top bar, 🔖 and ⋯ are Now Playing's too (decision D24), so Listen turns one into the other with
+/// nothing moving. Playback never stops for it.
 ///
 /// - The Reader never shows what you hear (the shell opens Now Playing for that page), so the
 ///   Now Playing bar above its toolbar is always another page.
@@ -20,8 +22,8 @@ import SwiftUI
 /// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
 /// - Voice (`VoiceChromeButton`), right of the title in the bottom band, opens the page's Voice
 ///   picker (same as ⋯ › Voice / Settings › Voice's list).
-/// - Scrolling down reads full screen, as in Now Playing (`ReaderSheet`, `ReadingChrome`); a link
-///   in the text opens in the browser.
+/// - A tap in the middle of the text reads full screen, as in Now Playing (`ReadingPage`,
+///   `ReadingChrome`); a link in the text opens in the browser.
 ///
 /// Save / Remove only flips 🔖: the article key is already the saved id (identity v2), so the
 /// view and any playing audio are untouched.
@@ -62,9 +64,11 @@ struct ReaderSheetScreen: View {
         let playerLetter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,
                                                          address: readerArticle.origin.canonicalURL)
         return ReaderSheet(
+            showing: sizeClass == .regular
+                ? .sheet(onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) })
+                : .inPlace(shell.readingInPlace),
             backTitle: state.origin.backTitle,
             listenState: speech.playState(of: .article(readerArticle.id)),
-            onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) },
             onListen: { self.listen(from: nil, start: start) },
             palette: palette
         ) {

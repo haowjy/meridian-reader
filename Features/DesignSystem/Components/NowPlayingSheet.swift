@@ -1,15 +1,16 @@
 import SwiftUI
 
-/// What you hear, opened up: a `Sheet` over everything that shrinks back into the Now Playing
-/// bar, in the Reader's colours and type (the reading theme, `palette`): the spoken paragraph
-/// highlighted in full ink, the others dimmed.
+/// What you hear, opened up (`ReadingPage`): on regular width a `Sheet` over everything that
+/// shrinks back into the Now Playing bar, on compact width in place under the bottom chrome. In the
+/// Reader's colours and type (the reading theme, `palette`): the spoken paragraph highlighted in
+/// full ink, the others dimmed.
 ///
 /// ```
 /// ┌──────────────────────────────────────┐
-/// │                 ───                  │ <- grabber
-/// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- `SheetTopBar`, as in the Reader: the pill names
-/// │ `banner` (the ^ hint, while on)      │   where it plays from and shrinks it; Aa, `accessory`
-/// │ `text`: dimmed, SPOKEN in full ink   │ <- fills the sheet, under the header and the band;
+/// │                 ───                  │ <- grabber (the sheet's)
+/// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- `SheetTopBar`, as in the Reader: the pill (the sheet's)
+/// │ `banner` (the ^ hint, while on)      │   names where it plays from and shrinks it; Aa, `accessory`
+/// │ `text`: dimmed, SPOKEN in full ink   │ <- fills the page, under the header and the band;
 /// │         dimmed                       │   follows the audio
 /// │            ( Jump to Audio )         │ <- after you scroll away, bars up only (C128)
 /// │ ─────────────────────────────────────│ <- hairline divider
@@ -21,17 +22,19 @@ import SwiftUI
 ///
 /// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
 /// `playState` / `onPlayPause`, the only control over the text then; Jump to Audio shows only with
-/// the bars up (C128). The pill, the grabber and a pull down shrink it (`onCollapse`, after it has
-/// gone). `floating` floats just above the bottom band's hairline (a toast), as in the Reader.
+/// the bars up (C128). On regular width the pill, the grabber and a pull down shrink it
+/// (the showing's `onClose`, after it has gone). `floating` floats just above the bottom band's hairline (a
+/// toast), as in the Reader.
 struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
                        Floating: View>: View {
-    /// The book, series or folder the page lives in, else the Library or its site.
+    let showing: ReadingShowing
+    /// The book, series or folder the page lives in, else the Library or its site: the sheet's
+    /// close pill names it.
     let playingFrom: String
     /// What you hear, for the play / pause floating in full screen.
     let playState: PlayState
     /// The text scrolled away from the audio: offer to jump back to the spoken sentence.
     var showsJumpToAudio = false
-    let onCollapse: () -> Void
     let onPlayPause: () -> Void
     var onJumpToAudio: () -> Void = {}
     /// The reading theme's colours, as the Reader's.
@@ -51,24 +54,17 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     @State private var chrome = ReadingChrome()
 
     var body: some View {
-        Sheet(onDismiss: onCollapse, palette: palette, chrome: chrome) {
-            VStack(spacing: 0) {
-                SheetTopBar { SheetClosePill(kind: .collapse(playingFrom)) } trailing: {
-                    textAppearance
-                    accessory
-                }
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("nowPlayingHeader")
-                banner
-            }
-        } content: {
+        ReadingPage(showing: showing, chrome: chrome, palette: palette, closeKind: .collapse(playingFrom)) {
+            textAppearance
+            accessory
+        } banner: {
+            banner
+        } text: {
             text
         } band: {
-            ReadingBottomBand {
-                band
-            } floating: {
-                floating
-            }
+            band
+        } floating: {
+            floating
         } overText: {
             ZStack(alignment: .bottom) {
                 jumpToAudio
@@ -164,8 +160,8 @@ struct NowPlayingSheetGallery: View {
     private func frame(_ state: PlayState, note: String?, back: Bool, saved: Bool = false) -> some View {
         let palette = ReadingTheme.sepia.palette(accent: .jade)
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
-        return NowPlayingSheet(playingFrom: "Pride and Prejudice", playState: state, showsJumpToAudio: back,
-                               onCollapse: {}, onPlayPause: {}, palette: palette) {
+        return NowPlayingSheet(showing: .sheet(onClose: {}), playingFrom: "Pride and Prejudice", playState: state,
+                               showsJumpToAudio: back, onPlayPause: {}, palette: palette) {
             TextAppearanceButton(isOpen: false) {}
         } accessory: {
             JumpModeButton(isOn: false) {}

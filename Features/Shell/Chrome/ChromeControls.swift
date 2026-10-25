@@ -31,12 +31,13 @@ extension ChromeDestination {
 /// `[ Reader | Library | Browser ]`: three equal segments in one capsule, the lit one the screen
 /// you are on, an inset capsule (equal padding, concentric corners). Every segment has the same icon
 /// and label size and weight; lit differs by the glyph's tint and the capsule only (labels stay ink,
-/// which holds 4.5:1 on the wash in every accent). The Reader segment shows what is playing: bars
-/// while it plays, the plain document while paused, dimmed when there is nothing to open.
+/// which holds 4.5:1 on the wash in every accent). The Reader segment is the plain document whether
+/// or not anything plays (▶ and the lit segment say what plays); it is dimmed when there is nothing
+/// to open and it is not lit.
 struct ChromePill: View {
     let lit: ChromeDestination
-    /// The Reader segment's state; nil: nothing playing and nothing played to open.
-    let reader: PlayState?
+    /// Something is playing or was played: the Reader segment has a page to open.
+    let hasReader: Bool
     let onSelect: (ChromeDestination) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -73,20 +74,12 @@ struct ChromePill: View {
     @ViewBuilder
     private func content(_ destination: ChromeDestination) -> some View {
         let isLit = destination == lit
-        let dimmed = destination == .reader && reader == nil && !isLit
+        let dimmed = destination == .reader && !hasReader && !isLit
         VStack(spacing: ChromeMetrics.segmentGap) {
-            Group {
-                if destination == .reader, reader == .playing {
-                    Image(systemName: Icons.playing).symbolEffect(.variableColor.iterative, isActive: true)
-                } else if destination == .reader, reader == .preparing {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: destination.symbol)
-                }
-            }
-            .font(BottomChrome.chromeGlyph)
-            .foregroundStyle(isLit || (destination == .reader && reader?.isCurrent == true) ? Palette.accent : Palette.ink)
-            .frame(height: ChromeMetrics.segmentGlyphHeight)
+            Image(systemName: destination.symbol)
+                .font(BottomChrome.chromeGlyph)
+                .foregroundStyle(isLit ? Palette.accent : Palette.ink)
+                .frame(height: ChromeMetrics.segmentGlyphHeight)
             Text(destination.label)
                 .font(.system(size: ChromeMetrics.labelSize, weight: .medium))
                 .foregroundStyle(Palette.ink)
@@ -119,6 +112,39 @@ struct ChromeScreenIcon: View {
         .accessibilityHint(String(localized: "Shows the bar"))
         .accessibilityIdentifier("chromeScreenIcon")
         .chromeLargeContent(destination.label, symbol: destination.symbol)
+    }
+}
+
+/// The collapsed Reader's field slot: the page's title over its source, in a capsule. Tapping it
+/// is swiping up: the pill comes back.
+struct ChromeTitleChip: View {
+    let title: String
+    let detail: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title)
+                    .typeStyle(.row, weight: .semibold)
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                if !detail.isEmpty {
+                    Text(detail)
+                        .typeStyle(.caption)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, Spacing.s)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .chromeSurface(Capsule())
+        .accessibilityLabel(title)
+        .accessibilityHint(String(localized: "Shows the bar"))
+        .accessibilityIdentifier("chromeTitleChip")
     }
 }
 

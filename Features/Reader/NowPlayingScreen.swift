@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). The Reader's page in
 /// the same reading theme and type, under a title card: the spoken paragraph highlighted in full
-/// ink like the rest, on the highlight. Presented over everything by the shell; it holds no article of its
+/// ink like the rest, on the highlight. Presented over everything by the shell (in place under the
+/// bottom chrome on compact width, a sheet on regular width); it holds no article of its
 /// own: it shows `speech.nowPlaying` and the playing page's content, looked up in the library by
 /// its key.
 ///
@@ -12,7 +13,7 @@ import SwiftUI
 ///   paragraph is highlighted (every paragraph in full ink), its sentence underlined. A drag stops
 ///   following; Jump to Audio resumes it, back to the sentence. Scrubbing scrolls to the
 ///   paragraph under the thumb.
-/// - The close pill names where the page plays from: a page in a folder plays from that folder (a
+/// - On regular width the close pill names where the page plays from: a page in a folder plays from that folder (a
 ///   book, a series, Favorites, a folder you made), a saved page in no folder from the Library,
 ///   a page you haven't saved from its site. ⋯ → *Go to <name>* opens the Library at the folder
 ///   or the Library; for a site, ⋯ → Website opens the page in the browser.
@@ -23,10 +24,11 @@ import SwiftUI
 ///   and opens the same Voice picker as ⋯ › Voice.
 /// - At the end it stays: the text stays, all in full ink, the title card says "● Finished" (the ring, full)
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
-/// - Scrolling down reads full screen, as in the Reader (`NowPlayingSheet`, `ReadingChrome`): the
-///   text still follows the audio, a page turn by a tap stops following as a drag does, and a link
+/// - A tap in the middle of the text reads full screen, as in the Reader (`ReadingPage`,
+///   `ReadingChrome`): the text still follows the audio, a page turn by a tap stops following as a drag does, and a link
 ///   in the text opens in the browser.
-/// - The pill or a pull down shrinks it back into the bar.
+/// - On compact width Library or Browser in the pill leaves it; on regular width the pill or a pull
+///   down shrinks it back into the bar.
 struct NowPlayingScreen: View {
     @Bindable var speech: SpeechController
 
@@ -67,12 +69,14 @@ struct NowPlayingScreen: View {
         let palette = appearance.palette(accent: AppAppearance.shared.accent)
         let artwork = now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
         return NowPlayingSheet(
+            showing: sizeClass == .regular
+                ? .sheet(onClose: { [shell, presentation = shell.nowPlayingPresentation] in
+                    if let presentation { shell.nowPlayingDidClose(presentation) }
+                })
+                : .inPlace(shell.readingInPlace),
             playingFrom: playingFromName(now, saved: actions.isSaved),
             playState: speech.playState(of: .article(now.articleKey)),
             showsJumpToAudio: !following && !now.isFinished,
-            onCollapse: { [shell, presentation = shell.nowPlayingPresentation] in
-                if let presentation { shell.nowPlayingDidClose(presentation) }
-            },
             onPlayPause: speech.pressNowPlaying,
             onJumpToAudio: { following = true },
             palette: palette

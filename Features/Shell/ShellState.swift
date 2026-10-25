@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// What the Reader sheet sits over, named by its back pill ("‹ Browser", "‹ Library").
+/// What the Reader was opened over. Regular width names it on the sheet's back pill ("‹ Browser",
+/// "‹ Library"); leaving the Library takes a Reader opened over it along.
 enum ReaderOrigin: Equatable {
     /// Over the browser: 📄, ⋯ → Reader, a start-page row.
     case browser
@@ -16,12 +17,13 @@ enum ReaderOrigin: Equatable {
     }
 }
 
-/// The Reader sheet: a page shown for reading over the surface that opened it.
+/// The Reader: a page shown for reading. On compact width it is a destination in the chrome's pill,
+/// in place over the surface that opened it; on regular width a sheet over it.
 struct ReaderSheetState: Equatable {
     var article: ReaderArticle
     var origin: ReaderOrigin
-    /// This showing of the sheet. Its close reports it (`readerDidClose`), so a close that lands
-    /// late can't remove a Reader opened since.
+    /// This showing of the Reader. A sheet's close reports it (`readerDidClose`), so a close that
+    /// lands late can't remove a Reader opened since.
     let presentation = UUID()
 }
 
@@ -119,7 +121,7 @@ enum BusyAction: Equatable {
     case save
 }
 
-/// What you see: one surface (the browser or the Library at a folder), the Reader sheet over it,
+/// What you see: one surface (the browser or the Library at a folder), the Reader over it,
 /// Now Playing over everything, at most one other sheet, at most one ⋯ menu. The surface, the
 /// Library's path and its home's tab are remembered, and the app reopens on them (decision D10). What you hear belongs to the
 /// playback session; the shell only asks it (`isHearing`), so opening the Reader of the page you
@@ -137,8 +139,12 @@ final class ShellState {
         case library
     }
 
-    /// Whether the compact bottom chrome is expanded or scrolled down to one row.
-    let chrome = ChromeState()
+    /// Whether the compact bottom chrome is expanded or scrolled down to one row: the one scroll
+    /// controller the Library, the Browser and the Reader feed.
+    let chrome = ChromeScroll()
+    /// The Reader (or Now Playing) is in full screen: the compact chrome is removed. Set by the
+    /// reading page in place (`readingInPlace`), cleared when it goes.
+    private(set) var isReadingFullScreen = false
 
     private(set) var surface: Surface = .browse {
         didSet { remember() }
@@ -160,7 +166,8 @@ final class ShellState {
     var homeTab = LibraryHomeTab.everything {
         didSet { memory?.saveHomeTab(homeTab) }
     }
-    /// The Reader sheet (nil = closed). Removed by `readerDidClose` once its sheet has gone.
+    /// The Reader (nil = closed). A sheet's close ends it through `readerDidClose` once it has gone;
+    /// in place, leaving it is choosing another destination.
     private(set) var reader: ReaderSheetState?
     /// The Browser's page as the Reader draws it, in place of the page (nil = the page itself).
     /// The address pill's reader icon toggles it; it is the page's own, so it ends when the page changes.
@@ -168,7 +175,7 @@ final class ShellState {
     /// Counts the endings of an in-place reader (`closePageReader`): an extraction that began
     /// under an earlier count opens nothing (the user left, or the page moved on, meanwhile).
     private(set) var pageReaderEpoch = 0
-    /// This showing of Now Playing (nil = down), over the surface and the Reader sheet. It shows
+    /// This showing of Now Playing (nil = down), over the surface and the Reader. It shows
     /// what you hear, so it holds no article of its own. Its close reports the showing it closed
     /// (`nowPlayingDidClose`), so a close that lands late can't take down a newer one.
     private(set) var nowPlayingPresentation: UUID?
@@ -227,7 +234,7 @@ final class ShellState {
 
     // MARK: - Surface queries
 
-    /// The Reader sheet's article, when it is open.
+    /// The Reader's article, when it is open.
     var readerArticle: ReaderArticle? { reader?.article }
 
     var isBrowsing: Bool {
@@ -238,9 +245,9 @@ final class ShellState {
         if case .library = surface { true } else { false }
     }
 
-    // MARK: - The Reader sheet
+    // MARK: - The Reader
 
-    /// The Reader sheet on `article`, over the surface on screen. The page you hear opens as Now
+    /// The Reader on `article`, over the surface on screen. The page you hear opens as Now
     /// Playing instead: the Reader never shows what is playing.
     func openReader(_ article: ReaderArticle) {
         if isHearingArticle(of: article) {
@@ -274,7 +281,7 @@ final class ShellState {
         isHearing(.article(article.id)) || article.origin.canonicalURL.map { isHearing(.webPage(canonicalURL: $0)) } == true
     }
 
-    /// Updates the Reader sheet's article in place (favicon arrived, listen blocks built, Save
+    /// Updates the Reader's article in place (favicon arrived, listen blocks built, Save
     /// rekeyed it), if that article is still the one shown.
     func updateReader(id: UUID, _ change: (inout ReaderArticle) -> Void) {
         if pageReader?.id == id { change(&pageReader!) }
@@ -283,8 +290,8 @@ final class ShellState {
         reader = state
     }
 
-    /// The Reader sheet shown as `presentation` has gone (its back pill, the grabber's pull down,
-    /// after its own close animation). A Reader opened since stays.
+    /// The Reader sheet shown as `presentation` has gone (regular width: its back pill, the grabber's
+    /// pull down, after its own close animation). A Reader opened since stays.
     func readerDidClose(_ presentation: UUID) {
         guard reader?.presentation == presentation else { return }
         reader = nil
@@ -292,8 +299,8 @@ final class ShellState {
 
     // MARK: - Now Playing
 
-    /// The bar's tap and swipe up, crash resume. Over everything; the surface and its state (the
-    /// page, the Library) stay as they are underneath. A Reader sheet of the page you hear closes,
+    /// The chrome's Reader segment, the bar's tap and swipe up, crash resume. Over everything; the
+    /// surface and its state (the page, the Library) stay as they are underneath. A Reader of the page you hear closes,
     /// so the two never show the same page.
     func showNowPlaying() {
         endAddressSearch()
@@ -323,11 +330,23 @@ final class ShellState {
         nowPlayingOpensAt = nil
     }
 
-    /// ⌄ or the pull down, after the close animation of the showing `presentation`. A Now Playing
+    /// Regular width: ⌄ or the pull down, after the close animation of the showing `presentation`. A Now Playing
     /// shown since stays.
     func nowPlayingDidClose(_ presentation: UUID) {
         guard nowPlayingPresentation == presentation else { return }
         hideNowPlaying()
+    }
+
+    /// What a reading page shown in place needs from the compact chrome: its scroll feeds the one
+    /// scroll controller (the Reader's own rule for scrolling up), its full screen removes the chrome,
+    /// and the text keeps row 2's room whether the chrome is expanded or collapsed.
+    var readingInPlace: ReadingInPlace {
+        ReadingInPlace(
+            collapsed: chrome.isScrolledDown,
+            bottomClearance: ChromeMetrics.row2Footprint,
+            scrolled: { [chrome] in chrome.scrolled(to: $0, upExpands: ReaderChromeScroll.scrollUpReexpands) },
+            pulledDownAtTop: { [chrome] in chrome.expand() },
+            fullScreenChanged: { [weak self] in self?.isReadingFullScreen = $0 })
     }
 
     // MARK: - Remembering the surface
@@ -551,7 +570,7 @@ final class ShellState {
 
     // MARK: - Library pages
 
-    /// A library page in the Reader sheet (a row, a favorite): shown as soon as
+    /// A library page in the Reader (a row, a favorite): shown as soon as
     /// the page is read; older pages build their listen blocks afterwards.
     func openSaved(_ id: UUID, in library: LibraryStore) {
         Task {

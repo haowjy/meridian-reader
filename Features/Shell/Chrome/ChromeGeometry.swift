@@ -1,12 +1,5 @@
 import CoreGraphics
 
-/// The three places the chrome's pill switches between. The Reader is a destination: it keeps
-/// the chrome (row 2 only) under the article, so `.reader` is the lit segment while the Reader or
-/// Now Playing is up.
-enum ChromeDestination: CaseIterable, Equatable {
-    case reader, library, browse
-}
-
 /// The compact bottom chrome's sizes, from the approved mockups (`width-table.md`). Everything
 /// that sets a size reads from here; `ChromeGeometry` places the pieces with them.
 ///
@@ -21,21 +14,29 @@ enum ChromeDestination: CaseIterable, Equatable {
 ///
 /// The pill's lit segment is a capsule inset by `litInset` on all four sides, so its radius is
 /// the pill's radius minus the inset (concentric), as in Apple Music's and Reddit's tab capsules.
+///
+/// Every size is a multiple of `unit` except `bottomPadding` (6, today's). The smaller scale the
+/// design recommends (D) is a one-edit switch: row1Height 11 * unit, row2Height 12 * unit,
+/// collapsedHeight 11 * unit, bottomPadding 2 * unit, labelSize 10 (heights 44 / 48 / 44, footprint
+/// 112, collapsed 56). `tools/check-tokens.js` in the design folder compares this file with the mockups.
 enum ChromeMetrics {
+    /// The base unit every other size is a multiple of.
+    static let unit: CGFloat = 4
+
     /// Left and right margin; also the gap between a row's pieces and the screen edge.
-    static let margin: CGFloat = 12
+    static let margin: CGFloat = 3 * unit
     /// Gap between two pieces on a row, and between the rows.
-    static let gap: CGFloat = 8
+    static let gap: CGFloat = 2 * unit
     /// The space above the top row and below the bottom row.
-    static let topPadding: CGFloat = 4
+    static let topPadding: CGFloat = unit
     static let bottomPadding: CGFloat = 6
 
     /// Row 1 (expanded): the arrows, the address field, the Library search.
-    static let row1Height: CGFloat = 52
+    static let row1Height: CGFloat = 13 * unit
     /// Row 2 (expanded): the pill, ▶, ⋯ and the edit bar.
-    static let row2Height: CGFloat = 56
+    static let row2Height: CGFloat = 14 * unit
     /// The one row (collapsed or searching): every piece.
-    static let collapsedHeight: CGFloat = 48
+    static let collapsedHeight: CGFloat = 12 * unit
     /// ‹ alone is a circle; with › it is a capsule of two circles' width.
     static let navSingleWidth: CGFloat = row1Height
     static let navPairWidth: CGFloat = 2 * row1Height
@@ -50,7 +51,7 @@ enum ChromeMetrics {
     /// A pill segment's label, and the gap between it and its glyph.
     static let labelSize: CGFloat = 11
     static let segmentGap: CGFloat = 2
-    /// The glyph's cell in a pill segment: bars and the spinner take the same room as the symbols.
+    /// The glyph's cell in a pill segment: the spinner takes the same room as the symbols.
     static let segmentGlyphHeight: CGFloat = 22
     /// The Reader segment while there is nothing to open.
     static let segmentDimmedOpacity = 0.55
@@ -66,37 +67,24 @@ enum ChromeMetrics {
     static let footprint: CGFloat = topPadding + row1Height + gap + row2Height + bottomPadding
     /// One row high: what a screen keeps clear while the chrome is collapsed or searching.
     static let collapsedFootprint: CGFloat = topPadding + collapsedHeight + bottomPadding
-    /// The Reader keeps only row 2: what its text keeps clear.
-    static let readerFootprint: CGFloat = topPadding + row2Height + bottomPadding
+    /// Row 2 alone: what the Reader's text keeps clear, expanded or collapsed (the Reader has no row 1).
+    static let row2Footprint: CGFloat = topPadding + row2Height + bottomPadding
 }
 
 /// Where each piece of the chrome sits, in a box `width` wide and `ChromeMetrics.footprint` high
-/// whose bottom edge is just above the home indicator. Pure: the same inputs always give the same
-/// frames, so the widths in `width-table.md` are checkable without a screen.
+/// whose bottom edge is just above the home indicator. Pure: the same state always gives the same
+/// frames, so the widths in `width-table.md` are checkable without a screen, and it mirrors
+/// `MC.layout` in the mockups.
 ///
 /// ```
-/// expanded   [‹ ›][ address / search                  ]        row 1 (52)
-///            [ Reader | Library | Browser ][▶][⋯]              row 2 (56)
-/// reader     [ Reader | Library | Browser          ][⋯]        row 2 only
-/// collapsed  [‹ ›][ address ][▶][icon][⋯]                      one row (48)
-/// searching  [ field                    ][icon][✕]             one row
+/// expanded    [‹ ›][ address / search                  ]        row 1 (52); the Reader has none
+///             [ Reader | Library | Browser ][▶][⋯]              row 2 (56), every screen
+/// collapsed   [‹ ›][ address ][▶][icon][⋯]                      one row (48); the Reader's field is its title chip
+/// keyboard    [ field                    ][icon][✕]             one row, no ▶, no arrows
+/// full screen (nothing)                                         no pieces, no fade
 /// ```
 struct ChromeGeometry: Equatable {
-    struct Input: Equatable {
-        var width: CGFloat
-        var destination: ChromeDestination
-        /// One row (scrolled down, or searching).
-        var collapsed: Bool
-        /// A search session is open in the field: one row, no arrows, ✕ in place of ⋯.
-        var searching = false
-        /// The browser has somewhere to go back to / forward to.
-        var canGoBack = false
-        var canGoForward = false
-        /// The play/pause button is offered (something is bound or can be resumed).
-        var hasPlay = false
-    }
-
-    /// The address or search field; nil on the Reader, which has none.
+    /// The address, search or title field; nil on the expanded Reader, which has none.
     var field: CGRect?
     /// The ‹ and › buttons, nil when dropped.
     var back: CGRect?
@@ -104,45 +92,58 @@ struct ChromeGeometry: Equatable {
     /// The pill (expanded only).
     var pill: CGRect?
     var play: CGRect?
-    /// The current-screen icon (collapsed only).
+    /// The current-screen icon (one row only).
     var icon: CGRect?
-    /// ⋯, or ✕ while searching.
-    var more: CGRect
-    var isCollapsed: Bool
+    /// ⋯, or ✕ while the keyboard is up.
+    var more: CGRect?
+    var rows: ChromeState.Rows
+    /// The colour of what is under the pieces: opaque from `solidTop` down, fading in over
+    /// `rise` above it. nil in full screen.
+    var fade: Fade?
+
+    struct Fade: Equatable {
+        var solidTop: CGFloat
+        var rise: CGFloat
+    }
 
     var navigation: CGRect? { back.map { b in forward.map { b.union($0) } ?? b } }
 
-    init(_ input: Input) {
-        typealias M = ChromeMetrics
-        let w = input.width
-        let isReader = input.destination == .reader
-        let one = (input.collapsed || input.searching) && !isReader
-        isCollapsed = one
-        let isBrowse = input.destination == .browse
-        let bottom = M.footprint - M.bottomPadding
+    /// The top edge of the highest piece (the box's top when there is none).
+    var top: CGFloat {
+        [field?.minY, back?.minY, forward?.minY, pill?.minY, play?.minY, icon?.minY, more?.minY]
+            .compactMap { $0 }.min() ?? ChromeMetrics.footprint
+    }
 
-        if one {
+    init(width w: CGFloat, state: ChromeState) {
+        typealias M = ChromeMetrics
+        rows = state.rows
+        let bottom = M.footprint - M.bottomPadding
+        let isBrowse = state.destination == .browse
+        let isReader = state.destination == .reader
+
+        switch rows {
+        case .none:
+            break
+        case .one:
             // One row: every piece is `collapsedHeight` high, circles that wide.
             let d = M.collapsedHeight
             let rowTop = bottom - d
-            more = CGRect(x: w - M.margin - d, y: rowTop, width: d, height: d)
-            icon = CGRect(x: more.minX - M.gap - d, y: rowTop, width: d, height: d)
-            var right = (icon?.minX ?? 0) - M.gap
-            if input.hasPlay, !input.searching {
+            let moreFrame = CGRect(x: w - M.margin - d, y: rowTop, width: d, height: d)
+            more = moreFrame
+            let iconFrame = CGRect(x: moreFrame.minX - M.gap - d, y: rowTop, width: d, height: d)
+            icon = iconFrame
+            var right = iconFrame.minX - M.gap
+            if state.played, !state.keyboard {
                 let p = CGRect(x: right - d, y: rowTop, width: d, height: d)
                 play = p
                 right = p.minX - M.gap
-            } else {
-                play = nil
             }
-            pill = nil
-
             // The arrows: › goes first (always with a play button beside it), then ‹, as soon as the
             // address would fall under its minimum.
             var arrows = 0
-            if isBrowse, !input.searching, input.canGoBack || input.canGoForward {
-                arrows = input.canGoForward ? 2 : 1
-                if input.hasPlay { arrows = min(arrows, 1) }
+            if isBrowse, !state.keyboard, state.canGoBack || state.canGoForward {
+                arrows = state.canGoForward ? 2 : 1
+                if state.played { arrows = min(arrows, 1) }
                 while arrows > 0, right - (M.margin + CGFloat(arrows) * d + M.gap) < M.minimumField {
                     arrows -= 1
                 }
@@ -150,35 +151,36 @@ struct ChromeGeometry: Equatable {
             (back, forward) = Self.arrows(count: arrows, left: M.margin, top: rowTop, button: d, height: d)
             let left = M.margin + (arrows > 0 ? CGFloat(arrows) * d + M.gap : 0)
             field = CGRect(x: left, y: rowTop, width: max(0, right - left), height: d)
-        } else {
+        case .two:
             let h2 = M.row2Height
             let row2 = bottom - h2
-            more = CGRect(x: w - M.margin - h2, y: row2, width: h2, height: h2)
-            var right = more.minX - M.gap
-            if input.hasPlay, !isReader {
+            let moreFrame = CGRect(x: w - M.margin - h2, y: row2, width: h2, height: h2)
+            more = moreFrame
+            var right = moreFrame.minX - M.gap
+            if state.played {
                 let p = CGRect(x: right - h2, y: row2, width: h2, height: h2)
                 play = p
                 right = p.minX - M.gap
-            } else {
-                play = nil
             }
             pill = CGRect(x: M.margin, y: row2, width: max(0, right - M.margin), height: h2)
-            icon = nil
 
-            if isReader {
-                field = nil
-                back = nil
-                forward = nil
-            } else {
+            if !isReader {
                 let h1 = M.row1Height
                 let row1 = row2 - M.gap - h1
-                let arrows = isBrowse && (input.canGoBack || input.canGoForward) ? (input.canGoForward ? 2 : 1) : 0
+                let arrows = isBrowse && (state.canGoBack || state.canGoForward) ? (state.canGoForward ? 2 : 1) : 0
                 let navWidth = arrows == 2 ? M.navPairWidth : arrows == 1 ? M.navSingleWidth : 0
                 (back, forward) = Self.arrows(count: arrows, left: M.margin, top: row1,
                                               button: navWidth / CGFloat(max(arrows, 1)), height: h1)
                 let left = M.margin + (arrows > 0 ? navWidth + M.gap : 0)
-                field = CGRect(x: left, y: row1, width: max(0, w - M.margin - left), height: h1)
+                field = CGRect(x: left, y: row1, width: w - M.margin - left, height: h1)
             }
+        }
+
+        if rows != .none {
+            // The reading pages keep their own content clear of row 2 (their band stands above it):
+            // no rise while it is expanded.
+            let rise = isReader && rows == .two ? 0 : M.fadeHeight
+            fade = Fade(solidTop: top - M.topPadding, rise: rise)
         }
     }
 

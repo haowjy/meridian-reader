@@ -4,7 +4,7 @@ import SwiftUI
 /// scrolls back.
 extension View {
     /// Reports this view's scroll views' offset to `chrome`, past the rubber band at both ends.
-    func chromeScrollSource(_ chrome: ChromeState) -> some View {
+    func chromeScrollSource(_ chrome: ChromeScroll) -> some View {
         onScrollGeometryChange(for: CGFloat.self) { geometry in
             let top = geometry.contentInsets.top
             let farthest = geometry.contentSize.height + geometry.contentInsets.bottom + top - geometry.containerSize.height
@@ -46,16 +46,5 @@ struct CompactChromeScroll: ViewModifier {
         } else {
             content
         }
-    }
-}
-
-/// A reading sheet (the Reader, Now Playing) at compact width: row 2 of the chrome sits under it,
-/// so the sheet's band and its text keep that clear (the sheet measures its bottom safe area into
-/// its text insets).
-struct KeepsChromeClear: ViewModifier {
-    let isCompact: Bool
-
-    func body(content: Content) -> some View {
-        content.safeAreaPadding(.bottom, isCompact ? ChromeMetrics.readerFootprint : 0)
     }
 }

@@ -50,8 +50,8 @@ final class ReadingScrollHandle {
 ///   in the middle, and keeps it there through layout changes until the text is dragged.
 /// Without `follows` (the Reader) the text never scrolls by itself after that, except to follow
 /// a scrub.
-/// In a reading sheet (`readingChrome` in the environment) the text runs under the sheet's bars,
-/// its scroll insets their heights, and drags and taps on it drive full screen (see
+/// In a reading page (`readingChrome` in the environment) the text runs under the page's bars,
+/// its scroll insets their heights, and taps on it drive full screen (see
 /// `HTMLReadingView+Taps.swift`); in full screen the spoken sentence centres in the whole screen.
 /// There the reading appearance's Pages layout shows it a page of whole lines at a time
 /// (`HTMLReadingView+Pages.swift`), with the page and `pageTimeLeft` in a footer; elsewhere it
@@ -647,26 +647,44 @@ struct HTMLReadingWebView: UIViewRepresentable {
             }
         }
 
-        /// Hands a pull at the top of the text to the sheet around it (`SheetPullHandoff`).
+        /// Hands a pull at the top of the text to the sheet around it (`SheetPullHandoff`), and reports the finger.
         let pullHandoff = ScrollPullHandoff()
 
+        /// Where a finger scrolling the text goes: the compact chrome's collapse (`ReadingChrome`).
+        /// Programmatic scrolls (following the audio, a scrub, a restore) are neither dragging nor
+        /// decelerating, so they never reach it.
+        private var offsetObservation: NSKeyValueObservation?
+
         /// Notes a finger drag through the scroll view's pan (WebKit owns its delegate;
-        /// programmatic scrolls never reach it): the user took over the text, and its movement
-        /// goes to the bars (none in jump mode); let go, the layout settles it (Pages snaps to a
-        /// page). Following stops once the drag moves the text: a pull of the sheet alone (a pull
-        /// down from the top) keeps following, as it moves nothing.
+        /// programmatic scrolls never reach it): the user took over the text; a pull down at the top
+        /// brings full screen's bars back (none in jump mode); let go, the layout settles it (Pages
+        /// snaps to a page). Following stops once the drag moves the text: a pull of the sheet alone
+        /// (a pull down from the top) keeps following, as it moves nothing.
         func observeDragging(_ scrollView: UIScrollView) {
-            pullHandoff.onDragBegan = { [weak self] in
-                self?.userTookOver()
-                self?.chrome?.dragBegan()
-            }
+            pullHandoff.onDragBegan = { [weak self] in self?.userTookOver() }
             pullHandoff.onMove = { [weak self] delta in
-                guard let self, !jumpMode else { return }
-                chrome?.dragged(by: delta)
+                guard let self, !jumpMode, delta > 0, Self.scrolledIn(scrollView) <= 0 else { return }
+                chrome?.pulledDownAtTop()
             }
             pullHandoff.onScroll = { [weak self] in self?.stopFollowing() }
             pullHandoff.onRelease = { [weak self] velocity in self?.layout.dragEnded(velocity: velocity) }
             pullHandoff.attach(to: scrollView)
+            offsetObservation = scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scrollView, _ in
+                guard scrollView.isDragging || scrollView.isDecelerating else { return }
+                let farthest = scrollView.contentSize.height + scrollView.adjustedContentInset.bottom
+                    + scrollView.adjustedContentInset.top - scrollView.bounds.height
+                let offset = min(Self.scrolledIn(scrollView), max(farthest, 0))
+                Task { @MainActor in
+                    guard let self, !self.jumpMode else { return }
+                    self.chrome?.userScrolled(to: offset)
+                }
+            }
+        }
+
+        /// How far the text is scrolled from its top (below the header's inset); negative while a
+        /// pull stretches it.
+        private static func scrolledIn(_ scrollView: UIScrollView) -> CGFloat {
+            scrollView.contentOffset.y + scrollView.adjustedContentInset.top
         }
 
         /// The user moved the text (a drag, a page turn, a link): the hold goes.

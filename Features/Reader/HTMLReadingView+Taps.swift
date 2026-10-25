@@ -1,16 +1,14 @@
 import SwiftUI
 import WebKit
 
-/// The reading page's taps and links, and what it tells the sheet's bars (`ReadingChrome`):
-/// - A finger drag on the text reports its movement (`dragged(by:)`), which hides or shows the
-///   bars. Programmatic scrolls (following the audio, a scrub, a restore) never report.
+/// The reading page's taps and links, and what it tells the page's bars (`ReadingChrome`):
 /// - A tap on the text that isn't on a link (the page's script posts where it landed, see
-///   `bootstrapJS`): the middle toggles the bars, the right edge goes forward a screen and the
+///   `bootstrapJS`): the middle enters or leaves full screen (the only thing that does), the right edge goes forward a screen and the
 ///   left back one (`ReadingChrome.TapZone`), on the `Motion.standard` spring (a jump under Reduce
 ///   Motion); in Pages mode a whole page, at once (`ReadingTextLayout.turn`). A page turn is the
 ///   user moving the text, like a drag: following the audio stops.
 ///   In ☝︎ jump mode taps play from a paragraph instead and nothing here runs; outside a reading
-///   sheet (no chrome: Follow's preview) taps do nothing.
+///   page (no chrome: Follow's preview) taps do nothing.
 /// - A web link opens through the owner (`onOpenLink`: the browser); any other link (`mailto:`,
 ///   `data:`, a book's own links, made absolute under `ReadabilityRunner.placeholderBase`) does
 ///   nothing. A link to a place on the page goes there (in Pages mode, to the page holding it).

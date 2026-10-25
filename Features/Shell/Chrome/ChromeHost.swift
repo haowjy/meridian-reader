@@ -3,23 +3,27 @@ import SwiftUI
 import UIKit
 
 /// The compact bottom chrome, one view above every destination (Reader, Library, Browser): two
-/// rows expanded, one collapsed.
+/// rows expanded, one collapsed, none in the Reader's full screen. `ChromeState` says what is
+/// drawn and `ChromeGeometry` where; this view only wires them to the app.
 ///
 /// ```
-/// expanded    [‹ ›][ address / Search Library          ]        row 1: the screen's own
+/// expanded    [‹ ›][ address / Search Library          ]        row 1: the screen's own (not the Reader's)
 ///             [ Reader | Library | Browser ][▶][  ⋯  ]          row 2: where you are, play, menu
-/// collapsed   [‹ ›][ address ][▶][icon][⋯]                      scrolled down: one row
-/// searching   [ field                    ][icon][✕]             the keyboard is up (or its session open)
+/// collapsed   [‹ ›][ address ][▶][icon][⋯]                      scrolled down: one row (the Reader: its title chip)
+/// keyboard    [ field                    ][icon][✕]             the keyboard is up (or its session open)
+/// full screen (nothing)                                         the Reader's middle tap
 /// ```
 ///
-/// Scrolling down collapses it (`ChromeState`); scrolling up, the icon's tap and a swipe up on the
-/// row expand it (while searching, they lower the keyboard). The pill morphs into the icon (iOS 26: one `GlassEffectContainer`, `glassEffectID`;
-/// Reduce Motion: a cross-fade; earlier iOS: the strip skin). The host never changes the size of
-/// what is under it: screens reserve `ChromeMetrics.footprint` at the bottom and scroll under it.
+/// Scrolling down collapses it (`ChromeScroll`); the icon's tap, a swipe up on the row and the top
+/// of the text expand it (while searching, they lower the keyboard), and scrolling up does where
+/// the screen allows it (`ReaderChromeScroll`). The pill morphs into the icon (iOS 26: one
+/// `GlassEffectContainer`, `glassEffectID`; Reduce Motion: a cross-fade; earlier iOS: the strip
+/// skin). The host never changes the size of what is under it: screens reserve
+/// `ChromeMetrics.footprint` (the Reader `row2Footprint`) at the bottom and scroll under it.
 ///
-/// It owns the field's focus (kept in sync with the session), the play /
-/// pause button's state and the progress and toast overlays; each destination supplies its field,
-/// arrows and ⋯ as a `ChromeScreen`.
+/// It owns the field's focus (kept in sync with the session), the play / pause button's state and
+/// the progress and toast overlays; each destination supplies its field, arrows and ⋯ as a
+/// `ChromeScreen`.
 struct ChromeHost: View {
     let browse: ChromeScreen
     let library: ChromeScreen
@@ -34,14 +38,13 @@ struct ChromeHost: View {
     @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Article]
     @FocusState private var focused: Bool
     @Namespace private var morph
-    /// What is drawn: collapsed or not. Follows `wantsCollapsed` (animated, or through a dip under
-    /// Reduce Motion).
-    @State private var collapsed = false
+    /// What is drawn: follows `wantedPresence` (animated, or through a dip under Reduce Motion).
+    @State private var presence = ChromePresence()
     @State private var dip = 1.0
 
     private let skin = ChromeSkin.current
 
-    /// The Reader is lit while the Reader sheet or Now Playing is up; otherwise the surface under.
+    /// The Reader is lit while the Reader or Now Playing is up; otherwise the surface under.
     private var destination: ChromeDestination {
         if onReadingPage { .reader } else { shell.isInLibrary ? .library : .browse }
     }
@@ -49,16 +52,41 @@ struct ChromeHost: View {
     private var screen: ChromeScreen {
         if onReadingPage { readerScreen } else { shell.isInLibrary ? library : browse }
     }
-    /// The Reader has no field or arrows: row 2 only, with the reading page's own ⋯ at its end.
+    /// The Reader has no arrows or search: its field slot is the title chip, and its ⋯ is the reading
+    /// page's own menu.
     private var readerScreen: ChromeScreen {
-        ChromeScreen(destination: .reader, more: AnyView(ReadingPageMoreButton(id: "chromeReaderMore", chrome: true)))
+        let (title, detail) = readerTitle
+        return ChromeScreen(
+            destination: .reader,
+            field: { _ in AnyView(ChromeTitleChip(title: title, detail: detail, action: iconTapped)) },
+            more: AnyView(ReadingPageMoreButton(id: "chromeReaderMore", chrome: true)))
+    }
+    /// What the Reader names the page by: Now Playing's page, else the Reader's, and its source.
+    private var readerTitle: (title: String, detail: String) {
+        if shell.isNowPlayingPresented, let now = speech.nowPlaying {
+            return (now.lineOne, now.source == now.lineOne ? "" : now.source)
+        }
+        guard let article = shell.readerArticle else { return ("", "") }
+        let title = ArticleRowTitle.lineOne(title: article.title, source: article.sourceLabel,
+                                            address: article.origin.canonicalURL)
+        return (title, article.sourceLabel == title ? "" : article.sourceLabel)
     }
     private var session: SearchSession? { screen.session }
     private var isSearching: Bool { session?.isActive == true }
-    /// One row is drawn: collapsed, or searching.
-    private var isOneRow: Bool { collapsed || isSearching }
-    private var wantsCollapsed: Bool { shell.chrome.isScrolledDown && screen.editBar == nil && !onReadingPage
-        && shell.pageReader == nil }
+
+    /// The page played last, while nothing is bound: the play button resumes it.
+    private var resume: Article? { speech.nowPlaying == nil ? lastPlayed.first(where: \.isLive) : nil }
+    private var hasPlay: Bool { speech.nowPlaying != nil || resume != nil }
+
+    /// What the app says the chrome should be, apart from its drawn `presence`.
+    private var wantedPresence: ChromePresence {
+        ChromePresence(collapsed: shell.chrome.isScrolledDown, fullScreen: shell.isReadingFullScreen)
+    }
+    private func state(presence: ChromePresence) -> ChromeState {
+        ChromeState(destination: destination, presence: presence, played: hasPlay, canGoBack: screen.canGoBack,
+                    canGoForward: screen.canGoForward, keyboard: isSearching, readerMode: destination == .browse && shell.pageReader != nil,
+                    editing: screen.editBar != nil)
+    }
 
     /// What the page under the chrome is drawn in: the reading theme on the Reader, Now Playing and
     /// the Browser's in-place reader view; nil elsewhere (the app's own surface).
@@ -68,7 +96,7 @@ struct ChromeHost: View {
     }
     /// Opaque, in the colour of what is under it: the reading theme, a web page's own background,
     /// or paper (the start page, the search layer, the Library).
-    private var fade: Color {
+    private var underColor: Color {
         if let readingPalette { return readingPalette.background }
         if destination == .browse, shell.web.hasPage, !isSearching, let page = shell.web.pageBackground {
             return Color(uiColor: page)
@@ -76,15 +104,9 @@ struct ChromeHost: View {
         return Palette.paper
     }
 
-    /// The page played last, while nothing is bound: the play button resumes it.
-    private var resume: Article? { speech.nowPlaying == nil ? lastPlayed.first(where: \.isLive) : nil }
-    private var hasPlay: Bool { speech.nowPlaying != nil || resume != nil }
-
     var body: some View {
         GeometryReader { proxy in
-            let geometry = ChromeGeometry(.init(
-                width: proxy.size.width, destination: destination, collapsed: collapsed, searching: isSearching,
-                canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, hasPlay: hasPlay))
+            let geometry = ChromeGeometry(width: proxy.size.width, state: state(presence: presence))
             ZStack(alignment: .topLeading) {
                 pieces(geometry)
             }
@@ -105,10 +127,10 @@ struct ChromeHost: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chromeHost")
         .onAppear {
-            collapsed = wantsCollapsed
+            presence = wantedPresence
             focused = session?.isFocused == true
         }
-        .onChange(of: wantsCollapsed) { _, wants in apply(wants) }
+        .onChange(of: wantedPresence) { _, wanted in apply(wanted) }
         .onChange(of: destination) { _, _ in
             shell.chrome.reset()
             focused = session?.isFocused == true
@@ -123,7 +145,7 @@ struct ChromeHost: View {
         .onChange(of: session?.isFocused == true) { _, wanted in
             if focused != wanted { focused = wanted }
         }
-        .gesture(swipeUp, including: isOneRow ? .all : .subviews)
+        .gesture(swipeUp, including: state(presence: presence).rows == .one ? .all : .subviews)
     }
 
     // MARK: - Pieces
@@ -142,7 +164,7 @@ struct ChromeHost: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("bandField")
                 .environment(\.chromeFieldHeight, fieldFrame.height)
-                .environment(\.chromeFieldCollapsed, g.isCollapsed)
+                .environment(\.chromeFieldCollapsed, g.rows == .one)
                 .overlay {
                     if destination == .browse {
                         LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())
@@ -153,34 +175,34 @@ struct ChromeHost: View {
         if let play = g.play, let button = playButton {
             button.placed(play).transition(.opacity)
         }
-        if g.isCollapsed {
-            if let icon = g.icon {
-                ChromeScreenIcon(destination: destination, action: iconTapped)
-                    .chromeMorph("screen", in: morph)
-                    .placed(icon)
-                    .transition(.opacity)
-            }
+        if let icon = g.icon {
+            ChromeScreenIcon(destination: destination, action: iconTapped)
+                .chromeMorph("screen", in: morph)
+                .placed(icon)
+                .transition(.opacity)
         } else if let pill = g.pill, screen.editBar == nil {
-            ChromePill(lit: destination, reader: readerState, onSelect: select)
+            ChromePill(lit: destination, hasReader: hasPlay, onSelect: select)
                 .chromeMorph("screen", in: morph)
                 .placed(pill)
                 .transition(.opacity)
         }
-        if let edit = screen.editBar, !g.isCollapsed {
-            edit
-                .frame(maxHeight: .infinity)
-                .chromeSurface(Capsule())
-                .placed(CGRect(x: ChromeMetrics.margin, y: g.more.minY,
-                               width: g.more.maxX - ChromeMetrics.margin, height: ChromeMetrics.row2Height))
-                .transition(.opacity)
-        } else if isSearching {
-            Button(action: screen.onCancel) { ChromeRoundLabel(symbol: Icons.close, label: Verbs.cancel) }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Verbs.cancel)
-                .accessibilityIdentifier(screen.cancelID)
-                .placed(g.more)
-        } else {
-            screen.more.placed(g.more)
+        if let more = g.more {
+            if let edit = screen.editBar, g.rows == .two {
+                edit
+                    .frame(maxHeight: .infinity)
+                    .chromeSurface(Capsule())
+                    .placed(CGRect(x: ChromeMetrics.margin, y: more.minY,
+                                   width: more.maxX - ChromeMetrics.margin, height: ChromeMetrics.row2Height))
+                    .transition(.opacity)
+            } else if isSearching {
+                Button(action: screen.onCancel) { ChromeRoundLabel(symbol: Icons.close, label: Verbs.cancel) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Verbs.cancel)
+                    .accessibilityIdentifier(screen.cancelID)
+                    .placed(more)
+            } else {
+                screen.more.placed(more)
+            }
         }
     }
 
@@ -203,60 +225,55 @@ struct ChromeHost: View {
         }, action: { actions.play(article) })
     }
 
-    private var readerState: PlayState? {
-        if let now = speech.nowPlaying { return speech.playState(of: .article(now.articleKey)) }
-        return resume == nil ? nil : .idle
-    }
-
     private var libraryActions: LibraryActions {
         LibraryActions(library: libraryStore, speech: speech, shell: shell, follow: follow)
     }
 
-    // MARK: - Strip skin (earlier iOS)
+    // MARK: - The colour under the pieces
 
-    /// The strip: one thick material behind the rows, as tall as the layout, down through the safe area.
+    /// The strip (earlier iOS): one thick material behind the rows, as tall as the layout, down
+    /// through the safe area. Glass floats on the content instead: the page's own background,
+    /// opaque from the top of the top piece down and fading in over the fade's rise above it, so
+    /// page text never shows through behind the pieces (the strip does that job on the fallback).
     @ViewBuilder
     private func strip(_ g: ChromeGeometry) -> some View {
-        if skin == .strip {
-            let top = g.top - ChromeMetrics.topPadding
-            Color.clear
-                .frame(height: ChromeMetrics.footprint - top)
-                .background(alignment: .bottom) { Rectangle().fill(.bar).ignoresSafeArea(edges: .bottom) }
-                .overlay(alignment: .top) { Divider() }
-                .animation(reduceMotion ? nil : Motion.standard, value: g)
-        } else if skin == .glass {
-            // Glass floats on the content: the page's own background, opaque from the top of the
-            // top piece down and fading in over `fadeHeight` above it, so page text never shows
-            // through behind the pieces (the strip does that job on the fallback).
-            let top = g.top - ChromeMetrics.topPadding
-            // The reading sheets already keep their content clear of the chrome: no fade above it.
-            let rise = onReadingPage ? 0 : ChromeMetrics.fadeHeight
-            Color.clear
-                .frame(height: ChromeMetrics.footprint - top)
-                .background(alignment: .bottom) { fade.ignoresSafeArea(edges: .bottom) }
-                .overlay(alignment: .top) {
-                    LinearGradient(colors: [fade.opacity(0), fade], startPoint: .top, endPoint: .bottom)
-                        .frame(height: rise)
-                        .offset(y: -rise)
-                }
-                .allowsHitTesting(false)
-                .animation(reduceMotion ? nil : Motion.standard, value: g)
+        if let edge = g.fade {
+            if skin == .strip {
+                Color.clear
+                    .frame(height: ChromeMetrics.footprint - edge.solidTop)
+                    .background(alignment: .bottom) { Rectangle().fill(.bar).ignoresSafeArea(edges: .bottom) }
+                    .overlay(alignment: .top) { Divider() }
+                    .animation(reduceMotion ? nil : Motion.standard, value: g)
+            } else if skin == .glass {
+                Color.clear
+                    .frame(height: ChromeMetrics.footprint - edge.solidTop)
+                    .background(alignment: .bottom) { underColor.ignoresSafeArea(edges: .bottom) }
+                    .overlay(alignment: .top) {
+                        LinearGradient(colors: [underColor.opacity(0), underColor], startPoint: .top, endPoint: .bottom)
+                            .frame(height: edge.rise)
+                            .offset(y: -edge.rise)
+                    }
+                    .allowsHitTesting(false)
+                    .animation(reduceMotion ? nil : Motion.standard, value: g)
+            }
         }
     }
 
     // MARK: - Overlays
 
-    /// The prepare progress and the toast sit on the layout's top edge, never in a row of their own.
+    /// The prepare progress and the toast sit on the layout's top edge, never in a row of their
+    /// own. The expanded Reader and Now Playing float their own above their band, and full screen
+    /// shows none.
+    @ViewBuilder
     private func overlays(_ g: ChromeGeometry) -> some View {
-        VStack(spacing: 0) {
-            // The Reader and Now Playing float their own.
-            if !onReadingPage {
+        if g.rows == .one || (g.rows == .two && !onReadingPage) {
+            VStack(spacing: 0) {
                 PrepareProgressEdge()
                 ShellToastLayer()
             }
+            .offset(y: g.top - ChromeMetrics.topPadding)
+            .animation(reduceMotion ? nil : Motion.standard, value: g)
         }
-        .offset(y: g.top - ChromeMetrics.topPadding)
-        .animation(reduceMotion ? nil : Motion.standard, value: g)
     }
 
     // MARK: - Actions
@@ -284,7 +301,8 @@ struct ChromeHost: View {
         }
     }
 
-    /// The icon is a swipe up: back to two rows. While searching the row stays one, so it lowers the keyboard.
+    /// The icon, the title chip and a swipe up on the row: back to two rows. While searching the
+    /// row stays one, so it lowers the keyboard.
     private func iconTapped() {
         if let session, session.isActive {
             session.lowerKeyboard()
@@ -296,23 +314,23 @@ struct ChromeHost: View {
     private var swipeUp: some Gesture {
         DragGesture(minimumDistance: 16)
             .onEnded { value in
-                guard isOneRow, value.translation.height < -24,
+                guard state(presence: presence).rows == .one, value.translation.height < -24,
                       abs(value.translation.height) > abs(value.translation.width) else { return }
                 iconTapped()
             }
     }
 
-    /// Applies a new collapsed state: spring (the geometry animates it), or under Reduce Motion a
-    /// dip: fade out, swap, fade in.
-    private func apply(_ wants: Bool) {
+    /// Draws a new presence: the geometry animates it, or under Reduce Motion a dip: fade out,
+    /// swap, fade in.
+    private func apply(_ wanted: ChromePresence) {
         guard reduceMotion else {
-            collapsed = wants
+            presence = wanted
             return
         }
         withAnimation(Motion.fadeOut) {
             dip = 0
         } completion: {
-            collapsed = wants
+            presence = wanted
             withAnimation(Motion.fadeIn) { dip = 1 }
         }
     }
@@ -329,13 +347,5 @@ private extension View {
     func placed(_ rect: CGRect) -> some View {
         frame(width: rect.width, height: rect.height)
             .offset(x: rect.minX, y: rect.minY)
-    }
-}
-
-extension ChromeGeometry {
-    /// The top edge of the highest piece.
-    var top: CGFloat {
-        [field?.minY, back?.minY, forward?.minY, pill?.minY, play?.minY, icon?.minY, more.minY]
-            .compactMap { $0 }.min() ?? 0
     }
 }

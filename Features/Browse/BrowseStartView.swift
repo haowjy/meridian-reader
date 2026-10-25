@@ -5,7 +5,7 @@ import WebKit
 
 /// The browser, and the root of the shell: the web page or start page with its bottom chrome,
 /// the address search layer, and over it the layers `ShellState` says are up, in order: the
-/// library, the Reader sheet, Now Playing, the one ⋯ menu overlay and the one sheet.
+/// library, the Reader, Now Playing, the one ⋯ menu overlay and the one sheet.
 struct BrowseStartView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.articleExtractor) private var extractor
@@ -223,8 +223,10 @@ struct BrowseStartView: View {
 
     // MARK: - Layers
 
-    /// The library, the Reader sheet over it (or over the browser), Now Playing over them, and at
-    /// compact width the bottom chrome over all of them. Each layer is out of reach and hidden from VoiceOver while one covers it.
+    /// The library, the Reader over it (or over the browser), Now Playing over them, and at
+    /// compact width the bottom chrome over all of them. On compact width the Reader and Now Playing
+    /// are destinations drawn in place under the chrome and cross-fade with the others; on regular
+    /// width they are sheets that rise. Each layer is out of reach and hidden from VoiceOver while one covers it.
     private var layers: some View {
         ZStack {
             if shell.isInLibrary {
@@ -236,12 +238,12 @@ struct BrowseStartView: View {
                 ReaderSheetScreen(state: reader, speech: speech)
                     .id(reader.presentation)
                     .covered(shell.isNowPlayingPresented)
-                    .modifier(KeepsChromeClear(isCompact: !isRegular))
+                    .transition(.opacity)
             }
             if shell.isNowPlayingPresented {
                 NowPlayingScreen(speech: speech)
                     .id(shell.nowPlayingPresentation)
-                    .modifier(KeepsChromeClear(isCompact: !isRegular))
+                    .transition(.opacity)
             }
             // Compact: the one bottom chrome, over the browser, the Library, the Reader and Now
             // Playing alike. The Reader is a destination: it keeps the pill (row 2) under its text.
@@ -249,6 +251,14 @@ struct BrowseStartView: View {
                 compactChrome
             }
         }
+        .animation(isRegular || reduceMotion ? nil : Motion.snappy, value: ReadingLayers(reader: shell.reader?.presentation,
+                                                                              nowPlaying: shell.nowPlayingPresentation))
+    }
+
+    /// Which reading layers are up: a change cross-fades them on compact width.
+    private struct ReadingLayers: Equatable {
+        var reader: UUID?
+        var nowPlaying: UUID?
     }
 
     // MARK: - Compact bottom chrome

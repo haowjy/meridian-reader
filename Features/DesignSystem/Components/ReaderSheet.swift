@@ -1,13 +1,14 @@
 import SwiftUI
 
-/// Reading one page, as a `Sheet` over the surface that opened it:
+/// Reading one page (`ReadingPage`): a `Sheet` over the surface that opened it on regular width,
+/// in place under the bottom chrome on compact width.
 ///
 /// ```
 /// ┌──────────────────────────────────────┐
-/// │                 ───                  │ <- grabber
-/// │ ( < Browser )             (Aa) (^)  │ <- `SheetTopBar`: the close pill names what is
+/// │                 ───                  │ <- grabber (the sheet's)
+/// │ ( < Browser )             (Aa) (^)  │ <- `SheetTopBar`: the close pill (the sheet's) names what is
 /// │ `banner` (the ^ hint, while on)      │   underneath; `textAppearance` (Aa), `accessory` (^)
-/// │ ... `text`: ReadingHeading, then the │ <- fills the sheet, running under the header and
+/// │ ... `text`: ReadingHeading, then the │ <- fills the page, running under the header and
 /// │   text in the reading theme ...      │   the band
 /// │ ─────────────────────────────────────│ <- hairline divider
 /// │ [art] Title          (Voice)    [🔖]│ <- title; Voice then bookmark (trailing)
@@ -19,16 +20,16 @@ import SwiftUI
 ///
 /// Now Playing (`NowPlayingSheet`) has the same top bar, the same colours (`palette`, the reading
 /// theme) and the same flat integrated controls, so the controls stay put as Listen turns one into
-/// the other. Both go full screen the same way (`ReadingChrome`): scrolling down hides the header
-/// and the band, and the floating ▶ plays this page as Listen does. The close pill, the grabber and
-/// a pull down all close it (`onClose`, after it has gone). `floating` floats just above the bottom
-/// band's hairline (a toast).
+/// the other. Both go full screen the same way (`ReadingChrome`): a tap in the middle of the text
+/// enters and leaves it, and the floating ▶ plays this page as Listen does. On regular width the
+/// close pill, the grabber and a pull down close it (`onClose`, after it has gone). `floating`
+/// floats just above the bottom band's hairline (a toast).
 struct ReaderSheet<Band: View, Reading: View, TextAppearance: View, Accessory: View,
                    Banner: View, Floating: View>: View {
-    /// What is underneath: "Browser", "Library".
+    let showing: ReadingShowing
+    /// What is underneath, named by the sheet's close pill: "Browser", "Library".
     let backTitle: String
     let listenState: PlayState
-    let onClose: () -> Void
     let onListen: () -> Void
     /// The reading theme's colours.
     var palette: ReadingPalette = .app
@@ -47,22 +48,17 @@ struct ReaderSheet<Band: View, Reading: View, TextAppearance: View, Accessory: V
     @State private var chrome = ReadingChrome()
 
     var body: some View {
-        Sheet(onDismiss: onClose, palette: palette, chrome: chrome) {
-            VStack(spacing: 0) {
-                SheetTopBar { SheetClosePill(kind: .back(backTitle)) } trailing: {
-                    textAppearance
-                    accessory
-                }
-                banner
-            }
-        } content: {
+        ReadingPage(showing: showing, chrome: chrome, palette: palette, closeKind: .back(backTitle)) {
+            textAppearance
+            accessory
+        } banner: {
+            banner
+        } text: {
             text
         } band: {
-            ReadingBottomBand {
-                band
-            } floating: {
-                floating
-            }
+            band
+        } floating: {
+            floating
         } overText: {
             FloatingPlayButton(state: listenState, action: onListen)
         }
@@ -71,11 +67,11 @@ struct ReaderSheet<Band: View, Reading: View, TextAppearance: View, Accessory: V
 
 extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView, Banner == EmptyView,
     Floating == EmptyView {
-    init(backTitle: String, listenState: PlayState,
-         onClose: @escaping () -> Void, onListen: @escaping () -> Void,
+    init(showing: ReadingShowing, backTitle: String, listenState: PlayState,
+         onListen: @escaping () -> Void,
          @ViewBuilder text: () -> Reading, @ViewBuilder band: () -> Band) {
-        self.init(backTitle: backTitle, listenState: listenState,
-                  onClose: onClose, onListen: onListen,
+        self.init(showing: showing, backTitle: backTitle, listenState: listenState,
+                  onListen: onListen,
                   textAppearance: { EmptyView() }, accessory: { EmptyView() }, banner: { EmptyView() }, text: text,
                   band: band, floating: { EmptyView() })
     }
@@ -115,8 +111,8 @@ struct ReaderSheetGallery: View {
     }
 
     private func frame(_ state: PlayState, saved: Bool = false) -> some View {
-        ReaderSheet(backTitle: "Browser", listenState: state,
-                    onClose: {}, onListen: {}) {
+        ReaderSheet(showing: .sheet(onClose: {}), backTitle: "Browser", listenState: state,
+                    onListen: {}) {
             SampleReading(title: "Notes on Tides", detail: ["example.org", "9 min"])
         } band: {
             VStack(spacing: Spacing.xs) {
