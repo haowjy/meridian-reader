@@ -117,13 +117,14 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   symbols alone. Give every button in one a symbol.
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
-- **Bottom chrome (a redesign is in progress; PR1 of four adds the host)**: compact width moves from the
-  two-surface band (`SurfaceBand`, now regular width only) to one floating chrome host
+- **Bottom chrome**: compact width draws one floating chrome host
   (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Reader, Library, Browser), two rows
-  expanded and one collapsed, still no system tab bar (see `docs/NAVIGATION.md`, "Planned"). Every piece is a capsule or circle
-  (radius = height / 2; row heights 52 / 56 / 48 in `ChromeMetrics`), the Reader keeps the chrome (row 2 only), and the compact
-  address pill ends in reload, not 🎧 (iPad keeps 🎧). Change the
-  chrome host, never one screen; on regular width change `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
+  expanded and one collapsed, no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; PR2 to PR4 of the
+  redesign are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
+  or circle (radius = height / 2; row heights 52 / 56 / 48 in `ChromeMetrics`), every control glyph
+  `BottomChrome.chromeGlyph`, the Reader keeps the chrome (row 2 only), and the compact address pill ends
+  in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
+  `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
   (`BottomToolbarLayout`, `BottomToolbarSpanLayout`) so sizing, Dynamic Type and 44 pt taps stay
   consistent.

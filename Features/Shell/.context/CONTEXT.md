@@ -73,11 +73,14 @@ changing the shell code.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever
   (a layout loop at 100% CPU). The glass grows by frame and corner radius, never by scale.
-- **Planned, not shipped: one chrome host replaces the band on compact width** (approved design 5e,
-  four PRs; `docs/NAVIGATION.md` "Planned"). Three destinations (Reader, Library, Browser), at most two
-  rows expanded and one collapsed, one play/pause button, one screen icon, glass inside one
-  `GlassEffectContainer` on iOS 26 with today's material strip as the fallback. Regular width is
-  untouched. The next bullet describes the band that ships today.
+- **Compact width: one chrome host** (`Chrome/ChromeHost.swift`; `docs/NAVIGATION.md` "Bottom
+  chrome"). Three destinations (Reader, Library, Browser), at most two rows expanded and one
+  collapsed, one play/pause button, one screen icon, glass inside one `GlassEffectContainer` on
+  iOS 26 with a material strip as the fallback. Its fade takes the colour of what is under it: a
+  web page's `underPageBackgroundColor` (`WebViewStore.pageBackground`, KVO), paper, or the reading
+  theme. The in-place reader (`BrowsePageReader`) covers a web view that takes no touches, so it
+  carries its own left-edge swipe for ‹. The rest of design 5e (PR2 to PR4) is under "Planned"
+  there. Regular width is untouched.
 - **Regular width: the browser and the Library share the field band** (`SurfaceBand`: the field and its ✕),
   over the clustered dock; the dock's toolbar is a `BottomToolbarLayout` whose items name their slots
   (`.toolbarSlot`), one role per slot on both surfaces. Compact width has no band: `ChromeHost` draws it.

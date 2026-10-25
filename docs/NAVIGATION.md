@@ -61,104 +61,101 @@ their text when it is at its top, which does exactly what that button does.
   Under Reduce Motion it fades in and out instead. What is under a sheet takes no touches until it
   has gone.
 
-## Planned: three destinations in one floating chrome (approved design 5e, in progress, not shipped)
+## Bottom chrome (compact width)
 
-**Status:** approved 2026-10-25, being built in four PRs. Until each PR merges, the sections below
-("Two surfaces", the Reader and Now Playing, the ⋯ menu) describe what ships today. When a PR lands, move
-what it changed out of this section and into those sections.
+On iPhone (any compact width) one floating chrome host (`Features/Shell/Chrome/ChromeHost.swift`)
+sits over every destination: the Browser, the Library, and the Reader (the Reader sheet and Now
+Playing). There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
+Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular width", below).
 
-**PR1 (the host, on `bottom-chrome-pr1`):** the compact chrome host (`Features/Shell/Chrome/`) replaces
-`SurfaceBand` on iPhone for the Library and the browser: both rows, the pill, collapse on scroll, the
-play/resume button, the adaptive ‹ › row and the Library search row. The address pill ends in reload (↻,
-✕ while loading) instead of 🎧 on compact width. The Reader keeps the chrome (row 2 only) under the Reader
-sheet and Now Playing, and reader mode for the Browse page replaces the page in place (built in PR1). Temporary until PR2 to PR4: the
-Reader segment opens what plays, else the page played last (as a sheet, today's Now Playing and Reader),
-else a toast; the Now Playing bar row is gone from compact (play/pause and its ring replace it, Now
-Playing is the Reader segment); the Library ＋ rows and History moved into ⋯; the morph between the
-pill and the icon is a glass morph (iOS 26) or a fade, but ⋯ does not morph into its panel yet;
-collapse is two states with hysteresis, not continuous; ‹ › do not move into ⋯ at large text.
+```
+expanded    [‹ ›][ address / Search Library          ]        row 1: the screen's own
+            [ Reader | Library | Browser ][▶][  ⋯  ]          row 2: where you are, play, menu
+collapsed   [‹ ›][ address ][▶][icon][⋯]                      scrolled down: one row
+searching   [ field                    ][icon][✕]             the keyboard is up
+```
 
-The compact bottom band becomes one floating glass chrome with three destinations and no system tab bar
-(invariant 13: `rg "TabView|UITabBar"` finds nothing):
+- **The pill** `[Reader | Library | Browser]`: three equal segments, the lit one the screen you
+  are on (an inset capsule, 4 pt on all four sides, its glyph accent, labels ink). The Reader
+  segment shows bars while something plays and the plain document while paused; with nothing
+  playing and nothing played it is dimmed (never while lit). It opens what plays (Now Playing),
+  else the page played last, else a toast.
+- **One shape system.** Every piece is a capsule or a circle (radius = height / 2) on one
+  surface: Liquid Glass inside one `GlassEffectContainer` on iOS 26, every piece answering a press;
+  earlier iOS (and a Debug launch with `-chromeFallback`) draws a thick material strip with
+  `Palette.chrome` capsules, one hairline and one shadow under each shape. Heights: row 1 52, row 2
+  56 (circles 56), the collapsed row 48; sizes live in `ChromeMetrics` (footprint 126 expanded, 58
+  collapsed, 66 on the Reader). Every control glyph, the field's reader icon, ↻ and 🎤 included,
+  is 19 pt medium (`BottomChrome.chromeGlyph`); the field's 🔍 is a caption-size hint, not a
+  control. Labels are 11 pt medium ink.
+- **Row 1** is the screen's context: on the Browser `[‹][›][address]` (› dropped with no forward
+  page, both dropped on a new page), on the Library its search field. The address field is
+  `[reader icon][URL][↻]` (↻ is ✕ while the page loads); there is no 🎧 in it on compact width:
+  play and pause live in the chrome's own button. Collapsed, the field shows the URL alone and is
+  the tap target.
+- **Row 2** is the pill, a 56 pt round play / pause with a thin progress ring (hidden before
+  anything has played, and on the Reader itself) and ⋯. With nothing loaded ▶ resumes the page
+  played last.
+- **Collapse.** Scrolling down collapses the chrome to one row, `[‹ ›][address][▶][icon][⋯]`;
+  the screen icon is plain (document, books or globe). Scrolling up, tapping the icon or a swipe
+  up on the row expands it (invariant 12). The pill morphs into the icon (iOS 26 glass morph;
+  Reduce Motion and the strip cross-fade). Two states with hysteresis (`ChromeState`).
+- **Searching** (the keyboard up, or its session open): one row, the field, the screen icon and ✕.
+- **The Reader keeps the chrome**: row 2 only (`[pill][⋯]`, no play button, field or arrows),
+  never collapsed, under the Reader sheet and Now Playing, Reader lit. Its ⋯ is the reading
+  page's own menu, so the transport has no ⋯ of its own on compact width. The sheet's Close pill
+  and pull-down still work; Library and Browser dismiss it and switch.
+- **Reader mode on the Browser replaces the page in place** (like Safari Reader,
+  `BrowsePageReader`): the chrome stays expanded, the address keeps the URL, the reader icon sits
+  in a lit capsule and toggles back, and a slim bar under the status bar holds Aa and Listen. The
+  reader's theme runs up under the status bar. The web page under it takes no touches and is
+  hidden from VoiceOver; a swipe from the left edge does what ‹ does (back, which closes the
+  reader). Listen plays the page and opens Now Playing.
+- **⋯** opens the screen's ⋯ panel ("Menus", below). The compact chrome has no 🕘 or ＋ buttons:
+  *History* is a row of every compact ⋯ (Browser, Library, Reader, Now Playing), and the Library's
+  ⋯ adds *New Folder…*, *Import from…* and *Paste Text…*. On the Browser the page's *Save to
+  Folder…* is in ⋯ too; the Reader tile reads *Show Web Page* while the in-place reader shows.
+- **Behind the pieces** the colour of what is under them, opaque from the top piece down and
+  fading in over 28 pt above it, so page text never shows through: a web page's own background
+  (WebKit's `underPageBackgroundColor`), paper on the start page, the search layer and the
+  Library, the reading theme on readers. Chrome text stops growing at the xxxLarge Dynamic Type
+  size; every glyph offers the large content viewer. Every tap target is at least 44 pt.
+- **Overlays, never rows:** prepare progress and toasts.
 
-- **Destinations:** a pill `[Reader | Library | Browser]`, three equal segments. **Reader** is the primary
-  reader: what reads aloud, else the page played last, else an empty state. This merges Now Playing into
-  the Reader destination.
-- **One shape system.** Every floating piece is a capsule or a circle (corner radius = height / 2, one rim,
-  shadow and material, one 19 pt medium icon size, 11 pt medium ink labels). Heights: row 1 52, row 2 56 (circles 56), the collapsed row 48.
-  The pill's lit segment is an inset capsule, 4 pt on all four sides, radius = the pill's minus 4. Sizes live
-  in `ChromeMetrics`; footprint 126 expanded, 58 collapsed, 66 on the Reader.
-- **Expanded, at most two rows.** Row 1 is the screen's context: Browse `[‹][›][address]` (› dropped with
-  no forward page, both dropped on a new page), Library the search field. Row 2 is the pill, a 56 pt
-  round play/pause button with a thin progress ring (hidden before anything has played, and hidden on the
-  Reader itself), and ⋯. The address field is `[reader icon][URL][reload]`, and just the URL when the chrome is collapsed (the
-  field is the tap target; the reader icon and reload step aside); there is no play or listen
-  button in it on compact width (iPad's regular-width field keeps its 🎧, invariant 11).
-- **Collapsed, exactly one row** (48 pt pieces): `[screen content][play/pause if played][screen icon][⋯]`. The screen
-  icon is plain, 48 pt (document, books or globe, no progress); tapping it is the same as swiping up
-  (invariant 12). On the Reader the title chip carries its own pause. The Reader segment morphs into the icon.
-- **Readers:** the primary reader is the destination, and it keeps the chrome: `[pill][⋯]` (row 2 only, no
-  play button, field or arrows, never collapsed) under the text and band, Reader lit; its ⋯ is the reading
-  page's own menu (the page's rows, then Prepared Audio, then Settings / Saved / Reader), so the transport
-  has no ⋯ of its own on compact width (iPad keeps it); its Close pill and
-  pull-down still work, Library and Browser dismiss it and switch. Reader mode for the Browse page replaces
-  the page in place (like Safari Reader): the chrome stays expanded, the address keeps the URL, the reader
-  icon in it sits in a lit capsule and toggles back, and a slim bar holds Aa and Listen. Other temporary readers are sheets
-  opened from a Library row. At most three are open and only one
-  plays. *Listen* in a temporary reader makes it the primary and stops the old one.
-- **⋯** is sectioned: Settings (first and most prominent), History, Prepared Audio, then the screen's own
-  rows (＋ actions in Library, Save in Browse). The panel grows out of the glass.
-- **Overlays, never rows:** prepare progress and toasts. Every tap target is at least 44 pt.
-- **Widths:** the address field is adaptive: 5e keeps ‹ › until it would drop below the minimum, then
-  drops › (5e-2), then both (5e-3); below 360 pt or at large text, ‹ › move into ⋯.
-- **Behind the pieces** the page's own background (the reading theme's on readers) fades in over 28 pt above
-  the top piece and is opaque from there down, so page text never shows through the glass. Chrome text stops
-  growing at the xxxLarge Dynamic Type size; every glyph offers the large content viewer.
-- **iOS 26:** `.glassEffect` inside one `GlassEffectContainer`. **Earlier iOS** keeps today's thick
-  material strip. Reduce Motion turns the morph into cross-fades.
-- **iPad (regular width):** unchanged: sidebar and clustered dock, no pill.
+## Planned: the rest of the three-destination chrome (approved design 5e, PR2 to PR4, not shipped)
 
-Source of truth until it ships: the mockups and the audit and build plan in the project context
-(`work/bottom-chrome/`, outside this repo), and the decision `three-destination-bottom-chrome` in the project KB.
+PR1 shipped the host above. Still to come, from the approved design (mockups and build plan in the
+project context, `work/bottom-chrome/`, outside this repo; the decision
+`three-destination-bottom-chrome` in the project KB):
+
+- **Reader as the primary reader:** what reads aloud, else the page played last, else an empty
+  state, merging Now Playing into the Reader destination. Other temporary readers are sheets
+  opened from a Library row; at most three are open and only one plays; *Listen* in a temporary
+  reader makes it the primary and stops the old one.
+- **⋯ sectioned** (Settings first and most prominent, History, Prepared Audio, then the screen's
+  own rows), its panel growing out of the glass.
+- **Widths:** below 360 pt or at large text, ‹ › move into ⋯.
+- **Collapse** follows the scroll continuously instead of two states.
 
 ## Two surfaces: the Library and the browser (no tab bar)
 
-*Shipped behavior. The three-destination chrome above replaces this band on compact width as the build lands.*
-
-There is no tab bar. The app has two surfaces, swapped by the icon before the field (📚 on the
-browser, 🌐 on the Library): the **Library**, the folder tree, and the **browser**, a web page or
-the start page. `BrowseStartView` hosts both (`ShellState.surface`); all chrome is one bottom
-band, the same on both (decisions D22 and D23), and each surface uses everything between the
-status bar and it (safe area respected).
-
-On iPad (regular width) the same two surfaces sit beside a sidebar, with the bottom band split into
-main-pane chrome and a clustered player dock; see "iPad and regular width" below. This section
-describes the compact (phone) chrome.
+The app has two surfaces: the **Library**, the folder tree, and the **browser**, a web page or the
+start page. `BrowseStartView` hosts both (`ShellState.surface`), and each uses everything between
+the status bar and the bottom chrome. On compact width the chrome host's pill switches between
+them ("Bottom chrome", above); on regular width the sidebar does ("iPad and regular width",
+below).
 
 **The app reopens on the surface you left** (decision D10): the Library at the folder you were in
 (`ShellState.libraryPath`, folders that no longer exist dropped), or the browser on its last page,
 reloaded. A fresh install opens the Library. Kept on the device in UserDefaults
 `shell.lastSurface` (`SurfaceMemory`). Reopened on the Library, the browser's last page loads the
-first time you go there (🌐), and stays remembered until then, across relaunches. UI-test launches
+first time you go there, and stays remembered until then, across relaunches. UI-test launches
 start on the browser unless `-restoreSurface`.
 
-```
-╭ [art] Now playing title              ⏸ ╮   ← the Now Playing bar alone, full width, always
-│ [━━━━━━━━━━━━━━━━───────────────────── ]│     there; ⏸ over ⋯'s slot; groove progress line
-╰─────────────────────────────────────────╯
-[📚]( 📄 address …                   🎧 )   ← the swap, then the field; 📄 / 🎧 on readable
-                                                pages; 🎤 only while searching
-[ ‹ ]   [ › ]   [ 🔖 ]   [ 🕘 ]   [ ⋯ ]    ← 5 equal slots, the Library's roles slot for slot
-```
-
-**The band is the same on the browser and the Library** (`SurfaceBand`, decisions D22 and D23):
-the same three rows at the same height, every control at the same frame, so swapping surfaces
-changes what the controls say and nothing else. Row 1 is the Now Playing bar alone, across the
-band's full width. Row 2 is the swap (📚 / 🌐, its 44 pt tap target tight to the leading edge),
-then the field filling the rest: the address field on the browser, *Search Library* (or the tab or folder it searches) on the
-Library (one component, `BandFieldRow`).
-While searching, the swap steps aside with the bar and the toolbar. Row 3 is the
-toolbar, each slot one role on both:
+**Regular width: one band on both surfaces** (`SurfaceBand`, decisions D22 and D23): the field
+(the address field on the browser, *Search Library*, or the tab or folder it searches, on the
+Library) at the top of the main pane, with a round ✕ beside it while searching, over the clustered
+dock, whose toolbar has one role per slot on both surfaces:
 
 | Slot | Browser | Library |
 |---|---|---|
@@ -170,21 +167,17 @@ toolbar, each slot one role on both:
 
 A slot with nothing to do is dimmed in place, never removed, so nothing shifts.
 
-**One bottom-chrome design**, shared by the browser, the Library, the Reader and Now Playing so
-the bottom of the screen barely changes between them (`Features/DesignSystem/Chrome/BottomChrome.swift`): the band
-(`bottomChromeBand`: 12 pt margins, 8 pt top padding, system bar material through the home
-indicator), the field capsule (`bottomChromeField`: 44 pt, chrome-coloured capsule; 36 pt body-size controls
-inside, like 🎤), and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain
-19 pt glyphs). With larger text the capsule and its controls grow (up to 1.5×) instead of
-clipping; toolbar glyphs keep their size and show in the large content viewer on long press.
-Every control takes taps in at least 44 × 44 pt (`tapTarget`), whatever its drawn size: the
-address-field 📄 and 🎧, the ✕ beside a search field, the Now Playing bar's play/pause, the
-capsule's 36 pt controls. **Five equal slots, evenly spaced, one grid for every row:** Browse is
-`[‹][›][🔖][🕘][⋯]`, the Library surface `[‹][›][＋][🕘][⋯]`, the Reader
-`[🔖][ ▶ Listen  9 min ][⋯]` (the pill spans slots 2–4) and Now Playing `[🔖][⏮][▶︎][⏭][⋯]`.
-Each item names its slot (`.toolbarSlot(_:)`); a slot nothing names stays empty, so items never
-slide along, every icon in slot N is at the same x and the ⋯ menu grows from the same spot. ⋯ is
-never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot too.
+**Shared bottom-chrome pieces** (`Features/DesignSystem/Chrome/BottomChrome.swift`), used by the
+regular-width band and dock and by the reading sheets' bands: the band (`bottomChromeBand`: 12 pt
+margins, 8 pt top padding, system bar material through the home indicator), the field capsule
+(`bottomChromeField`: 44 pt, chrome-coloured capsule; 36 pt body-size controls inside, like 🎤),
+and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain 19 pt glyphs). With
+larger text the capsule and its controls grow (up to 1.5×) instead of clipping; toolbar glyphs
+keep their size and show in the large content viewer on long press. Every control takes taps in at
+least 44 × 44 pt (`tapTarget`), whatever its drawn size. **Five equal slots, evenly spaced, one
+grid for every row:** each item names its slot (`.toolbarSlot(_:)`); a slot nothing names stays
+empty, so items never slide along, every icon in slot N is at the same x and the ⋯ menu grows from
+the same spot. ⋯ is never replaced.
 
 - **A new search** is a tap on the address field: it selects the article's address, so typing
   replaces it (Recent Searches show full-bleed, Safari-style); ✕ cancels and restores the article's
@@ -193,15 +186,16 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   Text without a scheme loads as an address only when its host ends in letters (`.com`, `.uk`,
   `.js`) or is an IP address; anything else ("3.14", "e.g.") is a Google search, and the
   suggestions follow the same rule (`BrowseURLParser`).
-- **🔖** (slot 3) is the Reader's 🔖 for the article on screen: tap saves it to the Library's top level
+- **🔖** (regular width, slot 3; on compact width ⋯ has the page's *Save to Folder…*) is the Reader's 🔖 for the article on screen: tap saves it to the Library's top level
   (extracted first; 🔖 spins), or removes it when it is saved (filled, jade); held, it opens the
-  Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4) opens History: the
+  Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4; on compact width ⋯ → *History*) opens History: the
   pages visited, newest first, as Library rows (the site under a titled visit, none under an
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
   and long press are the article's menu ("Menus", below; on the Library's article for the address when
   it has one), then *Remove from History*. Empty, it says *No History Yet*.
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
-  same-document history counts too). The web view's own edge swipes still work.
+  same-document history counts too). The web view's own edge swipes still work; over the in-place
+  reader, a swipe from the left edge does what ‹ does.
 - A page whose web content process ends (WebKit crashed, or iOS took its memory) shows blank
   until it loads again, so it reloads by itself: at once (in the background, once the app is in
   front), then after 2 s and 5 s when the new process ends too. A fourth end within a minute
@@ -211,9 +205,11 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 - No Reader button in the toolbar. The **reader icon** (📄, like Safari's article-format icon) sits
   at the leading edge of the address field only when the article is readable (the same Mozilla
   `isProbablyReaderable` check extraction uses, run after each load / same-document URL change);
-  otherwise the lock / search glyph is there. Tapping it opens the Reader sheet (a spinner
+  otherwise the lock / search glyph is there. Tapping it shows the page's reader view in place on
+  compact width ("Bottom chrome", above) and opens the Reader sheet on regular width (a spinner
   replaces it while the article is extracted); on the article that is playing it opens Now Playing.
-- **🎧** (headphones, trailing end of the address field) also shows only on readable pages. It is
+- **🎧** (headphones, trailing end of the address field; regular width only, compact has ↻ there)
+  also shows only on readable pages. It is
   the article's own play button: grey when the article isn't what you hear (tap: listen now: a spinner
   while the article is extracted, what's playing keeps playing until this article is ready, then it
   replaces it, at the article's spot if it has one, or from the top if it was heard to the end; if
@@ -277,27 +273,18 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
   played goes at the next launch) but the bar doesn't offer it, and it comes back only when you
   save it or listen to it again (🎧, the Reader's Listen). There is one article per address: saving
   a favorite saves it in place. 🔖 = saved, ☆ = favorite.
-- **The Now Playing bar** (`BandNowPlayingBar` / `NowPlayingBarView` → `NowPlayingBar`) is the
-  one thing that shows what you hear: a flat card on the `PlayerCard` surface (reading-palette card
-  fill, tile colours, radius, no shadow, progress track) above the field capsule, with the article's artwork at
-  the shared 40 pt tile size, its title (its site, or its book, when it has none), the site and
-  the time left (two parts set apart by space, the time in lighter ink; at the playback speed,
-  written as rows write it: "9 min left", "6 h 10 min left"), a groove progress line (4 pt,
-  matching the scrub track) inside the card, and play/pause centered over the ⋯ slot. The surface
-  injects `ReadingPalette.app` when no reading palette is set, so the card, tile and track render
-  the same colours on every surface. It looks the same on the browser, the start page, the Library
-  and the Reader sheet. At the end of an article it stays, reading ◉ Finished, and ▶ plays
-  the article again. Tap or swipe up → Now Playing; long-press → the article's menu ("Menus", below;
-  its *Remove from Library* stops the article you hear, as anywhere else), then *Stop Listening*
-  (unloads the article; dimmed on the article played last, which nothing has loaded).
-  **In the band it is always there, at one height:** with nothing loaded (before the first play
-  of a launch, after *Stop Listening*, once the article you heard is removed or deleted) it shows
-  the article played last that is in the Library or played without saving, paused (▶ resumes it
-  from its place, a tap opens it), and when there is none (nothing played yet, or every article
-  played since removed or deleted) a greyed *Nothing playing* card. On Now Playing, under the
-  Reader sheet (which shows its own bar) and under other sheets the band keeps the bar's space
-  empty; while you type in a field the row steps aside with the toolbar. The Reader's bar shows
-  only what you hear, and hides on Now Playing, under other sheets and once nothing is loaded.
+- **The Now Playing bar** (`NowPlayingBarView` → `NowPlayingBar`) shows what you hear in the
+  Reader sheet's band while another article plays: a flat card on the `PlayerCard` surface
+  (reading-palette card fill, tile colours, radius, no shadow, progress track) with the article's
+  artwork at the shared 40 pt tile size, its title (its site, or its book, when it has none), the
+  site and the time left (two parts set apart by space, the time in lighter ink; at the playback
+  speed, written as rows write it: "9 min left", "6 h 10 min left"), a groove progress line (4 pt,
+  matching the scrub track) inside the card, and play/pause. At the end of an article it stays,
+  reading ◉ Finished, and ▶ plays the article again. Tap or swipe up → Now Playing; long-press →
+  the article's menu ("Menus", below; its *Remove from Library* stops the article you hear, as
+  anywhere else), then *Stop Listening* (unloads the article). It hides on Now Playing, under other
+  sheets and once nothing is loaded. Elsewhere the compact chrome's ▶ and Reader segment do its job,
+  and on regular width the clustered dock does.
 
 **Start page** (no page loaded), Safari-style:
 1. **Favorites**: starred pages that have their own http(s) address (favicon, or the letter tile
@@ -311,28 +298,29 @@ never replaced. The Now Playing bar's play/pause is centered over the ⋯ slot t
 
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
-back up, as does the band's ‹ (dimmed at the home). The home has **Library / Favorites / Recent** (C104)
-tabs at the top; the band's field searches the tab on screen and says so (*Search Library* on
+back up, as does the regular-width dock's ‹ (dimmed at the home). The home has **Library / Favorites / Recent** (C104)
+tabs at the top; the bottom field searches the tab on screen and says so (*Search Library* on
 Library, *Search Favorites*, *Search Recent*). On a folder's screen it searches that folder,
 everything under it, and says so (*Search Demo Finance*): the results stand under the folder's
 name, each row showing where it is below the folder (its site when it is in the folder itself);
 the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. Favorites
-are the starred items in the Library. Recent is everything you opened or started (C104); *History* (🕘 in the band,
-a big button in the ⋯) is the browser's pages visited: one name per concept. From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as Recent does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
+are the starred items in the Library. Recent is everything you opened or started (C104); *History* (🕘 on regular width,
+a row of the compact ⋯) is the browser's pages visited: one name per concept. From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as Recent does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
 Recent and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
-imported book) opens it on Library, where every place shows; 📚 comes back to the tab you
-left. The tab is remembered with the surface. The band is the browser's (above): the Now Playing bar, 🌐 then the search
-field, `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
-(*New Folder…* in a folder) and *Import from…*, both made in the folder on screen (a book's too). 🌐 shows the browser as
-it was; 📚 there comes back to the same folder. The
+imported book) opens it on Library, where every place shows; Library comes back to the tab you
+left. The tab is remembered with the surface. On compact width the chrome's row 1 is the search
+field and ⋯ holds the creating rows and *History* ("Bottom chrome", above); on regular width the
+band and dock are the browser's: the search field and `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
+(*New Folder…* in a folder) and *Import from…*, both made in the folder on screen (a book's too). Browser shows the browser as
+it was; Library there comes back to the same folder. The
 ⋯ panel follows the screen on top (below): a folder's screen starts with the folder's own menu,
 then every screen has *Sort ›, New Folder…**, Import from…,
 Follow…, Prepared Audio, Settings*, and the big buttons **Favorites**, **History**, **Browser**; nothing in it acts on the page under the Library. History closes the Library first; Browser is the same
-swap as 🌐.
+as the chrome's Browser.
 
 ```
 Library
@@ -377,7 +365,7 @@ commas.
   rows (below): an article row plays on a tap, a folder row opens, and each has only ⋯. The bar's ▶
   resumes what you last heard, and a folder row's ⋯ › *Continue* resumes its own pages without
   opening it (D14). A first-run empty Library shows *Find Something
-  to Listen To*, naming the band's 🌐 and ＋ by their symbols, with *Browse the Web* and *Import
+  to Listen To*, naming 🌐 and ＋ by their symbols, with *Browse the Web* and *Import
   Book…* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
@@ -758,9 +746,10 @@ be saved; Edit's *Remove* is two changes, the pages first and then, after the qu
 and Now Playing too. Listening goes on being kept meanwhile: where you are in an article, when you last played it and
 whether you finished it are stored once saving works again, even across failed changes.
 
-**Library search** is the band's field, the same session as the browser's (`SearchSession` in
-`SurfaceBand`, `ShellState.librarySearch`): focusing it hides the band's first row and
-toolbar so the field sits above the keyboard with a round ✕ (on a folder screen it goes back to
+**Library search** is the bottom field, the same session as the browser's (`SearchSession`,
+`ShellState.librarySearch`; drawn by `ChromeHost` on compact width, `SurfaceBand` on regular):
+focusing it turns the chrome into its one searching row (on regular width it hides the dock's
+toolbar) so the field sits above the keyboard with a round ✕ (on a folder screen it goes back to
 the home first, the list it filters); swipe-down / scroll lowers the keyboard but **stays in search
 mode**; ✕ exits and clears the filter. While there is text, the home's list holds the folders
 (by name, or a book's author) and pages (titles, sites, excerpts) that match, across the whole
@@ -950,8 +939,8 @@ synthesis").
 - **At the end** it stays on the article: the text stays, all of it in full ink, the band
   says "Finished" where the time left was (the Reader shows the article's length), and ▶
   plays the article again.
-- **Controls** (the band): optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the browser's
-  five-slot grid (🔖 under ‹, ⏮ under ›, ▶︎ under 🔖, ⏭ under 🕘, ⋯ under ⋯), then the player
+- **Controls** (the band): optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the five-slot
+  grid (on compact width the ⋯ slot is empty: the chrome's ⋯ below is the page's menu), then the player
   card (scrub row + speed). ▶︎ / ⏸ is a 52 pt round button (accent fill, dark glyph; fixed size,
   like the toolbar glyphs). The row stays 44 pt, so every slot sits where it does on the other
   surfaces; the disc overhangs it. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
@@ -1180,20 +1169,19 @@ Debug builds (`App/LaunchOptions.swift`).
 ## iPad and regular width
 
 The iPad (and any window whose `horizontalSizeClass` is `.regular`) gets its own layout; the
-iPhone and compact widths keep the chrome described everywhere else in this file, unchanged. The
+iPhone and compact widths keep the chrome host ("Bottom chrome"), unchanged. The
 sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 
 - **Sidebar** (`RegularShellSidebar`, ~280 pt, left of the main pane, hosted by `BrowseStartView`):
-  the app name and *Hide sidebar*; *Library* and *Browser* (the two surfaces; what the 📚 / 🌐 swap
-  does on a phone); *Search*; a *Folders* list (Favorites and the top-level folders; a tap opens
+  the app name and *Hide sidebar*; *Library* and *Browser* (the two surfaces; what the pill's
+  Library and Browser do on a phone); *Search*; a *Folders* list (Favorites and the top-level folders; a tap opens
   that folder in the Library); and *Settings* at the bottom. *Hide sidebar* collapses it for focus
   reading and a floating *Show sidebar* button brings it back; the collapse is not remembered
   across launches.
-- **Main-pane chrome.** The address field is the top band of the main pane (the same field, with
-  no swap button and no Now Playing row). In the Library the band shows only while a search is
+- **Main-pane chrome.** The address field is the top band of the main pane (`SurfaceBand`). In the Library the band shows only while a search is
   active. The toolbar (‹ › ＋ or 🔖, 🕘, ⋯) moves into the dock.
 - **Clustered player dock** (`ClusteredPlayerDock`, ~520 pt, bottom of the main pane) replaces the
-  phone's Now Playing bar and carries the surface's toolbar beside it. It shows the playing
+  phone's play button and carries the surface's toolbar beside it. It shows the playing
   article, or a resume bar for the last-played one, or "Nothing playing / Pick something to play".
   It steps aside under a sheet or Now Playing.
 - **Reader.** The text sits in a ~700 pt readable column, centred, and the Reader's player
@@ -1216,7 +1204,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Reader / Now Playing → Aa (`TextAppearanceControl`) | tap outside | popover from Aa |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | Done (grabber) | `.sheet`, medium/large |
-| Band 📚 / Library (`LibrarySurface`): the home | 🌐 before the band's field | in-place surface (shared bottom chrome); leave restores browse |
+| Library (`LibrarySurface`): the home | the chrome's Browser (the sidebar's on iPad) | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder (a book or series too) (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
 | Move to…, Save to Folder… (`MoveTreeSheet`) | Cancel (grabber) | `.sheet`, medium/large |
 | Import from… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
