@@ -7,6 +7,9 @@ import SwiftUI
 struct BrowsePageReader: View {
     let article: ReaderArticle
     @Bindable var speech: SpeechController
+    /// The left-edge swipe: what the chrome's ‹ does (the web view's own swipe sits under this
+    /// view, out of reach). nil when there is nothing to go back to.
+    let onEdgeSwipeBack: (() -> Void)?
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
@@ -38,6 +41,17 @@ struct BrowsePageReader: View {
         .safeAreaPadding(.bottom, ChromeMetrics.footprint)
         .background(palette.background.ignoresSafeArea())
         .readingSurface(palette)
+        .overlay(alignment: .leading) {
+            if let onEdgeSwipeBack {
+                Color.clear
+                    .frame(width: Spacing.m)
+                    .contentShape(Rectangle())
+                    .gesture(DragGesture(minimumDistance: Spacing.xs).onEnded { drag in
+                        if drag.translation.width > Self.backSwipeDistance { onEdgeSwipeBack() }
+                    })
+                    .accessibilityHidden(true)
+            }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("browsePageReader")
         .task(id: WarmKey(id: article.id, count: article.document.count)) {
@@ -49,6 +63,9 @@ struct BrowsePageReader: View {
         speech.listen(to: article, at: start)
         shell.showNowPlaying()
     }
+
+    /// How far a swipe from the edge travels before it counts as going back.
+    private static let backSwipeDistance: CGFloat = 60
 
     private struct WarmKey: Hashable {
         let id: UUID

@@ -117,7 +117,8 @@ struct BrowseStartView: View {
                     }
 
                     if let article = shell.pageReader, !isRegular {
-                        BrowsePageReader(article: article, speech: speech)
+                        BrowsePageReader(article: article, speech: speech,
+                                         onEdgeSwipeBack: webStore.canGoBack ? { webStore.goBack() } : nil)
                     }
                 }
                 .ignoresSafeArea(.container, edges: isRegular ? [] : .bottom)
