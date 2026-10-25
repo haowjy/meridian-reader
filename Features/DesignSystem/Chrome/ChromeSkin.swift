@@ -11,11 +11,15 @@ enum ChromeSkin: Equatable {
     /// Earlier iOS: one thick material strip behind the rows, `Palette.chrome` capsules on it.
     case strip
 
-    /// The skin the compact chrome uses: glass on iOS 26 and later, the strip before that (and in a
-    /// Debug build launched with `-chromeFallback`, to check the strip on a new OS).
+    #if DEBUG
+    /// `-chromeFallback`: the strip on a new OS too, to check it. Set by the launch (`AppMain`).
+    static var forcesStrip = false
+    #endif
+
+    /// The skin the compact chrome uses: glass on iOS 26 and later, the strip before that.
     static var current: ChromeSkin {
         #if DEBUG
-        if LaunchOptions.current.forcesChromeFallback { return .strip }
+        if forcesStrip { return .strip }
         #endif
         if #available(iOS 26.0, *) { return .glass }
         return .strip
