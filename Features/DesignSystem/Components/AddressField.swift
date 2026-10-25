@@ -45,12 +45,18 @@ struct AddressField<Field: View, Accessory: View>: View {
     @ViewBuilder var field: Field
     @ViewBuilder var accessory: Accessory
 
+    @Environment(\.chromeFieldHeight) private var chromeHeight
+    @Environment(\.chromeFieldCollapsed) private var chromeCollapsed
+
+    /// One row in the compact chrome: the address alone, as wide as the row leaves it.
+    private var showsAddressOnly: Bool { chromeCollapsed && reader != .searching }
+
     /// The 📄 glyph's frame.
     private static var readerSize: CGFloat { Glyph.fieldLeading }
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
-            leading
+            if !showsAddressOnly { leading }
             field
                 .typeStyle(.row)
                 .foregroundStyle(Palette.ink)
@@ -60,7 +66,7 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .accessibilityIdentifier("addressListen")
                     .transition(.opacity)
             }
-            if let reload {
+            if let reload, !showsAddressOnly {
                 Button(action: onReload) {
                     Image(systemName: reload == .stop ? Icons.close : Icons.reload)
                         .font(.body)
@@ -74,7 +80,8 @@ struct AddressField<Field: View, Accessory: View>: View {
             }
             accessory
         }
-        .bottomChromeField(leading: Spacing.s, trailing: listen == nil && reload == nil && Accessory.self == EmptyView.self
+        .bottomChromeField(leading: reader == .showing && !showsAddressOnly ? 0 : Spacing.s,
+                           trailing: showsAddressOnly || (listen == nil && reload == nil && Accessory.self == EmptyView.self)
                            ? Spacing.s : Spacing.xxs)
     }
 
@@ -93,16 +100,33 @@ struct AddressField<Field: View, Accessory: View>: View {
             ProgressView()
                 .controlSize(.small)
                 .frame(width: Self.readerSize, height: Self.readerSize)
-        case .available, .showing:
+        case .available:
             Button(action: onOpenReader) {
-                Image(systemName: reader == .showing ? Icons.readerShowing : Icons.reader)
+                Image(systemName: Icons.reader)
                     .font(.body)
                     .foregroundStyle(Palette.accent)
                     .frame(width: Self.readerSize, height: Self.readerSize)
                     .tapTarget(Self.readerSize)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(reader == .showing ? Verbs.showWebPage : Verbs.openInReader)
+            .accessibilityLabel(Verbs.openInReader)
+            .accessibilityIdentifier("addressReader")
+            .transition(.opacity)
+        case .showing:
+            // The reader view shows: the icon sits in a lit capsule inset from the field's edge,
+            // concentric with it (the pill's lit segment, the same fill).
+            let side = chromeHeight ?? BottomChrome.rowHeight
+            Button(action: onOpenReader) {
+                Image(systemName: Icons.readerShowing)
+                    .font(.body)
+                    .foregroundStyle(Palette.accent)
+                    .frame(width: side, height: side)
+                    .background { Circle().fill(Palette.lit).padding(BottomChrome.litInset) }
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Verbs.showWebPage)
+            .accessibilityAddTraits(.isSelected)
             .accessibilityIdentifier("addressReader")
             .transition(.opacity)
         }

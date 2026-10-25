@@ -30,6 +30,10 @@ private struct ChromeFieldHeightKey: EnvironmentKey {
     static let defaultValue: CGFloat? = nil
 }
 
+private struct ChromeFieldCollapsedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 extension EnvironmentValues {
     var chromeSkin: ChromeSkin {
         get { self[ChromeSkinKey.self] }
@@ -41,6 +45,13 @@ extension EnvironmentValues {
     var chromeFieldHeight: CGFloat? {
         get { self[ChromeFieldHeightKey.self] }
         set { self[ChromeFieldHeightKey.self] = newValue }
+    }
+
+    /// The compact chrome is one row: its address field shows the address alone (the reader icon
+    /// and reload step aside, the field itself is the tap target).
+    var chromeFieldCollapsed: Bool {
+        get { self[ChromeFieldCollapsedKey.self] }
+        set { self[ChromeFieldCollapsedKey.self] = newValue }
     }
 }
 

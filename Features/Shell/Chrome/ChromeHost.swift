@@ -89,6 +89,9 @@ struct ChromeHost: View {
         }
         .frame(height: ChromeMetrics.footprint)
         .environment(\.chromeSkin, skin)
+        // The pieces are fixed-height capsules: their text stops growing here, and the large
+        // content viewer shows what the glyphs are.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .readingSurface(readingPalette)
         .tint(Palette.ink)
         .accessibilityElement(children: .contain)
@@ -131,6 +134,7 @@ struct ChromeHost: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("bandField")
                 .environment(\.chromeFieldHeight, fieldFrame.height)
+                .environment(\.chromeFieldCollapsed, g.isCollapsed)
                 .overlay {
                     if destination == .browse {
                         LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())
@@ -162,7 +166,7 @@ struct ChromeHost: View {
                                width: g.more.maxX - ChromeMetrics.margin, height: ChromeMetrics.row2Height))
                 .transition(.opacity)
         } else if isSearching {
-            Button(action: screen.onCancel) { ChromeRoundLabel(symbol: Icons.close) }
+            Button(action: screen.onCancel) { ChromeRoundLabel(symbol: Icons.close, label: Verbs.cancel) }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Verbs.cancel)
                 .accessibilityIdentifier(screen.cancelID)
@@ -207,25 +211,26 @@ struct ChromeHost: View {
     private func strip(_ g: ChromeGeometry) -> some View {
         if skin == .strip {
             let top = g.top - ChromeMetrics.topPadding
-            Rectangle()
-                .fill(.bar)
-                .frame(height: ChromeMetrics.footprint - top + 200)
-                .frame(height: ChromeMetrics.footprint - top, alignment: .top)
+            Color.clear
+                .frame(height: ChromeMetrics.footprint - top)
+                .background(alignment: .bottom) { Rectangle().fill(.bar).ignoresSafeArea(edges: .bottom) }
                 .overlay(alignment: .top) { Divider() }
-                .ignoresSafeArea(edges: .bottom)
                 .animation(reduceMotion ? nil : Motion.standard, value: g)
         } else if skin == .glass {
-            // Glass floats on the content; a soft fade keeps rows and page text from showing
-            // through the fields (the strip does that job on the fallback).
+            // Glass floats on the content: the page's own background, opaque from the top of the
+            // top piece down and fading in over `fadeHeight` above it, so page text never shows
+            // through behind the pieces (the strip does that job on the fallback).
             let top = g.top - ChromeMetrics.topPadding
-            VStack(spacing: 0) {
-                LinearGradient(colors: [fade.opacity(0), fade.opacity(0.92)], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 36)
-                fade.opacity(0.92)
-            }
-            .frame(height: ChromeMetrics.footprint - top + 200)
-            .frame(height: ChromeMetrics.footprint - top, alignment: .top)
-                .ignoresSafeArea(edges: .bottom)
+            // The reading sheets already keep their content clear of the chrome: no fade above it.
+            let rise = onReadingPage ? 0 : ChromeMetrics.fadeHeight
+            Color.clear
+                .frame(height: ChromeMetrics.footprint - top)
+                .background(alignment: .bottom) { fade.ignoresSafeArea(edges: .bottom) }
+                .overlay(alignment: .top) {
+                    LinearGradient(colors: [fade.opacity(0), fade], startPoint: .top, endPoint: .bottom)
+                        .frame(height: rise)
+                        .offset(y: -rise)
+                }
                 .allowsHitTesting(false)
                 .animation(reduceMotion ? nil : Motion.standard, value: g)
         }
@@ -296,11 +301,11 @@ struct ChromeHost: View {
             collapsed = wants
             return
         }
-        withAnimation(.easeOut(duration: 0.1)) {
+        withAnimation(Motion.fadeOut) {
             dip = 0
         } completion: {
             collapsed = wants
-            withAnimation(.easeIn(duration: 0.12)) { dip = 1 }
+            withAnimation(Motion.fadeIn) { dip = 1 }
         }
     }
 

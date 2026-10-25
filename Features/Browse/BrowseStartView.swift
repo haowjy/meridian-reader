@@ -359,7 +359,7 @@ struct BrowseStartView: View {
         }]
         let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
-                             accessibilityHint: Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
+                             accessibilityHint: shell.pageReader != nil ? Verbs.showWebPage : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
         return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: rows,
                            tiles: MenuContext.tiles(shell, last: reader))
     }
