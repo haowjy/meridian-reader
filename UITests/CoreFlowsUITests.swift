@@ -31,7 +31,7 @@ final class CoreFlowsUITests: XCTestCase {
 
         app.buttons["nowPlayingClose"].tap()
         XCTAssertTrue(eventually { !app.buttons["nowPlayingClose"].exists })
-        tapWhenHittable(app.buttons["browseLibrary"])
+        tapWhenHittable(app.buttons["chromeLibrary"])
         XCTAssertTrue(appears(app.libraryHome, timeout: 5))
         let rows = app.cells.staticTexts.matching(NSPredicate(format: "label == %@", "Second page"))
         XCTAssertTrue(appears(rows.firstMatch, timeout: 5))

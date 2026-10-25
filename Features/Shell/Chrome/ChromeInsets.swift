@@ -26,8 +26,24 @@ struct CompactChromeInsets: ViewModifier {
             content
                 .contentMargins(.bottom, ChromeMetrics.footprint, for: .scrollContent)
                 .contentMargins(.bottom, ChromeMetrics.footprint, for: .scrollIndicators)
-                .chromeScrollSource(shell.chrome)
                 .ignoresSafeArea(.container, edges: .bottom)
+        } else {
+            content
+        }
+    }
+}
+
+/// Reports a screen's own scroll views to the chrome: a pushed screen has to do it itself, since
+/// a modifier above the navigation stack doesn't reach inside it.
+struct CompactChromeScroll: ViewModifier {
+    let isCompact: Bool
+    @Environment(ShellState.self) private var shell
+
+    func body(content: Content) -> some View {
+        if isCompact {
+            content
+                .chromeScrollSource(shell.chrome)
+                .onAppear { shell.chrome.reset() }
         } else {
             content
         }

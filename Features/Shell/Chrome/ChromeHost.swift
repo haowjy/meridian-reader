@@ -187,6 +187,20 @@ struct ChromeHost: View {
                 .overlay(alignment: .top) { Divider() }
                 .ignoresSafeArea(edges: .bottom)
                 .animation(reduceMotion ? nil : Motion.standard, value: g)
+        } else if skin == .glass {
+            // Glass floats on the content; a soft fade keeps rows and page text from showing
+            // through the fields (the strip does that job on the fallback).
+            let top = g.top - ChromeMetrics.topPadding
+            VStack(spacing: 0) {
+                LinearGradient(colors: [Palette.paper.opacity(0), Palette.paper.opacity(0.92)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 36)
+                Palette.paper.opacity(0.92)
+            }
+            .frame(height: ChromeMetrics.footprint - top + 200)
+            .frame(height: ChromeMetrics.footprint - top, alignment: .top)
+                .ignoresSafeArea(edges: .bottom)
+                .allowsHitTesting(false)
+                .animation(reduceMotion ? nil : Motion.standard, value: g)
         }
     }
 

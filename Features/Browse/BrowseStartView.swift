@@ -251,6 +251,7 @@ struct BrowseStartView: View {
         return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
             ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen())
                 .environment(libraryScreen)
+                .frame(maxHeight: .infinity, alignment: .bottom)
         }
     }
 
@@ -368,6 +369,7 @@ struct BrowseStartView: View {
             .task(id: favorites.count) { await library.backfillFavoriteIcons() }
         }
         .modifier(CompactChromeInsets(isCompact: !isRegular))
+        .modifier(CompactChromeScroll(isCompact: !isRegular))
     }
 
     // MARK: - Address

@@ -37,7 +37,10 @@ struct LibrarySurface: View {
                 LibraryHomeView(articleSort: ArticleSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
                                 tab: shell.homeTab,
                                 searchText: search.isActive && shell.librarySearchFolder == nil ? search.text : "")
-                    .navigationDestination(for: LibraryRoute.self) { LibraryRouteView(route: $0) }
+                    .modifier(CompactChromeScroll(isCompact: !isRegular))
+                    .navigationDestination(for: LibraryRoute.self) {
+                        LibraryRouteView(route: $0).modifier(CompactChromeScroll(isCompact: !isRegular))
+                    }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scrollDismissesKeyboard(.interactively)
