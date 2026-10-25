@@ -67,10 +67,12 @@ struct ChromeHost: View {
         return readingAppearance.palette(accent: AppAppearance.shared.accent)
     }
     /// Opaque, in the colour of what is under it: the reading theme, a web page's own background,
-    /// or paper (the start page, the Library).
+    /// or paper (the start page, the search layer, the Library).
     private var fade: Color {
         if let readingPalette { return readingPalette.background }
-        if destination == .browse, shell.web.hasPage, let page = shell.web.pageBackground { return Color(uiColor: page) }
+        if destination == .browse, shell.web.hasPage, !isSearching, let page = shell.web.pageBackground {
+            return Color(uiColor: page)
+        }
         return Palette.paper
     }
 
