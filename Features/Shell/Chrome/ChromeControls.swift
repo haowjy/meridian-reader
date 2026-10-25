@@ -80,7 +80,7 @@ struct ChromePill: View {
     @ViewBuilder
     private func content(_ destination: ChromeDestination) -> some View {
         let isLit = destination == lit
-        let dimmed = destination == .reader && reader == nil
+        let dimmed = destination == .reader && reader == nil && !isLit
         VStack(spacing: ChromeMetrics.segmentGap) {
             Group {
                 if destination == .reader, reader == .playing {
