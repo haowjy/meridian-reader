@@ -45,7 +45,7 @@ struct LibraryScreenMenu {
                              accessibilityHint: String(localized: "Go to Now Playing")) { [shell] in
             shell.showNowPlaying()
         }
-        return MenuContext(screen: screenRows, tiles: MenuContext.tiles(shell, last: reader))
+        return MenuContext(screen: screenRows, tiles: MenuContext.tiles(shell, compact: compact, last: reader))
     }
 
     /// ＋: the create group (`LibraryCreateMenu`) into the screen on top.

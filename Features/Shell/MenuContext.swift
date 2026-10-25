@@ -20,7 +20,7 @@ struct MenuContext {
     var isOnReadingPage = false
 
     /// A screen's own block, from `MenuRegistry` (C98): *Sort*, *Follow…*, *Reload* where they
-    /// apply, then *Prepared Audio* and, in the compact chrome's ⋯ (`compact`), *History*.
+    /// apply, then *Prepared Audio*.
     /// `custom` gives the rows only a screen can make (its *Sort*, *Follow…*, *Reload*). Settings
     /// is a tile (C140), not a list row.
     @MainActor
@@ -30,21 +30,22 @@ struct MenuContext {
         facts.compact = compact
         return MenuRegistry.rows(.screen, at: place, facts) { option in
             if let row = custom(option) { return row }
-            if option == .history {
-                return MenuRow(id: "moreHistory", title: Verbs.history, icon: Icons.history) { shell.present(.history) }
-            }
             return MenuRow(id: "morePreparedAudio", title: Verbs.preparedAudio, icon: Icons.preparedAudio) { shell.present(.preparedAudio) }
         }
     }
 
-    /// The three tile buttons `[Settings][Saved][last]`; `last` is the surface's own focus tile.
-    /// Every ⋯ panel uses these same three tiles in this order (C140).
+    /// The tile buttons `[Settings][Saved][last]`; `last` is the surface's own focus tile. Every ⋯
+    /// panel uses these same tiles in this order (C140). The compact chrome has no 🕘 button, so
+    /// its panels add *History* as a tile before `last` (`compact`).
     @MainActor
-    static func tiles(_ shell: ShellState, last: MenuRow) -> [MenuRow] {
-        [
+    static func tiles(_ shell: ShellState, compact: Bool, last: MenuRow) -> [MenuRow] {
+        var tiles = [
             MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings) { shell.present(.settings) },
             MenuRow(id: "moreSaved", title: String(localized: "Saved"), icon: Icons.library) { shell.openLibrary() },
-            last,
         ]
+        if compact {
+            tiles.append(MenuRow(id: "moreHistory", title: Verbs.history, icon: Icons.history) { shell.present(.history) })
+        }
+        return tiles + [last]
     }
 }

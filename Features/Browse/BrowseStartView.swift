@@ -380,7 +380,7 @@ struct BrowseStartView: View {
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
         return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
-                           tiles: MenuContext.tiles(shell, last: reader))
+                           tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader))
     }
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
