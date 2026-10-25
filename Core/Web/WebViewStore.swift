@@ -19,6 +19,10 @@ final class WebViewStore {
     /// The page passes Readability's `isProbablyReaderable` (same gate extraction uses): the
     /// address-bar reader icon shows and ⋯ → Open in Reader is enabled.
     var isReaderable = false
+    /// The page's own background (WebKit's `underPageBackgroundColor`, the page's computed
+    /// background unless the page sets it): what the compact chrome's fade is drawn in over a page.
+    var pageBackground: UIColor?
+    @ObservationIgnored private var backgroundObservation: NSKeyValueObservation?
     /// A load asked for before the web view was made: it starts once the view attaches.
     @ObservationIgnored private var pendingURL: URL?
     /// Paces the reloads after the view's content process ends.
@@ -65,6 +69,10 @@ final class WebViewStore {
     /// The browser's web view is made (`WebView`): a load asked for before then starts.
     func attach(_ webView: WKWebView) {
         self.webView = webView
+        backgroundObservation = webView.observe(\.underPageBackgroundColor, options: [.initial, .new]) { [weak self] view, _ in
+            let color = view.underPageBackgroundColor
+            MainActor.assumeIsolated { self?.pageBackground = color }
+        }
         if let pending = pendingURL {
             pendingURL = nil
             webView.load(URLRequest(url: pending))

@@ -66,7 +66,13 @@ struct ChromeHost: View {
         guard onReadingPage || shell.pageReader != nil else { return nil }
         return readingAppearance.palette(accent: AppAppearance.shared.accent)
     }
-    private var fade: Color { readingPalette?.background ?? Palette.paper }
+    /// Opaque, in the colour of what is under it: the reading theme, a web page's own background,
+    /// or paper (the start page, the Library).
+    private var fade: Color {
+        if let readingPalette { return readingPalette.background }
+        if destination == .browse, shell.web.hasPage, let page = shell.web.pageBackground { return Color(uiColor: page) }
+        return Palette.paper
+    }
 
     /// The page played last, while nothing is bound: the play button resumes it.
     private var resume: Article? { speech.nowPlaying == nil ? lastPlayed.first(where: \.isLive) : nil }
