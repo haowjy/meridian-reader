@@ -27,6 +27,9 @@ struct ChromePieces: View, Animatable {
     }
 
     private typealias K = ChromeMetrics
+    /// The largest text the field, the card and the title chip draw: they sit in pieces of a fixed
+    /// height, where larger text clips or overlaps. Every glyph still offers the large content viewer.
+    private static let largestText = DynamicTypeSize.xxxLarge
 
     var body: some View {
         let layout = ChromeLayout(width: width, state: state)
@@ -99,12 +102,14 @@ struct ChromePieces: View, Animatable {
                         .allowsHitTesting(layout.fold > 0.5)
                 }
                 .frame(width: field.rect.width, height: field.rect.height, alignment: .topLeading)
+                .dynamicTypeSize(...Self.largestText)
                 .clipShape(RoundedRectangle(cornerRadius: field.radius, style: .continuous))
                 .chromeSurface(RoundedRectangle(cornerRadius: field.radius, style: .continuous), interactive: false)
             }
         } else {
             piece(field) {
                 screen.field(focus)
+                    .dynamicTypeSize(...Self.largestText)
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("bandField")
                     .environment(\.isChromeField, true)

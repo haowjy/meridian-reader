@@ -144,8 +144,8 @@ played, 145 with ▶, 201 without arrows; the Library's search 257, 201 with ▶
   *History* is a tile of every compact ⋯ (Browser, Library, Reader, Now Playing), and the Library's
   ⋯ adds *New Folder…*, *Import from…* and *Paste Text…*. On the Browser the page's *Save to
   Folder…* is in ⋯ too; the Reader tile reads *Show Web Page* while the in-place reader shows.
-- Chrome text grows with Dynamic Type inside the fixed pieces (no cap); every glyph offers the large
-  content viewer. Every tap target is at least 44 pt.
+- The field's, the card's and the title chip's text grows with Dynamic Type up to *xxxLarge* inside
+  the fixed 48 pt pieces (larger clips or overlaps); every glyph offers the large content viewer. Every tap target is at least 44 pt.
 - **Overlays, never rows:** prepare progress and toasts, on the top piece's edge.
 
 ## Planned: the rest of the three-destination chrome (approved design 5e, PR2 to PR4, not shipped)

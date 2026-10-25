@@ -65,10 +65,11 @@ struct ChromeHost: View {
     private var session: SearchSession? { screen.session }
     private var isSearching: Bool { session?.isActive == true }
 
-    /// What the app says the chrome is now. Under Reduce Motion the fold is one end or the other,
-    /// never between.
+    /// What the app says the chrome is now. Its `progress` is the fold's end under Reduce Motion
+    /// (one end or the other, never between) and 0 otherwise: the fold between is drawn by
+    /// `ChromeFold`, so a scroll report redraws the pieces and not this view.
     private var live: ChromeState {
-        ChromeState(destination: destination, progress: reduceMotion ? (scroll.isCollapsed ? 1 : 0) : scroll.displayed, fullScreen: scroll.fullScreen, played: playback.isAvailable,
+        ChromeState(destination: destination, progress: reduceMotion ? (scroll.isCollapsed ? 1 : 0) : 0, fullScreen: scroll.fullScreen, played: playback.isAvailable,
                     canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, keyboard: isSearching,
                     readerMode: destination == .browse && shell.pageReader != nil, editing: screen.editBar != nil)
     }
@@ -93,8 +94,13 @@ struct ChromeHost: View {
 
     var body: some View {
         GeometryReader { proxy in
-            ChromePieces(state: state, width: proxy.size.width, screen: screen, card: card, readerTitle: readerTitle,
-                         play: playback.button, hasReader: playback.isAvailable, underColor: underColor, focus: $focused, onSelect: playback.select, onExpand: expandTapped)
+            ChromeFold(scroll: scroll, fixed: reduceMotion ? state.progress : nil) { progress in
+                var drawn = state
+                drawn.progress = progress
+                return ChromePieces(state: drawn, width: proxy.size.width, screen: screen, card: card, readerTitle: readerTitle,
+                                    play: playback.button, hasReader: playback.isAvailable, underColor: underColor,
+                                    focus: $focused, onSelect: playback.select, onExpand: expandTapped)
+            }
                 .opacity(dip)
                 // Folding follows the finger frame by frame (`ChromeScroll.displayed`); every other change
                 // is one step. A different destination (set last, so it wins when both change) is `snappy`.
@@ -128,7 +134,7 @@ struct ChromeHost: View {
         .onChange(of: session?.isFocused == true) { _, wanted in
             if focused != wanted { focused = wanted }
         }
-        .gesture(swipeUp, including: scroll.progress >= 0.5 || isSearching ? .all : .subviews)
+        .gesture(swipeUp, including: scroll.isCollapsed || isSearching ? .all : .subviews)
     }
 
     // MARK: - Actions
@@ -146,7 +152,7 @@ struct ChromeHost: View {
     private var swipeUp: some Gesture {
         DragGesture(minimumDistance: ChromeScroll.swipeStart)
             .onEnded { value in
-                guard scroll.progress >= 0.5 || isSearching, ChromeScroll.isSwipeUp(value.translation) else { return }
+                guard scroll.isCollapsed || isSearching, ChromeScroll.isSwipeUp(value.translation) else { return }
                 expandTapped()
             }
     }
@@ -173,4 +179,15 @@ struct ChromeHost: View {
             UIApplication.shared.sendAction(#selector(UIResponder.selectAll(_:)), to: nil, from: nil, for: nil)
         }
     }
+}
+
+/// Draws `content` at the fold the scroll controller's smoothing has reached: it reads
+/// `ChromeScroll.displayed` here, so the frames of a fold redraw this view and not `ChromeHost`.
+/// `fixed` (Reduce Motion) is a fold that does not follow it.
+private struct ChromeFold<Content: View>: View {
+    let scroll: ChromeScroll
+    let fixed: CGFloat?
+    @ViewBuilder let content: (CGFloat) -> Content
+
+    var body: some View { content(fixed ?? scroll.displayed) }
 }
