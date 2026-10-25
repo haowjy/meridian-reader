@@ -6,8 +6,8 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
 
 - **Compact width draws one chrome host** (`Chrome/ChromeHost.swift`) with three destinations (Reader,
   Library, Browser): `docs/NAVIGATION.md`, "Bottom chrome" (the redesign's PR2 to PR4 under "Planned"). Each destination hands the host a `ChromeScreen` (field, arrows, ⋯);
-  the host owns the pill, the play button, collapse (`ChromeState`, fed by `chromeScrollSource`) and
-  the glass or strip skin (`ChromeSkin`; App sets `ChromeSkin.forcesStrip` for `-chromeFallback`). Screens reserve `ChromeMetrics.footprint` at the bottom
+  the host owns the pill, the play button, collapse (`ChromeScroll`, fed by `chromeScrollSource`; what is drawn is a `ChromeState`, laid out by the pure `ChromeGeometry` from `ChromeMetrics`) and
+  the glass or strip skin (`ChromeSkin`; App sets `ChromeSkin.forcesStrip` for `-chromeFallback`). Screens reserve `ChromeMetrics.footprint` at the bottom (the Reader `row2Footprint`)
   (`CompactChromeInsets`) and report their scroll with `CompactChromeScroll`. `SurfaceBand` remains
   for regular width. Every piece is a capsule or circle (radius = height / 2), heights 52 / 56 / 48; the Reader is a destination under
   the chrome (collapses like the other screens; full screen removes it); the compact address pill ends in reload (iPad's field keeps 🎧).

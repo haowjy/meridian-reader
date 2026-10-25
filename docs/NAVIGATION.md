@@ -97,7 +97,7 @@ searching   [ field                    ][icon][✕]             the keyboard is 
 - **Collapse.** Scrolling down collapses the chrome to one row, `[‹ ›][address][▶][icon][⋯]`;
   the screen icon is plain (document, books or globe). Scrolling up, tapping the icon or a swipe
   up on the row expands it (invariant 12; on the Reader scrolling up re-expands only with `ReaderChromeScroll.scrollUpReexpands`, off by default). The pill morphs into the icon (iOS 26 glass morph;
-  Reduce Motion and the strip cross-fade). Two states with hysteresis (`ChromeState`).
+  Reduce Motion and the strip cross-fade). Two states with hysteresis (`ChromeScroll`; what is drawn is `ChromeState`, laid out by `ChromeGeometry`).
 - **Searching** (the keyboard up, or its session open): one row, the field, the screen icon and ✕.
 - **The Reader is a destination, not a sheet**: it shows in place under the same chrome with the
   Reader lit, row 2 as everywhere (`[pill][▶ ring][⋯]`), and collapses to one row on scroll like the
@@ -868,16 +868,18 @@ synthesis").
   **Favorites / History / Website** — *Website* (the Reader off) shows the page in the browser,
   wherever the Reader was opened from; from the library, the library closes first. Playback
   never stops.
-- The text fills the sheet down to the screen's foot and runs under the header and the bottom
+- The text fills the page down to the screen's foot and runs under the header and the bottom
   band, which are drawn over it (the header on the article's colour, the band on its tinted bar
-  material); its first line starts below the header and its last line scrolls clear of the band.
-  Scrolling down goes full screen (below).
+  material); its first line starts below the header and its last line scrolls clear of the band
+  (and, on compact width, of the chrome's row 2). A tap in the middle goes full screen (below).
 - **Links** in the text open in the browser when they lead to a web page (as ⋯ → Website does:
-  the sheet closes, Now Playing too); a link to a place on the same page goes there (in Pages, to
+  the Reader leaves, Now Playing too); a link to a place on the same page goes there (in Pages, to
   the page holding it) and stops following the audio as a page turn does; any other link (mail,
   a book's links between its own chapters) does nothing. The text never leaves its article.
 
 ### Now Playing
+
+Below, the grabber and the pill at the top left are the regular-width sheet's; on compact width Now Playing is in place with neither.
 
 ```
 ┌──────────────────────────────────────┐
@@ -1077,8 +1079,8 @@ time; Follow's chapter preview always scrolls.
   next page, at the left edge zone to the one before (the scroll view's own animation; at once
   under Reduce Motion); the middle enters or leaves full screen. The first 48 pt from the left edge
   stay the system's: a swipe or tap that begins there turns nothing. Pages never scroll
-  vertically, so a pull down on the text doesn't close the sheet there (the grabber and the
-  close pill do).
+  vertically, so a pull down on the text doesn't close a regular-width sheet there (the grabber and
+  the close pill do).
 - **No following, nothing over the text** (C108): Pages is for reading. It never turns by itself
   with the audio: once the voice leaves the article shown, Now Playing offers *Jump to Audio* in
   its usual place above the band, as in Scroll (only while the bars show, C111), which shows the spoken sentence's page once. Neither

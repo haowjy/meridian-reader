@@ -43,10 +43,10 @@ Core/
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
 Features/
-  Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
+  Shell/    ShellState, the compact bottom chrome (`Chrome/`: `ChromeState`, `ChromeGeometry` with `ChromeMetrics`, `ChromeScroll`, `ChromeHost`), ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
   DesignSystem/  tokens (incl. `RegularLayout`: the iPad sidebar, readable-measure and sheet widths)
   Browse/   start page, browser chrome, page actions (PageArticleService), dictation
-  Reader/   the Reader sheet, Now Playing (text that follows the audio, scrub row, controls)
+  Reader/   the Reader, Now Playing (text that follows the audio, scrub row, controls)
   Library/  the Library surface and screens (home, folder), rows, the Move tree, Favorites' sheet and ☆, the import sheet
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
@@ -73,11 +73,27 @@ UITests/    one end-to-end smoke flow (MeridianReaderUITests)
   band and `ClusteredPlayerDock`, `ReaderSheetScreen`'s `regularReadableMeasure`, `ShellSheetView`'s
   `regularInsetFormSheet` for Voice and Settings). State, data and playback are shared; compact
   chrome is untouched. Sizes live in `RegularLayout`. See NAVIGATION.md → "iPad and regular width".
+- **Compact bottom chrome** (`Features/Shell/Chrome/`, one rule set, no screen-specific cases).
+  `ChromeState` is a pure value: destination, presence (two flags, `collapsed` and the Reader's
+  `fullScreen`), played, history, keyboard, reader mode, editing; its `rows` say two, one or none.
+  `ChromeGeometry` is the one pure layout function from (width, state) to every piece's frame and
+  the fade, sized by `ChromeMetrics` (every size a multiple of a base unit of 4, mirrored by the
+  mockups' `MC.SZ`; the Reader's text keeps `row2Footprint` whether the chrome is expanded or
+  collapsed). `ChromeScroll` is the one scroll controller the Library, the Browser and the Reader
+  feed (`ShellState.chrome`; `ReaderChromeScroll.scrollUpReexpands` is the Reader's switch for
+  scrolling up). `ChromeHost` only wires the app's state to those three and draws the pieces
+  (`ChromeControls`, `ChromeSkin`). Full screen is `ReadingChrome.hidden`, mirrored once into
+  `ShellState.isReadingFullScreen` by the reading page in place (`ReadingInPlace`).
+- **Reading pages.** The Reader and Now Playing are one `ReadingPage` (`ReaderSheet` and
+  `NowPlayingSheet` supply their bands): `ReadingBars` lays out the text between the top bar and
+  the band; compact width draws it in place under the chrome, regular width inside a `Sheet`
+  (`ReadingShowing`). `Sheet` and `SheetPullHandoff` remain for regular width and Follow's chapter preview.
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
-  sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
+  and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. A reading
-  sheet's full screen is its own view state (`ReadingChrome`, held by `ReaderSheet` and
-  `NowPlayingSheet`, fed by the reading web view's drags and taps), not the shell's. The reading
+  page's full screen is its own view state (`ReadingChrome`, held by `ReaderSheet` and
+  `NowPlayingSheet`, fed by the reading web view's taps and pulls), not the shell's, except for the
+  one mirror the chrome host reads. The reading
   web view's coordinator decides what the text shows (its hold: a fresh article's top, a handed-over
   place, the saved spot, a scrub; the spoken sentence while following) and one of two layouts
   (`ReadingTextLayout`) puts it on screen and keeps the reader's place through new layouts:

@@ -258,8 +258,9 @@ The names for the chrome that runs along the bottom of every screen.
 |---|---|---|
 | `ChromeHost` | view | Compact width only: the one chrome above the Library, the browser and the Reader: two rows expanded, one collapsed, over `ChromeScreen`s from each destination. |
 | `ChromeScreen` | struct | What a destination hands the host: its field, ‹ › callbacks and ids, ⋯ and edit bar. |
-| `ChromeState` | class | Expanded or collapsed, from scroll reports with hysteresis; `expand()` is the icon tap and a new page. |
-| `ChromeGeometry` | struct | The widths and heights of every piece for a width and a state (the mockups' width table). |
+| `ChromeState` | struct | What the chrome shows: destination, presence (`collapsed`, `fullScreen`), played, history, keyboard, reader mode. |
+| `ChromeScroll` | class | The one scroll controller: collapsed or not, from scroll reports with hysteresis; `expand()` is the icon tap and a new page. |
+| `ChromeGeometry` | struct | The frames of every piece and the fade for a width and a `ChromeState` (the mockups' width table), sized by `ChromeMetrics`. |
 | `ChromeSkin` | enum | `.system` (everything else), `.glass` (iOS 26), `.strip` (earlier iOS, and `-chromeFallback`). |
 | `SurfaceBand` | view | The regular-width address / search field with its ✕ while searching. |
 | `BottomChrome` | enum (constants) | Design-system constants (sizes, spacing) shared by all bottom chrome. |
@@ -270,8 +271,9 @@ The names for the chrome that runs along the bottom of every screen.
 | `NowPlayingBarView` | view | The same card in the Reader sheet; hides on Now Playing and while sheets are up. |
 | `ReadingPlayerCard` | view | Title + time card (with optional scrub) on the flat `PlayerCard` surface; used only in the mini bar. |
 | `ReadingBottomBand` | view | The bottom band of the Reader and Now Playing: integrated controls flat on the page background, separated by a hairline divider. |
-| `ReaderSheet` | view | Full layout of the Reader sheet (header, text, integrated band). |
-| `NowPlayingSheet` | view | Full layout of the Now Playing sheet. |
+| `ReadingPage` | view | A reading page in place (compact) or in a `Sheet` (regular), laid out by `ReadingBars`. |
+| `ReaderSheet` | view | The Reader's page: its band and Listen over `ReadingPage`. |
+| `NowPlayingSheet` | view | Now Playing's page over `ReadingPage`. |
 | `NowPlayingControls` | view | Status notes (buffering, language, debug) in Now Playing's band. |
 | `ListenTransportView` | view | Speech-bound wrapper for `NowPlayingTransport` (skips, play/pause disc) with swipe gesture. |
 | `NowPlayingTransport` | view | The 5-slot transport row component: skip-back, play/pause disc (52 pt), skip-forward. |
