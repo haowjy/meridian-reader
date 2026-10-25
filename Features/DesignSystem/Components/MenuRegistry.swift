@@ -96,8 +96,6 @@ enum MenuRegistry {
         var hasWebPage = false
         /// *Follow…* can run (the browser: a web page is up).
         var canFollow = true
-        /// The compact chrome draws the ⋯.
-        var compact = false
         /// Kept for menu compatibility; always false since C149.
         var isFixedOrder = false
     }

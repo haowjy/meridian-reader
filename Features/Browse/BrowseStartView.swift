@@ -362,7 +362,7 @@ struct BrowseStartView: View {
         facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
         facts.hasWebPage = hasPage
         // No *New Search*: a tap on the address field starts one (C98).
-        let screen = MenuContext.screenRows(at: .browser, facts: facts, compact: !isRegular, shell: shell) { option in
+        let screen = MenuContext.screenRows(at: .browser, facts: facts, shell: shell) { option in
             switch option {
             case .follow:
                 return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) {

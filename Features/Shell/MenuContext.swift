@@ -2,12 +2,13 @@ import SwiftUI
 
 /// What the ⋯ panel shows: the item's own menu (a page's `ArticleMenu` or a folder's `FolderMenu`;
 /// none on a screen with no item), then the screen's own rows ending in *Prepared Audio*, a
-/// divider, then the same three tile buttons on every surface (C140):
+/// divider, then the same tile buttons on every surface (C140):
 ///
-///     [Settings]  [Saved]  [Reader]
+///     [Settings]  [Saved]  [History]  [Reader]
 ///
-/// Settings opens Settings. Saved opens the Library (saved articles). Reader (rightmost, the
-/// panel's focus point) varies by surface:
+/// History is there on compact width only: regular width has the 🕘 button. Settings opens
+/// Settings. Saved opens the Library (saved articles). History opens the browser's visits. Reader
+/// (rightmost, the panel's focus point) varies by surface:
 ///
 /// - browser:  open the current page in the Reader (greyed when not readable)
 /// - Library:  go to Now Playing (greyed when nothing is playing)
@@ -24,17 +25,15 @@ struct MenuContext {
     /// `custom` gives the rows only a screen can make (its *Sort*, *Follow…*, *Reload*). Settings
     /// is a tile (C140), not a list row.
     @MainActor
-    static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(), compact: Bool,
+    static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(),
                            shell: ShellState, custom: (MenuRegistry.Option) -> MenuRow? = { _ in nil }) -> [MenuRow] {
-        var facts = facts
-        facts.compact = compact
         return MenuRegistry.rows(.screen, at: place, facts) { option in
             if let row = custom(option) { return row }
             return MenuRow(id: "morePreparedAudio", title: Verbs.preparedAudio, icon: Icons.preparedAudio) { shell.present(.preparedAudio) }
         }
     }
 
-    /// The tile buttons `[Settings][Saved][last]`; `last` is the surface's own focus tile. Every ⋯
+    /// The tile buttons `[Settings][Saved]([History])[last]`; `last` is the surface's own focus tile. Every ⋯
     /// panel uses these same tiles in this order (C140). The compact chrome has no 🕘 button, so
     /// its panels add *History* as a tile before `last` (`compact`).
     @MainActor

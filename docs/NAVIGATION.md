@@ -214,7 +214,7 @@ the same spot. ⋯ is never replaced.
   suggestions follow the same rule (`BrowseURLParser`).
 - **🔖** (regular width, slot 3; on compact width ⋯ has the page's *Save to Folder…*) is the Reader's 🔖 for the article on screen: tap saves it to the Library's top level
   (extracted first; 🔖 spins), or removes it when it is saved (filled, jade); held, it opens the
-  Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4; on compact width ⋯ → *History*) opens History: the
+  Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4; on compact width a tile of ⋯) opens History: the
   pages visited, newest first, as Library rows (the site under a titled visit, none under an
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
   and long press are the article's menu ("Menus", below; on the Library's article for the address when
@@ -332,14 +332,14 @@ name, each row showing where it is below the folder (its site when it is in the 
 the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. Favorites
 are the starred items in the Library. Recent is everything you opened or started (C104); *History* (🕘 on regular width,
-a row of the compact ⋯) is the browser's pages visited: one name per concept. From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as Recent does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
+a tile of the compact ⋯) is the browser's pages visited: one name per concept. From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as Recent does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
 Recent and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, a favorite folder's tile, an
 imported book) opens it on Library, where every place shows; Library comes back to the tab you
 left. The tab is remembered with the surface. On compact width the chrome's row 1 is the search
-field and ⋯ holds the creating rows and *History* ("Bottom chrome", above); on regular width the
+field and ⋯ holds the creating rows, with *History* among its tiles ("Bottom chrome", above); on regular width the
 band and dock are the browser's: the search field and `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
 (*New Folder…* in a folder) and *Import from…*, both made in the folder on screen (a book's too). Browser shows the browser as
 it was; Library there comes back to the same folder. The
