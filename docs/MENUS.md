@@ -24,7 +24,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 - **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB/PDF file picker), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127). Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; shown in every folder including imported EPUBs and followed stories (C149). Follow… and Save from Website… are not here; users do those from the browser.
 - **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
-- **Reader / Now Playing ⋯**: the article's options, then Prepared Audio, then [Settings][Saved][Reader]. Reader is disabled (already reading). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
+- **Reader / Now Playing ⋯**: on compact width the chrome's ⋯ (`ReadingPageMoreButton`), at regular width the transport's: the article's options, then Prepared Audio, then [Settings][Saved][Reader]. Reader is disabled (already reading). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
 - **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, then [Settings][Saved][Reader]. Reader opens the current page in the Reader (greyed when the page isn't readable). No New Search: a tap on the address field starts one.
 - **Prepare on a page out of the Library** (C104): enabled; it saves the page to the Library's top level first. Grey only on a browser page not yet loaded as a page.
 - **Prepared Audio row** (one article, C110): Prepare Again (that article), Remove Prepared Audio (that article). Pause All in the section header; a folder's prepare is turned off on its screen.
@@ -247,7 +247,7 @@ Row menu: *Delete Audio* (`menuDeleteAudio`) on every row; *Prepare Again* only 
 
 The names for the chrome that runs along the bottom of every screen.
 
-*Planned, not shipped (approved design 5e, `docs/NAVIGATION.md` "Planned"): compact width gets one chrome host with three destinations (Reader, Library, Browser), a play/pause button with a ring and one screen icon when collapsed. `SurfaceBand`, `BandFieldRow`, `BandNowPlayingBar` and the five-slot `BottomToolbarLayout` rows below are replaced on compact width as the four PRs land (PR1 added `ChromeHost`, first rows of the table; they remain for regular width); the new names are added here as each PR merges. The ⋯ menu's content does not change: Everywhere (Prepared Audio, History, Settings, with Settings first and most prominent) over This screen, with a Reader mode row on Browse; Save and ＋ actions move into it from the toolbar slots, through `MenuRegistry` like every other row.*
+*Planned, not shipped (approved design 5e, `docs/NAVIGATION.md` "Planned"): compact width gets one chrome host with three destinations (Reader, Library, Browser), a play/pause button with a ring and one screen icon when collapsed. `SurfaceBand` (now the regular-width field only) and the five-slot `BottomToolbarLayout` rows below are replaced on compact width as the four PRs land (PR1 added `ChromeHost`, first rows of the table; they remain for regular width); the new names are added here as each PR merges. The ⋯ menu's content does not change: Everywhere (Prepared Audio, History, Settings, with Settings first and most prominent) over This screen, with a Reader mode row on Browse; Save and ＋ actions move into it from the toolbar slots, through `MenuRegistry` like every other row.*
 
 | Name | Kind | What it is |
 |---|---|---|
@@ -256,15 +256,13 @@ The names for the chrome that runs along the bottom of every screen.
 | `ChromeState` | class | Expanded or collapsed, from scroll reports with hysteresis; `expand()` is the icon tap and a new page. |
 | `ChromeGeometry` | struct | The widths and heights of every piece for a width and a state (the mockups' width table). |
 | `ChromeSkin` | enum | `.system` (everything else), `.glass` (iOS 26), `.strip` (earlier iOS, and `-chromeFallback`). |
-| `SurfaceBand` | view | The whole bottom band on the browser and Library surfaces: NP bar row, field row, toolbar row. |
+| `SurfaceBand` | view | The regular-width address / search field with its ✕ while searching. |
 | `BottomChrome` | enum (constants) | Design-system constants (sizes, spacing) shared by all bottom chrome. |
 | `BottomToolbarLayout` | layout | 5-slot evenly-spaced grid for toolbar rows (browser, Library, Now Playing transport). |
 | `BottomToolbarSpanLayout` | layout | 3-item layout: leading + wide centre + trailing. |
-| `BandFieldRow` | view | The swap button + address/search capsule row in `SurfaceBand`. |
 | `PlayerCard` | enum | Shared constants (artwork size, progress height) and the flat card surface for `NowPlayingBar`. |
 | `NowPlayingBar` | view | The compact flat card (artwork, title, groove progress line, play/pause) on the `PlayerCard` surface (no shadow), in `SurfaceBand`'s top row. |
 | `NowPlayingBarView` | view | The same card in the Reader sheet; hides on Now Playing and while sheets are up. |
-| `BandNowPlayingBar` | view | `NowPlayingBar` in `SurfaceBand`: always present, shows placeholder when nothing is playing. |
 | `ReadingPlayerCard` | view | Title + time card (with optional scrub) on the flat `PlayerCard` surface; used only in the mini bar. |
 | `ReadingBottomBand` | view | The bottom band of the Reader and Now Playing: integrated controls flat on the page background, separated by a hairline divider. |
 | `ReaderSheet` | view | Full layout of the Reader sheet (header, text, integrated band). |

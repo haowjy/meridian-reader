@@ -78,12 +78,10 @@ changing the shell code.
   rows expanded and one collapsed, one play/pause button, one screen icon, glass inside one
   `GlassEffectContainer` on iOS 26 with today's material strip as the fallback. Regular width is
   untouched. The next bullet describes the band that ships today.
-- **The browser and the Library draw one band** (`SurfaceBand`, D22, rows as D23):
-  `BandNowPlayingBar` alone, then the swap and the field, then a `BottomToolbarLayout` whose
-  items name their slots (`.toolbarSlot`), one role per slot on both surfaces. Change a row in `SurfaceBand`, not in one surface, or the two drift;
-  probe both surfaces' frames in screenshots. The
-  band's bar never goes away (it keeps its space hidden when covered), so its height never
-  changes; the Reader's `NowPlayingBarView` still hides.
+- **Regular width: the browser and the Library share the field band** (`SurfaceBand`: the field and its ✕),
+  over the clustered dock; the dock's toolbar is a `BottomToolbarLayout` whose items name their slots
+  (`.toolbarSlot`), one role per slot on both surfaces. Compact width has no band: `ChromeHost` draws it.
+  The Reader's `NowPlayingBarView` hides while covered.
 - **Geometry holds within 1 pt**: toolbar slot positions, and the ⋯ focus offset
   (`MorphMenu.focusOffsetFromAnchor`). The `moreMenuFocus` marker, Debug builds with
   `-uiTesting` only, shows where the focus ends up.
