@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// How a sheet wants the status bar and the home indicator.
+/// How a screen wants the status bar and the home indicator.
 struct SystemBarsLook: Equatable {
     /// Light status bar content (a dark reading theme over the app).
     var lightStatusBar = false
@@ -11,10 +11,10 @@ struct SystemBarsLook: Equatable {
 
 extension View {
     /// Light status bar content while `lightStatusBar` is on (a dark reading theme); no status bar
-    /// and a dimmed home indicator while `hidden` is (a reading sheet in full screen).
+    /// and a dimmed home indicator while `hidden` is (a reading page in full screen).
     ///
     /// SwiftUI sets the status bar style only through a colour scheme for the whole window, which
-    /// would flip the surface under the sheet too. Instead, while either is on, a clear window that
+    /// would flip the surface under it too. Instead, while either is on, a clear window that
     /// takes no touches and has nothing for VoiceOver sits just above the app's and answers for
     /// both bars: being on top, it is the window the system asks. When both turn off, it answers
     /// as the app's window does while the bars fade back, then goes (`SystemBarsAnchorView`).
@@ -46,7 +46,7 @@ private struct SystemBarsAnchor: UIViewRepresentable {
 /// Shows the system bars window while it is in a window, until it is released. Then the window
 /// stays, with the app's look, until the bars have faded back (`lingers`): a window that goes away
 /// takes its look with it at once, so the status bar would pop back. Only that long: kept for a
-/// reading sheet's life, the window made the UI tests run about 35 s longer.
+/// reading page's life, the window made the UI tests run about 35 s longer.
 final class SystemBarsAnchorView: UIView {
     var look: SystemBarsLook {
         didSet { if look != oldValue { statusWindow?.controller.look = look } }

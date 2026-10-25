@@ -172,6 +172,7 @@
 		76FEB5FA24D221FFDC8D49B2 /* AppleFallbackRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11E65B37077B3E4FF27F853 /* AppleFallbackRenderer.swift */; };
 		789099ED514D8DDBBEE429FF /* SearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB31D5E1D75B14031DA42A30 /* SearchField.swift */; };
 		798408B559233BC210D03D50 /* LocalTTSCoordinator+Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E1011C9C528CACF07BA855A /* LocalTTSCoordinator+Library.swift */; };
+		7A8C502C9FAD255A40280A1E /* ChromeMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A213CF00F806799411B5B721 /* ChromeMetrics.swift */; };
 		7AA9216BD62B49853E7394CC /* FollowSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B7E0AC048772C7E6062138A /* FollowSheet.swift */; };
 		7B33601C873ABCC777F8F71B /* KokoroCPUInputs.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDE209B902C70AFD4AA48A1F /* KokoroCPUInputs.swift */; };
 		7B9B80FAB0F0F4BA1F8A5112 /* SubParagraphPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF649183841240A7A78E6E55 /* SubParagraphPosition.swift */; };
@@ -382,6 +383,7 @@
 		EDE262742DE173CD6DD4BF80 /* BrowseURLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5953779DDE3BED46D16638F3 /* BrowseURLParser.swift */; };
 		F1FD1A1EDB98E31BE64BEBE1 /* VoicePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EFCBAD5D056D105B07D73B0 /* VoicePickerSheet.swift */; };
 		F2DC2F08AFC22DD344DA0677 /* WholeWordsText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8957B1294EDBC3C3D77F382 /* WholeWordsText.swift */; };
+		F3565C97C81E3AB2C34B8AFD /* RegularBand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F6BB9089424CE86EF44C291 /* RegularBand.swift */; };
 		F35C9BE4CFF26E2AC9077E71 /* LibrarySurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B52C3690AF6D602EC1E385 /* LibrarySurface.swift */; };
 		F382E01BC0388D44B1F4A784 /* KokoroCPUHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2F51A00E5A24A35496BCE8 /* KokoroCPUHost.swift */; };
 		F3C75124CA0179F859EFD3C6 /* TextChunkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0805C4F2BD25167FBB6A2B53 /* TextChunkerTests.swift */; };
@@ -638,6 +640,7 @@
 		8BE40622D531189F797927B2 /* ArticleRowTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleRowTitle.swift; sourceTree = "<group>"; };
 		8D5A19B13E2E68C2C89A2CFC /* Readability-readerable.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "Readability-readerable.js"; sourceTree = "<group>"; };
 		8E391C686BD5569CB6650472 /* WhatsNewStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewStoreTests.swift; sourceTree = "<group>"; };
+		8F6BB9089424CE86EF44C291 /* RegularBand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegularBand.swift; sourceTree = "<group>"; };
 		8F6D660AC0C3A4C7105EDA19 /* EngineDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineDescriptor.swift; sourceTree = "<group>"; };
 		8FE19C28CCC8AEBE247C7D47 /* PreparedAudioSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreparedAudioSheet.swift; sourceTree = "<group>"; };
 		90CBB7EDFFBE4A0EC134A5EA /* EPUBPackage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBPackage.swift; sourceTree = "<group>"; };
@@ -668,6 +671,7 @@
 		9FB2770B8F5CE7E0D9B73AA5 /* af_heart.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = af_heart.bin; sourceTree = "<group>"; };
 		A01D46399C5C7BC2604327A8 /* DeviceChipGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceChipGate.swift; sourceTree = "<group>"; };
 		A2032C2AD4815DE47AF7EE4B /* AddressLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressLabel.swift; sourceTree = "<group>"; };
+		A213CF00F806799411B5B721 /* ChromeMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeMetrics.swift; sourceTree = "<group>"; };
 		A263A5A1D4CA9DB9E427C532 /* KokoroONNXSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroONNXSession.swift; sourceTree = "<group>"; };
 		A29B7A49D7A1FC7D6A380D53 /* FavoritesGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesGrid.swift; sourceTree = "<group>"; };
 		A2A170D43D6CD8ECE1EF7645 /* BundledRuleList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledRuleList.swift; sourceTree = "<group>"; };
@@ -1219,8 +1223,10 @@
 			children = (
 				E9B0D1CAA887084CCB666A75 /* BandToolbarButton.swift */,
 				73E94E5E93EE460FD354D960 /* BottomChrome.swift */,
+				A213CF00F806799411B5B721 /* ChromeMetrics.swift */,
 				5C27B71CA4EFC5B4693E6629 /* ChromeSkin.swift */,
 				935F458969E94244662AB111 /* MorphMenu.swift */,
+				8F6BB9089424CE86EF44C291 /* RegularBand.swift */,
 				526BBFF20A689960CBD8A475 /* SystemBars.swift */,
 			);
 			path = Chrome;
@@ -1923,6 +1929,7 @@
 				997DB6F43D7F112E91D7F479 /* ChromeGeometry.swift in Sources */,
 				D7873A1223337CDB585F9D48 /* ChromeHost.swift in Sources */,
 				DAE552B8E2F9BCCE10B441EF /* ChromeInsets.swift in Sources */,
+				7A8C502C9FAD255A40280A1E /* ChromeMetrics.swift in Sources */,
 				37D3E7B2EB1BC74646B8B9FD /* ChromePlayback.swift in Sources */,
 				9556970549FE253FAE9C2C10 /* ChromeScreen.swift in Sources */,
 				6A4560ACB859FB46FB1C88B0 /* ChromeScroll.swift in Sources */,
@@ -2141,6 +2148,7 @@
 				E3BE6B372D8AF18A24AE7F70 /* ReadingStyle.swift in Sources */,
 				5F3B677B629286607FD58275 /* RecentSearches.swift in Sources */,
 				7FA2624EF04438941D5262E3 /* RecentVisit.swift in Sources */,
+				F3565C97C81E3AB2C34B8AFD /* RegularBand.swift in Sources */,
 				9A2F757F275DD8D64079D463 /* RegularLayout.swift in Sources */,
 				C103BCD0F17DBC30EF3F26C7 /* RegularShellSidebar.swift in Sources */,
 				86870C124C717C0D42EC0081 /* RenderAdmission.swift in Sources */,

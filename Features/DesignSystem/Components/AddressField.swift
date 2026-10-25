@@ -126,7 +126,7 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .font(controlFont)
                     .foregroundStyle(Palette.accent)
                     .frame(width: side, height: side)
-                    .background { Circle().fill(Palette.lit).padding(BottomChrome.litInset) }
+                    .background { Circle().fill(Palette.lit).padding(ChromeMetrics.litInset) }
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)

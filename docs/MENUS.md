@@ -263,9 +263,9 @@ The names for the chrome that runs along the bottom of every screen.
 | `ChromeGeometry` | struct | The frames of every piece and the fade for a width and a `ChromeState` (the mockups' width table), sized by `ChromeMetrics`. |
 | `ChromeSkin` | enum | `.system` (everything else), `.glass` (iOS 26), `.strip` (earlier iOS, and `-chromeFallback`). |
 | `SurfaceBand` | view | The regular-width address / search field with its ✕ while searching. |
-| `BottomChrome` | enum (constants) | Design-system constants (sizes, spacing) shared by all bottom chrome. |
-| `BottomToolbarLayout` | layout | 5-slot evenly-spaced grid for toolbar rows (browser, Library, Now Playing transport). |
-| `BottomToolbarSpanLayout` | layout | 3-item layout: leading + wide centre + trailing. |
+| `ChromeMetrics` | enum (constants) | The compact chrome's one token set (`DesignSystem/Chrome`): heights, gaps, margins, the lit inset. |
+| `BottomChrome` | enum (constants) | Control sizes both widths share (glyph, tap target, field, discs). |
+| `BottomToolbarLayout` | layout | 5-slot evenly-spaced grid for regular width's toolbar rows (browser, Library, Now Playing transport). |
 | `PlayerCard` | enum | Shared constants (artwork size, progress height) and the flat card surface for `NowPlayingBar`. |
 | `NowPlayingBar` | view | The compact flat card (artwork, title, groove progress line, play/pause) on the `PlayerCard` surface (no shadow), in `SurfaceBand`'s top row. |
 | `NowPlayingBarView` | view | The same card in the Reader sheet; hides on Now Playing and while sheets are up. |

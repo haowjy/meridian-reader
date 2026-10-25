@@ -172,7 +172,7 @@ dock, whose toolbar has one role per slot on both surfaces:
 
 A slot with nothing to do is dimmed in place, never removed, so nothing shifts.
 
-**Shared bottom-chrome pieces** (`Features/DesignSystem/Chrome/BottomChrome.swift`), used by the
+**Shared bottom-chrome pieces** (`Features/DesignSystem/Chrome/`: `BottomChrome.swift`, `RegularBand.swift`), used by the
 regular-width band and dock and by the reading sheets' bands: the band (`bottomChromeBand`: 12 pt
 margins, 8 pt top padding, system bar material through the home indicator), the field capsule
 (`bottomChromeField`: 44 pt, chrome-coloured capsule; 36 pt body-size controls inside, like 🎤),

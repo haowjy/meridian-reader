@@ -60,7 +60,7 @@ struct ProgressLineGallery: View {
                         RoundedRectangle(cornerRadius: Radius.card)
                             .fill(Palette.chrome)
                             .frame(height: BottomChrome.rowHeight)
-                            .padding(.horizontal, BottomChrome.horizontalMargin)
+                            .padding(.horizontal, RegularBand.horizontalMargin)
                             .padding(.vertical, Spacing.xs)
                             .frame(maxWidth: .infinity)
                             .background(.bar)
