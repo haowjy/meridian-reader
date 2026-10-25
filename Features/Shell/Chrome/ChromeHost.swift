@@ -18,7 +18,7 @@ import UIKit
 /// the screen allows it (`ChromeScroll.readerScrollUpReexpands`). The pill morphs into the icon (iOS 26: one
 /// `GlassEffectContainer`, `glassEffectID`; Reduce Motion: a cross-fade; earlier iOS: the strip
 /// skin). The host never changes the size of what is under it: screens reserve
-/// `ChromeMetrics.footprint` (the Reader `row2Footprint`) at the bottom and scroll under it.
+/// `ChromeMetrics.footprint` (the Reader `collapsedFootprint`) at the bottom and scroll under it.
 ///
 /// It owns the field's focus (kept in sync with the session), the play / pause button's state and
 /// the progress and toast overlays; each destination supplies its field, arrows and ⋯ as a
@@ -150,7 +150,7 @@ struct ChromeHost: View {
             screen.field($focused)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("bandField")
-                .environment(\.chromeFieldHeight, fieldFrame.height)
+                .environment(\.isChromeField, true)
                 .environment(\.chromeFieldCollapsed, g.rows == .one)
                 .overlay {
                     if destination == .browse {

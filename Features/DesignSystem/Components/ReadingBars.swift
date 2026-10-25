@@ -9,7 +9,7 @@ import SwiftUI
 ///
 /// `Sheet` (regular width) and `ReadingInPlace` (compact width) both draw this; they differ in what
 /// surrounds it. `bottomClearance` is the room under the band that something else occupies (the
-/// compact chrome's row 2): the band stands above it and the text keeps clear of it, collapsed or not.
+/// compact chrome's bottom row): the band stands above it and the text keeps clear of it, collapsed or not.
 struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: View, OverText: View>: View {
     let chrome: ReadingChrome
     /// The header's shape and colour (a sheet's rounded top, or a plain rectangle).

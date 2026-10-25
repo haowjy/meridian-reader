@@ -34,11 +34,24 @@ final class ChromeTests: XCTestCase {
 
     // MARK: Geometry
 
+    func testOneBarHeightDerivesEveryFootprintAndWidth() {
+        XCTAssertEqual(M.barHeight, 44)
+        XCTAssertEqual(M.footprint, 108)
+        XCTAssertEqual(M.collapsedFootprint, 56)
+        XCTAssertEqual(M.navSingleWidth, 44)
+        XCTAssertEqual(M.navPairWidth, 88)
+        let lit = M.barHeight - 2 * M.litInset
+        XCTAssertEqual(lit, 36)
+        XCTAssertEqual(lit / 2, M.barHeight / 2 - M.litInset, "the lit segment's radius is the pill's minus the inset")
+        XCTAssertEqual([M.margin, M.gap, M.topPadding, M.bottomPadding, M.barHeight, M.litInset].map { $0.truncatingRemainder(dividingBy: M.unit) },
+                       Array(repeating: 0, count: 6), "every size is a multiple of the unit")
+    }
+
     func testExpandedRowsOnEveryDestination() {
         let browse = geometry(ChromeState(destination: .browse, played: true, canGoBack: true, canGoForward: true))
         XCTAssertEqual(browse.rows, .two)
-        XCTAssertEqual(browse.pill?.height, M.row2Height)
-        XCTAssertEqual(browse.field?.height, M.row1Height)
+        XCTAssertEqual(browse.pill?.height, M.barHeight)
+        XCTAssertEqual(browse.field?.height, M.barHeight)
         XCTAssertEqual(browse.navigation?.width, M.navPairWidth)
         XCTAssertNotNil(browse.play)
         XCTAssertEqual(browse.more?.maxX, width - M.margin)
@@ -49,9 +62,9 @@ final class ChromeTests: XCTestCase {
         let reader = geometry(ChromeState(destination: .reader))
         XCTAssertNil(reader.field)
         XCTAssertNil(reader.play, "no ▶ before anything has played")
-        XCTAssertEqual(reader.fade?.rise, 0, "the band stands above row 2: no rise")
+        XCTAssertEqual(reader.fade?.rise, 0, "the band stands above the bar: no rise")
         let played = geometry(ChromeState(destination: .reader, played: true))
-        XCTAssertEqual(played.play?.width, M.row2Height)
+        XCTAssertEqual(played.play?.width, M.barHeight)
         XCTAssertEqual(played.pill?.minX, M.margin)
         XCTAssertEqual(played.pill?.maxX, (played.play?.minX ?? 0) - M.gap)
     }
@@ -62,9 +75,9 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(g.rows, .one)
         XCTAssertNil(g.pill)
         let heights = [g.field, g.play, g.icon, g.more].compactMap { $0?.height }
-        XCTAssertEqual(heights, Array(repeating: M.collapsedHeight, count: 4), "title chip, ▶, icon, ⋯")
+        XCTAssertEqual(heights, Array(repeating: M.barHeight, count: 4), "title chip, ▶, icon, ⋯")
         XCTAssertEqual(g.fade?.rise, M.fadeHeight, "the collapsed Reader keeps the rise")
-        XCTAssertEqual(g.top, M.footprint - M.bottomPadding - M.collapsedHeight)
+        XCTAssertEqual(g.top, M.footprint - M.bottomPadding - M.barHeight)
     }
 
     func testFullScreenHasNoPiecesAndNoFade() {
@@ -77,8 +90,8 @@ final class ChromeTests: XCTestCase {
     func testEditingReplacesRowTwoWithTheEditBar() {
         let g = geometry(ChromeState(destination: .library, played: true, editing: true))
         XCTAssertEqual(g.rows, .two)
-        XCTAssertEqual(g.editBar, CGRect(x: M.margin, y: M.footprint - M.bottomPadding - M.row2Height,
-                                         width: width - 2 * M.margin, height: M.row2Height))
+        XCTAssertEqual(g.editBar, CGRect(x: M.margin, y: M.footprint - M.bottomPadding - M.barHeight,
+                                         width: width - 2 * M.margin, height: M.barHeight))
         XCTAssertTrue([g.pill, g.play, g.more].allSatisfy { $0 == nil }, "no pill, ▶ or ⋯ under the bar")
         XCTAssertNotNil(g.field, "the screen's own row 1 stays")
     }

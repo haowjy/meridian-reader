@@ -98,26 +98,24 @@ private struct BottomChromeField: ViewModifier {
     let trailing: CGFloat
     @ScaledMetric(relativeTo: .body) private var height = BottomChrome.rowHeight
     @Environment(\.readingPalette) private var reading
-    /// The compact chrome's field height (`ChromeHost`), which also sets the capsule's surface.
-    @Environment(\.chromeFieldHeight) private var chromeHeight
+    @Environment(\.isChromeField) private var isChromeField
 
     func body(content: Content) -> some View {
-        let base = chromeHeight ?? BottomChrome.rowHeight
         content
             .padding(.leading, leading)
             .padding(.trailing, trailing)
             .padding(.vertical, BottomChrome.fieldVerticalPadding)
-            .frame(height: BottomChrome.grown(chromeHeight ?? height, from: base))
+            .frame(height: isChromeField ? ChromeMetrics.barHeight : BottomChrome.grown(height, from: BottomChrome.rowHeight))
             .chromeSurface(Capsule(), fill: BottomChrome.fieldFill(reading))
     }
 }
 
 private struct FieldControlFrame: ViewModifier {
     @ScaledMetric(relativeTo: .body) private var size = BottomChrome.fieldControlSize
-    @Environment(\.chromeFieldHeight) private var chromeHeight
+    @Environment(\.isChromeField) private var isChromeField
 
     func body(content: Content) -> some View {
-        if chromeHeight != nil {
+        if isChromeField {
             // In the compact chrome's fixed-height field: the chrome's glyph, in the field's slot.
             content
                 .font(BottomChrome.chromeGlyph)

@@ -6,9 +6,9 @@ import CoreGraphics
 /// `MC.layout` in the mockups.
 ///
 /// ```
-/// expanded    [‹ ›][ address / search                  ]        row 1 (52); the Reader has none
-///             [ Reader | Library | Browser ][▶][⋯]              row 2 (56), every screen
-/// collapsed   [‹ ›][ address ][▶][icon][⋯]                      one row (48); the Reader's field is its title chip
+/// expanded    [‹ ›][ address / search                  ]        row 1; the Reader has none
+///             [ Reader | Library | Browser ][▶][⋯]              row 2, every screen
+/// collapsed   [‹ ›][ address ][▶][icon][⋯]                      one row; the Reader's field is its title chip
 /// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
 /// keyboard    [ field                    ][icon][✕]             one row, no ▶, no arrows
 /// full screen (nothing)                                         no pieces, no fade
@@ -64,8 +64,8 @@ struct ChromeGeometry: Equatable {
         case .none:
             break
         case .one:
-            // One row: every piece is `collapsedHeight` high, circles that wide.
-            let d = M.collapsedHeight
+            // One row: every piece is `barHeight` high, circles that wide.
+            let d = M.barHeight
             let rowTop = bottom - d
             let moreFrame = CGRect(x: w - M.margin - d, y: rowTop, width: d, height: d)
             more = moreFrame
@@ -87,35 +87,33 @@ struct ChromeGeometry: Equatable {
                     arrows -= 1
                 }
             }
-            (back, forward) = Self.arrows(count: arrows, left: M.margin, top: rowTop, button: d, height: d)
+            (back, forward) = Self.arrows(count: arrows, left: M.margin, top: rowTop)
             let left = M.margin + (arrows > 0 ? CGFloat(arrows) * d + M.gap : 0)
             field = CGRect(x: left, y: rowTop, width: max(0, right - left), height: d)
         case .two:
-            let h2 = M.row2Height
-            let row2 = bottom - h2
+            let h = M.barHeight
+            let row2 = bottom - h
             if state.editing {
-                editBar = CGRect(x: M.margin, y: row2, width: w - 2 * M.margin, height: h2)
+                editBar = CGRect(x: M.margin, y: row2, width: w - 2 * M.margin, height: h)
             } else {
-                let moreFrame = CGRect(x: w - M.margin - h2, y: row2, width: h2, height: h2)
+                let moreFrame = CGRect(x: w - M.margin - h, y: row2, width: h, height: h)
                 more = moreFrame
                 var right = moreFrame.minX - M.gap
                 if state.played {
-                    let p = CGRect(x: right - h2, y: row2, width: h2, height: h2)
+                    let p = CGRect(x: right - h, y: row2, width: h, height: h)
                     play = p
                     right = p.minX - M.gap
                 }
-                pill = CGRect(x: M.margin, y: row2, width: max(0, right - M.margin), height: h2)
+                pill = CGRect(x: M.margin, y: row2, width: max(0, right - M.margin), height: h)
             }
 
             if !isReader {
-                let h1 = M.row1Height
-                let row1 = row2 - M.gap - h1
+                let row1 = row2 - M.gap - h
                 let arrows = isBrowse && (state.canGoBack || state.canGoForward) ? (state.canGoForward ? 2 : 1) : 0
                 let navWidth = arrows == 2 ? M.navPairWidth : arrows == 1 ? M.navSingleWidth : 0
-                (back, forward) = Self.arrows(count: arrows, left: M.margin, top: row1,
-                                              button: navWidth / CGFloat(max(arrows, 1)), height: h1)
+                (back, forward) = Self.arrows(count: arrows, left: M.margin, top: row1)
                 let left = M.margin + (arrows > 0 ? navWidth + M.gap : 0)
-                field = CGRect(x: left, y: row1, width: w - M.margin - left, height: h1)
+                field = CGRect(x: left, y: row1, width: w - M.margin - left, height: h)
             }
         }
 
@@ -128,10 +126,11 @@ struct ChromeGeometry: Equatable {
         }
     }
 
-    private static func arrows(count: Int, left: CGFloat, top: CGFloat, button: CGFloat, height: CGFloat) -> (CGRect?, CGRect?) {
+    private static func arrows(count: Int, left: CGFloat, top: CGFloat) -> (CGRect?, CGRect?) {
+        let d = ChromeMetrics.barHeight
         guard count > 0 else { return (nil, nil) }
-        let back = CGRect(x: left, y: top, width: button, height: height)
+        let back = CGRect(x: left, y: top, width: d, height: d)
         guard count > 1 else { return (back, nil) }
-        return (back, CGRect(x: left + button, y: top, width: button, height: height))
+        return (back, CGRect(x: left + d, y: top, width: d, height: d))
     }
 }

@@ -45,7 +45,7 @@ struct AddressField<Field: View, Accessory: View>: View {
     @ViewBuilder var field: Field
     @ViewBuilder var accessory: Accessory
 
-    @Environment(\.chromeFieldHeight) private var chromeHeight
+    @Environment(\.isChromeField) private var isChromeField
     @Environment(\.chromeFieldCollapsed) private var chromeCollapsed
 
     /// One row in the compact chrome: the address alone, as wide as the row leaves it.
@@ -54,7 +54,7 @@ struct AddressField<Field: View, Accessory: View>: View {
     /// The 📄 glyph's frame.
     private static var readerSize: CGFloat { Glyph.fieldLeading }
     /// The field's control glyphs: the chrome's own in the compact chrome, else body text size.
-    private var controlFont: Font { chromeHeight != nil ? BottomChrome.chromeGlyph : .body }
+    private var controlFont: Font { isChromeField ? BottomChrome.chromeGlyph : .body }
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
@@ -120,7 +120,7 @@ struct AddressField<Field: View, Accessory: View>: View {
         case .showing:
             // The reader view shows: the icon sits in a lit capsule inset from the field's edge,
             // concentric with it (the pill's lit segment, the same fill).
-            let side = chromeHeight ?? BottomChrome.rowHeight
+            let side = ChromeMetrics.barHeight
             Button(action: onOpenReader) {
                 Image(systemName: Icons.readerShowing)
                     .font(controlFont)

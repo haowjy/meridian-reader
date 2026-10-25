@@ -14,7 +14,7 @@ enum ReadingShowing {
 struct ReadingInPlace {
     /// The chrome is one row: the band steps away, the text keeps its inset.
     var collapsed: Bool
-    /// The room row 2 of the chrome takes at the bottom, expanded or collapsed.
+    /// The room the chrome's bottom row takes, expanded or collapsed.
     var bottomClearance: CGFloat
     /// The text, scrolled by a finger, to this offset from its top.
     var scrolled: (CGFloat) -> Void

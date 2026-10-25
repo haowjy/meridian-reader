@@ -30,8 +30,8 @@ private struct ChromeSkinKey: EnvironmentKey {
     static let defaultValue = ChromeSkin.system
 }
 
-private struct ChromeFieldHeightKey: EnvironmentKey {
-    static let defaultValue: CGFloat? = nil
+private struct IsChromeFieldKey: EnvironmentKey {
+    static let defaultValue = false
 }
 
 private struct ChromeFieldCollapsedKey: EnvironmentKey {
@@ -44,11 +44,11 @@ extension EnvironmentValues {
         set { self[ChromeSkinKey.self] = newValue }
     }
 
-    /// The height the compact chrome gives a field capsule (nil: the field's own, 44 pt at the
-    /// default text size).
-    var chromeFieldHeight: CGFloat? {
-        get { self[ChromeFieldHeightKey.self] }
-        set { self[ChromeFieldHeightKey.self] = newValue }
+    /// The field is in the compact chrome: `ChromeMetrics.barHeight` high, whatever the text size
+    /// (elsewhere its own, 44 pt at the default text size).
+    var isChromeField: Bool {
+        get { self[IsChromeFieldKey.self] }
+        set { self[IsChromeFieldKey.self] = newValue }
     }
 
     /// The compact chrome is one row: its address field shows the address alone (the reader icon

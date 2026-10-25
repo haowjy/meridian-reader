@@ -364,7 +364,7 @@ final class ShellState {
     /// How the Reader or Now Playing shows: a sheet on regular width, else in place under the chrome.
     /// What a reading page shown in place needs from the compact chrome: its scroll feeds the one
     /// scroll controller (the Reader's own rule for scrolling up), its full screen removes the chrome,
-    /// and the text keeps row 2's room whether the chrome is expanded or collapsed.
+    /// and the text keeps one row's room whether the chrome is expanded or collapsed.
     func readingShowing(regular: Bool, close: SheetClosePill.Kind, onClose: @escaping () -> Void) -> ReadingShowing {
         regular ? .sheet(close: close, onClose: onClose) : .inPlace(readingInPlace)
     }
@@ -372,7 +372,7 @@ final class ShellState {
     private var readingInPlace: ReadingInPlace {
         ReadingInPlace(
             collapsed: chromeScroll.isScrolledDown,
-            bottomClearance: ChromeMetrics.row2Footprint,
+            bottomClearance: ChromeMetrics.collapsedFootprint,
             scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0, upExpands: ChromeScroll.readerScrollUpReexpands) },
             anchored: { [chromeScroll] in chromeScroll.anchor(at: $0) },
             pulledDownAtTop: { [chromeScroll] in chromeScroll.expand() },
