@@ -139,10 +139,12 @@ struct BrowseStartView: View {
             }
         }
         // The page area is clipped to the safe area; when paper shows there (the start page, the
-        // search layer), it continues up under the status bar.
+        // search layer), or the in-place reader, it continues up under the status bar.
         .background {
             if !hasPage || search.isActive {
                 Palette.paper.ignoresSafeArea()
+            } else if shell.pageReader != nil && !isRegular {
+                readingAppearance.palette(accent: AppAppearance.shared.accent).background.ignoresSafeArea()
             }
         }
     }
