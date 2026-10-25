@@ -22,8 +22,9 @@ struct ReadingInPlace {
     var anchored: (CGFloat) -> Void
     /// The bars came back by a pull down at the top of the text.
     var pulledDownAtTop: () -> Void
-    /// Full screen began or ended: the whole chrome goes or comes back.
-    var fullScreenChanged: (Bool) -> Void
+    /// Full screen, owned by the compact chrome: the reading page reads and toggles it here, and the
+    /// whole chrome goes or comes back with it.
+    var fullScreen: Binding<Bool>
 }
 
 /// A reading page: the text between a top bar and a bottom band, in the reading theme. The Reader
@@ -96,6 +97,20 @@ private struct InPlaceFrame<Header: View, Content: View, Band: View, OverText: V
 
     @State private var statusBarHeight: CGFloat = 0
 
+    init(place: ReadingInPlace, chrome: ReadingChrome, palette: ReadingPalette,
+         @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content,
+         @ViewBuilder band: () -> Band, @ViewBuilder overText: () -> OverText) {
+        self.place = place
+        self.chrome = chrome
+        self.palette = palette
+        self.header = header()
+        self.content = content()
+        self.band = band()
+        self.overText = overText()
+        // Before the first frame, so a page opened in full screen never flashes its bars.
+        chrome.attach(place)
+    }
+
     var body: some View {
         ReadingBars(chrome: chrome, headerBackground: palette.background, headerSlide: statusBarHeight,
                     bottomClearance: place.bottomClearance, bandAway: place.collapsed, header: header,
@@ -104,12 +119,5 @@ private struct InPlaceFrame<Header: View, Content: View, Band: View, OverText: V
             .readingSurface(palette)
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }
             .systemBars(lightStatusBar: palette.isDark, hidden: chrome.hidden)
-            .onAppear {
-                chrome.onUserScroll = place.scrolled
-                chrome.onScrollAnchor = place.anchored
-                chrome.onPulledDownAtTop = place.pulledDownAtTop
-            }
-            .onChange(of: chrome.hidden, initial: true) { _, hidden in place.fullScreenChanged(hidden) }
-            .onDisappear { place.fullScreenChanged(false) }
     }
 }

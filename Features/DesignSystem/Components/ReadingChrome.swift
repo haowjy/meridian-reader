@@ -26,8 +26,11 @@ import UIKit
 @MainActor
 @Observable
 final class ReadingChrome {
-    /// Full screen: the bars, the grabber and the status bar are hidden.
-    private(set) var hidden = false
+    /// Full screen: the bars and the status bar are hidden. Regular width keeps it here; compact
+    /// width reads the compact chrome's (`attach`), so there is one copy.
+    var hidden: Bool { fullScreen?.wrappedValue ?? ownHidden }
+    private var ownHidden = false
+    @ObservationIgnored private var fullScreen: Binding<Bool>?
     /// The header's and the band's heights (the band's includes the home indicator's inset):
     /// the room the text leaves for them. Measured by `ReadingBars`; unchanged by `hidden`.
     var insets = ReaderTextInsets()
@@ -44,7 +47,7 @@ final class ReadingChrome {
     static let floatingDuration: Duration = .seconds(3)
 
     /// Compact width: where the text's own scrolling goes (the chrome host's collapse), as an
-    /// offset from the text's top; set by `ReadingInPlace`. Not called in full screen.
+    /// offset from the text's top; set by `attach`. Not called in full screen.
     @ObservationIgnored var onUserScroll: (CGFloat) -> Void = { _ in }
     /// Compact width: the text moved without a finger deciding anything (a restore, following the
     /// audio, a scrub, or any move in full screen); the collapse measures from here next.
@@ -52,6 +55,18 @@ final class ReadingChrome {
     /// Compact width: the bars came back by a pull down at the top; the chrome expands with them.
     @ObservationIgnored var onPulledDownAtTop: () -> Void = {}
     @ObservationIgnored private var floatingTimer: Task<Void, Never>?
+
+    /// Compact width: full screen is the compact chrome's, and the text's scrolling goes to it.
+    func attach(_ place: ReadingInPlace) {
+        fullScreen = place.fullScreen
+        onUserScroll = place.scrolled
+        onScrollAnchor = place.anchored
+        onPulledDownAtTop = place.pulledDownAtTop
+    }
+
+    private func setHidden(_ value: Bool) {
+        if let fullScreen { fullScreen.wrappedValue = value } else { ownHidden = value }
+    }
 
     /// A finger scrolled the text to `offset` (0 at its top). Full screen takes no part in it.
     func userScrolled(to offset: CGFloat) {
@@ -98,14 +113,14 @@ final class ReadingChrome {
     /// The bars come back (over the text: nothing moves).
     func show() {
         guard hidden else { return }
-        hidden = false
+        setHidden(false)
         floatingTimer?.cancel()
         floatingControl = false
     }
 
     private func hide() {
         guard !hidden, !UIAccessibility.isVoiceOverRunning else { return }
-        hidden = true
+        setHidden(true)
         revealFloatingControl()
     }
 

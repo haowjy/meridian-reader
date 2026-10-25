@@ -8,7 +8,7 @@ enum ReaderChromeScroll {
     static let scrollUpReexpands = false
 }
 
-/// The one scroll controller of the compact chrome, fed by the Library, the Browser and the Reader.
+/// The one owner of the compact chrome's presence, and its scroll controller, fed by the Library, the Browser and the Reader.
 /// Scroll views report their offset; this turns it into a binary collapsed flag with hysteresis,
 /// so a flick doesn't flutter: it collapses after `collapseDistance` of downward travel, expands
 /// after `expandDistance` of upward travel (when the source lets scrolling up expand), and always
@@ -18,6 +18,12 @@ enum ReaderChromeScroll {
 final class ChromeScroll {
     /// Scrolled down: the chrome is one row.
     private(set) var isScrolledDown = false
+    /// The Reader's full screen: the chrome is removed. Set only by the reading page's middle tap
+    /// (`ReadingInPlace.fullScreen`); scrolling never touches it.
+    private(set) var fullScreen = false
+
+    /// How much of the chrome shows: the one place both flags live.
+    var presence: ChromePresence { ChromePresence(collapsed: isScrolledDown, fullScreen: fullScreen) }
 
     static let collapseDistance: CGFloat = 24
     static let expandDistance: CGFloat = 12
@@ -74,8 +80,14 @@ final class ChromeScroll {
         set(false)
     }
 
-    /// A different scroll view is now the one driving the chrome (a destination, a pushed screen).
+    func setFullScreen(_ on: Bool) {
+        if fullScreen != on { fullScreen = on }
+    }
+
+    /// A different scroll view is now the one driving the chrome (a destination, a pushed screen):
+    /// two rows, out of full screen.
     func reset() {
+        setFullScreen(false)
         last = 0
         anchor = 0
         movingDown = true

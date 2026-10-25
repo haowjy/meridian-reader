@@ -139,12 +139,9 @@ final class ShellState {
         case library
     }
 
-    /// Whether the compact bottom chrome is expanded or scrolled down to one row: the one scroll
-    /// controller the Library, the Browser and the Reader feed.
+    /// The compact bottom chrome's presence (collapsed to one row, the Reader's full screen) and the
+    /// one scroll controller the Library, the Browser and the Reader feed.
     let chrome = ChromeScroll()
-    /// The Reader (or Now Playing) is in full screen: the compact chrome is removed. Set by the
-    /// reading page in place (`readingInPlace`), cleared when it goes.
-    private(set) var isReadingFullScreen = false
 
     private(set) var surface: Surface = .browse {
         didSet { remember() }
@@ -347,7 +344,7 @@ final class ShellState {
             scrolled: { [chrome] in chrome.scrolled(to: $0, upExpands: ReaderChromeScroll.scrollUpReexpands) },
             anchored: { [chrome] in chrome.anchor(at: $0) },
             pulledDownAtTop: { [chrome] in chrome.expand() },
-            fullScreenChanged: { [weak self] in self?.isReadingFullScreen = $0 })
+            fullScreen: Binding(get: { [chrome] in chrome.fullScreen }, set: { [chrome] in chrome.setFullScreen($0) }))
     }
 
     // MARK: - Remembering the surface

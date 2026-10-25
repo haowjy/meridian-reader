@@ -130,4 +130,16 @@ final class ChromeTests: XCTestCase {
         chrome.anchor(at: 0)
         XCTAssertFalse(chrome.isScrolledDown, "a move to the top expands")
     }
+
+    @MainActor
+    func testScrollControllerOwnsBothPresenceFlags() {
+        let chrome = ChromeScroll()
+        scroll(chrome, to: [10, 40, 80])
+        chrome.setFullScreen(true)
+        XCTAssertEqual(chrome.presence, ChromePresence(collapsed: true, fullScreen: true))
+        scroll(chrome, to: [120, 200], upExpands: false)
+        XCTAssertTrue(chrome.fullScreen, "scrolling never leaves full screen")
+        chrome.reset()
+        XCTAssertEqual(chrome.presence, ChromePresence(), "a new screen starts expanded, out of full screen")
+    }
 }

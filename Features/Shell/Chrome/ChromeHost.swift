@@ -38,8 +38,8 @@ struct ChromeHost: View {
     @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Article]
     @FocusState private var focused: Bool
     @Namespace private var morph
-    /// What is drawn: follows `wantedPresence` (animated, or through a dip under Reduce Motion).
-    @State private var presence = ChromePresence()
+    /// Reduce Motion: the old presence, drawn while the chrome fades out before the new one fades in.
+    @State private var held: ChromePresence?
     @State private var dip = 1.0
 
     private let skin = ChromeSkin.current
@@ -78,12 +78,8 @@ struct ChromeHost: View {
     private var resume: Article? { speech.nowPlaying == nil ? lastPlayed.first(where: \.isLive) : nil }
     private var hasPlay: Bool { speech.nowPlaying != nil || resume != nil }
 
-    /// What the app says the chrome should be, apart from its drawn `presence`.
-    private var wantedPresence: ChromePresence {
-        ChromePresence(collapsed: shell.chrome.isScrolledDown, fullScreen: shell.isReadingFullScreen)
-    }
-    private func state(presence: ChromePresence) -> ChromeState {
-        ChromeState(destination: destination, presence: presence, played: hasPlay, canGoBack: screen.canGoBack,
+    private var state: ChromeState {
+        ChromeState(destination: destination, presence: held ?? shell.chrome.presence, played: hasPlay, canGoBack: screen.canGoBack,
                     canGoForward: screen.canGoForward, keyboard: isSearching, readerMode: destination == .browse && shell.pageReader != nil,
                     editing: screen.editBar != nil)
     }
@@ -106,7 +102,7 @@ struct ChromeHost: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let geometry = ChromeGeometry(width: proxy.size.width, state: state(presence: presence))
+            let geometry = ChromeGeometry(width: proxy.size.width, state: state)
             ZStack(alignment: .topLeading) {
                 pieces(geometry)
             }
@@ -126,11 +122,8 @@ struct ChromeHost: View {
         .tint(Palette.ink)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chromeHost")
-        .onAppear {
-            presence = wantedPresence
-            focused = session?.isFocused == true
-        }
-        .onChange(of: wantedPresence) { _, wanted in apply(wanted) }
+        .onAppear { focused = session?.isFocused == true }
+        .onChange(of: shell.chrome.presence) { old, _ in fadeThrough(from: old) }
         .onChange(of: destination) { _, _ in
             shell.chrome.reset()
             focused = session?.isFocused == true
@@ -145,7 +138,7 @@ struct ChromeHost: View {
         .onChange(of: session?.isFocused == true) { _, wanted in
             if focused != wanted { focused = wanted }
         }
-        .gesture(swipeUp, including: state(presence: presence).rows == .one ? .all : .subviews)
+        .gesture(swipeUp, including: state.rows == .one ? .all : .subviews)
     }
 
     // MARK: - Pieces
@@ -314,23 +307,21 @@ struct ChromeHost: View {
     private var swipeUp: some Gesture {
         DragGesture(minimumDistance: 16)
             .onEnded { value in
-                guard state(presence: presence).rows == .one, value.translation.height < -24,
+                guard state.rows == .one, value.translation.height < -24,
                       abs(value.translation.height) > abs(value.translation.width) else { return }
                 iconTapped()
             }
     }
 
-    /// Draws a new presence: the geometry animates it, or under Reduce Motion a dip: fade out,
-    /// swap, fade in.
-    private func apply(_ wanted: ChromePresence) {
-        guard reduceMotion else {
-            presence = wanted
-            return
-        }
+    /// A new presence is drawn by the geometry animating to it; under Reduce Motion by a dip: the
+    /// old one fades out, the new one fades in.
+    private func fadeThrough(from old: ChromePresence) {
+        guard reduceMotion else { return }
+        held = held ?? old
         withAnimation(Motion.fadeOut) {
             dip = 0
         } completion: {
-            presence = wanted
+            held = nil
             withAnimation(Motion.fadeIn) { dip = 1 }
         }
     }
