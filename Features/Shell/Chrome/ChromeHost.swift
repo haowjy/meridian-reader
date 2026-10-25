@@ -63,7 +63,8 @@ struct ChromeHost: View {
                            tiles: MenuContext.tiles(shell, last: reader), isOnReadingPage: true)
     }
     private var session: SearchSession { screen.session }
-    private var wantsCollapsed: Bool { shell.chrome.isScrolledDown && screen.editBar == nil && !onReadingPage }
+    private var wantsCollapsed: Bool { shell.chrome.isScrolledDown && screen.editBar == nil && !onReadingPage
+        && shell.pageReader == nil }
 
     /// What the page under the chrome is drawn in: the reading theme on the Reader, Now Playing and
     /// the Browser's in-place reader view; nil elsewhere (the app's own surface).

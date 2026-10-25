@@ -21,11 +21,12 @@ struct PageArticleService {
         if inPlace, shell.pageReader != nil { return shell.closePageReader() }
         shell.busy = .reader
         defer { shell.busy = nil }
+        let epoch = shell.pageReaderEpoch
         let (article, url) = try await extract()
         if inPlace {
             // The page moved on while it was read: its text is no longer this page's.
             guard web.currentURL == url else { return }
-            shell.openPageReader(article)
+            shell.openPageReader(article, requestedAt: epoch)
         } else {
             shell.openReader(article)
         }
