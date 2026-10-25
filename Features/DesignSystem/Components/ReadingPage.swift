@@ -2,9 +2,9 @@ import SwiftUI
 
 /// Where a reading page (the Reader, Now Playing) is shown.
 enum ReadingShowing {
-    /// Regular width: a `Sheet` over the surface that opened it; its close pill, grabber and pull
-    /// down call `onClose` once it has gone.
-    case sheet(onClose: () -> Void)
+    /// Regular width: a `Sheet` over the surface that opened it; its close pill (`close`), grabber and
+    /// pull down call `onClose` once it has gone.
+    case sheet(close: SheetClosePill.Kind, onClose: () -> Void)
     /// Compact width: in place under the bottom chrome. No sheet, pill, grabber or pull down.
     case inPlace(ReadingInPlace)
 }
@@ -37,8 +37,6 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
     let showing: ReadingShowing
     let chrome: ReadingChrome
     let palette: ReadingPalette
-    /// The sheet's close pill (regular width).
-    let closeKind: SheetClosePill.Kind
     /// The top bar's trailing controls: Aa, then ☝︎.
     @ViewBuilder var trailing: Trailing
     /// Under the top bar, in the header (the ☝︎ hint): the text's top inset grows with it.
@@ -53,10 +51,10 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
 
     var body: some View {
         switch showing {
-        case .sheet(let onClose):
+        case .sheet(let close, let onClose):
             Sheet(onDismiss: onClose, palette: palette, chrome: chrome) {
                 VStack(spacing: 0) {
-                    SheetTopBar { SheetClosePill(kind: closeKind) } trailing: { trailing }
+                    SheetTopBar { SheetClosePill(kind: close) } trailing: { trailing }
                     banner
                 }
             } content: {

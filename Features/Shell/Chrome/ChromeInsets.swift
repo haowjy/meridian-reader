@@ -41,8 +41,8 @@ struct CompactChromeScroll: ViewModifier {
     func body(content: Content) -> some View {
         if isCompact {
             content
-                .chromeScrollSource(shell.chrome)
-                .onAppear { shell.chrome.reset() }
+                .chromeScrollSource(shell.chromeScroll)
+                .onAppear { shell.chromeScroll.reset() }
         } else {
             content
         }

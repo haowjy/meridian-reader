@@ -27,8 +27,6 @@ import SwiftUI
 struct ReaderSheet<Band: View, Reading: View, TextAppearance: View, Accessory: View,
                    Banner: View, Floating: View>: View {
     let showing: ReadingShowing
-    /// What is underneath, named by the sheet's close pill: "Browser", "Library".
-    let backTitle: String
     let listenState: PlayState
     let onListen: () -> Void
     /// The reading theme's colours.
@@ -48,7 +46,7 @@ struct ReaderSheet<Band: View, Reading: View, TextAppearance: View, Accessory: V
     @State private var chrome = ReadingChrome()
 
     var body: some View {
-        ReadingPage(showing: showing, chrome: chrome, palette: palette, closeKind: .back(backTitle)) {
+        ReadingPage(showing: showing, chrome: chrome, palette: palette) {
             textAppearance
             accessory
         } banner: {
@@ -67,10 +65,10 @@ struct ReaderSheet<Band: View, Reading: View, TextAppearance: View, Accessory: V
 
 extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView, Banner == EmptyView,
     Floating == EmptyView {
-    init(showing: ReadingShowing, backTitle: String, listenState: PlayState,
+    init(showing: ReadingShowing, listenState: PlayState,
          onListen: @escaping () -> Void,
          @ViewBuilder text: () -> Reading, @ViewBuilder band: () -> Band) {
-        self.init(showing: showing, backTitle: backTitle, listenState: listenState,
+        self.init(showing: showing, listenState: listenState,
                   onListen: onListen,
                   textAppearance: { EmptyView() }, accessory: { EmptyView() }, banner: { EmptyView() }, text: text,
                   band: band, floating: { EmptyView() })
@@ -111,7 +109,7 @@ struct ReaderSheetGallery: View {
     }
 
     private func frame(_ state: PlayState, saved: Bool = false) -> some View {
-        ReaderSheet(showing: .sheet(onClose: {}), backTitle: "Browser", listenState: state,
+        ReaderSheet(showing: .sheet(close: .back("Browser"), onClose: {}), listenState: state,
                     onListen: {}) {
             SampleReading(title: "Notes on Tides", detail: ["example.org", "9 min"])
         } band: {

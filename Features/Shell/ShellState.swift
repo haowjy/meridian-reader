@@ -141,7 +141,7 @@ final class ShellState {
 
     /// The compact bottom chrome's presence (collapsed to one row, the Reader's full screen) and the
     /// one scroll controller the Library, the Browser and the Reader feed.
-    let chrome = ChromeScroll()
+    let chromeScroll = ChromeScroll()
 
     private(set) var surface: Surface = .browse {
         didSet { remember() }
@@ -290,7 +290,7 @@ final class ShellState {
             showNowPlaying()
         } else {
             pageReader = article
-            chrome.expand()
+            chromeScroll.expand()
         }
     }
 
@@ -361,17 +361,22 @@ final class ShellState {
         hideNowPlaying()
     }
 
+    /// How the Reader or Now Playing shows: a sheet on regular width, else in place under the chrome.
     /// What a reading page shown in place needs from the compact chrome: its scroll feeds the one
     /// scroll controller (the Reader's own rule for scrolling up), its full screen removes the chrome,
     /// and the text keeps row 2's room whether the chrome is expanded or collapsed.
-    var readingInPlace: ReadingInPlace {
+    func readingShowing(regular: Bool, close: SheetClosePill.Kind, onClose: @escaping () -> Void) -> ReadingShowing {
+        regular ? .sheet(close: close, onClose: onClose) : .inPlace(readingInPlace)
+    }
+
+    private var readingInPlace: ReadingInPlace {
         ReadingInPlace(
-            collapsed: chrome.isScrolledDown,
+            collapsed: chromeScroll.isScrolledDown,
             bottomClearance: ChromeMetrics.row2Footprint,
-            scrolled: { [chrome] in chrome.scrolled(to: $0, upExpands: ReaderChromeScroll.scrollUpReexpands) },
-            anchored: { [chrome] in chrome.anchor(at: $0) },
-            pulledDownAtTop: { [chrome] in chrome.expand() },
-            fullScreen: Binding(get: { [chrome] in chrome.fullScreen }, set: { [chrome] in chrome.setFullScreen($0) }))
+            scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0, upExpands: ChromeScroll.readerScrollUpReexpands) },
+            anchored: { [chromeScroll] in chromeScroll.anchor(at: $0) },
+            pulledDownAtTop: { [chromeScroll] in chromeScroll.expand() },
+            fullScreen: Binding(get: { [chromeScroll] in chromeScroll.fullScreen }, set: { [chromeScroll] in chromeScroll.setFullScreen($0) }))
     }
 
     // MARK: - Remembering the surface
@@ -390,7 +395,7 @@ final class ShellState {
     /// The browser's page changed: its address field, and the page to reopen on.
     func browserPageChanged() {
         closePageReader()
-        chrome.expand()
+        chromeScroll.expand()
         syncAddressField()
         remember()
     }

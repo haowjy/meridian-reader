@@ -69,12 +69,11 @@ struct NowPlayingScreen: View {
         let palette = appearance.palette(accent: AppAppearance.shared.accent)
         let artwork = now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
         return NowPlayingSheet(
-            showing: sizeClass == .regular
-                ? .sheet(onClose: { [shell, presentation = shell.nowPlayingPresentation] in
+            showing: shell.readingShowing(
+                regular: sizeClass == .regular, close: .collapse(playingFromName(now, saved: actions.isSaved)),
+                onClose: { [shell, presentation = shell.nowPlayingPresentation] in
                     if let presentation { shell.nowPlayingDidClose(presentation) }
-                })
-                : .inPlace(shell.readingInPlace),
-            playingFrom: playingFromName(now, saved: actions.isSaved),
+                }),
             playState: speech.playState(of: .article(now.articleKey)),
             showsJumpToAudio: !following && !now.isFinished,
             onPlayPause: speech.pressNowPlaying,

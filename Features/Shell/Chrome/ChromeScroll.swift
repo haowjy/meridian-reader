@@ -1,13 +1,6 @@
 import CoreGraphics
 import Observation
 
-/// Whether scrolling up re-expands the Reader's chrome. Off: the Reader's chrome stays collapsed
-/// until the screen icon, the title chip, a swipe up on the row or the top of the text expands it.
-/// Library and Browse always re-expand (`ChromeScroll.expandDistance`).
-enum ReaderChromeScroll {
-    static let scrollUpReexpands = false
-}
-
 /// The one owner of the compact chrome's presence, and its scroll controller, fed by the Library, the Browser and the Reader.
 /// Scroll views report their offset; this turns it into a binary collapsed flag with hysteresis,
 /// so a flick doesn't flutter: it collapses after `collapseDistance` of downward travel, expands
@@ -24,6 +17,11 @@ final class ChromeScroll {
 
     /// How much of the chrome shows: the one place both flags live.
     var presence: ChromePresence { ChromePresence(collapsed: isScrolledDown, fullScreen: fullScreen) }
+
+    /// Whether scrolling up re-expands the Reader's chrome. Off: it stays collapsed until the screen
+    /// icon, the title chip, a swipe up on the row or the top of the text expands it. Library and
+    /// Browse always re-expand (`expandDistance`).
+    static let readerScrollUpReexpands = false
 
     static let collapseDistance: CGFloat = 24
     static let expandDistance: CGFloat = 12
@@ -44,7 +42,7 @@ final class ChromeScroll {
     @ObservationIgnored private var movingDown = true
 
     /// A scroll view's content offset, 0 at its top edge (below its own top inset). `upExpands`:
-    /// scrolling up re-expands (the Reader passes `ReaderChromeScroll.scrollUpReexpands`).
+    /// scrolling up re-expands (the Reader passes `readerScrollUpReexpands`).
     func scrolled(to offset: CGFloat, upExpands: Bool = true) {
         let delta = offset - last
         last = offset

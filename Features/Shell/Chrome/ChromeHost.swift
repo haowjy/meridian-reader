@@ -15,7 +15,7 @@ import UIKit
 ///
 /// Scrolling down collapses it (`ChromeScroll`); the icon's tap, a swipe up on the row and the top
 /// of the text expand it (while searching, they lower the keyboard), and scrolling up does where
-/// the screen allows it (`ReaderChromeScroll`). The pill morphs into the icon (iOS 26: one
+/// the screen allows it (`ChromeScroll.readerScrollUpReexpands`). The pill morphs into the icon (iOS 26: one
 /// `GlassEffectContainer`, `glassEffectID`; Reduce Motion: a cross-fade; earlier iOS: the strip
 /// skin). The host never changes the size of what is under it: screens reserve
 /// `ChromeMetrics.footprint` (the Reader `row2Footprint`) at the bottom and scroll under it.
@@ -70,7 +70,7 @@ struct ChromeHost: View {
     private var isSearching: Bool { session?.isActive == true }
 
     private var state: ChromeState {
-        ChromeState(destination: destination, presence: held ?? shell.chrome.presence, played: playback.isAvailable, canGoBack: screen.canGoBack,
+        ChromeState(destination: destination, presence: held ?? shell.chromeScroll.presence, played: playback.isAvailable, canGoBack: screen.canGoBack,
                     canGoForward: screen.canGoForward, keyboard: isSearching, readerMode: destination == .browse && shell.pageReader != nil,
                     editing: screen.editBar != nil)
     }
@@ -117,9 +117,9 @@ struct ChromeHost: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chromeHost")
         .onAppear { focused = session?.isFocused == true }
-        .onChange(of: shell.chrome.presence) { old, _ in fadeThrough(from: old) }
+        .onChange(of: shell.chromeScroll.presence) { old, _ in fadeThrough(from: old) }
         .onChange(of: destination) { _, _ in
-            shell.chrome.reset()
+            shell.chromeScroll.reset()
             focused = session?.isFocused == true
         }
         .onChange(of: focused) { _, isFocused in
@@ -216,7 +216,7 @@ struct ChromeHost: View {
         if let session, session.isActive {
             session.lowerKeyboard()
         } else {
-            shell.chrome.expand()
+            shell.chromeScroll.expand()
         }
     }
 

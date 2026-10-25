@@ -69,8 +69,8 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
                 .allowsHitTesting(!bandGone)
                 .accessibilityHidden(bandGone)
         }
-        .animation(Motion.standard, value: hidden)
-        .animation(Motion.standard, value: bandAway)
+        .animation(reduceMotion ? (hidden ? Motion.fadeOut : Motion.fadeIn) : Motion.standard, value: hidden)
+        .animation(reduceMotion ? (bandAway ? Motion.fadeOut : Motion.fadeIn) : Motion.standard, value: bandAway)
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
         .onChange(of: bandHeight + bottomInset + bottomClearance, initial: true) { _, bottom in chrome.insets.bottom = bottom }
         .onChange(of: bottomInset, initial: true) { _, inset in chrome.homeIndicator = inset }

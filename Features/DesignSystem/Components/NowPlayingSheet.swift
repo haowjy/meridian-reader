@@ -28,9 +28,6 @@ import SwiftUI
 struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
                        Floating: View>: View {
     let showing: ReadingShowing
-    /// The book, series or folder the page lives in, else the Library or its site: the sheet's
-    /// close pill names it.
-    let playingFrom: String
     /// What you hear, for the play / pause floating in full screen.
     let playState: PlayState
     /// The text scrolled away from the audio: offer to jump back to the spoken sentence.
@@ -54,7 +51,7 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     @State private var chrome = ReadingChrome()
 
     var body: some View {
-        ReadingPage(showing: showing, chrome: chrome, palette: palette, closeKind: .collapse(playingFrom)) {
+        ReadingPage(showing: showing, chrome: chrome, palette: palette) {
             textAppearance
             accessory
         } banner: {
@@ -160,7 +157,7 @@ struct NowPlayingSheetGallery: View {
     private func frame(_ state: PlayState, note: String?, back: Bool, saved: Bool = false) -> some View {
         let palette = ReadingTheme.sepia.palette(accent: .jade)
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
-        return NowPlayingSheet(showing: .sheet(onClose: {}), playingFrom: "Pride and Prejudice", playState: state,
+        return NowPlayingSheet(showing: .sheet(close: .collapse("Pride and Prejudice"), onClose: {}), playState: state,
                                showsJumpToAudio: back, onPlayPause: {}, palette: palette) {
             TextAppearanceButton(isOpen: false) {}
         } accessory: {

@@ -64,10 +64,9 @@ struct ReaderSheetScreen: View {
         let playerLetter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,
                                                          address: readerArticle.origin.canonicalURL)
         return ReaderSheet(
-            showing: sizeClass == .regular
-                ? .sheet(onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) })
-                : .inPlace(shell.readingInPlace),
-            backTitle: state.origin.backTitle,
+            showing: shell.readingShowing(
+                regular: sizeClass == .regular, close: .back(state.origin.backTitle),
+                onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) }),
             listenState: speech.playState(of: .article(readerArticle.id)),
             onListen: { self.listen(from: nil, start: start) },
             palette: palette
