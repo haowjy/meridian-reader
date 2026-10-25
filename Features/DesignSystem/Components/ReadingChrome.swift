@@ -12,8 +12,7 @@ import UIKit
 ///
 /// - **Full screen is a tap in the middle of the text, in and out, and nothing else**
 ///   (`tappedCentre`). Scrolling never enters or leaves it; a tap at either edge turns a screen
-///   (`revealFloatingControl`) and leaves the bars as they are (`TapZone`). A pull down at the top
-///   of the text brings the bars back (`pulledDownAtTop`).
+///   (`revealFloatingControl`) and leaves the bars as they are (`TapZone`).
 /// - In full screen a small play / pause floats at the bottom right (`floatingControl`) for
 ///   `floatingDuration` after full screen begins, an edge tap (a page turn) or a tap on it. A tap
 ///   in the middle brings the bars back instead, and they carry the play control.
@@ -52,8 +51,6 @@ final class ReadingChrome {
     /// Compact width: the text moved without a finger deciding anything (a restore, following the
     /// audio, a scrub, or any move in full screen); the collapse measures from here next.
     @ObservationIgnored var onScrollAnchor: (CGFloat) -> Void = { _ in }
-    /// Compact width: the bars came back by a pull down at the top; the chrome expands with them.
-    @ObservationIgnored var onPulledDownAtTop: () -> Void = {}
     @ObservationIgnored private var floatingTimer: Task<Void, Never>?
 
     /// Compact width: full screen is the compact chrome's, and the text's scrolling goes to it.
@@ -61,7 +58,6 @@ final class ReadingChrome {
         fullScreen = place.fullScreen
         onUserScroll = place.scrolled
         onScrollAnchor = place.anchored
-        onPulledDownAtTop = place.pulledDownAtTop
     }
 
     private func setHidden(_ value: Bool) {
@@ -76,13 +72,6 @@ final class ReadingChrome {
     /// The text is at `offset` without a finger having moved it.
     func textMoved(to offset: CGFloat) {
         onScrollAnchor(offset)
-    }
-
-    /// A pull down at the top of the text in full screen: the bars come back, expanded.
-    func pulledDownAtTop() {
-        guard hidden else { return }
-        show()
-        onPulledDownAtTop()
     }
 
     /// A tap in the middle of the text: full screen toggles.

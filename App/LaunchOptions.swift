@@ -48,8 +48,8 @@ struct LaunchOptions: Equatable {
     var scrubBubbleDemo = false
     /// `-slowMenuAnimation`: slow the ⋯ morph so a mid-animation frame can be captured.
     var slowMenuAnimation = false
-    /// `-chromeFallback`: draw the compact bottom chrome in its pre-iOS 26 skin (the thick material
-    /// strip) on a new OS, since no older simulator runtime is installed to look at it.
+    /// `-chromeFallback`: draw the compact bottom chrome in its pre-iOS 26 skin (the blur and
+    /// glass tint) on a new OS, since no older simulator runtime is installed to look at it.
     var forcesChromeFallback = false
     /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
     /// saved articles and bookmarks again.

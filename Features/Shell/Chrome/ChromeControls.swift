@@ -28,129 +28,139 @@ extension ChromeDestination {
     var segment: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
-/// `[ Reader | Library | Browser ]`: three equal segments in one capsule, the lit one the screen
-/// you are on, an inset capsule (equal padding, concentric corners). Every segment has the same icon
-/// and label size and weight; lit differs by the glyph's tint and the capsule only (labels stay ink,
-/// which holds 4.5:1 on the wash in every accent). The Reader segment is the plain document whether
-/// or not anything plays (▶ and the lit segment say what plays); it is dimmed when there is nothing
-/// to open and it is not lit.
+/// `[ Reader | Library | Browser ]`, and the screen icon it folds into: one capsule whose rect the
+/// layout animates between the full pill and the icon's circle. Folding is the lit segment's glyph
+/// sliding to the middle while the other segments, their labels and the lit wash fade, so the
+/// lit segment is the icon. Every segment has the same icon and label size and weight; lit differs
+/// by the glyph's tint and the wash only (labels stay ink, which holds 4.5:1 on the wash in every
+/// accent). The Reader segment is the plain document whether or not anything plays (▶ and the lit
+/// segment say what plays); it is dimmed when there is nothing to open and it is not lit.
+///
+/// Expanded, each segment is a button; folded (past half), the whole circle is one: a tap on the icon
+/// is a swipe up.
 struct ChromePill: View {
     let lit: ChromeDestination
     /// Something is playing or was played: the Reader segment has a page to open.
     let hasReader: Bool
+    /// How far the pill has folded into the icon (`ChromeLayout.fold`).
+    let fold: CGFloat
+    /// The pill's width while expanded: the segments are laid out in it.
+    let expandedWidth: CGFloat
     let onSelect: (ChromeDestination) -> Void
+    let onExpand: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private typealias K = ChromeMetrics
+
     var body: some View {
         GeometryReader { proxy in
-            // The segments share the width left inside the inset, so the lit capsule is inset
-            // equally on all four sides and its radius is the pill's minus the inset.
-            let inset = ChromeMetrics.litInset
-            let segment = (proxy.size.width - 2 * inset) / CGFloat(ChromeDestination.allCases.count)
-            ZStack(alignment: .leading) {
+            let size = proxy.size
+            let slot = expandedWidth / CGFloat(ChromeDestination.allCases.count)
+            let blockHeight = K.segmentGlyphHeight + K.segmentGap + K.labelSize
+            let top = (size.height - blockHeight) / 2
+            ZStack(alignment: .topLeading) {
+                // The wash is inset equally on all four sides; its radius is the pill's minus the inset.
                 Capsule()
                     .fill(Palette.lit)
-                    .frame(width: segment, height: proxy.size.height - 2 * inset)
-                    .offset(x: segment * CGFloat(lit.segment) + inset)
+                    .frame(width: slot - 2 * K.litInset, height: size.height - 2 * K.litInset)
+                    .offset(x: slot * CGFloat(lit.segment) + K.litInset, y: K.litInset)
+                    .opacity(1 - ChromeMetrics.ramp(fold, 0...0.5))
                     .animation(reduceMotion ? nil : Motion.snappy, value: lit)
-                HStack(spacing: 0) {
-                    ForEach(ChromeDestination.allCases, id: \.self) { destination in
-                        Button { onSelect(destination) } label: { content(destination) }
-                            .buttonStyle(.plain)
-                            .frame(width: segment)
-                            .accessibilityLabel(destination.label)
-                            .accessibilityIdentifier(destination.identifier)
-                            .accessibilityAddTraits(destination == lit ? .isSelected : [])
-                            .chromeLargeContent(destination.label, symbol: destination.symbol)
-                    }
+                ForEach(ChromeDestination.allCases, id: \.self) { destination in
+                    let isLit = destination == lit
+                    let center = (CGFloat(destination.segment) + 0.5) * slot
+                    segment(destination, lit: isLit)
+                        .position(x: isLit ? center + (size.width / 2 - center) * fold : center, y: top + K.segmentGlyphHeight / 2
+                                  + (size.height / 2 - top - K.segmentGlyphHeight / 2) * (isLit ? fold : 0))
+                        .opacity(isLit ? 1 : 1 - ChromeMetrics.ramp(fold, 0...0.5))
+                    label(destination)
+                        .position(x: center, y: top + K.segmentGlyphHeight + K.segmentGap + K.labelSize / 2)
+                        .opacity(1 - ChromeMetrics.ramp(fold, 0...0.4))
                 }
-                .padding(.horizontal, inset)
+                controls(slot: slot, size: size)
             }
+            .frame(width: size.width, height: size.height, alignment: .topLeading)
+            .clipShape(Capsule())
         }
         .chromeSurface(Capsule())
     }
 
+    private func segment(_ destination: ChromeDestination, lit isLit: Bool) -> some View {
+        Image(systemName: destination.symbol)
+            .font(BottomChrome.chromeGlyph)
+            .foregroundStyle(isLit ? Palette.accent : Palette.ink)
+            .frame(height: K.segmentGlyphHeight)
+            .opacity(dimmed(destination) ? K.segmentDimmedOpacity : 1)
+            .accessibilityHidden(true)
+    }
+
+    private func label(_ destination: ChromeDestination) -> some View {
+        Text(destination.label)
+            .font(.system(size: K.labelSize, weight: .semibold))
+            .foregroundStyle(Palette.ink)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .opacity(dimmed(destination) ? K.segmentDimmedOpacity : 1)
+            .accessibilityHidden(true)
+    }
+
+    private func dimmed(_ destination: ChromeDestination) -> Bool {
+        destination == .reader && !hasReader && destination != lit
+    }
+
+    /// The touch layer: three segments while expanded, the icon once folded.
     @ViewBuilder
-    private func content(_ destination: ChromeDestination) -> some View {
-        let isLit = destination == lit
-        let dimmed = destination == .reader && !hasReader && !isLit
-        VStack(spacing: ChromeMetrics.segmentGap) {
-            Image(systemName: destination.symbol)
-                .font(BottomChrome.chromeGlyph)
-                .foregroundStyle(isLit ? Palette.accent : Palette.ink)
-                .frame(height: ChromeMetrics.segmentGlyphHeight)
-            Text(destination.label)
-                .font(.system(size: ChromeMetrics.labelSize, weight: .medium))
-                .foregroundStyle(Palette.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+    private func controls(slot: CGFloat, size: CGSize) -> some View {
+        if fold > 0.5 {
+            Button(action: onExpand) { Color.clear.contentShape(Circle()) }
+                .buttonStyle(.plain)
+                .frame(width: size.width, height: size.height)
+                .accessibilityLabel(lit.label)
+                .accessibilityHint(String(localized: "Shows the bar"))
+                .accessibilityIdentifier("chromeScreenIcon")
+                .chromeLargeContent(lit.label, symbol: lit.symbol)
+        } else {
+            ForEach(ChromeDestination.allCases, id: \.self) { destination in
+                Button { onSelect(destination) } label: { Color.clear.contentShape(Rectangle()) }
+                    .buttonStyle(.plain)
+                    .frame(width: slot, height: size.height)
+                    .offset(x: slot * CGFloat(destination.segment))
+                    .accessibilityLabel(destination.label)
+                    .accessibilityIdentifier(destination.identifier)
+                    .accessibilityAddTraits(destination == lit ? .isSelected : [])
+                    .chromeLargeContent(destination.label, symbol: destination.symbol)
+            }
         }
-        .opacity(dimmed ? ChromeMetrics.segmentDimmedOpacity : 1)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .contentShape(Rectangle())
     }
 }
 
-/// The collapsed row's current-screen icon: the document, the books or the globe, plain. Tapping
-/// it is swiping up: the pill comes back.
-struct ChromeScreenIcon: View {
-    let destination: ChromeDestination
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: destination.symbol)
-                .font(BottomChrome.chromeGlyph)
-                .foregroundStyle(Palette.accent)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .chromeSurface(Circle())
-        .accessibilityLabel(destination.label)
-        .accessibilityHint(String(localized: "Shows the bar"))
-        .accessibilityIdentifier("chromeScreenIcon")
-        .chromeLargeContent(destination.label, symbol: destination.symbol)
-    }
-}
-
-/// The collapsed Reader's field slot: the page's title over its source, in a capsule. Tapping it
-/// is swiping up: the pill comes back.
+/// The collapsed Reader's field: the page's title in a capsule, nothing else (▶ is the row's).
+/// Tapping it is swiping up: the card comes back.
 struct ChromeTitleChip: View {
     let title: String
-    let detail: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .typeStyle(.row, weight: .semibold)
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1)
-                if !detail.isEmpty {
-                    Text(detail)
-                        .typeStyle(.caption)
-                        .foregroundStyle(Palette.secondaryInk)
-                        .lineLimit(1)
-                }
-            }
-            .padding(.horizontal, Spacing.s)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .contentShape(Capsule())
+            Text(title)
+                .typeStyle(.row, weight: .semibold)
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+                .padding(.horizontal, Spacing.s)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .chromeSurface(Capsule())
         .accessibilityLabel(title)
         .accessibilityHint(String(localized: "Shows the bar"))
         .accessibilityIdentifier("chromeTitleChip")
     }
 }
 
-/// ‹ and ›: one capsule, the buttons side by side in the frame the host gives it.
+/// ‹ and ›: one capsule of one circle per button, in the frame the host gives it. The frame
+/// animates between one and two circles' width, so › fades as it narrows.
 struct ChromeNavigation: View {
-    let canGoBack: Bool
     let showsForward: Bool
     let backID: String
     let forwardID: String
@@ -158,16 +168,24 @@ struct ChromeNavigation: View {
     let onForward: () -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            button(Icons.back, label: Verbs.back, id: backID, enabled: canGoBack, action: onBack)
-            if showsForward {
-                button(Icons.forward, label: Verbs.forward, id: forwardID, enabled: true, action: onForward)
+        GeometryReader { proxy in
+            let side = ChromeMetrics.barHeight
+            HStack(spacing: 0) {
+                button(Icons.back, label: Verbs.back, id: backID, action: onBack)
+                    .frame(width: side)
+                if showsForward {
+                    button(Icons.forward, label: Verbs.forward, id: forwardID, action: onForward)
+                        .frame(width: side)
+                        .opacity(min(1, max(0, (proxy.size.width - side) / side)))
+                }
             }
+            .frame(width: proxy.size.width, alignment: .leading)
+            .clipShape(Capsule())
         }
         .chromeSurface(Capsule())
     }
 
-    private func button(_ symbol: String, label: String, id: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+    private func button(_ symbol: String, label: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(BottomChrome.chromeGlyph)
@@ -176,8 +194,6 @@ struct ChromeNavigation: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : Palette.disabledOpacity)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
         .chromeLargeContent(label, symbol: symbol)

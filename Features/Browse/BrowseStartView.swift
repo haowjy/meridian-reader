@@ -245,14 +245,17 @@ struct BrowseStartView: View {
                     .id(shell.nowPlayingPresentation)
                     .transition(.opacity)
             }
-            // Compact: the one bottom chrome, over the browser, the Library, the Reader and Now
-            // Playing alike. The Reader is a destination: it keeps the pill (row 2) under its text.
-            if !isRegular {
-                compactChrome
-            }
         }
         .animation(isRegular || reduceMotion ? nil : Motion.snappy, value: ReadingLayers(reader: shell.reader?.presentation,
                                                                               nowPlaying: shell.nowPlayingPresentation))
+        // Compact: the one bottom chrome, over the browser, the Library, the Reader and Now
+        // Playing alike. The Reader is a destination: it keeps the pill (row 2) under its text, and
+        // the Reader or Now Playing hands the chrome the card it draws above it.
+        .overlayPreferenceValue(ChromeCardKey.self) { card in
+            if !isRegular {
+                compactChrome(card)
+            }
+        }
     }
 
     /// Which reading layers are up: a change cross-fades them on compact width.
@@ -270,10 +273,10 @@ struct BrowseStartView: View {
 
     /// The host for the browser's and the Library's chrome. The browser's depends on the page
     /// (saved or not), so the host sits inside its lookup.
-    private var compactChrome: some View {
+    private func compactChrome(_ card: ChromeCard?) -> some View {
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
         return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
-            ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen())
+            ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen(), card: card)
                 .environment(libraryScreen)
                 .frame(maxHeight: .infinity, alignment: .bottom)
         }

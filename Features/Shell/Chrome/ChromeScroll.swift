@@ -1,32 +1,36 @@
 import CoreGraphics
 import Observation
 
-/// The one owner of the compact chrome's presence, and its scroll controller, fed by the Library, the Browser and the Reader.
-/// Scroll views report their offset; this turns it into a binary collapsed flag with hysteresis,
-/// so a flick doesn't flutter: it collapses after `collapseDistance` of downward travel, expands
-/// after `expandDistance` of upward travel (when the source lets scrolling up expand), and always
-/// expands at the top.
+/// The one owner of how far the compact chrome has folded, and its scroll controller, fed by the
+/// Library, the Browser and the Reader alike. Scroll views report their offset; this keeps a
+/// continuous `progress` (0 expanded, 1 collapsed) that follows the finger in both directions:
+/// `progress += dy / travel`, 0 at the top, and once the finger has been still for `settleDelay`
+/// it snaps to the end the last scroll was heading for. It is the mockups' `bindScroll`; the
+/// smoothing the prototype does per frame (a 55 ms time constant) is the host animating
+/// `progress` (`Motion.follow`).
+///
+/// Full screen is not scroll's: it is set only by the reading page's middle tap
+/// (`ReadingInPlace.fullScreen`), and scrolling never touches it.
 @MainActor
 @Observable
 final class ChromeScroll {
-    /// Scrolled down: the chrome is one row.
-    private(set) var isScrolledDown = false
-    /// The Reader's full screen: the chrome is removed. Set only by the reading page's middle tap
-    /// (`ReadingInPlace.fullScreen`); scrolling never touches it.
+    /// 0 expanded, 1 collapsed, anywhere between while a finger is on the scroll view.
+    private(set) var progress: CGFloat = 0
+    /// Past half: the chrome is a row. Its own property so a screen that only needs to know (the
+    /// reading page's floating controls) is not redrawn by every step of `progress`.
+    private(set) var isCollapsed = false
+    /// The Reader's full screen: the chrome is removed.
     private(set) var fullScreen = false
+    /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
+    var isLocked = false
 
-    /// How much of the chrome shows: the one place both flags live.
-    var presence: ChromePresence { ChromePresence(collapsed: isScrolledDown, fullScreen: fullScreen) }
-
-    /// Whether scrolling up re-expands the Reader's chrome. Off: it stays collapsed until the screen
-    /// icon, the title chip, a swipe up on the row or the top of the text expands it. Library and
-    /// Browse always re-expand (`expandDistance`).
-    static let readerScrollUpReexpands = false
-
-    static let collapseDistance: CGFloat = 24
-    static let expandDistance: CGFloat = 12
+    /// Points of scrolling that fold the chrome all the way.
+    static let travel: CGFloat = 90
+    /// At or above this offset the chrome is expanded.
+    static let topEdge: CGFloat = 4
+    static let settleDelay: Duration = .milliseconds(150)
     /// A jump bigger than this between two reports is a programmatic scroll (a page load, a
-    /// scroll-to-top), not a finger, and restarts the count.
+    /// scroll-to-top), not a finger, and moves nothing.
     private static let jump: CGFloat = 400
 
     /// A swipe up on the collapsed row expands it: a drag past `swipeStart` that travels
@@ -38,52 +42,43 @@ final class ChromeScroll {
     }
 
     @ObservationIgnored private var last: CGFloat = 0
-    @ObservationIgnored private var anchor: CGFloat = 0
-    @ObservationIgnored private var movingDown = true
+    @ObservationIgnored private var lastDelta: CGFloat = 0
+    @ObservationIgnored private var settling: Task<Void, Never>?
 
-    /// A scroll view's content offset, 0 at its top edge (below its own top inset). `upExpands`:
-    /// scrolling up re-expands (the Reader passes `readerScrollUpReexpands`).
-    func scrolled(to offset: CGFloat, upExpands: Bool = true) {
+    /// A scroll view's content offset, 0 at its top edge (below its own top inset).
+    func scrolled(to offset: CGFloat) {
         let delta = offset - last
         last = offset
-        if offset <= 1 {
-            anchor = offset
-            set(false)
+        guard !isLocked, !fullScreen else { return }
+        if offset <= Self.topEdge {
+            settling?.cancel()
+            set(0)
             return
         }
-        guard delta != 0 else { return }
-        if abs(delta) > Self.jump {
-            anchor = offset
-            return
-        }
-        if (delta > 0) != movingDown {
-            movingDown = delta > 0
-            anchor = offset - delta
-        }
-        if movingDown, offset - anchor > Self.collapseDistance {
-            set(true)
-        } else if !movingDown, upExpands, anchor - offset > Self.expandDistance {
-            set(false)
-        } else if movingDown == isScrolledDown {
-            // Moving on in the direction the bar already took: keep the stroke's extreme as anchor.
-            anchor = movingDown ? min(anchor, offset) : max(anchor, offset)
-        }
+        guard delta != 0, abs(delta) <= Self.jump else { return }
+        lastDelta = delta
+        set(min(1, max(0, progress + delta / Self.travel)))
+        scheduleSettle()
     }
 
     /// The offset moved without a finger (a restore, following the audio, a scrub), or in a state
     /// where the finger decides nothing (full screen): the next report measures from here, and no
-    /// collapse is decided by the move itself. The top still always expands (a status-bar tap).
+    /// fold is decided by the move itself. The top still always expands (a status-bar tap).
     func anchor(at offset: CGFloat) {
         last = offset
-        anchor = offset
-        movingDown = true
-        if offset <= 1 { set(false) }
+        if offset <= Self.topEdge { set(0) }
+    }
+
+    /// Snaps to the end the last scroll was heading for (down: collapsed, up: expanded).
+    func settle() {
+        settling?.cancel()
+        if progress > 0, progress < 1 { set(lastDelta > 0 ? 1 : 0) }
     }
 
     /// Back to two rows: the icon's tap, a swipe up on the collapsed row, a new screen.
     func expand() {
-        anchor = last
-        set(false)
+        settling?.cancel()
+        set(0)
     }
 
     func setFullScreen(_ on: Bool) {
@@ -95,12 +90,21 @@ final class ChromeScroll {
     func reset() {
         setFullScreen(false)
         last = 0
-        anchor = 0
-        movingDown = true
-        set(false)
+        lastDelta = 0
+        expand()
     }
 
-    private func set(_ value: Bool) {
-        if isScrolledDown != value { isScrolledDown = value }
+    private func scheduleSettle() {
+        settling?.cancel()
+        settling = Task { [weak self] in
+            try? await Task.sleep(for: Self.settleDelay)
+            guard !Task.isCancelled else { return }
+            self?.settle()
+        }
+    }
+
+    private func set(_ value: CGFloat) {
+        if progress != value { progress = value }
+        if isCollapsed != (value >= 0.5) { isCollapsed = value >= 0.5 }
     }
 }

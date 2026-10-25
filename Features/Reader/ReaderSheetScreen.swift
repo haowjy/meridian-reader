@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// The Reader (`ReaderSheet`): one page for reading, with its own Listen. On compact width it is a
-/// destination in the chrome's pill, in place under the bottom chrome; Library and Browser in the
-/// pill leave it to exactly where you were. On regular width it is a sheet over the surface that
+/// destination in the chrome's pill, in place under the bottom chrome, which draws its player card
+/// (`ChromeCard`; Aa, Voice, 🔖 and the transport are in it, ☝︎ is a row of ⋯); Library and Browser in
+/// the pill leave it to exactly where you were. On regular width it is a sheet over the surface that
 /// opened it, closed by the close pill ("‹ Browser", "‹ Library"), the grabber and a pull down. Its
 /// top bar, 🔖 and ⋯ are Now Playing's too (decision D24), so Listen turns one into the other with
 /// nothing moving. Playback never stops for it.
@@ -19,7 +20,8 @@ import SwiftUI
 ///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
 ///   Prepare, Prepared Audio; then Settings / Saved / Reader, Reader disabled here, C140). Both act through
 ///   `ArticleActions`, as in Now Playing.
-/// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
+/// - Aa changes how the page reads (`TextAppearanceControl`), live: left of ☝︎ in the sheet's top bar,
+///   in the card's transport on compact width.
 /// - Voice (`VoiceChromeButton`), right of the title in the bottom band, opens the page's Voice
 ///   picker (same as ⋯ › Voice / Settings › Voice's list).
 /// - A tap in the middle of the text reads full screen, as in Now Playing (`ReadingPage`,
@@ -59,6 +61,8 @@ struct ReaderSheetScreen: View {
         let palette = appearance.palette(accent: AppAppearance.shared.accent)
         let isFinished = actions.article?.finishedAt != nil
         let timeDetail = isFinished ? String(localized: "Finished") : listen.detail
+        let compactCard = sizeClass == .regular ? nil
+            : card(actions, start: start, detail: isFinished ? timeDetail : detail(listen.detail).joined(separator: " · "))
         let playerTitle = ArticleRowTitle.lineOne(title: readerArticle.title, source: readerArticle.sourceLabel,
                                                   address: readerArticle.origin.canonicalURL)
         let playerLetter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,
@@ -113,7 +117,7 @@ struct ReaderSheetScreen: View {
                         .padding(.trailing, -(BottomChrome.minTapTarget - BottomChrome.iconSize) / 2)
                 }
                 // Scrub track (thin, no capsule, full width)
-                readerScrubTrack(palette: palette)
+                readerScrubTrack
                 // Transport: [1x] [⏮] (▶) [⏭] [...]
                 NowPlayingTransport(state: speech.playState(of: .article(readerArticle.id)),
                                     canSkipBack: false, canSkipForward: false,
@@ -138,13 +142,48 @@ struct ReaderSheetScreen: View {
                 ShellToastLayer()
             }
         }
+        .chromeCard(compactCard)
         .task(id: WarmKey(id: readerArticle.id, count: readerArticle.document.count)) {
             speech.warmUp(readerArticle, from: start, saved: actions.isSaved)
         }
     }
 
+    /// Compact width: the card the chrome draws above row 2, and ⋯'s row for ☝︎.
+    private func card(_ actions: ArticleActions, start: ListenSpot, detail: String?) -> ChromeCard {
+        let document = readerArticle.document
+        let rate = speech.rateMultiplier
+        let heard = document.isEmpty ? 0 : document.startUTF16Offset(forParagraph: start.paragraph) + start.utf16Offset
+        let left = ListeningTime.minutes(utf16Length: max(0, document.utf16Length - heard), rate: rate)
+        let title = ArticleRowTitle.lineOne(title: readerArticle.title, source: readerArticle.sourceLabel,
+                                            address: readerArticle.origin.canonicalURL)
+        let letter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,
+                                                   address: readerArticle.origin.canonicalURL)
+        let view = ReaderPlayerCard(
+            title: title, detail: detail, artworkLetter: letter, playState: speech.playState(of: .article(readerArticle.id)),
+            elapsed: ListeningTime.clock(seconds: ListeningTime.secondsHeard(in: document, toUTF16Offset: heard, rate: rate)),
+            timeLeft: "−" + ListeningTime.label(minutes: left), canSkip: false, onSkipBack: {}, onSkipForward: {},
+            onPlayPause: { self.listen(from: nil, start: start) }
+        ) {
+            VoiceChromeButton(identifier: "readerVoice") { shell.present(.voice(.article(readerArticle.id))) }
+        } save: {
+            SaveToggleButton(isSaved: actions.isSaved, identifier: "readerBookmark",
+                             onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
+        } scrub: {
+            readerScrubTrack
+        } appearance: {
+            TextAppearanceControl()
+        } speed: {
+            SpeedButton(speech: speech)
+        }
+        let jump = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
+                           availability: MenuAvailability(when: sessionReady)) {
+            withAnimation(Motion.snappy) { jumpMode.toggle() }
+        }
+        return ChromeCard(content: AnyView(view), menuRows: [jump])
+    }
+
     /// A thin scrub track at position 0 for the Reader (before Listen starts).
-    private func readerScrubTrack(palette: ReadingPalette) -> some View {
+    private var readerScrubTrack: some View {
         let paragraphs = readerArticle.document.paragraphs
         return Group {
             if !paragraphs.isEmpty {

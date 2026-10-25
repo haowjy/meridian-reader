@@ -6,44 +6,38 @@ enum ChromeDestination: CaseIterable, Equatable {
     case reader, library, browse
 }
 
-/// How much of the chrome shows: two independent flags. `collapsed` is every compact screen
-/// scrolled down; `fullScreen` is the Reader's. Leaving full screen returns to whatever
-/// `collapsed` was, because nothing in full screen touches it.
-struct ChromePresence: Equatable {
-    var collapsed = false
-    var fullScreen = false
-}
-
-/// Everything the compact chrome is drawn from: a destination, its presence, and the context the
-/// pieces depend on. A pure value (no UIKit, no observation) so `ChromeGeometry` and the rules
-/// below are checkable without a screen; `ChromeHost` builds one from the app's state.
+/// Everything the compact chrome is drawn from. A pure value (no UIKit, no observation) so
+/// `ChromeLayout` and the rules below are checkable without a screen; `ChromeHost` builds one from
+/// the app's state.
 struct ChromeState: Equatable {
     var destination: ChromeDestination
-    var presence = ChromePresence()
-    /// Something has played: the ▶ ring shows.
+    /// How far the chrome has folded to one row: 0 expanded, 1 collapsed. Continuous, driven by
+    /// scrolling (`ChromeScroll`).
+    var progress: CGFloat = 0
+    /// The Reader's full screen: nothing is drawn.
+    var fullScreen = false
+    /// Something has played: ▶ shows, with its progress ring.
     var played = false
-    /// The browser has somewhere to go back to / forward to (‹ ›).
+    /// The browser has somewhere to go back to / forward to (‹ ›). A new page has neither.
     var canGoBack = false
     var canGoForward = false
-    /// A search is editing: one row, the field takes the width.
+    /// A search is editing: the one-row keyboard form.
     var keyboard = false
-    /// The Browser shows its page as the Reader draws it, in place (Browser only): the chrome stays expanded.
+    /// The Browser shows its page as the Reader draws it, in place: the chrome stays expanded.
     var readerMode = false
     /// A Library selection's action bar is row 2: the chrome stays expanded.
     var editing = false
 
-    enum Rows: Equatable {
-        /// Row 1 (the screen's own) over row 2 (the pill).
-        case two
-        /// The one row.
-        case one
-        /// Nothing: the Reader's full screen.
-        case none
-    }
+    /// Reader mode and Edit hold the chrome expanded, whatever the scroll says.
+    var collapse: CGFloat { readerMode || editing ? 0 : min(1, max(0, progress)) }
 
-    var rows: Rows {
-        if destination == .reader, presence.fullScreen { return .none }
-        if keyboard { return .one }
-        return presence.collapsed && !readerMode && !editing ? .one : .two
+    /// How far the pill has folded into the screen icon: the keyboard's form is the collapsed one.
+    var fold: CGFloat { keyboard ? 1 : collapse }
+
+    /// Everything but the fold, which animates by itself: what the host animates a step at a time.
+    var discrete: ChromeState {
+        var state = self
+        state.progress = 0
+        return state
     }
 }

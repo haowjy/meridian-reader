@@ -1,28 +1,30 @@
 import SwiftUI
 
 /// What the compact bottom chrome (`ChromeHost`) is drawn on. The layout, the controls and the
-/// state machine are the same in every skin; only the surface behind each control differs.
+/// state machine are the same in every skin; only the surface of each piece differs, and none of
+/// them has a plate behind the pieces: the page shows through.
 enum ChromeSkin: Equatable {
-    /// Every other chrome (the regular-width band, the Reader's band): today's `.bar` band with
-    /// `Palette.chrome` capsules. The environment's default, so nothing outside the compact chrome changes.
+    /// Every other chrome (the regular-width band): `Palette.chrome` capsules. The environment's
+    /// default, so nothing outside the compact chrome changes.
     case system
-    /// iOS 26: each control is its own Liquid Glass shape, all inside one `GlassEffectContainer`.
+    /// iOS 26: each piece is its own Liquid Glass shape, all inside one `GlassEffectContainer`.
     case glass
-    /// Earlier iOS: one thick material strip behind the rows, `Palette.chrome` capsules on it.
-    case strip
+    /// Earlier iOS: a blur with the glass tint over it (`Palette.glass`), an inner rim and a soft
+    /// shadow, so a piece looks like the glass.
+    case material
 
     #if DEBUG
-    /// `-chromeFallback`: the strip on a new OS too, to check it. Set by the launch (`AppMain`).
-    static var forcesStrip = false
+    /// `-chromeFallback`: the material skin on a new OS too, to check it. Set by the launch (`AppMain`).
+    static var forcesMaterial = false
     #endif
 
-    /// The skin the compact chrome uses: glass on iOS 26 and later, the strip before that.
+    /// The skin the compact chrome uses: glass on iOS 26 and later, the material before that.
     static var current: ChromeSkin {
         #if DEBUG
-        if forcesStrip { return .strip }
+        if forcesMaterial { return .material }
         #endif
         if #available(iOS 26.0, *) { return .glass }
-        return .strip
+        return .material
     }
 }
 
@@ -34,8 +36,8 @@ private struct IsChromeFieldKey: EnvironmentKey {
     static let defaultValue = false
 }
 
-private struct ChromeFieldCollapsedKey: EnvironmentKey {
-    static let defaultValue = false
+private struct ChromeFieldWidthKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
 }
 
 extension EnvironmentValues {
@@ -51,70 +53,58 @@ extension EnvironmentValues {
         set { self[IsChromeFieldKey.self] = newValue }
     }
 
-    /// The compact chrome is one row: its address field shows the address alone (the reader icon
-    /// and reload step aside, the field itself is the tap target).
-    var chromeFieldCollapsed: Bool {
-        get { self[ChromeFieldCollapsedKey.self] }
-        set { self[ChromeFieldCollapsedKey.self] = newValue }
+    /// The width the chrome gives its field right now (it changes every frame of a fold): the
+    /// address field shows its reader icon and reload by it. nil outside the chrome.
+    var chromeFieldWidth: CGFloat? {
+        get { self[ChromeFieldWidthKey.self] }
+        set { self[ChromeFieldWidthKey.self] = newValue }
     }
 }
 
 extension View {
-    /// A chrome control's surface in `shape`: glass, or `fill` on the strip and the old band. Every
-    /// chrome piece is tappable, so its glass answers a press.
-    func chromeSurface<S: Shape>(_ shape: S, fill: Color = Palette.chrome) -> some View {
-        modifier(ChromeSurface(shape: shape, fill: fill))
+    /// A chrome piece's surface in `shape`: glass, the material look, or `fill` on the old band.
+    /// Every chrome piece is tappable, so its glass answers a press (`interactive`; not a card
+    /// whose controls are its own).
+    func chromeSurface<S: InsettableShape>(_ shape: S, fill: Color = Palette.chrome, interactive: Bool = true) -> some View {
+        modifier(ChromeSurface(shape: shape, fill: fill, interactive: interactive))
     }
-}
 
-private struct ChromeSurface<S: Shape>: ViewModifier {
-    let shape: S
-    let fill: Color
-    @Environment(\.chromeSkin) private var skin
-
-    func body(content: Content) -> some View {
-        if skin == .glass, #available(iOS 26.0, *) {
-            content.glassEffect(.regular.interactive(), in: shape)
-        } else if skin == .strip {
-            // The fallback gives every piece the same rim and lift glass has: one hairline, one soft
-            // shadow under the shape (not under the glyphs).
-            content
-                .background { shape.fill(fill).shadow(color: .black.opacity(0.08), radius: 6, y: 2) }
-                .overlay { shape.stroke(Palette.ink.opacity(0.1), lineWidth: 0.5) }
-        } else {
-            content.background(fill, in: shape)
-        }
-    }
-}
-
-extension View {
     /// The chrome's fixed-size glyphs don't grow with text; a long press shows this one large.
     func chromeLargeContent(_ label: String, symbol: String) -> some View {
         accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }
     }
 
-    /// Gives the glass shape an identity inside a `GlassEffectContainer`, so two shapes that share
-    /// `id` (the pill and the collapsed icon) morph into each other as one is swapped for the other.
-    func chromeMorph(_ id: String, in namespace: Namespace.ID) -> some View {
-        modifier(ChromeMorph(id: id, namespace: namespace))
-    }
-
-    /// The container glass shapes blend and morph in: one for all of the compact chrome.
+    /// The container glass shapes blend in: one for all of the compact chrome.
     func chromeGlassContainer() -> some View {
         modifier(ChromeGlassContainer())
     }
 }
 
-private struct ChromeMorph: ViewModifier {
-    let id: String
-    let namespace: Namespace.ID
+private struct ChromeSurface<S: InsettableShape>: ViewModifier {
+    let shape: S
+    let fill: Color
+    let interactive: Bool
     @Environment(\.chromeSkin) private var skin
 
     func body(content: Content) -> some View {
-        if skin == .glass, #available(iOS 26.0, *) {
-            content.glassEffectID(id, in: namespace)
-        } else {
+        switch skin {
+        case .glass:
+            if #available(iOS 26.0, *) {
+                content.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+            } else {
+                content.background(fill, in: shape)
+            }
+        case .material:
+            // The shadow sits under the shape, not under the glyphs.
             content
+                .background {
+                    shape.fill(.ultraThinMaterial)
+                        .overlay { shape.fill(Palette.glass) }
+                        .shadow(color: Palette.glassShadow, radius: 11, y: 6)
+                }
+                .overlay { shape.strokeBorder(Palette.glassEdge, lineWidth: 0.5) }
+        case .system:
+            content.background(fill, in: shape)
         }
     }
 }

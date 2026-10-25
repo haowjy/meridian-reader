@@ -12,15 +12,15 @@ enum BottomChrome {
     static func fieldFill(_ reading: ReadingPalette?) -> Color { reading?.card ?? Palette.chrome }
     /// Toolbar glyph size.
     static let iconSize: CGFloat = 19
-    /// Every control glyph in the compact chrome, the field's controls too: fixed, medium.
-    static let chromeGlyph = Font.system(size: iconSize, weight: .medium)
+    /// Every control glyph in the compact chrome, the field's controls too: one size, fixed, medium.
+    static let chromeGlyph = Font.system(size: ChromeMetrics.segmentGlyphHeight, weight: .medium)
     /// Text standing in for a field control (the speed). Like the glyphs it keeps its size at
     /// large text sizes, so the controls never crowd.
     static let toolbarTextSize: CGFloat = 17
     /// Small controls inside the field capsule (mic, the speed) and in a sheet's top bar (☝︎).
     static let fieldControlSize: CGFloat = 36
     /// The smallest tap area of a control (`tapTarget`), whatever it looks like.
-    static let minTapTarget: CGFloat = 44
+    static let minTapTarget = ChromeMetrics.minTapTarget
     /// Now Playing's round play / pause in the transport's centre slot. Fixed like the toolbar
     /// glyphs (the large content viewer shows it at large text sizes). The row stays
     /// `rowHeight`; the disc reaches past it above and below by half the difference.

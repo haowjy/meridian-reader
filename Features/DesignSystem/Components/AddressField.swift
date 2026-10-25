@@ -11,6 +11,9 @@ import SwiftUI
 /// ( 📄 news.example.org/…              🎧 )    regular
 /// ```
 ///
+/// In the compact chrome the field's width decides what shows (`ChromeMetrics.readerIconWidth`,
+/// `reloadWidth`): folded to one row beside ‹ and ▶ it can be the address alone.
+///
 /// `field` is the text itself: the page's address while idle, the `TextField` while editing.
 /// `accessory` sits at the trailing end while editing, in the trailing button's place (🎤).
 struct AddressField<Field: View, Accessory: View>: View {
@@ -46,10 +49,18 @@ struct AddressField<Field: View, Accessory: View>: View {
     @ViewBuilder var accessory: Accessory
 
     @Environment(\.isChromeField) private var isChromeField
-    @Environment(\.chromeFieldCollapsed) private var chromeCollapsed
+    @Environment(\.chromeFieldWidth) private var chromeWidth
 
-    /// One row in the compact chrome: the address alone, as wide as the row leaves it.
-    private var showsAddressOnly: Bool { chromeCollapsed && reader != .searching }
+    /// How much of the reader icon and of reload the chrome's field has room for (1 outside the
+    /// chrome, and while editing: the address is being typed).
+    private var readerReveal: CGFloat {
+        guard let chromeWidth, reader != .searching else { return 1 }
+        return ChromeMetrics.ramp(chromeWidth, ChromeMetrics.readerIconWidth)
+    }
+    private var reloadReveal: CGFloat {
+        guard let chromeWidth, reader != .searching else { return 1 }
+        return ChromeMetrics.ramp(chromeWidth, ChromeMetrics.reloadWidth)
+    }
 
     /// The 📄 glyph's frame.
     private static var readerSize: CGFloat { Glyph.fieldLeading }
@@ -58,7 +69,7 @@ struct AddressField<Field: View, Accessory: View>: View {
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
-            if !showsAddressOnly { leading }
+            leading
             field
                 .typeStyle(.row)
                 .foregroundStyle(Palette.ink)
@@ -68,15 +79,18 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .accessibilityIdentifier("addressListen")
                     .transition(.opacity)
             }
-            if let reload, !showsAddressOnly {
+            if let reload {
                 Button(action: onReload) {
                     Image(systemName: reload == .stop ? Icons.close : Icons.reload)
                         .font(controlFont)
                         .foregroundStyle(Palette.secondaryInk)
-                        .frame(width: Self.readerSize, height: Self.readerSize)
+                        .frame(width: Self.readerSize * reloadReveal, height: Self.readerSize)
+                        .opacity(reloadReveal)
                         .tapTarget(Self.readerSize)
                 }
                 .buttonStyle(.plain)
+                .allowsHitTesting(reloadReveal > 0.5)
+                .accessibilityHidden(reloadReveal < 0.5)
                 .accessibilityLabel(reload == .stop ? Verbs.stopLoading : Verbs.reload)
                 .accessibilityIdentifier("addressReload")
                 .chromeLargeContent(reload == .stop ? Verbs.stopLoading : Verbs.reload,
@@ -84,9 +98,9 @@ struct AddressField<Field: View, Accessory: View>: View {
             }
             accessory
         }
-        .bottomChromeField(leading: reader == .showing && !showsAddressOnly ? 0 : Spacing.s,
-                           trailing: showsAddressOnly || (listen == nil && reload == nil && Accessory.self == EmptyView.self)
-                           ? Spacing.s : Spacing.xxs)
+        .bottomChromeField(leading: reader == .showing ? Spacing.s * (1 - readerReveal) : Spacing.s,
+                           trailing: listen == nil && reload == nil && Accessory.self == EmptyView.self
+                           ? Spacing.s : Spacing.s + (Spacing.xxs - Spacing.s) * reloadReveal)
     }
 
     @ViewBuilder
@@ -96,23 +110,27 @@ struct AddressField<Field: View, Accessory: View>: View {
         // the Library's `SearchField`, so both fields line up. A caption-size hint, not a control.
         case .hidden, .searching:
             Image(systemName: Icons.search)
-                .font(.caption)
+                .font(isChromeField ? BottomChrome.chromeGlyph : .caption)
                 .foregroundStyle(Palette.secondaryInk)
                 .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
                 .accessibilityHidden(true)
         case .extracting:
             ProgressView()
                 .controlSize(.small)
-                .frame(width: Self.readerSize, height: Self.readerSize)
+                .frame(width: Self.readerSize * readerReveal, height: Self.readerSize)
+                .opacity(readerReveal)
         case .available:
             Button(action: onOpenReader) {
                 Image(systemName: Icons.reader)
                     .font(controlFont)
                     .foregroundStyle(Palette.accent)
-                    .frame(width: Self.readerSize, height: Self.readerSize)
+                    .frame(width: Self.readerSize * readerReveal, height: Self.readerSize)
+                    .opacity(readerReveal)
                     .tapTarget(Self.readerSize)
             }
             .buttonStyle(.plain)
+            .allowsHitTesting(readerReveal > 0.5)
+            .accessibilityHidden(readerReveal < 0.5)
             .accessibilityLabel(Verbs.openInReader)
             .accessibilityIdentifier("addressReader")
             .chromeLargeContent(Verbs.openInReader, symbol: Icons.reader)
@@ -128,8 +146,13 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .frame(width: side, height: side)
                     .background { Circle().fill(Palette.lit).padding(ChromeMetrics.litInset) }
                     .contentShape(Circle())
+                    .frame(width: side * readerReveal, alignment: .leading)
+                    .opacity(readerReveal)
+                    .clipped()
             }
             .buttonStyle(.plain)
+            .allowsHitTesting(readerReveal > 0.5)
+            .accessibilityHidden(readerReveal < 0.5)
             .accessibilityLabel(Verbs.showWebPage)
             .accessibilityAddTraits(.isSelected)
             .accessibilityIdentifier("addressReader")

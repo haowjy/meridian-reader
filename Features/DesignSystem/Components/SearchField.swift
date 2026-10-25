@@ -15,11 +15,13 @@ struct SearchField: View {
     var fieldIdentifier = "searchField"
     var onSubmit: () -> Void = {}
 
+    @Environment(\.isChromeField) private var isChromeField
+
     var body: some View {
         let clearable = !text.isEmpty
         HStack(spacing: Spacing.xs) {
             Image(systemName: Icons.search)
-                .font(.caption)
+                .font(isChromeField ? BottomChrome.chromeGlyph : .caption)
                 .foregroundStyle(Palette.secondaryInk)
                 .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
                 .accessibilityHidden(true)

@@ -9,7 +9,9 @@ import SwiftUI
 ///
 /// `Sheet` (regular width) and `ReadingInPlace` (compact width) both draw this; they differ in what
 /// surrounds it. `bottomClearance` is the room under the band that something else occupies (the
-/// compact chrome's bottom row): the band stands above it and the text keeps clear of it, collapsed or not.
+/// compact chrome, whose card is the band there): the text keeps clear of it, folded or not.
+/// `overTextClearance` is how far above the bottom what floats over the text (Jump to Audio, the
+/// full screen play button) sits while the bars show: above the card, or above the folded row.
 struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: View, OverText: View>: View {
     let chrome: ReadingChrome
     /// The header's shape and colour (a sheet's rounded top, or a plain rectangle).
@@ -18,8 +20,7 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
     /// its own height when it hides.
     let headerSlide: CGFloat
     var bottomClearance: CGFloat = 0
-    /// The band steps away although the bars are shown (the compact chrome is one row).
-    var bandAway = false
+    var overTextClearance: CGFloat?
     let header: Header
     let content: Content
     let band: Band
@@ -36,7 +37,6 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
     var body: some View {
         let hidden = chrome.hidden
         let slides = hidden && !reduceMotion
-        let bandGone = hidden || bandAway
         ZStack(alignment: .top) {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -47,7 +47,7 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
             if appearance.layout != .pages || !hidden {
                 overText
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, (hidden ? chrome.pageFooter : (bandAway ? 0 : bandHeight) + bottomClearance) + Spacing.s)
+                    .padding(.bottom, (hidden ? chrome.pageFooter : overTextClearance ?? bandHeight + bottomClearance) + Spacing.s)
             }
             header
                 .background { headerBackground }
@@ -65,12 +65,12 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bandHeight = $0 }
                 .padding(.bottom, bottomClearance)
                 .offset(y: slides ? bandHeight + bottomInset + bottomClearance : 0)
-                .opacity(bandGone ? 0 : 1)
-                .allowsHitTesting(!bandGone)
-                .accessibilityHidden(bandGone)
+                .opacity(hidden ? 0 : 1)
+                .allowsHitTesting(!hidden)
+                .accessibilityHidden(hidden)
         }
         .animation(reduceMotion ? (hidden ? Motion.fadeOut : Motion.fadeIn) : Motion.standard, value: hidden)
-        .animation(reduceMotion ? (bandAway ? Motion.fadeOut : Motion.fadeIn) : Motion.standard, value: bandAway)
+        .animation(reduceMotion ? nil : Motion.standard, value: overTextClearance)
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
         .onChange(of: bandHeight + bottomInset + bottomClearance, initial: true) { _, bottom in chrome.insets.bottom = bottom }
         .onChange(of: bottomInset, initial: true) { _, inset in chrome.homeIndicator = inset }

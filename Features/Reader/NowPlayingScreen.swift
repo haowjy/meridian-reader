@@ -5,7 +5,8 @@ import SwiftUI
 /// ink like the rest, on the highlight. Presented over everything by the shell (in place under the
 /// bottom chrome on compact width, a sheet on regular width); it holds no article of its
 /// own: it shows `speech.nowPlaying` and the playing page's content, looked up in the library by
-/// its key.
+/// its key. On compact width the chrome draws its player card (`ChromeCard`), the same card as the
+/// Reader's.
 ///
 /// - The title card (artwork, title, the site and time left) scrolls with the text.
 /// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
@@ -36,6 +37,7 @@ struct NowPlayingScreen: View {
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
     @Environment(PrepareCenter.self) private var preparedAudio
+    @Environment(DeveloperSettings.self) private var developer
     @Environment(\.readingAppearance) private var appearance
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -68,6 +70,7 @@ struct NowPlayingScreen: View {
     private func player(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
         let palette = appearance.palette(accent: AppAppearance.shared.accent)
         let artwork = now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
+        let compactCard = sizeClass == .regular ? nil : card(now, actions, artwork: artwork)
         return NowPlayingSheet(
             showing: shell.readingShowing(
                 regular: sizeClass == .regular, close: .collapse(playingFromName(now, saved: actions.isSaved)),
@@ -99,6 +102,48 @@ struct NowPlayingScreen: View {
                 ShellToastLayer()
             }
         }
+        .chromeCard(compactCard)
+    }
+
+    /// Compact width: the card the chrome draws above row 2, and ⋯'s row for ☝︎.
+    private func card(_ now: NowPlaying, _ actions: ArticleActions, artwork: Image?) -> ChromeCard {
+        let view = PlayheadReader(speech: speech) { spot in
+            let doc = speech.document
+            let rate = speech.rateMultiplier
+            let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: spot.utf16Offset, rate: rate)
+            let source = ArticleRowTitle.lineTwoSource(title: now.title, source: now.source)
+            let note = NowPlayingControls.note(of: speech, detectedLanguage: speech.sessionDetectedLanguage)
+            ReaderPlayerCard(
+                title: now.lineOne,
+                detail: note ?? (now.isFinished ? String(localized: "Finished")
+                    : [source, left > 0 ? ListeningTime.leftLabel(minutes: left) : nil].compactMap { $0 }.joined(separator: " · ")),
+                artwork: artwork, artworkLetter: now.artworkLetter, playState: speech.playState(of: .article(now.articleKey)),
+                elapsed: ListeningTime.clock(seconds: ListeningTime.secondsHeard(in: doc, toUTF16Offset: spot.utf16Offset
+                                                                                  + doc.startUTF16Offset(forParagraph: spot.paragraph), rate: rate)),
+                timeLeft: now.isFinished ? "" : "−" + ListeningTime.label(minutes: left),
+                canSkip: speech.canSkipToPreviousParagraph || speech.canSkipToNextParagraph,
+                onSkipBack: speech.skipToPreviousParagraph, onSkipForward: speech.skipToNextParagraph,
+                onPlayPause: speech.pressNowPlaying,
+                onPlayLongPress: developer.isEnabled ? { shell.present(.listenDebug) } : nil
+            ) {
+                VoiceChromeButton(identifier: "nowPlayingVoice") { shell.present(.voice(.article(now.articleKey))) }
+            } save: {
+                SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
+                                 onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
+                    .disabled(actions.readerArticle == nil)
+            } scrub: {
+                playerScrub(spot: spot) { EmptyView() }
+            } appearance: {
+                TextAppearanceControl()
+            } speed: {
+                SpeedButton(speech: speech)
+            }
+        }
+        let jump = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
+                           availability: MenuAvailability(when: !speech.document.isEmpty)) {
+            withAnimation(Motion.snappy) { jumpMode.toggle() }
+        }
+        return ChromeCard(content: AnyView(view), menuRows: [jump])
     }
 
     /// The integrated bottom band: title + Voice (trailing), scrub, notes, transport — all flat on
@@ -140,7 +185,7 @@ struct NowPlayingScreen: View {
             }
 
             // Scrub row
-            playerScrub
+            playerScrub(spot: spot) { SpeedButton(speech: speech) }
 
             // Notes (buffering, language, etc.)
             NowPlayingControls(speech: speech, detectedLanguage: speech.sessionDetectedLanguage)
@@ -157,34 +202,29 @@ struct NowPlayingScreen: View {
         }
     }
 
-    /// The scrub row for the band: a bare ReaderScrubRow with speed, or a placeholder until
-    /// the map is ready.
+    /// The scrub row: a bare ReaderScrubRow with `trailing` after it, or a placeholder until the
+    /// map is ready.
     @ViewBuilder
-    private var playerScrub: some View {
+    private func playerScrub<Trailing: View>(spot: PlayheadSpot, @ViewBuilder trailing: () -> Trailing) -> some View {
         if let scrubMap {
-            let doc = speech.document
-            let buffered = bufferedSpans(scrubMap)
-            PlayheadReader(speech: speech) { spot in
-                ReaderScrubRow(
-                    map: scrubMap,
-                    position: Self.scrubFraction(scrubMap, document: doc, spot: spot),
-                    buffered: buffered,
-                    onScrubPreview: { p in
-                        scrubPreview = p
-                        if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
-                    },
-                    onScrubCommit: seek(to:),
-                    isCapsule: false
-                ) {
-                    SpeedButton(speech: speech)
-                }
-            }
+            ReaderScrubRow(
+                map: scrubMap,
+                position: Self.scrubFraction(scrubMap, document: speech.document, spot: spot),
+                buffered: bufferedSpans(scrubMap),
+                onScrubPreview: { p in
+                    scrubPreview = p
+                    if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
+                },
+                onScrubCommit: seek(to:),
+                trailing: trailing,
+                isCapsule: false
+            )
         } else {
             // Placeholder: keeps height stable until scrub map builds.
             HStack(spacing: 0) {
                 Color.clear.frame(height: BottomChrome.fieldControlSize)
                     .frame(maxWidth: .infinity)
-                SpeedButton(speech: speech)
+                trailing()
             }
         }
     }

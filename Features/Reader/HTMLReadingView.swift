@@ -656,18 +656,13 @@ struct HTMLReadingWebView: UIViewRepresentable {
         private var offsetObservation: NSKeyValueObservation?
 
         /// Notes a finger drag through the scroll view's pan (WebKit owns its delegate;
-        /// programmatic scrolls never reach it): the user took over the text; a pull down at the top
-        /// brings full screen's bars back (none in jump mode); let go, the layout settles it (Pages
+        /// programmatic scrolls never reach it): the user took over the text; let go, the layout settles it (Pages
         /// snaps to a page). Following stops once the drag moves the text: a pull of the sheet alone
         /// (a pull down from the top) keeps following, as it moves nothing.
         func observeDragging(_ scrollView: UIScrollView) {
             pullHandoff.onDragBegan = { [weak self] in
                 self?.userTookOver()
                 self?.chrome?.textMoved(to: Self.scrolledIn(scrollView))
-            }
-            pullHandoff.onMove = { [weak self] delta in
-                guard let self, !jumpMode, delta > 0, Self.scrolledIn(scrollView) <= 0 else { return }
-                chrome?.pulledDownAtTop()
             }
             pullHandoff.onScroll = { [weak self] in self?.stopFollowing() }
             pullHandoff.onRelease = { [weak self] velocity in self?.layout.dragEnded(velocity: velocity) }
