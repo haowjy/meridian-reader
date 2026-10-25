@@ -15,12 +15,20 @@ struct PageArticleService {
     private var web: WebViewStore { shell.web }
 
     /// Address-bar reader icon / ⋯ → Reader: the page in the Reader sheet (Now Playing when it is
-    /// the page you hear). The reader icon spins meanwhile.
-    func openInReader() async throws {
+    /// the page you hear). The reader icon spins meanwhile. `inPlace` (compact width) is Safari's
+    /// Reader instead: the page's text replaces the page, and the same call puts the page back.
+    func openInReader(inPlace: Bool = false) async throws {
+        if inPlace, shell.pageReader != nil { return shell.closePageReader() }
         shell.busy = .reader
         defer { shell.busy = nil }
         let (article, url) = try await extract()
-        shell.openReader(article)
+        if inPlace {
+            // The page moved on while it was read: its text is no longer this page's.
+            guard web.currentURL == url else { return }
+            shell.openPageReader(article)
+        } else {
+            shell.openReader(article)
+        }
         if article.artwork == nil {
             let icon = await favicon(for: url)
             shell.updateReader(id: article.id) { if $0.artwork == nil { $0.artwork = icon } }

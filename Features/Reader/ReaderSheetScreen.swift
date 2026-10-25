@@ -52,7 +52,8 @@ struct ReaderSheetScreen: View {
 
     private func sheet(_ actions: ArticleActions) -> some View {
         let start = listenStart(actions.article)
-        let listen = listenLabel(start, finished: actions.article?.finishedAt != nil)
+        let listen = readerArticle.listenLabel(from: start, finished: actions.article?.finishedAt != nil,
+                                               rate: speech.rateMultiplier)
         let palette = appearance.palette(accent: AppAppearance.shared.accent)
         let isFinished = actions.article?.finishedAt != nil
         let timeDetail = isFinished ? String(localized: "Finished") : listen.detail
@@ -197,20 +198,6 @@ struct ReaderSheetScreen: View {
         let minutes = ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)
         let length = minutes > 0 ? ListeningTime.label(minutes: minutes) : ""
         return [readerArticle.sourceLabel, status ?? length].filter { !$0.isEmpty }
-    }
-
-    /// Listen's title and the lighter time after it, at the current speed: "Listen" "9 min",
-    /// "Continue" "6 min left", "Listen Again".
-    private func listenLabel(_ start: ListenSpot, finished: Bool) -> (title: String, detail: String?) {
-        if finished { return (String(localized: "Listen Again"), nil) }
-        let doc = readerArticle.document
-        if start.isPartWay, doc.paragraphs.indices.contains(start.paragraph) {
-            let at = start.resolved(in: doc).utf16Offset
-            let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: speech.rateMultiplier)
-            return (Verbs.continue, ListeningTime.leftLabel(minutes: left))
-        }
-        return (Verbs.listen,
-                ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)))
     }
 
     // MARK: - Actions

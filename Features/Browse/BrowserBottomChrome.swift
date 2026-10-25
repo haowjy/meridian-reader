@@ -194,6 +194,7 @@ struct BrowseAddressField: View {
     private var readerButton: Field.ReaderButton {
         if search.isActive { return .searching }
         if shell.busy == .reader { return .extracting }
+        if compact && shell.pageReader != nil { return .showing }
         return web.hasPage && web.isReaderable ? .available : .hidden
     }
 

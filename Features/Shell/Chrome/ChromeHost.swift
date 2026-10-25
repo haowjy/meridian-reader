@@ -30,6 +30,7 @@ struct ChromeHost: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.readingAppearance) private var readingAppearance
     @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Article]
     @FocusState private var focused: Bool
     @Namespace private var morph
@@ -40,10 +41,37 @@ struct ChromeHost: View {
 
     private let skin = ChromeSkin.current
 
-    private var destination: ChromeDestination { shell.isInLibrary ? .library : .browse }
-    private var screen: ChromeScreen { shell.isInLibrary ? library : browse }
+    /// The Reader is lit while the Reader sheet or Now Playing is up; otherwise the surface under.
+    private var destination: ChromeDestination {
+        if onReadingPage { .reader } else { shell.isInLibrary ? .library : .browse }
+    }
+    private var onReadingPage: Bool { shell.reader != nil || shell.isNowPlayingPresented }
+    private var screen: ChromeScreen {
+        if onReadingPage { readerScreen } else { shell.isInLibrary ? library : browse }
+    }
+    /// The Reader has no field or arrows: row 2 only, ⋯ at its end. The page's own menu stays in
+    /// the sheet's top bar; this one is the screen's (Settings, Saved, Prepared Audio).
+    private var readerScreen: ChromeScreen {
+        ChromeScreen(destination: .reader, session: browse.session, cancelID: browse.cancelID, onCancel: browse.onCancel,
+                     begin: browse.begin, field: browse.field,
+                     more: AnyView(MoreMenuButton(id: "chromeReaderMore", chrome: true) { readerMenu }))
+    }
+    private var readerMenu: MenuContext {
+        let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader, availability: .disabled,
+                             accessibilityHint: String(localized: "Already in the Reader"))
+        return MenuContext(item: [], screen: MenuContext.screenRows(at: .nowPlaying, shell: shell),
+                           tiles: MenuContext.tiles(shell, last: reader), isOnReadingPage: true)
+    }
     private var session: SearchSession { screen.session }
-    private var wantsCollapsed: Bool { shell.chrome.isScrolledDown && screen.editBar == nil }
+    private var wantsCollapsed: Bool { shell.chrome.isScrolledDown && screen.editBar == nil && !onReadingPage }
+
+    /// What the page under the chrome is drawn in: the reading theme on the Reader, Now Playing and
+    /// the Browser's in-place reader view; nil elsewhere (the app's own surface).
+    private var readingPalette: ReadingPalette? {
+        guard onReadingPage || shell.pageReader != nil else { return nil }
+        return readingAppearance.palette(accent: AppAppearance.shared.accent)
+    }
+    private var fade: Color { readingPalette?.background ?? Palette.paper }
 
     /// The page played last, while nothing is bound: the play button resumes it.
     private var resume: Article? { speech.nowPlaying == nil ? lastPlayed.first(where: \.isLive) : nil }
@@ -66,6 +94,7 @@ struct ChromeHost: View {
         }
         .frame(height: ChromeMetrics.footprint)
         .environment(\.chromeSkin, skin)
+        .readingSurface(readingPalette)
         .tint(Palette.ink)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chromeHost")
@@ -194,9 +223,9 @@ struct ChromeHost: View {
             // through the fields (the strip does that job on the fallback).
             let top = g.top - ChromeMetrics.topPadding
             VStack(spacing: 0) {
-                LinearGradient(colors: [Palette.paper.opacity(0), Palette.paper.opacity(0.92)], startPoint: .top, endPoint: .bottom)
+                LinearGradient(colors: [fade.opacity(0), fade.opacity(0.92)], startPoint: .top, endPoint: .bottom)
                     .frame(height: 36)
-                Palette.paper.opacity(0.92)
+                fade.opacity(0.92)
             }
             .frame(height: ChromeMetrics.footprint - top + 200)
             .frame(height: ChromeMetrics.footprint - top, alignment: .top)
@@ -211,8 +240,11 @@ struct ChromeHost: View {
     /// The prepare progress and the toast sit on the layout's top edge, never in a row of their own.
     private func overlays(_ g: ChromeGeometry) -> some View {
         VStack(spacing: 0) {
-            PrepareProgressEdge()
-            ShellToastLayer()
+            // The Reader and Now Playing float their own.
+            if !onReadingPage {
+                PrepareProgressEdge()
+                ShellToastLayer()
+            }
         }
         .offset(y: g.top - ChromeMetrics.topPadding)
         .animation(reduceMotion ? nil : Motion.standard, value: g)
@@ -221,6 +253,8 @@ struct ChromeHost: View {
     // MARK: - Actions
 
     private func select(_ target: ChromeDestination) {
+        // The lit Reader is where you already are.
+        guard target != .reader || destination != .reader else { return }
         switch target {
         case .library: shell.openLibrary()
         case .browse: shell.showBrowser()

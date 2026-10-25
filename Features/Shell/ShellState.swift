@@ -162,6 +162,9 @@ final class ShellState {
     }
     /// The Reader sheet (nil = closed). Removed by `readerDidClose` once its sheet has gone.
     private(set) var reader: ReaderSheetState?
+    /// The Browser's page as the Reader draws it, in place of the page (nil = the page itself).
+    /// The address pill's reader icon toggles it; it is the page's own, so it ends when the page changes.
+    private(set) var pageReader: ReaderArticle?
     /// This showing of Now Playing (nil = down), over the surface and the Reader sheet. It shows
     /// what you hear, so it holds no article of its own. Its close reports the showing it closed
     /// (`nowPlayingDidClose`), so a close that lands late can't take down a newer one.
@@ -244,6 +247,18 @@ final class ShellState {
         reader = ReaderSheetState(article: article, origin: isInLibrary ? .library : .browser)
     }
 
+    /// The Browser's page in place (`pageReader`), or Now Playing when it is the page you hear.
+    func openPageReader(_ article: ReaderArticle) {
+        if isHearingArticle(of: article) {
+            showNowPlaying()
+        } else {
+            pageReader = article
+        }
+    }
+
+    /// The page itself again.
+    func closePageReader() { pageReader = nil }
+
     /// Whether `article`'s page is what you hear: by key, or a web page by its address.
     private func isHearingArticle(of article: ReaderArticle) -> Bool {
         isHearing(.article(article.id)) || article.origin.canonicalURL.map { isHearing(.webPage(canonicalURL: $0)) } == true
@@ -252,6 +267,7 @@ final class ShellState {
     /// Updates the Reader sheet's article in place (favicon arrived, listen blocks built, Save
     /// rekeyed it), if that article is still the one shown.
     func updateReader(id: UUID, _ change: (inout ReaderArticle) -> Void) {
+        if pageReader?.id == id { change(&pageReader!) }
         guard var state = reader, state.article.id == id else { return }
         change(&state.article)
         reader = state
@@ -319,6 +335,7 @@ final class ShellState {
 
     /// The browser's page changed: its address field, and the page to reopen on.
     func browserPageChanged() {
+        pageReader = nil
         chrome.expand()
         syncAddressField()
         remember()
@@ -362,6 +379,7 @@ final class ShellState {
     /// 📚: the Library as it was left, its place and its tab.
     func openLibrary() {
         endAddressSearch()
+        pageReader = nil
         reader = nil
         hideNowPlaying()
         surface = .library
@@ -393,6 +411,7 @@ final class ShellState {
     /// Shows `url` in the browser: ends the address search, leaves the reader or library, loads.
     /// Every way of going to a page (submitted address, bookmark, history, Website) ends here.
     func navigate(to url: URL) {
+        pageReader = nil
         addressSearch.end(showing: Self.addressText(for: url))
         showBrowser()
         web.load(url)

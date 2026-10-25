@@ -113,6 +113,10 @@ struct BrowseStartView: View {
                     if !hasPage {
                         startPage
                     }
+
+                    if let article = shell.pageReader, !isRegular {
+                        BrowsePageReader(article: article, speech: speech)
+                    }
                 }
                 .ignoresSafeArea(.container, edges: isRegular ? [] : .bottom)
             }
@@ -211,8 +215,8 @@ struct BrowseStartView: View {
 
     // MARK: - Layers
 
-    /// The library, the Reader sheet over it (or over the browser), Now Playing over everything.
-    /// Each layer is out of reach and hidden from VoiceOver while one covers it.
+    /// The library, the Reader sheet over it (or over the browser), Now Playing over them, and at
+    /// compact width the bottom chrome over all of them. Each layer is out of reach and hidden from VoiceOver while one covers it.
     private var layers: some View {
         ZStack {
             if shell.isInLibrary {
@@ -220,19 +224,21 @@ struct BrowseStartView: View {
                     .covered(shell.reader != nil || shell.isNowPlayingPresented)
                     .transition(.opacity)
             }
-            // Compact: the one bottom chrome, over the browser and the Library, under the Reader.
-            if !isRegular {
-                compactChrome
-                    .covered(shell.reader != nil || shell.isNowPlayingPresented)
-            }
             if let reader = shell.reader {
                 ReaderSheetScreen(state: reader, speech: speech)
                     .id(reader.presentation)
                     .covered(shell.isNowPlayingPresented)
+                    .modifier(KeepsChromeClear(isCompact: !isRegular))
             }
             if shell.isNowPlayingPresented {
                 NowPlayingScreen(speech: speech)
                     .id(shell.nowPlayingPresentation)
+                    .modifier(KeepsChromeClear(isCompact: !isRegular))
+            }
+            // Compact: the one bottom chrome, over the browser, the Library, the Reader and Now
+            // Playing alike. The Reader is a destination: it keeps the pill (row 2) under its text.
+            if !isRegular {
+                compactChrome
             }
         }
     }
@@ -273,7 +279,7 @@ struct BrowseStartView: View {
             onForward: webStore.goForward,
             field: { focus in
                 AnyView(BrowseAddressField(speech: speech, dictation: dictation,
-                                           onOpenReader: { run { try await $0.openInReader() } }, compact: true,
+                                           onOpenReader: { run { try await $0.openInReader(inPlace: true) } }, compact: true,
                                            onReload: reloadOrStop,
                                            onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
             },
@@ -283,9 +289,15 @@ struct BrowseStartView: View {
 
     // MARK: - ↻
 
+    /// A reload brings the page back as the page.
+    private func reload() {
+        shell.closePageReader()
+        webStore.refresh()
+    }
+
     /// ↻ reloads the page; ✕ (while it loads) stops it.
     private func reloadOrStop() {
-        if webStore.isLoading { webStore.stopLoading() } else { webStore.refresh() }
+        if webStore.isLoading { webStore.stopLoading() } else { reload() }
     }
 
     // MARK: - 🎧
@@ -337,7 +349,7 @@ struct BrowseStartView: View {
                     shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
                 }
             case .reload:
-                return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: webStore.refresh)
+                return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: reload)
             default: return nil
             }
         }
@@ -347,7 +359,7 @@ struct BrowseStartView: View {
         }]
         let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
-                             accessibilityHint: Verbs.openInReader) { run { try await $0.openInReader() } }
+                             accessibilityHint: Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
         return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: rows,
                            tiles: MenuContext.tiles(shell, last: reader))
     }

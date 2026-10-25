@@ -16,10 +16,12 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(reader, timeout: 10), "📄 on the article page")
         tapWhenHittable(reader)
 
+        // The page's text replaces the page; Listen there plays it in Now Playing.
+        let listen = app.buttons["pageReaderListen"]
+        XCTAssertTrue(appears(listen, timeout: 10), "the page's reader view")
+        tapWhenHittable(listen)
         let play = app.buttons["listenPlayPause"]
-        XCTAssertTrue(appears(play, timeout: 10), "the Reader")
-        // The pill is in the tree while the Reader sheet still rises from below the screen.
-        tapWhenHittable(play)
+        XCTAssertTrue(appears(play, timeout: 10), "Now Playing")
         XCTAssertTrue(eventually(8) { play.exists && play.label == "Pause" }, "playing")
         let bookmark = app.buttons["nowPlayingBookmark"]
         XCTAssertEqual(bookmark.value as? String, "Not saved")
