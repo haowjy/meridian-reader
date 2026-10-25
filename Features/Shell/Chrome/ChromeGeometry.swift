@@ -44,7 +44,22 @@ enum ChromeMetrics {
     static let minimumField: CGFloat = 120
     /// The pill's lit segment is inset from the pill's edge and from its neighbours by this much,
     /// on all four sides.
-    static let litInset: CGFloat = 4
+    static let litInset = BottomChrome.litInset
+
+    // Inside the pieces. Every glyph is `BottomChrome.iconSize`, medium weight.
+    /// A pill segment's label, and the gap between it and its glyph.
+    static let labelSize: CGFloat = 11
+    static let segmentGap: CGFloat = 2
+    /// The glyph's cell in a pill segment: bars and the spinner take the same room as the symbols.
+    static let segmentGlyphHeight: CGFloat = 22
+    /// The Reader segment while there is nothing to open.
+    static let segmentDimmedOpacity = 0.55
+    /// ▶'s progress ring: its line width and its inset from the circle.
+    static let ringWidth: CGFloat = 2.5
+    static let ringInset: CGFloat = 4
+    /// The fade behind the chrome: page text dissolves over this height above the top piece and is
+    /// fully covered from there down.
+    static let fadeHeight: CGFloat = 28
 
     /// What the chrome reserves at the bottom of a scrolling screen (expanded), above the safe
     /// area: the same on every destination, so a screen never resizes when the chrome collapses.

@@ -19,6 +19,10 @@ enum Motion {
     /// A drag released short of committing, springing back to rest.
     static let settle = Animation.spring(response: 0.3, dampingFraction: 0.85)
 
+    /// The two halves of a Reduce Motion swap: fade out, change, fade in.
+    static let fadeOut = Animation.easeOut(duration: 0.1)
+    static let fadeIn = Animation.easeIn(duration: 0.12)
+
     /// A swipe-to-dismiss that committed: carries on at the finger's release speed instead of
     /// starting from rest. `velocity` is points per second toward the target; `distance` is how
     /// far the animated value still has to go.

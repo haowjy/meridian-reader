@@ -32,6 +32,9 @@ enum BottomChrome {
     static let toolbarTextSize: CGFloat = 17
     /// Small controls inside the field capsule (mic, the speed) and in a sheet's top bar (☝︎).
     static let fieldControlSize: CGFloat = 36
+    /// How far a lit capsule (the pill's current segment, the reader icon's) sits inside the
+    /// piece it lights: equal on all four sides, so its corners are concentric with the piece's.
+    static let litInset: CGFloat = 4
     /// The smallest tap area of a control (`tapTarget`), whatever it looks like.
     static let minTapTarget: CGFloat = 44
     /// Now Playing's round play / pause in the transport's centre slot. Fixed like the toolbar

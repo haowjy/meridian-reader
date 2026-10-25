@@ -28,15 +28,25 @@ extension ChromeDestination {
     var segment: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
+extension View {
+    /// The chrome's fixed-size glyphs don't grow with text; a long press shows this one large.
+    func chromeLargeContent(_ label: String, symbol: String) -> some View {
+        accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }
+    }
+}
+
 /// `[ Reader | Library | Browser ]`: three equal segments in one capsule, the lit one the screen
 /// you are on, an inset capsule (equal padding, concentric corners). Every segment has the same icon
-/// and label size and weight; lit differs by tint and capsule only. The Reader segment shows what is playing: bars while it plays, the plain document
-/// while paused, dimmed when there is nothing to open.
+/// and label size and weight; lit differs by the glyph's tint and the capsule only (labels stay ink,
+/// which holds 4.5:1 on the wash in every accent). The Reader segment shows what is playing: bars
+/// while it plays, the plain document while paused, dimmed when there is nothing to open.
 struct ChromePill: View {
     let lit: ChromeDestination
     /// The Reader segment's state; nil: nothing playing and nothing played to open.
     let reader: PlayState?
     let onSelect: (ChromeDestination) -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { proxy in
@@ -46,10 +56,10 @@ struct ChromePill: View {
             let segment = (proxy.size.width - 2 * inset) / CGFloat(ChromeDestination.allCases.count)
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Palette.accent.opacity(0.2))
+                    .fill(Palette.lit)
                     .frame(width: segment, height: proxy.size.height - 2 * inset)
                     .offset(x: segment * CGFloat(lit.segment) + inset)
-                    .animation(Motion.snappy, value: lit)
+                    .animation(reduceMotion ? nil : Motion.snappy, value: lit)
                 HStack(spacing: 0) {
                     ForEach(ChromeDestination.allCases, id: \.self) { destination in
                         Button { onSelect(destination) } label: { content(destination) }
@@ -58,6 +68,7 @@ struct ChromePill: View {
                             .accessibilityLabel(destination.label)
                             .accessibilityIdentifier(destination.identifier)
                             .accessibilityAddTraits(destination == lit ? .isSelected : [])
+                            .chromeLargeContent(destination.label, symbol: destination.symbol)
                     }
                 }
                 .padding(.horizontal, inset)
@@ -70,7 +81,7 @@ struct ChromePill: View {
     private func content(_ destination: ChromeDestination) -> some View {
         let isLit = destination == lit
         let dimmed = destination == .reader && reader == nil
-        VStack(spacing: 2) {
+        VStack(spacing: ChromeMetrics.segmentGap) {
             Group {
                 if destination == .reader, reader == .playing {
                     Image(systemName: Icons.playing).symbolEffect(.variableColor.iterative, isActive: true)
@@ -80,15 +91,16 @@ struct ChromePill: View {
                     Image(systemName: destination.symbol)
                 }
             }
-            .font(.system(size: 22))
-            .frame(height: 26)
+            .font(.system(size: BottomChrome.iconSize, weight: .medium))
+            .foregroundStyle(isLit || (destination == .reader && reader?.isCurrent == true) ? Palette.accent : Palette.ink)
+            .frame(height: ChromeMetrics.segmentGlyphHeight)
             Text(destination.label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: ChromeMetrics.labelSize, weight: .medium))
+                .foregroundStyle(Palette.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .foregroundStyle(isLit || (destination == .reader && reader?.isCurrent == true) ? Palette.accent : Palette.ink)
-        .opacity(dimmed ? Palette.disabledOpacity + 0.2 : 1)
+        .opacity(dimmed ? ChromeMetrics.segmentDimmedOpacity : 1)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
     }
@@ -113,6 +125,7 @@ struct ChromeScreenIcon: View {
         .accessibilityLabel(destination.label)
         .accessibilityHint(String(localized: "Shows the bar"))
         .accessibilityIdentifier("chromeScreenIcon")
+        .chromeLargeContent(destination.label, symbol: destination.symbol)
     }
 }
 
@@ -148,12 +161,15 @@ struct ChromeNavigation: View {
         .opacity(enabled ? 1 : Palette.disabledOpacity)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
+        .chromeLargeContent(label, symbol: symbol)
     }
 }
 
 /// ⋯'s button face in the chrome: the glyph on a round surface, the whole frame tappable.
 struct ChromeRoundLabel: View {
     let symbol: String
+    /// What the glyph is called, for the large content viewer.
+    let label: String
 
     var body: some View {
         Image(systemName: symbol)
@@ -162,6 +178,7 @@ struct ChromeRoundLabel: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Circle())
             .chromeSurface(Circle(), interactive: true)
+            .chromeLargeContent(label, symbol: symbol)
     }
 }
 
@@ -176,10 +193,10 @@ struct ChromePlayButton: View {
     var body: some View {
         Button(action: action) {
             ZStack {
-                Circle().stroke(Palette.track, lineWidth: 2.5)
+                Circle().stroke(Palette.track, lineWidth: ChromeMetrics.ringWidth)
                 Circle()
                     .trim(from: 0, to: max(0, min(1, progress())))
-                    .stroke(Palette.accent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .stroke(Palette.accent, style: StrokeStyle(lineWidth: ChromeMetrics.ringWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 if state == .preparing {
                     ProgressView().controlSize(.small)
@@ -190,7 +207,7 @@ struct ChromePlayButton: View {
                         .contentTransition(.symbolEffect(.replace))
                 }
             }
-            .padding(4)
+            .padding(ChromeMetrics.ringInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Circle())
         }
@@ -198,5 +215,6 @@ struct ChromePlayButton: View {
         .chromeSurface(Circle(), interactive: true)
         .accessibilityLabel(state.accessibilityLabel)
         .accessibilityIdentifier("chromePlayPause")
+        .chromeLargeContent(state.accessibilityLabel, symbol: state == .playing ? Icons.pause : Icons.play)
     }
 }

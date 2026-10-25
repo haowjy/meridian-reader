@@ -174,7 +174,7 @@ struct MoreMenuButton: View {
             shell.openMenu(menu(), from: frame)
         } label: {
             if chrome {
-                ChromeRoundLabel(symbol: Icons.more)
+                ChromeRoundLabel(symbol: Icons.more, label: Verbs.more)
             } else {
                 Image(systemName: Icons.more)
                     .toolbarIconFrame()

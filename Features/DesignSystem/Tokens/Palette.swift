@@ -73,6 +73,10 @@ enum Palette {
     /// pressed in jump mode). What sits on one is checked for contrast against the wash
     /// composited on what is under it.
     static let washOpacity = 0.15
+    /// The lit part of a chrome control (the pill's current segment, the reader icon while the
+    /// reader view shows): the accent at this strength, behind ink text and an accent glyph.
+    static let litOpacity = 0.2
+    static var lit: Color { accent.opacity(litOpacity) }
 
     /// A control drawn in its own colour that has nothing to do: as faint as the system dims a
     /// disabled toolbar button (‹ / › with no history), so a dimmed 🔖 or ▶ matches them.
