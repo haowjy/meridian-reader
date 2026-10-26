@@ -68,7 +68,7 @@ Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular 
 
 ```
 expanded    [‹ ›][ address / Search Library          ]        row 1: the screen's own (Listen's: its player card)
-            [ Listen | Library | Browser ][▶][  ⋯  ]         row 2: where you are, play, menu (Listen: [pill][⋯], no ▶)
+            [ Listen | Library | Browser ][▶][  ⋯  ]         row 2: where you are, play, menu (Listen: the ▶ slot stays empty)
 collapsed   [‹ ›][ address ↻ ][icon][▶][⋯]                    scrolled down: one row; only the arrows that work (Library: search)
 Listen      never collapses on scroll                         ‹ floats top left; a middle tap = full screen: nothing, a ▶ / ⏸ floats for 3 s
 searching   [ field                    ][icon][▶][✕]          the keyboard is up
@@ -113,8 +113,12 @@ way. Widths are the mockups' `width-table.md` (address 263 expanded with the arr
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
   about 150 pt (`ChromeMetrics.readerIconWidth`). There is no 🎧 in it on compact width: play and
   pause live in the chrome's own button.
-- **Row 2** is the pill, a 48 pt round play / pause with a thin progress ring (hidden before
-  anything has played; **not on Listen**, whose card has the ▶: its row is `[pill][⋯]` and the pill takes the width) and ⋯. With nothing loaded ▶ resumes the page
+- **Row 2** is the pill, a 48 pt round play / pause with a thin progress ring (not drawn before
+  anything has played, and **not on Listen**, whose card has the ▶). **The pill is one fixed width and place on every destination and
+  state** (402 − 2 × 12 − 2 × 58 = 262 at 402 pt; 253 at 393, 235 at 375): the ▶ slot between the pill and ⋯
+  is always reserved on the expanded row, and where ▶ is absent (before anything has played, on Listen) it stays
+  empty space with nothing drawn and no hit target, so switching tabs never moves or resizes a segment, and
+  ⋯ stays at the trailing edge. The collapsed row has no pill, so its rule is unchanged: ▶ right of the screen icon, ⋯ last. With nothing loaded ▶ resumes the page
   played last. ▶ and ⋯ keep one place in every form: ▶ never travels.
 - **Collapse follows the finger, down only.** One progress value, 0 expanded and 1 collapsed (`ChromeScroll`):
   `progress += dy / 90` for a scroll down only, ignored while the keyboard or the ⋯ panel is up, and
@@ -130,7 +134,7 @@ way. Widths are the mockups' `width-table.md` (address 263 expanded with the arr
   no travel, the two forms cross-fade.
 - **Searching** (the keyboard up, or its session open): one row, the field, the screen icon, ▶ and ✕.
 - **Listen is a destination, not a sheet**: it shows in place under the same chrome with
-  Listen lit, row 2 as everywhere (`[pill]  [▶ ring]  [⋯]`, the three parted by one `rowGap`, 10 pt; every
+  Listen lit, row 2 as everywhere (`[pill]  [empty ▶ slot]  [⋯]`, the three parted by one `rowGap`, 10 pt; every
   piece 48 pt tall, so the pill is a capsule about 5.5 bars wide on a 402 pt screen), and a glass player card above row 2, one gap
   up, 140 pt: artwork, title, site and time left, Voice and Save at the right, the full-width scrubber (no
   times under it; the title block opens the article's origin and never seeks, only the track does), and the transport Aa, ⏮, ▶, ⏭, speed. Listen never collapses on
@@ -140,10 +144,14 @@ way. Widths are the mockups' `width-table.md` (address 263 expanded with the arr
   row of the Reader's ⋯, the page's status note (preparing, voice and language notes) takes the card's
   second line. The text's bottom inset is the expanded footprint (card and row 2, 208 pt), so the
   text never resizes. There is no Close pill, grabber or pull-down: Library and Browser in the pill
-  leave it and never stop audio. A round 48 pt glass **‹** floats top left and goes back to where Listen was
-  entered from (`ShellState.listenBackTarget`: the Library or the Browser, recorded on entry from another
-  destination); it hides in full screen. The card's title block opens the article's origin (the Library
-  at its folder, or its page in the Browser), without highlighting the row (no row-highlight mechanism yet). **Full screen** is a tap in the middle of the text, in and out, and
+  leave it and never stop audio. A round 48 pt glass **‹** floats top left and goes back to the place that
+  **launched** the listening (`ShellState.listenLaunch`): the Library (its folder or book page, tab and Read state) or the Browser
+  page (and its in-place Reader if it was reading) where Listen / Play / Save-and-play was pressed. The record is set by
+  `SpeechController.start`, the one way a page starts playing, so a new launch replaces it; switching tabs never
+  overwrites it (Library → Browser → Listen by the pill still goes ‹ to the Library), and ‹ does not clear it, so repeated
+  visits work. Listen opened by the tab with nothing new launched keeps the last record; with none (a crash resume), ‹ is hidden. It
+  hides in full screen. The card's title block uses the same record (so it goes where ‹ goes), without highlighting the row (no
+  row-highlight mechanism yet). The Library's scroll offset is view state: it returns only while the Library stayed mounted. **Full screen** is a tap in the middle of the text, in and out, and
   nothing else: it removes the whole chrome (no rows, no card, no fade, no status bar); scrolling
   and pulling do nothing to it, a ▶ / ⏸ floats for 3 s. Leaving full screen returns to what the chrome
   was (collapsed stays collapsed).

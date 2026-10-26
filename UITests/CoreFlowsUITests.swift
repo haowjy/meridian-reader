@@ -90,6 +90,7 @@ final class CoreFlowsUITests: XCTestCase {
         let text = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
         let low = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
+        idle(1.5) // the page's text settles after the launch
         for _ in 0..<2 {
             text.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.3)
         }
@@ -113,6 +114,7 @@ final class CoreFlowsUITests: XCTestCase {
         let back = app.buttons["listenBack"]
         XCTAssertTrue(appears(back, timeout: 5), "entered from the Library: ‹ floats top left")
         let text = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        idle(1.5)
         text.tap()
         XCTAssertTrue(eventually { !back.exists }, "full screen removes it")
         text.tap()
@@ -123,6 +125,50 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chromeLibrary"].isSelected)
         XCTAssertFalse(back.exists)
         XCTAssertFalse(app.buttons["chromeReaderMore"].exists, "Listen is down")
+    }
+
+    /// ‹ goes to the place that launched the listening, not the last other screen: launched from the
+    /// Library, then the Browser, then Listen by the tab: ‹ is the Library. It can be used again.
+    func testListenBackGoesToTheLaunchingPlaceNotTheLastScreen() throws {
+        let app = launchLibrary()
+        tapWhenHittable(libraryCell(app, "Demo Listen Article"))
+        tapWhenHittable(app.buttons["chromeBrowser"])
+        XCTAssertTrue(eventually { app.buttons["chromeBrowser"].isSelected })
+        tapWhenHittable(app.buttons["chromeListen"])
+        let back = app.buttons["listenBack"]
+        XCTAssertTrue(appears(back, timeout: 8), "launched from the Library: ‹ shows")
+        tapWhenHittable(back)
+        XCTAssertTrue(appears(app.libraryHome, timeout: 5), "the Library that launched it, not the Browser")
+        XCTAssertTrue(app.buttons["chromeLibrary"].isSelected)
+
+        tapWhenHittable(app.buttons["chromeListen"])
+        XCTAssertTrue(appears(app.buttons["listenBack"], timeout: 8), "the record stays: ‹ works on a second visit")
+    }
+
+    /// The pill's three segments keep one place on the Library, the Browser and Listen (▶'s slot stays
+    /// empty on Listen), so switching destinations moves nothing.
+    func testThePillSegmentsNeverMoveBetweenDestinations() throws {
+        let app = launchLibrary()
+        let ids = ["chromeListen", "chromeLibrary", "chromeBrowser"]
+        func frames() -> [CGRect] { ids.map { app.buttons[$0].frame } }
+        let library = frames()
+        XCTAssertTrue(library.allSatisfy { !$0.isEmpty }, "the segments are there: \(library)")
+        tapWhenHittable(app.buttons["chromeBrowser"])
+        XCTAssertTrue(eventually { app.buttons["chromeBrowser"].isSelected })
+        let browser = frames()
+        tapWhenHittable(app.buttons["chromeLibrary"])
+        XCTAssertTrue(appears(app.libraryHome, timeout: 5))
+        tapWhenHittable(libraryCell(app, "Demo Listen Article"))
+        tapWhenHittable(app.buttons["chromeListen"])
+        XCTAssertTrue(appears(app.buttons["chromeReaderMore"], timeout: 10), "Listen")
+        let listen = frames()
+        for (i, id) in ids.enumerated() {
+            for (name, other) in [("Browser", browser), ("Listen", listen)] {
+                XCTAssertEqual(other[i].minX, library[i].minX, accuracy: 0.5, "\(id) x on \(name)")
+                XCTAssertEqual(other[i].width, library[i].width, accuracy: 0.5, "\(id) width on \(name)")
+                XCTAssertEqual(other[i].minY, library[i].minY, accuracy: 0.5, "\(id) y on \(name)")
+            }
+        }
     }
 
     /// The title block is a button that opens the article's place and never seeks.
