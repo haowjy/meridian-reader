@@ -200,14 +200,11 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused")
         let before = scrubber.value as? String
         // Down the title block (36 pt art row at 12 pt), then its very bottom edge, 60% across.
-        var dbg = ""
-        defer { if !dbg.isEmpty { print("DBGLOG " + dbg) } }
-        for y in [38.0] {
-            dbg += "[pre y\(y) \(scrubber.value as? String ?? "nil") \(play.label) card \(card.frame) scrub \(scrubber.frame)]"
+        for y in [24.0, 38.0, 44.0, 47.0] {
             card.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0)).withOffset(CGVector(dx: 0, dy: y)).tap()
             idle(0.5)
             XCTAssertTrue(scrubber.exists, "the card is still there after a tap on the title block (y \(y)): the chrome did not hide")
-            XCTAssertEqual(scrubber.value as? String, before, "a tap on the title block (y \(y)) must not seek \(dbg)")
+            XCTAssertEqual(scrubber.value as? String, before, "a tap on the title block (y \(y)) must not seek")
         }
     }
 }

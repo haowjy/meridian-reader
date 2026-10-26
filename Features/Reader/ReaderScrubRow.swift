@@ -107,6 +107,9 @@ struct ReaderScrubRow<Trailing: View>: View {
     @State private var anchor: (fraction: Double, x: CGFloat) = (0, 0)
     @State private var startY: CGFloat = 0
     @State private var grabbedThumb = false
+    /// Where a touch began that was not on the track (the card's title block above it): it is ignored
+    /// until it ends, so a tap there is never a seek.
+    @State private var refusedStart: CGPoint?
     @State private var speed: ScrubSpeed = .normal
     @State private var lastTarget: ReaderScrubMap.Target?
     @State private var lastPreview: Int?
@@ -208,6 +211,7 @@ struct ReaderScrubRow<Trailing: View>: View {
         .animation(Motion.snappy, value: dragging)
         // However a drag stops, the bubble, the text's preview and the scrub state stop with it.
         .onChange(of: touching) { _, isTouching in
+            if !isTouching { refusedStart = nil }
             if !isTouching, dragging { cancelScrub() }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -228,7 +232,19 @@ struct ReaderScrubRow<Trailing: View>: View {
         }
     }
 
+    /// A touch beginning on the track. On the card the system hands this area more slop than its frame
+    /// (a tap 8 pt above the row still arrives, as iOS widens small touch targets), so the start is
+    /// checked against the row itself.
+    private func startsOnTrack(_ y: CGFloat) -> Bool {
+        isCapsule || (y >= Self.cardTouchInset && y <= BottomChrome.fieldControlSize - Self.cardTouchInset)
+    }
+
     private func scrub(_ v: DragGesture.Value, width w: CGFloat) {
+        if refusedStart == v.startLocation { return }
+        if dragFraction == nil, !startsOnTrack(v.startLocation.y) {
+            refusedStart = v.startLocation
+            return
+        }
         if dragFraction == nil {
             haptics.prepare()
             speedHaptics.prepare()
@@ -290,6 +306,10 @@ struct ReaderScrubRow<Trailing: View>: View {
     }
 
     private func endScrub(_ v: DragGesture.Value, width w: CGFloat) {
+        if refusedStart != nil || !startsOnTrack(v.startLocation.y) {
+            refusedStart = nil
+            return
+        }
         let moved = hypot(v.translation.width, v.translation.height)
         let f = dragFraction ?? Double(v.location.x / w)
         let tappedThumb = grabbedThumb && moved < 4
