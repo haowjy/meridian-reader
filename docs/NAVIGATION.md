@@ -122,9 +122,10 @@ played, 145 with ▶, 201 without arrows; the Library's search 257, 201 with ▶
   no travel, the two forms cross-fade.
 - **Searching** (the keyboard up, or its session open): one row, the field, the screen icon, ▶ and ✕.
 - **Listen is a destination, not a sheet**: it shows in place under the same chrome with
-  Listen lit, row 2 as everywhere (`[pill][▶ ring][⋯]`), and a glass player card above row 2, one gap
+  Listen lit, row 2 as everywhere (`[pill]  [▶ ring]  [⋯]`, the three parted by one `rowGap`, 10 pt; every
+  piece 48 pt tall, so the pill is a capsule about 5.5 bars wide on a 402 pt screen), and a glass player card above row 2, one gap
   up, 140 pt: artwork, title, site and time left, Voice and Save at the right, the full-width scrubber (no
-  times under it), and the transport Aa, ⏮, ▶, ⏭, speed. It folds into the title chip
+  times under it; the card's title block is inert, only the track seeks), and the transport Aa, ⏮, ▶, ⏭, speed. It folds into the title chip
   as the chrome collapses (the card's contents fade over the first 30%; the chip is the title alone,
   ▶ is the row's). The page hands the card to the chrome (`ChromeCard`, a preference) because it
   holds the article and the playhead; the chrome holds the geometry. ☝︎ Play from a paragraph is a
