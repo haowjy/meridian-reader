@@ -67,18 +67,18 @@ in place, not sheets). There is no system tab bar (invariant 13: `rg "TabView|UI
 Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular width", below).
 
 ```
-expanded    [‹][›][ address / Search Library         ]        row 1: the screen's own (Listen's: its player card)
-            [ Listen | Library | Browser ][▶][  ⋯  ]         row 2: where you are, play, menu
-collapsed   [‹][›][ address ][icon][▶][⋯]                     scrolled down: one row (Library: search; Listen: title chip)
-full screen (Listen only)  nothing                            a middle tap; a ▶ / ⏸ floats for 3 s
+expanded    [‹ ›][ address / Search Library          ]        row 1: the screen's own (Listen's: its player card)
+            [ Listen | Library | Browser ][▶][  ⋯  ]         row 2: where you are, play, menu (Listen: [pill][⋯], no ▶)
+collapsed   [‹ ›][ address ↻ ][icon][▶][⋯]                    scrolled down: one row; only the arrows that work (Library: search)
+Listen      never collapses on scroll                         ‹ floats top left; a middle tap = full screen: nothing, a ▶ / ⏸ floats for 3 s
 searching   [ field                    ][icon][▶][✕]          the keyboard is up
 ```
 
 Every piece is `mix(expanded, collapsed, progress)` of one pure layout (`ChromeLayout`, the mockups'
 `rectsFor`), so there is no state between "two rows" and "one row" that is not just a point on the
-way. Widths are the mockups' `width-table.md` (address 265 expanded with both arrows at 393 pt,
-313 with ‹ only, 369 on a new page or in the Library; collapsed 153 with both arrows and nothing
-played, 145 with ▶, 201 without arrows; the Library's search 257, 201 with ▶).
+way. Widths are the mockups' `width-table.md` (address 263 expanded with the arrow pair at 393 pt,
+369 on a new page or in the Library; collapsed 147 with both arrows and nothing played, 137 with ▶
+(› gave way), 195 without arrows; the Library's search 253, 195 with ▶).
 
 - **The pill** `[Listen | Library | Browser]`: three equal segments, the lit one the screen you
   are on (an inset capsule, 4 pt on all four sides, its glyph accent, labels ink). The Listen
@@ -102,21 +102,29 @@ played, 145 with ▶, 201 without arrows; the Library's search 257, 201 with ▶
   leaves the tree (inside the glass container an opacity above a piece's glass is ignored) and the
   glass materializes in and out with a content cross-fade; the whole host's opacity (outside the
   container) does fade glass, which is how Reduce Motion cross-fades.
-- **Row 1** is the screen's context: on the Browser `[‹][›][address]` (› dropped with no forward
-  page, both dropped on a new page), on the Library its search field, on the Reader the player card.
-  The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads); the reader icon shows
-  from about 150 pt of field and ↻ from about 200 (`ChromeMetrics.readerIconWidth`, `reloadWidth`),
-  so the collapsed address with ▶ is the URL alone and with room is all three. There is no 🎧 in it
-  on compact width: play and pause live in the chrome's own button.
+- **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (the pair shows whenever either way is
+  open, the half that cannot move dimmed to 35% and disabled but in place; nothing on a new page), on the
+  Library its search field, on the Reader the player card. **Collapsed**, the Browser keeps the arrows
+  that work (‹, ›, or both: `ChromeLayout.foldedBack/Forward`); if the field would fall under
+  `minimumField` (112), › goes first, then ‹ (at 402 pt with ▶ and both arrows, › goes and ‹ stays).
+  › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerToReenter`).
+  The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a whole
+  44 x 44 control (`BottomChrome.minTapTarget`), its glyph in the chrome ink at the chrome glyph weight
+  and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
+  about 150 pt (`ChromeMetrics.readerIconWidth`). There is no 🎧 in it on compact width: play and
+  pause live in the chrome's own button.
 - **Row 2** is the pill, a 48 pt round play / pause with a thin progress ring (hidden before
-  anything has played; the same on the Reader) and ⋯. With nothing loaded ▶ resumes the page
+  anything has played; **not on Listen**, whose card has the ▶: its row is `[pill][⋯]` and the pill takes the width) and ⋯. With nothing loaded ▶ resumes the page
   played last. ▶ and ⋯ keep one place in every form: ▶ never travels.
 - **Collapse follows the finger, down only.** One progress value, 0 expanded and 1 collapsed (`ChromeScroll`):
   `progress += dy / 90` for a scroll down only, ignored while the keyboard or the ⋯ panel is up, and
   150 ms after the finger stops a part-way fold settles to folded. Scrolling up never gives a row back,
   on any screen (decided). The chrome expands only by a tap on the screen icon or the title chip, a swipe
   up on the bar, or by reaching the top of the content (offset <= 4, which resets progress to 0)
-  (invariant 12). The Library, the Browser and Listen all feed it. The lit segment is the icon: its glyph slides to the middle of
+  (invariant 12). The Library and the Browser feed it; **Listen does not** (it never folds on scroll).
+  **Expanding by hand pins**: the icon tap or the swipe up on the bar (`ChromeScroll.expandByHand`) holds
+  the chrome expanded while scrolling down, momentum included, until the offset returns to <= 4, a
+  destination changes, a new screen or page/article opens (`expand()`, `reset()`), or the screen is left. The lit segment is the icon: its glyph slides to the middle of
   the shrinking pill while the other segments and the wash fade; the Browse arrows, the field and
   the Listen's card fold the same way (`ChromePieces` is animatable in the progress). Reduce Motion:
   no travel, the two forms cross-fade.
@@ -125,14 +133,17 @@ played, 145 with ▶, 201 without arrows; the Library's search 257, 201 with ▶
   Listen lit, row 2 as everywhere (`[pill]  [▶ ring]  [⋯]`, the three parted by one `rowGap`, 10 pt; every
   piece 48 pt tall, so the pill is a capsule about 5.5 bars wide on a 402 pt screen), and a glass player card above row 2, one gap
   up, 140 pt: artwork, title, site and time left, Voice and Save at the right, the full-width scrubber (no
-  times under it; the card's title block is inert, only the track seeks), and the transport Aa, ⏮, ▶, ⏭, speed. It folds into the title chip
-  as the chrome collapses (the card's contents fade over the first 30%; the chip is the title alone,
-  ▶ is the row's). The page hands the card to the chrome (`ChromeCard`, a preference) because it
+  times under it; the title block opens the article's origin and never seeks, only the track does), and the transport Aa, ⏮, ▶, ⏭, speed. Listen never collapses on
+  scroll, so the title chip form exists only for the shared layout (the card's contents fade over the first
+  30% of a fold; the chip is the title alone). The page hands the card to the chrome (`ChromeCard`, a preference) because it
   holds the article and the playhead; the chrome holds the geometry. ☝︎ Play from a paragraph is a
   row of the Reader's ⋯, the page's status note (preparing, voice and language notes) takes the card's
   second line. The text's bottom inset is the expanded footprint (card and row 2, 208 pt), so the
   text never resizes. There is no Close pill, grabber or pull-down: Library and Browser in the pill
-  leave it and never stop audio. **Full screen** is a tap in the middle of the text, in and out, and
+  leave it and never stop audio. A round 48 pt glass **‹** floats top left and goes back to where Listen was
+  entered from (`ShellState.listenBackTarget`: the Library or the Browser, recorded on entry from another
+  destination); it hides in full screen. The card's title block opens the article's origin (the Library
+  at its folder, or its page in the Browser), without highlighting the row (no row-highlight mechanism yet). **Full screen** is a tap in the middle of the text, in and out, and
   nothing else: it removes the whole chrome (no rows, no card, no fade, no status bar); scrolling
   and pulling do nothing to it, a ▶ / ⏸ floats for 3 s. Leaving full screen returns to what the chrome
   was (collapsed stays collapsed).
