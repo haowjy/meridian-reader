@@ -76,9 +76,10 @@ searching   [ field                    ][icon][▶][✕]          the keyboard i
 
 Every piece is `mix(expanded, collapsed, progress)` of one pure layout (`ChromeLayout`, the mockups'
 `rectsFor`), so there is no state between "two rows" and "one row" that is not just a point on the
-way. Widths are the mockups' `width-table.md` (address 263 expanded with the arrow pair at 393 pt,
-369 on a new page or in the Library; collapsed 147 with both arrows and nothing played, 137 with ▶
-(› gave way), 195 without arrows; the Library's search 253, 195 with ▶).
+way. Widths are the mockups' `width-table.md`. The bottom row is a **fixed 351 pt block** (below), so
+its widths are the SE's on every phone: collapsed address 129 with both arrows and nothing played, 119
+with ▶ (› gave way), 177 without arrows; the Library's search 235, 177 with ▶. Row 1 (the field above
+the pill) is still margin to margin, so it is the one thing that gets wider on a wider phone.
 
 - **The pill** `[Listen | Library | Browser]`: three equal segments, the lit one the screen you
   are on (an inset capsule, 4 pt on all four sides, its glyph accent, labels ink). The Listen
@@ -114,11 +115,14 @@ way. Widths are the mockups' `width-table.md` (address 263 expanded with the arr
   about 150 pt (`ChromeMetrics.readerIconWidth`). There is no 🎧 in it on compact width: play and
   pause live in the chrome's own button.
 - **Row 2** is the pill, a 48 pt round play / pause with a thin progress ring (not drawn before
-  anything has played, and **not on Listen**, whose card has the ▶). **The pill is one fixed width and place on every destination and
-  state** (402 − 2 × 12 − 2 × 58 = 262 at 402 pt; 253 at 393, 235 at 375): the ▶ slot between the pill and ⋯
+  anything has played, and **not on Listen**, whose card has the ▶). **The bottom row is one fixed-size block** (`ChromeMetrics.bottomRowWidth`
+  = 351 pt: pill 235 + 10 + ▶ 48 + 10 + ⋯ 48, the iPhone SE's width less its two 12 pt margins), the
+  same size, shape and place on every destination and state. It is never derived from the screen
+  width and never stretched. On a wider phone it stays 351 pt and is **centred**, with equal space
+  either side (12 at 375, 21 at 393, 25.5 at 402, 39.5 at 430). The ▶ slot between the pill and ⋯
   is always reserved on the expanded row, and where ▶ is absent (before anything has played, on Listen) it stays
   empty space with nothing drawn and no hit target, so switching tabs never moves or resizes a segment, and
-  ⋯ stays at the trailing edge. The collapsed row has no pill, so its rule is unchanged: ▶ right of the screen icon, ⋯ last. With nothing loaded ▶ resumes the page
+  ⋯ stays at the row's trailing edge. The collapsed row has no pill, so its rule is unchanged: ▶ right of the screen icon, ⋯ last, in the same 351 pt block (so ▶ and ⋯ do not move when it folds). With nothing loaded ▶ resumes the page
   played last. ▶ and ⋯ keep one place in every form: ▶ never travels.
 - **Collapse follows the finger, down only.** One progress value, 0 expanded and 1 collapsed (`ChromeScroll`):
   `progress += dy / 90` for a scroll down only, ignored while the keyboard or the ⋯ panel is up, and
