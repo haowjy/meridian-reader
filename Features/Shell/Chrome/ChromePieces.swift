@@ -34,7 +34,8 @@ struct ChromePieces: View, Animatable {
         let layout = ChromeLayout(width: width, state: state)
         ZStack(alignment: .topLeading) {
             piece(layout.nav) {
-                ChromeNavigation(showsForward: state.canGoForward, backID: screen.backID, forwardID: screen.forwardID,
+                ChromeNavigation(showsBack: layout.navShowsBack, showsForward: layout.navShowsForward,
+                                 canGoBack: state.canGoBack, canGoForward: state.canGoForward, backID: screen.backID, forwardID: screen.forwardID,
                                  onBack: screen.onBack, onForward: screen.onForward)
             }
             fieldPiece(layout)

@@ -136,24 +136,34 @@ struct ChromePill: View {
 }
 
 /// ‹ and ›: one capsule of one circle per button, in the frame the host gives it. The frame
-/// animates between one and two circles' width, so › fades as it narrows.
+/// animates between one and two circles' width, so › fades as it narrows. A button that can't act
+/// stays, dimmed and out of the taps' way; one that isn't `shown` has no circle (the folded row keeps
+/// only the arrows that work).
 struct ChromeNavigation: View {
+    let showsBack: Bool
     let showsForward: Bool
+    let canGoBack: Bool
+    let canGoForward: Bool
     let backID: String
     let forwardID: String
     let onBack: () -> Void
     let onForward: () -> Void
 
+    /// How much of a disabled arrow's ink stays: dimmed, still plainly there.
+    static let disabledOpacity: CGFloat = 0.35
+
     var body: some View {
         GeometryReader { proxy in
             let side = ChromeMetrics.navSingleWidth
             HStack(spacing: 0) {
-                button(Icons.back, label: Verbs.back, id: backID, action: onBack)
-                    .frame(width: side)
-                if showsForward {
-                    button(Icons.forward, label: Verbs.forward, id: forwardID, action: onForward)
+                if showsBack {
+                    button(Icons.back, label: Verbs.back, id: backID, enabled: canGoBack, action: onBack)
                         .frame(width: side)
-                        .opacity(min(1, max(0, (proxy.size.width - side) / side)))
+                }
+                if showsForward {
+                    button(Icons.forward, label: Verbs.forward, id: forwardID, enabled: canGoForward, action: onForward)
+                        .frame(width: side)
+                        .opacity(showsBack ? min(1, max(0, (proxy.size.width - side) / side)) : 1)
                 }
             }
             .frame(width: proxy.size.width, alignment: .leading)
@@ -162,15 +172,18 @@ struct ChromeNavigation: View {
         .chromeSurface(Capsule())
     }
 
-    private func button(_ symbol: String, label: String, id: String, action: @escaping () -> Void) -> some View {
+    private func button(_ symbol: String, label: String, id: String, enabled: Bool,
+                        action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(BottomChrome.chromeGlyph)
                 .foregroundStyle(Palette.ink)
+                .opacity(enabled ? 1 : Self.disabledOpacity)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
         .chromeLargeContent(label, symbol: symbol)

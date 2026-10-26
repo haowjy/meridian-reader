@@ -341,6 +341,35 @@ final class ShellState {
         pageReaderEpoch += 1
     }
 
+    // MARK: - ‹ › through reader mode
+
+    /// The page whose in-place reader view ‹ left: › to it shows the reader view again, as it was
+    /// when you went back. (The reader view isn't a history entry of its own: the web view's history
+    /// holds the pages, so the shell remembers the one page.)
+    private(set) var readerLeftByBack: URL?
+    /// › was pressed toward `readerLeftByBack`: its reader view opens once that page has loaded.
+    private(set) var readerToReenter: URL?
+
+    /// ‹ in the Browser (the button or the reader view's edge swipe).
+    func browserWillGoBack() {
+        readerLeftByBack = pageReader != nil ? web.currentURL : nil
+        readerToReenter = nil
+    }
+
+    /// › in the Browser.
+    func browserWillGoForward() {
+        readerToReenter = readerLeftByBack
+        readerLeftByBack = nil
+    }
+
+    /// The page `readerToReenter` names has loaded and is readable: true once, then it is spent.
+    /// Any other page drops the request.
+    func takeReaderToReenter() -> Bool {
+        guard let url = readerToReenter, !web.isLoading, web.isReaderable, web.currentURL == url, pageReader == nil else { return false }
+        readerToReenter = nil
+        return true
+    }
+
     /// Whether `article`'s page is what you hear: by key, or a web page by its address.
     func isHearingArticle(of article: ReaderArticle) -> Bool {
         isHearing(.article(article.id)) || article.origin.canonicalURL.map { isHearing(.webPage(canonicalURL: $0)) } == true
@@ -445,6 +474,7 @@ final class ShellState {
 
     /// The browser's page changed: its address field, and the page to reopen on.
     func browserPageChanged() {
+        if let wanted = readerToReenter, web.currentURL != wanted { readerToReenter = nil }
         closePageReader()
         chromeScroll.expand()
         syncAddressField()

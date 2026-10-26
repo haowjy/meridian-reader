@@ -11,8 +11,10 @@ import SwiftUI
 /// ( 📄 news.example.org/…              🎧 )    regular
 /// ```
 ///
-/// In the compact chrome the field's width decides what shows (`ChromeMetrics.readerIconWidth`,
-/// `reloadWidth`): folded to one row beside ‹ and ▶ it can be the address alone.
+/// In the compact chrome the field's width decides what shows (`ChromeMetrics.readerIconWidth`):
+/// folded to one row beside ‹ and ▶ the 🔍 / 📄 give way and the address truncates. ↻ / ✕ never
+/// does: it is a whole 44 pt control at the field's trailing end, its glyph the chrome's own,
+/// centred in the capsule's end (concentric with it), so the text gives way to it.
 ///
 /// `field` is the text itself: the page's address while idle, the `TextField` while editing.
 /// `accessory` sits at the trailing end while editing, in the trailing button's place (🎤).
@@ -57,10 +59,6 @@ struct AddressField<Field: View, Accessory: View>: View {
         guard let chromeWidth, reader != .searching else { return 1 }
         return ChromeMetrics.ramp(chromeWidth, ChromeMetrics.readerIconWidth)
     }
-    private var reloadReveal: CGFloat {
-        guard let chromeWidth, reader != .searching else { return 1 }
-        return ChromeMetrics.ramp(chromeWidth, ChromeMetrics.reloadWidth)
-    }
 
     /// The 📄 glyph's frame.
     private static var readerSize: CGFloat { Glyph.fieldLeading }
@@ -83,14 +81,11 @@ struct AddressField<Field: View, Accessory: View>: View {
                 Button(action: onReload) {
                     Image(systemName: reload == .stop ? Icons.close : Icons.reload)
                         .font(controlFont)
-                        .foregroundStyle(Palette.secondaryInk)
-                        .frame(width: Self.readerSize * reloadReveal, height: Self.readerSize)
-                        .opacity(reloadReveal)
-                        .tapTarget(Self.readerSize)
+                        .foregroundStyle(Palette.ink)
+                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .allowsHitTesting(reloadReveal > 0.5)
-                .accessibilityHidden(reloadReveal < 0.5)
                 .accessibilityLabel(reload == .stop ? Verbs.stopLoading : Verbs.reload)
                 .accessibilityIdentifier("addressReload")
                 .chromeLargeContent(reload == .stop ? Verbs.stopLoading : Verbs.reload,
@@ -99,8 +94,10 @@ struct AddressField<Field: View, Accessory: View>: View {
             accessory
         }
         .bottomChromeField(leading: reader == .showing ? Spacing.s * (1 - readerReveal) : Spacing.s,
-                           trailing: listen == nil && reload == nil && Accessory.self == EmptyView.self
-                           ? Spacing.s : Spacing.s + (Spacing.xxs - Spacing.s) * reloadReveal)
+                           // ↻ / ✕'s 44 pt square sits 2 pt in from the capsule's end: its glyph centres on the
+                           // end's curve like the 📄 at the other end.
+                           trailing: reload != nil ? (ChromeMetrics.barHeight - BottomChrome.minTapTarget) / 2
+                           : listen == nil && Accessory.self == EmptyView.self ? Spacing.s : Spacing.xxs)
     }
 
     @ViewBuilder
@@ -112,7 +109,9 @@ struct AddressField<Field: View, Accessory: View>: View {
             Image(systemName: Icons.search)
                 .font(isChromeField ? BottomChrome.chromeGlyph : .caption)
                 .foregroundStyle(Palette.secondaryInk)
-                .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
+                .frame(width: Glyph.fieldLeading * readerReveal, height: Glyph.fieldLeading)
+                .opacity(readerReveal)
+                .clipped()
                 .accessibilityHidden(true)
         case .extracting:
             ProgressView()

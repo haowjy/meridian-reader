@@ -29,7 +29,7 @@ struct ChromePiece: Equatable {
 /// ```
 /// expanded    [‹][›][ address / search                  ]        row 1; the Reader's is its card
 ///             [ Listen | Library | Browser ][▶][⋯]               row 2 (Listen: no ▶, the card has one)
-/// collapsed   [‹][›][ address ][icon][▶][⋯]                      one row; never on Listen, whose card stays
+/// collapsed   [‹][›][ address ↻][icon][▶][⋯]                     one row (the arrows that work); never on Listen, whose card stays
 /// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
 /// keyboard    [ field                    ][icon][▶][✕]
 /// full screen (nothing)
@@ -45,6 +45,9 @@ struct ChromeLayout: Equatable {
     /// ‹ and ›, one capsule two circles wide (one circle with ‹ alone).
     var nav: ChromePiece
     var play: ChromePiece
+    /// Which of ‹ and › the capsule draws (the other's circle isn't there).
+    var navShowsBack = false
+    var navShowsForward = false
     /// ⋯, or ✕ while the keyboard is up.
     var more: ChromePiece
     /// A Library selection's actions: row 2 whole, in place of the pill, ▶ and ⋯.
@@ -89,16 +92,22 @@ struct ChromeLayout: Equatable {
         let pillFolded = ChromePiece(rect: CGRect(x: iconX, y: rowY, width: bar, height: bar), isShown: row2)
         pill = .mix(pillExpanded, pillFolded, s.fold)
 
-        // ‹ ›: both circles expanded. Folded, › gives way while ▶ shows, and the arrows give way to a
-        // field that would be narrower than `minimumField` (never while the keyboard is up).
-        let back: CGFloat = (isBrowse || s.readerMode) && s.canGoBack ? 1 : 0
-        let forward: CGFloat = isBrowse && s.canGoForward ? 1 : 0
-        var foldedBack = s.keyboard ? 0 : back
-        var foldedForward = s.keyboard ? 0 : forward * (1 - played)
+        // ‹ ›. Expanded in the Browser: the pair whenever either way is open, the one that isn't dimmed
+        // (so › never hides behind a lone ‹ after going back to the first page). Folded: only the
+        // arrows that work, and they give way to a field that would be narrower than `minimumField`
+        // (› first), never while the keyboard is up. Elsewhere (a Library page read in place): ‹ alone.
+        let pair = isBrowse && (s.canGoBack || s.canGoForward)
+        let back: CGFloat = pair || (s.readerMode && s.canGoBack) ? 1 : 0
+        let forward: CGFloat = pair ? 1 : 0
+        var foldedBack: CGFloat = s.keyboard || !s.canGoBack ? 0 : back
+        var foldedForward: CGFloat = s.keyboard || !s.canGoForward ? 0 : forward
         func foldedFieldX() -> CGFloat { margin + navWidth(foldedBack + foldedForward) + (foldedBack + foldedForward > 0 ? rowGap : 0) }
         while rightEdge - foldedFieldX() < K.minimumField, foldedBack + foldedForward > 0 {
             if foldedForward > 0 { foldedForward = 0 } else { foldedBack = 0 }
         }
+        // Which circles the capsule draws: the expanded form's up to halfway through the fold, then the folded one's.
+        navShowsBack = s.fold < 0.5 ? back > 0 : foldedBack > 0
+        navShowsForward = s.fold < 0.5 ? forward > 0 : foldedForward > 0
         let navExpanded = ChromePiece(rect: CGRect(x: margin, y: row1Y, width: navWidth(back + forward), height: bar),
                                       isShown: back + forward > 0 && hold)
         let navFolded = ChromePiece(rect: CGRect(x: margin, y: rowY, width: navWidth(foldedBack + foldedForward), height: bar),

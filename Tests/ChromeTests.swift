@@ -64,7 +64,9 @@ final class ChromeTests: XCTestCase {
         for (width, both, single, none) in [(375.0, 245.0, 293.0, 351.0), (393, 263, 311, 369), (430, 300, 348, 406)] {
             let w = CGFloat(width)
             XCTAssertEqual(layout(.browse, width: w, back: true, forward: true).field.rect.width, both)
-            XCTAssertEqual(layout(.browse, width: w, back: true).field.rect.width, single)
+            XCTAssertEqual(layout(.browse, width: w, back: true).field.rect.width, both, "‹ alone still shows the pair: › dimmed")
+            XCTAssertEqual(layout(.browse, width: w, forward: true).field.rect.width, both, "› alone: ‹ dimmed")
+            XCTAssertEqual(layout(.library, width: w, back: true).field.rect.width, none, "no arrows outside the Browser")
             XCTAssertEqual(layout(.browse, width: w).field.rect.width, none)
             XCTAssertEqual(layout(.library, width: w).field.rect.width, none)
             XCTAssertEqual(layout(.library, width: w).pill.rect.width, none - 58, "row 2, nothing played: [pill][⋯]")
@@ -75,7 +77,7 @@ final class ChromeTests: XCTestCase {
     func testCollapsedWidthsAtEveryPhone() {
         // (width, Browse with both arrows and nothing played, Browse with ▶, Browse new page with ▶, Library, Library with ▶)
         for (width, browseBoth, browsePlayed, browseNew, library, libraryPlayed) in
-            [(375.0, 129.0, 119.0, 177.0, 235.0, 177.0), (393, 147, 137, 195, 253, 195), (430, 184, 174, 232, 290, 232)] {
+            [(375.0, 129.0, 119.0, 177.0, 235.0, 177.0), (393, 147, 137, 195, 253, 195), (430, 184, 126, 232, 290, 232)] {
             let w = CGFloat(width)
             XCTAssertEqual(layout(.browse, width: w, progress: 1, back: true, forward: true).field.rect.width, browseBoth)
             XCTAssertEqual(layout(.browse, width: w, progress: 1, played: true, back: true, forward: true).field.rect.width, browsePlayed)
@@ -86,6 +88,43 @@ final class ChromeTests: XCTestCase {
             XCTAssertEqual(layout(.library, width: w, played: true, keyboard: true).field.rect.width, libraryPlayed, "keyboard: [field][icon][▶][✕]")
             XCTAssertEqual(layout(.browse, width: w, played: true, back: true, forward: true, keyboard: true).field.rect.width, browseNew)
         }
+    }
+
+    func testBrowseNeverHidesAnArrowThatWorks() {
+        // Went back to the first page: › alone works. It shows, in the pair expanded and alone folded.
+        for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
+            let expanded = layout(.browse, width: width, forward: true)
+            XCTAssertTrue(expanded.navShowsBack && expanded.navShowsForward, "the pair, ‹ dimmed, at \(width)")
+            XCTAssertEqual(expanded.nav.rect.width, M.navPairWidth)
+            let folded = layout(.browse, width: width, progress: 1, forward: true)
+            XCTAssertTrue(folded.navShowsForward && !folded.navShowsBack, "folded: › alone at \(width)")
+            XCTAssertEqual(folded.nav.rect.width, M.navSingleWidth)
+            XCTAssertEqual(folded.nav.rect.maxX + M.rowGap, folded.field.rect.minX)
+            let onlyBack = layout(.browse, width: width, progress: 1, back: true)
+            XCTAssertTrue(onlyBack.navShowsBack && !onlyBack.navShowsForward, "folded: ‹ alone at \(width)")
+        }
+        let neither = layout(.browse, progress: 1)
+        XCTAssertFalse(neither.nav.isShown, "a new page has nothing to go back or forward to")
+        XCTAssertFalse(layout(.browse, back: false, forward: false).nav.isShown)
+    }
+
+    func testFoldedArrowsGiveWayToTheFieldForwardFirst() {
+        // ‹ › ▶ on the 17 Pro (402) leave the field 88 pt: › goes, ‹ stays (146); the SE (375) keeps ‹ at 119.
+        let pro = layout(.browse, width: 402, progress: 1, played: true, back: true, forward: true)
+        XCTAssertTrue(pro.navShowsBack && !pro.navShowsForward)
+        XCTAssertEqual(pro.field.rect.width, 146)
+        XCTAssertGreaterThanOrEqual(pro.field.rect.width, M.minimumField)
+        let se = layout(.browse, width: 375, progress: 1, played: true, back: true, forward: true)
+        XCTAssertTrue(se.navShowsBack && !se.navShowsForward)
+        XCTAssertEqual(se.field.rect.width, 119)
+        // Both arrows and no ▶ fit everywhere: [‹ ›][field][icon][⋯].
+        for width in [375.0, 402, 430].map({ CGFloat($0) }) {
+            let l = layout(.browse, width: width, progress: 1, back: true, forward: true)
+            XCTAssertTrue(l.navShowsBack && l.navShowsForward)
+            XCTAssertGreaterThanOrEqual(l.field.rect.width, M.minimumField)
+        }
+        // › alone with ▶ on the SE: it fits (field 135), so it stays.
+        XCTAssertTrue(layout(.browse, width: 375, progress: 1, played: true, forward: true).navShowsForward)
     }
 
     func testPlayStaysAtTheWidthTablesX() {

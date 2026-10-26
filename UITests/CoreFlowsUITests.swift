@@ -255,4 +255,54 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(scrubber, timeout: 5), "Listen again")
         XCTAssertEqual(scrubber.value as? String, before, "and nothing sought")
     }
+
+    /// ‹ then ›: after going back, › is there, on screen, takes taps and goes forward again, and
+    /// ‹ stays beside it, dimmed, once the first page is reached (the case where › used to vanish).
+    func testForwardShowsAndWorksAfterGoingBack() throws {
+        let app = launch(["-browseTestPages"])
+        let link = app.links["Next page"]
+        XCTAssertTrue(appears(link, timeout: 10))
+        link.tap()
+        XCTAssertTrue(appears(find(app, "addressReader"), timeout: 10), "page two")
+        let back = find(app, "browseBack"), forward = find(app, "browseForward")
+        XCTAssertTrue(back.isEnabled)
+        XCTAssertTrue(forward.exists && !forward.isEnabled, "› is there but dimmed with nowhere to go")
+        tapWhenHittable(back)
+        XCTAssertTrue(appears(app.links["Next page"], timeout: 10), "page one again")
+        XCTAssertTrue(eventually { forward.exists && forward.isHittable && forward.isEnabled }, "› takes taps on the first page")
+        XCTAssertTrue(forward.frame.width >= 44 && forward.frame.height >= 44)
+        XCTAssertFalse(back.isEnabled, "‹ is the dimmed one now")
+        tapWhenHittable(forward)
+        XCTAssertTrue(appears(find(app, "addressReader"), timeout: 10), "page two again")
+        XCTAssertTrue(eventually { !forward.isEnabled && back.isEnabled })
+    }
+
+    /// ‹ from a page's reader view goes to the page before; › comes back to the page in its reader view.
+    func testForwardReentersTheReaderViewBackLeft() throws {
+        let app = launch(["-browseTestPages"])
+        let link = app.links["Next page"]
+        XCTAssertTrue(appears(link, timeout: 10))
+        link.tap()
+        tapWhenHittable(find(app, "addressReader"))
+        XCTAssertTrue(appears(app.buttons["pageReaderListen"], timeout: 10), "reader view")
+        tapWhenHittable(find(app, "browseBack"))
+        XCTAssertTrue(appears(app.links["Next page"], timeout: 10), "page one")
+        XCTAssertFalse(app.buttons["pageReaderListen"].exists)
+        tapWhenHittable(find(app, "browseForward"))
+        XCTAssertTrue(appears(app.buttons["pageReaderListen"], timeout: 15), "› re-enters the reader view")
+    }
+
+    /// ↻ is a whole 44 pt control inside the field's end, never squeezed or clipped by the field's width.
+    func testReloadIsAWholeControlInsideTheField() throws {
+        let app = launch(["-browseTestPages"])
+        let link = app.links["Next page"]
+        XCTAssertTrue(appears(link, timeout: 10))
+        link.tap()
+        XCTAssertTrue(appears(find(app, "addressReader"), timeout: 10))
+        let reload = find(app, "addressReload")
+        XCTAssertTrue(appears(reload, timeout: 5))
+        XCTAssertGreaterThanOrEqual(reload.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(reload.frame.height, 44)
+        XCTAssertLessThanOrEqual(reload.frame.maxX, app.frame.width - 12, "↻ ends inside the field")
+    }
 }

@@ -69,10 +69,9 @@ enum ChromeMetrics {
     // MARK: - Fields
 
     /// An address field in the chrome shows its reader-mode icon from `readerIconWidth.lowerBound`
-    /// wide, in full at `upperBound`, and reload from `reloadWidth`: they ease in as the field
+    /// wide, in full at `upperBound` (the 🔍 hint too; ↻ never gives way): it eases in as the field
     /// widens and out as it narrows, never by a separate state (the mockups' `rectsFor`).
     static let readerIconWidth: ClosedRange<CGFloat> = 150...180
-    static let reloadWidth: ClosedRange<CGFloat> = 200...230
 
     /// 0 up to `range.lowerBound`, 1 from `range.upperBound`, a straight line between.
     static func ramp(_ t: CGFloat, _ range: ClosedRange<CGFloat>) -> CGFloat {

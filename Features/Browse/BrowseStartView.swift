@@ -80,7 +80,9 @@ struct BrowseStartView: View {
             .onChange(of: webStore.isLoading) { _, loading in
                 guard !loading else { return }
                 run { await $0.recordVisit() }
+                reenterReaderIfAsked()
             }
+            .onChange(of: webStore.isReaderable) { _, _ in reenterReaderIfAsked() }
             .onChange(of: search.text) { _, text in
                 // Typing (or clearing) while dictating takes over from the mic.
                 if let dictation, dictation.isListening, text != dictation.transcript {
@@ -118,7 +120,7 @@ struct BrowseStartView: View {
 
                     if let article = shell.pageReader, !isRegular {
                         BrowsePageReader(article: article, speech: speech,
-                                         onEdgeSwipeBack: webStore.canGoBack ? { webStore.goBack() } : nil)
+                                         onEdgeSwipeBack: webStore.canGoBack ? goBack : nil)
                     }
                 }
                 .ignoresSafeArea(.container, edges: isRegular ? [] : .bottom)
@@ -314,8 +316,8 @@ struct BrowseStartView: View {
             canGoForward: webStore.canGoForward,
             backID: "browseBack",
             forwardID: "browseForward",
-            onBack: webStore.goBack,
-            onForward: webStore.goForward,
+            onBack: goBack,
+            onForward: goForward,
             field: { focus in
                 AnyView(BrowseAddressField(speech: speech, dictation: dictation,
                                            onOpenReader: { run { try await $0.openInReader(inPlace: true) } }, compact: true,
@@ -324,6 +326,25 @@ struct BrowseStartView: View {
             },
             more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) })
         )
+    }
+
+    // MARK: - ‹ ›
+
+    /// ‹: the previous page; the reader view it leaves comes back with ›.
+    private func goBack() {
+        shell.browserWillGoBack()
+        webStore.goBack()
+    }
+
+    /// ›: the next page, in reader view again when ‹ left it from there.
+    private func goForward() {
+        shell.browserWillGoForward()
+        webStore.goForward()
+    }
+
+    private func reenterReaderIfAsked() {
+        guard shell.takeReaderToReenter() else { return }
+        run { try await $0.openInReader(inPlace: true) }
     }
 
     // MARK: - ↻
