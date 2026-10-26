@@ -135,29 +135,6 @@ struct ChromePill: View {
     }
 }
 
-/// The collapsed Reader's field: the page's title in a capsule, nothing else (▶ is the row's).
-/// Tapping it is swiping up: the card comes back.
-struct ChromeTitleChip: View {
-    let title: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .typeStyle(.row, weight: .semibold)
-                .foregroundStyle(Palette.ink)
-                .lineLimit(1)
-                .padding(.horizontal, Spacing.s)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityHint(String(localized: "Shows the bar"))
-        .accessibilityIdentifier("chromeTitleChip")
-    }
-}
-
 /// ‹ and ›: one capsule of one circle per button, in the frame the host gives it. The frame
 /// animates between one and two circles' width, so › fades as it narrows.
 struct ChromeNavigation: View {

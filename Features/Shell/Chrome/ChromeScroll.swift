@@ -30,6 +30,11 @@ final class ChromeScroll {
     private(set) var fullScreen = false
     /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
     var isLocked = false
+    /// The destination keeps its chrome expanded whatever the scroll (Listen): scroll reports move
+    /// nothing, and turning it on expands.
+    var holdsExpanded = false {
+        didSet { if holdsExpanded { expand() } }
+    }
 
     /// Points of scrolling that fold the chrome all the way.
     static let travel: CGFloat = 90
@@ -59,7 +64,7 @@ final class ChromeScroll {
     func scrolled(to offset: CGFloat) {
         let delta = offset - last
         last = offset
-        guard !isLocked, !fullScreen else { return }
+        guard !isLocked, !holdsExpanded, !fullScreen else { return }
         if offset <= Self.topEdge {
             settling?.cancel()
             set(0)

@@ -25,6 +25,12 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(ChromeState(destination: .library, keyboard: true).fold, 1)
     }
 
+    func testListenHoldsTheChromeExpandedWhateverTheScroll() {
+        XCTAssertEqual(ChromeState(destination: .reader, progress: 1).collapse, 0)
+        XCTAssertEqual(ChromeState(destination: .reader, progress: 1).fold, 0)
+        XCTAssertEqual(ChromeState(destination: .library, progress: 1).collapse, 1)
+    }
+
     func testReaderModeAndEditKeepTheLayoutExpandedWhateverTheScroll() {
         func state(_ destination: ChromeDestination, readerMode: Bool = false, editing: Bool = false) -> ChromeState {
             ChromeState(destination: destination, progress: 1, played: true, readerMode: readerMode, editing: editing)
@@ -105,7 +111,7 @@ final class ChromeTests: XCTestCase {
 
     func testPlayKeepsItsSlotAndTheIconSitsLeftOfIt() {
         for width in [375.0, 393, 430].map({ CGFloat($0) }) {
-            for destination in ChromeDestination.allCases {
+            for destination in ChromeDestination.allCases where destination != .reader {
                 let expanded = layout(destination, width: width, played: true), collapsed = layout(destination, width: width, progress: 1, played: true)
                 XCTAssertEqual(expanded.play.rect, collapsed.play.rect, "▶ does not travel")
                 XCTAssertEqual(expanded.more.rect, collapsed.more.rect)
@@ -114,7 +120,24 @@ final class ChromeTests: XCTestCase {
                 XCTAssertEqual(expanded.more.rect.maxX, width - M.margin)
             }
         }
-        XCTAssertFalse(layout(.reader).play.isShown, "no ▶ before anything has played")
+        XCTAssertFalse(layout(.library).play.isShown, "no ▶ before anything has played")
+    }
+
+    func testListenHasNoPlayDiscAndItsPillTakesTheFreedWidthAtEveryFold() {
+        for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
+            for progress in [0.0, 1.0] {
+                let l = layout(.reader, width: width, progress: CGFloat(progress), played: true)
+                XCTAssertFalse(l.play.isShown, "Listen's card has the play button at \(width)")
+                XCTAssertEqual(l.fold, 0, "Listen never folds")
+                XCTAssertEqual(l.pill.rect.minX, M.margin)
+                XCTAssertEqual(l.pill.rect.maxX + M.rowGap, l.more.rect.minX, "[pill][⋯] one gap apart at \(width)")
+                XCTAssertEqual(l.more.rect.maxX, width - M.margin)
+                XCTAssertEqual(l.pill.rect.width, width - 2 * M.margin - M.rowGap - M.barHeight)
+                XCTAssertEqual(l.field.rect.height, M.card, "the card stays")
+            }
+        }
+        XCTAssertTrue(layout(.library, played: true).play.isShown, "▶ stays on the other destinations")
+        XCTAssertTrue(layout(.browse, progress: 1, played: true).play.isShown, "and when folded")
     }
 
     func testEveryPieceIsAsTallAsTheBarWideEnoughToTapAndInsideTheMargins() {
@@ -216,6 +239,24 @@ final class ChromeTests: XCTestCase {
         scroll(reverse, to: [40, 30, 20, 12, 10])
         reverse.settle()
         XCTAssertEqual(reverse.progress, 1, "a half fold that turns back still ends folded")
+    }
+
+    @MainActor
+    func testAHeldDestinationNeverFoldsAndLeavingItStartsExpanded() {
+        let chrome = ChromeScroll()
+        chrome.anchor(at: 10)
+        scroll(chrome, to: [100])
+        XCTAssertTrue(chrome.isCollapsed, "a Library scrolled down")
+        chrome.holdsExpanded = true
+        XCTAssertFalse(chrome.isCollapsed, "coming to Listen from a folded Library: expanded")
+        chrome.anchor(at: 10)
+        scroll(chrome, to: [60, 120, 200, 300])
+        XCTAssertEqual(chrome.progress, 0)
+        XCTAssertFalse(chrome.isCollapsed)
+        chrome.holdsExpanded = false
+        chrome.reset()
+        scroll(chrome, to: [100])
+        XCTAssertTrue(chrome.isCollapsed, "other destinations fold again")
     }
 
     @MainActor

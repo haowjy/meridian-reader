@@ -28,8 +28,8 @@ struct ChromePiece: Equatable {
 ///
 /// ```
 /// expanded    [‹][›][ address / search                  ]        row 1; the Reader's is its card
-///             [ Reader | Library | Browser ][▶][⋯]               row 2, every screen
-/// collapsed   [‹][›][ address ][icon][▶][⋯]                      one row; the Reader's field is its title chip
+///             [ Listen | Library | Browser ][▶][⋯]               row 2 (Listen: no ▶, the card has one)
+/// collapsed   [‹][›][ address ][icon][▶][⋯]                      one row; never on Listen, whose card stays
 /// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
 /// keyboard    [ field                    ][icon][▶][✕]
 /// full screen (nothing)
@@ -65,7 +65,8 @@ struct ChromeLayout: Equatable {
         let rowY = K.readerFootprint - K.bottomPadding - bar
         let row1Y = rowY - gap - bar
         let isBrowse = s.destination == .browse, isReader = s.destination == .reader
-        let played: CGFloat = s.played ? 1 : 0
+        // Listen's card has the play button, so its row is [pill][⋯]: the pill takes ▶'s width.
+        let played: CGFloat = s.played && !isReader ? 1 : 0
         let hold = !s.fullScreen
         /// ‹ ›'s capsule for this many arrows (0, 1 or 2).
         func navWidth(_ arrows: CGFloat) -> CGFloat { arrows >= 2 ? K.navPairWidth : arrows * K.navSingleWidth }
@@ -78,7 +79,7 @@ struct ChromeLayout: Equatable {
         let rightEdge = iconX - rowGap
 
         more = ChromePiece(rect: moreRect, isShown: row2)
-        play = ChromePiece(rect: playRect, isShown: s.played && row2)
+        play = ChromePiece(rect: playRect, isShown: played > 0 && row2)
         editBar = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar),
                               isShown: s.editing && hold)
         expandedPillWidth = w - 2 * margin - rowGap - bar - played * (bar + rowGap)

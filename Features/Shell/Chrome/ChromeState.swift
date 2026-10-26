@@ -16,7 +16,7 @@ struct ChromeState: Equatable {
     var progress: CGFloat = 0
     /// The Reader's full screen: nothing is drawn.
     var fullScreen = false
-    /// Something has played: ▶ shows, with its progress ring.
+    /// Something has played: ▶ shows, with its progress ring (never on Listen: the card has one).
     var played = false
     /// The browser has somewhere to go back to / forward to (‹ ›). A new page has neither.
     var canGoBack = false
@@ -28,8 +28,9 @@ struct ChromeState: Equatable {
     /// A Library selection's action bar is row 2: the chrome stays expanded.
     var editing = false
 
-    /// Reader mode and Edit hold the chrome expanded, whatever the scroll says.
-    var collapse: CGFloat { readerMode || editing ? 0 : min(1, max(0, progress)) }
+    /// Listen, Reader mode and Edit hold the chrome expanded, whatever the scroll says: Listen's card
+    /// is the player (and its text is followed by the audio), so scrolling it never takes it away.
+    var collapse: CGFloat { destination == .reader || readerMode || editing ? 0 : min(1, max(0, progress)) }
 
     /// How far the pill has folded into the screen icon: the keyboard's form is the collapsed one.
     var fold: CGFloat { keyboard ? 1 : collapse }

@@ -70,34 +70,50 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["chromeListen"].isSelected)
     }
 
-    /// The Listen screen opened from the Library is in place under the chrome: scrolling down folds the
-    /// chrome to one row and scrolling up leaves it folded, a tap in the middle of the text removes
-    /// it and another brings it back, and there is no Close pill.
-    func testInPlaceReaderFoldsOnScrollAndFullScreenIsAMiddleTap() throws {
+    /// Listen opened from the Library is in place under the chrome: scrolling never folds it (the card and
+    /// the row stay), its row has no ▶ (the card has one) while the Library's does, a tap in the middle
+    /// of the text removes everything and another brings it back, and there is no Close pill.
+    func testListenNeverFoldsOnScrollAndHasNoPlayOnItsRow() throws {
         let app = launchLibrary()
         openListen(app)
         let more = app.buttons["chromeReaderMore"]
 
-        let pill = app.buttons["chromeLibrary"], icon = app.buttons["chromeScreenIcon"]
+        let pill = app.buttons["chromeLibrary"], icon = app.buttons["chromeScreenIcon"], rowPlay = app.buttons["chromePlayPause"]
+        let card = app.otherElements["readingPlayerCard"]
         XCTAssertTrue(pill.exists && !icon.exists, "expanded: the pill")
-        XCTAssertTrue(app.otherElements["readingPlayerCard"].exists, "the player card is above it")
+        XCTAssertTrue(card.exists, "the player card is above it")
+        XCTAssertFalse(rowPlay.exists, "Listen's row has no ▶: the card's is the one")
+        XCTAssertTrue(app.buttons["listenPlayPause"].exists)
         XCTAssertFalse(app.buttons["readerClose"].exists, "no Close pill")
 
         // Each drag ends held still, so nothing glides on and a later tap is a tap.
         let text = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
         let low = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
-        text.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.3)
-        XCTAssertTrue(eventually { icon.exists && !pill.exists }, "scrolling down folds to one row")
-
+        for _ in 0..<2 {
+            text.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.3)
+        }
+        idle(0.6)
+        XCTAssertTrue(pill.exists && !icon.exists && card.exists && more.exists, "scrolling down leaves the chrome as it was")
         top.press(forDuration: 0.05, thenDragTo: low, withVelocity: .slow, thenHoldForDuration: 0.3)
-        idle(0.5)
-        XCTAssertTrue(icon.exists && !pill.exists, "scrolling up gives no row back")
+        idle(0.4)
+        XCTAssertTrue(pill.exists && card.exists, "and scrolling up")
+
         text.tap()
-        XCTAssertTrue(eventually { !icon.exists && !pill.exists && !more.exists }, "a middle tap removes the chrome")
+        XCTAssertTrue(eventually { !pill.exists && !card.exists && !more.exists }, "a middle tap removes the chrome")
         text.tap()
-        XCTAssertTrue(eventually { icon.exists && more.exists }, "another brings it back, still folded")
-        XCTAssertFalse(pill.exists)
+        XCTAssertTrue(eventually { pill.exists && card.exists && more.exists }, "another brings it back, expanded")
+        XCTAssertFalse(icon.exists)
+    }
+
+    /// The Library's row keeps ▶ once a page has played, and Listen's does not.
+    func testPlayStaysOnTheLibraryRowButNotListens() throws {
+        let app = launchLibrary()
+        openListen(app)
+        XCTAssertFalse(app.buttons["chromePlayPause"].exists, "Listen: no ▶ on the row")
+        tapWhenHittable(app.buttons["chromeLibrary"])
+        XCTAssertTrue(appears(app.libraryHome, timeout: 5))
+        XCTAssertTrue(appears(app.buttons["chromePlayPause"], timeout: 5), "Library: ▶ on the row")
     }
 
     /// Jump to Audio is for the bars up only (C128): scrolled away from the audio the pill shows,

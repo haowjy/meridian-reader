@@ -6,14 +6,14 @@ import UIKit
 /// drawn, `ChromeLayout` where, `ChromePieces` draws it; this view only wires them to the app.
 ///
 /// ```
-/// expanded    [‹][›][ address / Search Library          ]        row 1; the Reader's is its player card
-///             [ Reader | Library | Browser ][▶][  ⋯  ]          row 2: where you are, play, menu
-/// collapsed   [‹][›][ address ][icon][▶][⋯]                      scrolled down: one row (the Reader: its title chip)
+/// expanded    [‹][›][ address / Search Library          ]        row 1; Listen's is its player card
+///             [ Listen | Library | Browser ][▶][  ⋯  ]          row 2: where you are, play, menu (Listen: no ▶)
+/// collapsed   [‹][›][ address ][icon][▶][⋯]                      scrolled down: one row (never on Listen)
 /// keyboard    [ field                    ][icon][▶][✕]           the keyboard is up (or its session open)
 /// full screen (nothing)                                         the Reader's middle tap
 /// ```
 ///
-/// Scrolling down folds it by degrees, scrolling up never unfolds it (`ChromeScroll`); the icon's tap, a swipe up on
+/// Scrolling down folds it by degrees (not on Listen: its chrome always stays expanded), scrolling up never unfolds it (`ChromeScroll`); the icon's tap, a swipe up on
 /// the row and the top of the text expand it (while searching, they lower the keyboard). The host
 /// never changes the size of what is under it: screens reserve `ChromeMetrics.footprint` (the
 /// Reader `readerFootprint`) at the bottom and scroll under it. Reduce Motion: no travel, every
@@ -56,12 +56,6 @@ struct ChromeHost: View {
     private var readerScreen: ChromeScreen {
         ChromeScreen(more: AnyView(ReadingPageMoreButton(id: "chromeReaderMore", chrome: true, extraRows: card?.menuRows ?? [])))
     }
-    /// What the Reader names the page by: Now Playing's page, else the Reader's.
-    private var readerTitle: String {
-        if shell.isNowPlayingPresented, let now = speech.nowPlaying { return now.lineOne }
-        guard let article = shell.readerArticle else { return "" }
-        return ArticleRowTitle.lineOne(title: article.title, source: article.sourceLabel, address: article.origin.canonicalURL)
-    }
     private var session: SearchSession? { screen.session }
     private var isSearching: Bool { session?.isActive == true }
 
@@ -97,7 +91,7 @@ struct ChromeHost: View {
             ChromeFold(scroll: scroll, fixed: reduceMotion ? state.progress : nil) { progress in
                 var drawn = state
                 drawn.progress = progress
-                return ChromePieces(state: drawn, width: proxy.size.width, screen: screen, card: card, readerTitle: readerTitle,
+                return ChromePieces(state: drawn, width: proxy.size.width, screen: screen, card: card,
                                     play: playback.button, hasReader: playback.isAvailable, underColor: underColor,
                                     focus: $focused, onSelect: playback.select, onExpand: expandTapped)
             }
@@ -120,7 +114,8 @@ struct ChromeHost: View {
             dip = 1
         }
         .onChange(of: isSearching || shell.menu != nil, initial: true) { _, locked in scroll.isLocked = locked }
-        .onChange(of: destination) { _, _ in
+        .onChange(of: destination, initial: true) { _, new in
+            scroll.holdsExpanded = new == .reader
             scroll.reset()
             focused = session?.isFocused == true
         }

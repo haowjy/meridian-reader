@@ -13,7 +13,6 @@ struct ChromePieces: View, Animatable {
     let width: CGFloat
     let screen: ChromeScreen
     let card: ChromeCard?
-    let readerTitle: String
     let play: ChromePlayButton?
     let hasReader: Bool
     let underColor: Color
@@ -82,8 +81,7 @@ struct ChromePieces: View, Animatable {
         }
     }
 
-    /// The address, the search, or on the Reader the card that folds into the title chip. The first
-    /// two draw their own capsule; the Reader's is this piece's glass, so one surface morphs.
+    /// The address, the search, or on Listen the player card, which is its own glass (never folded).
     @ViewBuilder
     private func fieldPiece(_ layout: ChromeLayout) -> some View {
         let field = layout.field
@@ -93,13 +91,7 @@ struct ChromePieces: View, Animatable {
                     if let card {
                         card.content
                             .frame(width: field.rect.width, height: K.card, alignment: .top)
-                            .opacity(1 - ChromeMetrics.ramp(layout.fold, 0...0.3))
-                            .allowsHitTesting(layout.fold < 0.3)
                     }
-                    ChromeTitleChip(title: readerTitle, action: onExpand)
-                        .frame(width: field.rect.width, height: K.barHeight)
-                        .opacity(ChromeMetrics.ramp(layout.fold, 0.25...0.6))
-                        .allowsHitTesting(layout.fold > 0.5)
                 }
                 .frame(width: field.rect.width, height: field.rect.height, alignment: .topLeading)
                 .dynamicTypeSize(...Self.largestText)
