@@ -17,6 +17,25 @@ enum ListenOrigin: Equatable {
     }
 }
 
+/// The place a listening was launched from (`ShellState.listenLaunch`), with what it showed: the
+/// Library's path, tab and Read in place; the Browser's page and, if it was reading, its text.
+struct ListenLaunch {
+    enum Place {
+        case library(path: [LibraryRoute], tab: LibraryHomeTab, reading: ReaderArticle?)
+        case browser(url: URL, reading: ReaderArticle?)
+    }
+
+    let place: Place
+
+    /// The same place as a `ListenOrigin`, for the title block's label.
+    var origin: ListenOrigin {
+        switch place {
+        case .library(let path, _, _): .library(path: path)
+        case .browser(let url, _): .browser(url)
+        }
+    }
+}
+
 extension ShellState {
     /// The title block's tap: leaves Listen for the article's origin. The Library at its place
     /// (`showLibrary`, through the same path as *Go to*); the Browser on its page, in reader mode in place

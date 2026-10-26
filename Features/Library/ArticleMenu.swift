@@ -199,8 +199,13 @@ extension ArticleActions {
         return nil
     }
 
-    /// The card's title block: opens `listenOrigin` and never seeks. nil when there is none.
+    /// The card's title block: goes where ‹ goes, the place that launched the listening (it shares
+    /// `ShellState.listenLaunch`), and never seeks. With no launch record (a cold launch straight to
+    /// Listen) it opens the page's own place (`listenOrigin`); nil when there is none.
     func cardOrigin(title: String) -> CardOrigin? {
+        if let launch = shell.listenBackTarget {
+            return CardOrigin(label: launch.origin.label(title: title)) { [shell] in shell.backFromListen() }
+        }
         guard let origin = listenOrigin else { return nil }
         return CardOrigin(label: origin.label(title: title)) { [shell, readerArticle] in
             shell.openOrigin(origin, article: readerArticle)
