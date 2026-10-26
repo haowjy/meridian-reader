@@ -123,13 +123,13 @@ played, 145 with ▶, 201 without arrows; the Library's search 257, 201 with ▶
 - **Searching** (the keyboard up, or its session open): one row, the field, the screen icon, ▶ and ✕.
 - **Listen is a destination, not a sheet**: it shows in place under the same chrome with
   Listen lit, row 2 as everywhere (`[pill][▶ ring][⋯]`), and a glass player card above row 2, one gap
-  up, 152 pt: artwork, title, site and time left, Voice and Save at the right, the scrubber with the
-  elapsed and remaining times, and the transport Aa, ⏮, ▶, ⏭, speed. It folds into the title chip
+  up, 140 pt: artwork, title, site and time left, Voice and Save at the right, the full-width scrubber (no
+  times under it), and the transport Aa, ⏮, ▶, ⏭, speed. It folds into the title chip
   as the chrome collapses (the card's contents fade over the first 30%; the chip is the title alone,
   ▶ is the row's). The page hands the card to the chrome (`ChromeCard`, a preference) because it
   holds the article and the playhead; the chrome holds the geometry. ☝︎ Play from a paragraph is a
   row of the Reader's ⋯, the page's status note (preparing, voice and language notes) takes the card's
-  second line. The text's bottom inset is the expanded footprint (card and row 2, 220 pt), so the
+  second line. The text's bottom inset is the expanded footprint (card and row 2, 208 pt), so the
   text never resizes. There is no Close pill, grabber or pull-down: Library and Browser in the pill
   leave it and never stop audio. **Full screen** is a tap in the middle of the text, in and out, and
   nothing else: it removes the whole chrome (no rows, no card, no fade, no status bar); scrolling

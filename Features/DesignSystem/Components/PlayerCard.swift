@@ -35,11 +35,11 @@ private struct PlayerCardSurface: ViewModifier {
 private enum CardLayout {
     static let art: CGFloat = 36
     /// The scrubber row is `fieldControlSize` high with its track in the middle: pulled up so
-    /// the track sits 64 pt from the card's top.
+    /// the track sits 64 pt from the card's top. (Its touch area stops 2 pt short of the row's top
+    /// and bottom, `ReaderScrubRow`: the title row above and the transport below keep their taps.)
     static let scrubTop: CGFloat = 46
-    static let labelsTop: CGFloat = 74
     static let scrubInset: CGFloat = 14
-    static let transportTop: CGFloat = 92
+    static let transportTop: CGFloat = 80
 }
 
 /// The Reader's and Now Playing's player card on compact width: one glass card above the chrome's
@@ -49,13 +49,12 @@ private enum CardLayout {
 /// ```
 /// [art]  Notes on Tides             (Voice) (Save)    art, title, site · time left, then two round controls
 ///        example.org · 9 min left
-/// [━━━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━]     scrubber
-/// 2:14                                   −9 min      elapsed, time left
+/// [━━━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━]     scrubber, nothing under it (no times)
 ///  Aa      ⏮        (▶)        ⏭         1×        transport: five equal slots
 /// ```
 ///
-/// Positions come from the mockup's card layer (`chrome.js`): it is a fixed 152 pt, not a flow
-/// layout, so the scrubber's track sits 64 pt from the top and the disc 92 pt.
+/// Positions come from the mockup's card layer (`chrome.js`): it is a fixed 140 pt, not a flow
+/// layout, so the scrubber's track sits 64 pt from the top and the disc 80 pt.
 struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, Speed: View>: View {
     let title: String
     /// Under the title: the site and time left, or a status note.
@@ -63,9 +62,6 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
     var artwork: Image?
     var artworkLetter: String
     let playState: PlayState
-    /// Under the scrubber's two ends.
-    let elapsed: String
-    let timeLeft: String
     var canSkip = true
     let onSkipBack: () -> Void
     let onSkipForward: () -> Void
@@ -91,24 +87,14 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
             scrub
                 .padding(.horizontal, CardLayout.scrubInset)
                 .padding(.top, CardLayout.scrubTop)
-            // One label style, medium like the controls. The elapsed time ticks, so its digits are
-            // even; the time left ("−9 min") keeps its natural width: even-width digits would also
-            // widen the minus and leave a gap after it.
-            HStack(spacing: 0) {
-                Text(elapsed).monospacedDigit()
-                Spacer(minLength: 0)
-                Text(timeLeft)
-            }
-            .typeStyle(.caption, weight: .medium)
-            .foregroundStyle(palette.secondaryInk)
-            .padding(.horizontal, CardLayout.scrubInset)
-            .padding(.top, CardLayout.labelsTop)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
             transport
                 .padding(.horizontal, Spacing.s)
                 .padding(.top, CardLayout.transportTop)
         }
+        // The whole card takes a tap, so one on its title block or its blank corners never reaches the
+        // page behind it (a tap there hides the chrome) and nothing in it seeks.
+        .contentShape(Rectangle())
+        .onTapGesture {}
         .readerScrubBubble(aboveContainer: true)
         .foregroundStyle(palette.ink)
         .accessibilityElement(children: .contain)
@@ -183,21 +169,21 @@ struct VoiceChromeButton: View {
 struct ReaderPlayerCardGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("Reader: not started") { card(state: .idle, elapsed: "0:00", detail: "example.org · 9 min") }
+            PreviewState("Reader: not started") { card(state: .idle, detail: "example.org · 9 min") }
             PreviewState("Now Playing, saved") {
-                card(state: .playing, elapsed: "2:14", detail: "example.org · 6 min left", saved: true)
+                card(state: .playing, detail: "example.org · 6 min left", saved: true)
                     .onReadingPreview(.sepia)
             }
             PreviewState("Paused, a status note") {
-                card(state: .paused, elapsed: "2:14", detail: "Preparing next…").onReadingPreview(.dark)
+                card(state: .paused, detail: "Preparing next…").onReadingPreview(.dark)
             }
         }
     }
 
-    private func card(state: PlayState, elapsed: String, detail: String, saved: Bool = false) -> some View {
+    private func card(state: PlayState, detail: String, saved: Bool = false) -> some View {
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
         return ReaderPlayerCard(title: "Notes on Tides", detail: detail, artworkLetter: "N", playState: state,
-                                elapsed: elapsed, timeLeft: "−9 min", onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
+                                onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
             VoiceChromeButton(identifier: "previewVoice") {}
         } save: {
             SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {})

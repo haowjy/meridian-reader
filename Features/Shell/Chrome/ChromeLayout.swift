@@ -61,7 +61,7 @@ struct ChromeLayout: Equatable {
 
     init(width w: CGFloat, state s: ChromeState) {
         typealias K = ChromeMetrics
-        let bar = K.barHeight, gap = K.gap, margin = K.margin
+        let bar = K.barHeight, gap = K.gap, rowGap = K.rowGap, margin = K.margin
         let rowY = K.readerFootprint - K.bottomPadding - bar
         let row1Y = rowY - gap - bar
         let isBrowse = s.destination == .browse, isReader = s.destination == .reader
@@ -73,15 +73,15 @@ struct ChromeLayout: Equatable {
 
         // Row 2 keeps one slot for ▶ and ⋯ in every form.
         let moreRect = CGRect(x: w - margin - bar, y: rowY, width: bar, height: bar)
-        let playRect = CGRect(x: moreRect.minX - gap - bar, y: rowY, width: bar, height: bar)
-        let iconX = moreRect.minX - gap - bar - played * (bar + gap)
-        let rightEdge = iconX - gap
+        let playRect = CGRect(x: moreRect.minX - rowGap - bar, y: rowY, width: bar, height: bar)
+        let iconX = moreRect.minX - rowGap - bar - played * (bar + rowGap)
+        let rightEdge = iconX - rowGap
 
         more = ChromePiece(rect: moreRect, isShown: row2)
         play = ChromePiece(rect: playRect, isShown: s.played && row2)
         editBar = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar),
                               isShown: s.editing && hold)
-        expandedPillWidth = w - 2 * margin - gap - bar - played * (bar + gap)
+        expandedPillWidth = w - 2 * margin - rowGap - bar - played * (bar + rowGap)
         fold = s.fold
 
         let pillExpanded = ChromePiece(rect: CGRect(x: margin, y: rowY, width: expandedPillWidth, height: bar), isShown: row2)
@@ -94,7 +94,7 @@ struct ChromeLayout: Equatable {
         let forward: CGFloat = isBrowse && s.canGoForward ? 1 : 0
         var foldedBack = s.keyboard ? 0 : back
         var foldedForward = s.keyboard ? 0 : forward * (1 - played)
-        func foldedFieldX() -> CGFloat { margin + navWidth(foldedBack + foldedForward) + (foldedBack + foldedForward > 0 ? gap : 0) }
+        func foldedFieldX() -> CGFloat { margin + navWidth(foldedBack + foldedForward) + (foldedBack + foldedForward > 0 ? rowGap : 0) }
         while rightEdge - foldedFieldX() < K.minimumField, foldedBack + foldedForward > 0 {
             if foldedForward > 0 { foldedForward = 0 } else { foldedBack = 0 }
         }
@@ -110,7 +110,7 @@ struct ChromeLayout: Equatable {
         if isReader {
             fieldExpanded = ChromePiece(rect: CGRect(x: margin, y: rowY - gap - K.card, width: w - 2 * margin, height: K.card), isShown: hold)
         } else {
-            let x = margin + navWidth(back + forward) + (back + forward > 0 ? gap : 0)
+            let x = margin + navWidth(back + forward) + (back + forward > 0 ? rowGap : 0)
             fieldExpanded = ChromePiece(rect: CGRect(x: x, y: row1Y, width: w - margin - x, height: bar), isShown: hold)
         }
         field = .mix(fieldExpanded, fieldFolded, s.fold)

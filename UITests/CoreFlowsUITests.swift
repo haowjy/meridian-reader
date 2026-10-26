@@ -183,4 +183,31 @@ final class CoreFlowsUITests: XCTestCase {
         let playing = app.buttons["nowPlayingVoice"].exists
         XCTAssertTrue(app.buttons[playing ? "nowPlayingVoice" : "readerVoice"].isHittable, "Voice is not covered")
     }
+
+    /// The card's title block (art, title, source and time left) is inert: a tap on it, even on
+    /// its lower edge beside the scrubber, never seeks and never reaches the page behind (a tap there hides the chrome).
+    func testTapOnTheCardTitleBlockNeverSeeks() throws {
+        let app = launchLibrary()
+        openListen(app)
+
+        let card = find(app, "readingPlayerCard")
+        XCTAssertTrue(appears(card, timeout: 5))
+        let scrubber = find(app, "readerScrubber")
+        XCTAssertTrue(appears(scrubber, timeout: 5))
+        // Paused, so the position can only move by a seek.
+        let play = app.buttons["listenPlayPause"]
+        if play.exists, play.label == "Pause" { play.tap() }
+        XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused")
+        let before = scrubber.value as? String
+        // Down the title block (36 pt art row at 12 pt), then its very bottom edge, 60% across.
+        var dbg = ""
+        defer { if !dbg.isEmpty { print("DBGLOG " + dbg) } }
+        for y in [38.0] {
+            dbg += "[pre y\(y) \(scrubber.value as? String ?? "nil") \(play.label) card \(card.frame) scrub \(scrubber.frame)]"
+            card.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0)).withOffset(CGVector(dx: 0, dy: y)).tap()
+            idle(0.5)
+            XCTAssertTrue(scrubber.exists, "the card is still there after a tap on the title block (y \(y)): the chrome did not hide")
+            XCTAssertEqual(scrubber.value as? String, before, "a tap on the title block (y \(y)) must not seek \(dbg)")
+        }
+    }
 }

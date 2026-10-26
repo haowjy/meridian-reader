@@ -150,18 +150,13 @@ struct ReaderSheetScreen: View {
 
     /// Compact width: the card the chrome draws above row 2, and ⋯'s row for ☝︎.
     private func card(_ actions: ArticleActions, start: ListenSpot, detail: String?) -> ChromeCard {
-        let document = readerArticle.document
-        let rate = speech.rateMultiplier
-        let heard = document.isEmpty ? 0 : document.startUTF16Offset(forParagraph: start.paragraph) + start.utf16Offset
-        let left = ListeningTime.minutes(utf16Length: max(0, document.utf16Length - heard), rate: rate)
         let title = ArticleRowTitle.lineOne(title: readerArticle.title, source: readerArticle.sourceLabel,
                                             address: readerArticle.origin.canonicalURL)
         let letter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,
                                                    address: readerArticle.origin.canonicalURL)
         let view = ReaderPlayerCard(
             title: title, detail: detail, artworkLetter: letter, playState: speech.playState(of: .article(readerArticle.id)),
-            elapsed: ListeningTime.clock(seconds: ListeningTime.secondsHeard(in: document, toUTF16Offset: heard, rate: rate)),
-            timeLeft: "−" + ListeningTime.label(minutes: left), canSkip: false, onSkipBack: {}, onSkipForward: {},
+            canSkip: false, onSkipBack: {}, onSkipForward: {},
             onPlayPause: { self.listen(from: nil, start: start) }
         ) {
             VoiceChromeButton(identifier: "readerVoice") { shell.present(.voice(.article(readerArticle.id))) }

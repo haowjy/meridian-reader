@@ -65,19 +65,6 @@ enum ListeningTime {
         minutes(utf16Length: max(0, document.utf16Length - offset), rate: rate)
     }
 
-    /// Seconds to hear the first `offset` UTF-16 units of `document` at `rate`, on the same measure as
-    /// `minutes`: the player card's elapsed time.
-    static func secondsHeard(in document: ParagraphDocument, toUTF16Offset offset: Int, rate: Double) -> Int {
-        let words = words(utf16Length: max(0, min(offset, document.utf16Length)))
-        return Int((words / (wordsPerMinute * max(0.25, rate)) * 60).rounded())
-    }
-
-    /// A time on a scrubber: "2:14", "1:02:09".
-    static func clock(seconds: Int) -> String {
-        let (hours, minutes, rest) = (seconds / 3600, seconds / 60 % 60, seconds % 60)
-        return hours == 0 ? String(format: "%d:%02d", minutes, rest) : String(format: "%d:%02d:%02d", hours, minutes, rest)
-    }
-
     /// A length: "<1 min" (0, `rowMinutes`), "9 min", "1 h", "6 h 10 min".
     static func label(minutes: Int) -> String {
         if minutes <= 0 { return String(localized: "<1 min") }

@@ -55,21 +55,21 @@ final class ChromeTests: XCTestCase {
     // MARK: Layout: widths from width-table.md
 
     func testExpandedWidthsAtEveryPhone() {
-        for (width, both, single, none) in [(375.0, 247.0, 295.0, 351.0), (393, 265, 313, 369), (430, 302, 350, 406)] {
+        for (width, both, single, none) in [(375.0, 245.0, 293.0, 351.0), (393, 263, 311, 369), (430, 300, 348, 406)] {
             let w = CGFloat(width)
             XCTAssertEqual(layout(.browse, width: w, back: true, forward: true).field.rect.width, both)
             XCTAssertEqual(layout(.browse, width: w, back: true).field.rect.width, single)
             XCTAssertEqual(layout(.browse, width: w).field.rect.width, none)
             XCTAssertEqual(layout(.library, width: w).field.rect.width, none)
-            XCTAssertEqual(layout(.library, width: w).pill.rect.width, none - 56, "row 2, nothing played: [pill][⋯]")
-            XCTAssertEqual(layout(.library, width: w, played: true).pill.rect.width, none - 112, "[pill][▶][⋯]")
+            XCTAssertEqual(layout(.library, width: w).pill.rect.width, none - 58, "row 2, nothing played: [pill][⋯]")
+            XCTAssertEqual(layout(.library, width: w, played: true).pill.rect.width, none - 116, "[pill][▶][⋯]")
         }
     }
 
     func testCollapsedWidthsAtEveryPhone() {
         // (width, Browse with both arrows and nothing played, Browse with ▶, Browse new page with ▶, Library, Library with ▶)
         for (width, browseBoth, browsePlayed, browseNew, library, libraryPlayed) in
-            [(375.0, 135.0, 127.0, 183.0, 239.0, 183.0), (393, 153, 145, 201, 257, 201), (430, 190, 182, 238, 294, 238)] {
+            [(375.0, 129.0, 119.0, 177.0, 235.0, 177.0), (393, 147, 137, 195, 253, 195), (430, 184, 174, 232, 290, 232)] {
             let w = CGFloat(width)
             XCTAssertEqual(layout(.browse, width: w, progress: 1, back: true, forward: true).field.rect.width, browseBoth)
             XCTAssertEqual(layout(.browse, width: w, progress: 1, played: true, back: true, forward: true).field.rect.width, browsePlayed)
@@ -83,11 +83,24 @@ final class ChromeTests: XCTestCase {
     }
 
     func testPlayStaysAtTheWidthTablesX() {
-        for (width, x) in [(375.0, 259.0), (393, 277), (430, 314)] {
+        for (width, x) in [(375.0, 257.0), (393, 275), (430, 312)] {
             for progress in [0.0, 1] {
                 XCTAssertEqual(layout(.library, width: CGFloat(width), progress: CGFloat(progress), played: true).play.rect.minX, x, "▶ at \(width)")
             }
         }
+    }
+
+    func testTheRowIsAPillAndTwoDiscsWithOneEvenGap() {
+        for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
+            let l = layout(.library, width: width, played: true)
+            XCTAssertEqual(l.pill.rect.maxX + M.rowGap, l.play.rect.minX, "pill, gap, ▶ at \(width)")
+            XCTAssertEqual(l.play.rect.maxX + M.rowGap, l.more.rect.minX, "▶, gap, ⋯ at \(width)")
+            XCTAssertEqual(l.play.rect.width, M.barHeight)
+            XCTAssertEqual(l.more.rect.width, M.barHeight)
+            XCTAssertEqual(l.pill.rect.width, l.expandedPillWidth)
+            XCTAssertGreaterThanOrEqual(l.expandedPillWidth / M.barHeight, 4.8, "a long capsule, not a fat one, at \(width)")
+        }
+        XCTAssertEqual(layout(.library, width: 402, played: true).expandedPillWidth, 262)
     }
 
     func testPlayKeepsItsSlotAndTheIconSitsLeftOfIt() {
@@ -96,8 +109,8 @@ final class ChromeTests: XCTestCase {
                 let expanded = layout(destination, width: width, played: true), collapsed = layout(destination, width: width, progress: 1, played: true)
                 XCTAssertEqual(expanded.play.rect, collapsed.play.rect, "▶ does not travel")
                 XCTAssertEqual(expanded.more.rect, collapsed.more.rect)
-                XCTAssertEqual(collapsed.pill.rect.maxX + M.gap, collapsed.play.rect.minX, "[icon][▶]")
-                XCTAssertEqual(collapsed.play.rect.maxX + M.gap, collapsed.more.rect.minX, "[▶][⋯]")
+                XCTAssertEqual(collapsed.pill.rect.maxX + M.rowGap, collapsed.play.rect.minX, "[icon][▶]")
+                XCTAssertEqual(collapsed.play.rect.maxX + M.rowGap, collapsed.more.rect.minX, "[▶][⋯]")
                 XCTAssertEqual(expanded.more.rect.maxX, width - M.margin)
             }
         }
@@ -123,7 +136,7 @@ final class ChromeTests: XCTestCase {
                         for (i, a) in shown.enumerated() {
                             for b in shown[(i + 1)...] where abs(a.rect.minY - b.rect.minY) < M.barHeight / 2 {
                                 let gap = max(a.rect.minX, b.rect.minX) - min(a.rect.maxX, b.rect.maxX)
-                                XCTAssertGreaterThanOrEqual(gap, M.gap - 0.01, tag)
+                                XCTAssertGreaterThanOrEqual(gap, M.rowGap - 0.01, tag)
                             }
                         }
                     }

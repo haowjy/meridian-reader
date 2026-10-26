@@ -17,8 +17,12 @@ enum ChromeMetrics {
 
     /// Left and right margin; also the gap between a row's pieces and the screen edge.
     static let margin: CGFloat = 3 * unit
-    /// Gap between two pieces on a row, and between the rows.
+    /// Gap between the rows (and the card over row 2).
     static let gap: CGFloat = 2 * unit
+    /// Gap between two pieces on one row: [pill] [▶] [⋯], [content] [icon] [▶] [⋯], ‹ › and the field.
+    /// About a quarter of the bar's height, the same between every pair. The one size here that is not
+    /// a multiple of the unit: at 10 the pill is 5.5 bars wide on a 402 pt screen.
+    static let rowGap: CGFloat = 10
     /// The space above the top row and below the bottom row.
     static let topPadding: CGFloat = unit
     static let bottomPadding: CGFloat = 2 * unit
@@ -32,7 +36,7 @@ enum ChromeMetrics {
     static let navPairWidth: CGFloat = 2 * barHeight
 
     /// The narrowest address or search field before the arrows give way to it.
-    static let minimumField: CGFloat = 120
+    static let minimumField: CGFloat = 112
     /// The pill's lit segment is inset from the pill's edge and from its neighbours by this much.
     static let litInset = unit
 
@@ -52,7 +56,7 @@ enum ChromeMetrics {
     static let fadeRise: CGFloat = 50
 
     /// The Reader's player card above row 2.
-    static let card: CGFloat = 152
+    static let card: CGFloat = 140
 
     /// What the chrome reserves at the bottom of a scrolling screen, above the safe area: two
     /// rows, the same on every destination, so a screen never resizes when the chrome collapses.

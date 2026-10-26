@@ -131,6 +131,8 @@ struct ReaderScrubRow<Trailing: View>: View {
     private static var fieldLeading: CGFloat { 14 }
     /// How far the drag area reaches above and below the track: the capsule's padding plus 2 pt.
     private static var dragOvershoot: CGFloat { BottomChrome.fieldVerticalPadding + 2 }
+    /// On the player card: how far the touch area stops short of the row's top and bottom edges.
+    private static var cardTouchInset: CGFloat { 2 }
     private static var space: String { "readerScrubTrack" }
 
     var body: some View {
@@ -183,7 +185,11 @@ struct ReaderScrubRow<Trailing: View>: View {
             .overlay {
                 Color.clear
                     .contentShape(Rectangle())
-                    .padding(.vertical, -Self.dragOvershoot)
+                    // A capsule's row reaches past the track; on the card the row's top and bottom
+                    // edges are given back, so the title row above and the transport below keep
+                    // their taps (a tap there is never a seek).
+                    .padding(.top, isCapsule ? -Self.dragOvershoot : Self.cardTouchInset)
+                    .padding(.bottom, isCapsule ? -Self.dragOvershoot : Self.cardTouchInset)
                     .padding(.leading, isCapsule ? -Self.fieldLeading : 0)
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))

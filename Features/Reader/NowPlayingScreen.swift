@@ -118,9 +118,6 @@ struct NowPlayingScreen: View {
                 detail: note ?? (now.isFinished ? String(localized: "Finished")
                     : [source, left > 0 ? ListeningTime.leftLabel(minutes: left) : nil].compactMap { $0 }.joined(separator: " · ")),
                 artwork: artwork, artworkLetter: now.artworkLetter, playState: speech.playState(of: .article(now.articleKey)),
-                elapsed: ListeningTime.clock(seconds: ListeningTime.secondsHeard(in: doc, toUTF16Offset: spot.utf16Offset
-                                                                                  + doc.startUTF16Offset(forParagraph: spot.paragraph), rate: rate)),
-                timeLeft: now.isFinished ? "" : "−" + ListeningTime.label(minutes: left),
                 canSkip: speech.canSkipToPreviousParagraph || speech.canSkipToNextParagraph,
                 onSkipBack: speech.skipToPreviousParagraph, onSkipForward: speech.skipToNextParagraph,
                 onPlayPause: speech.pressNowPlaying,
