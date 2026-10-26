@@ -140,7 +140,7 @@ struct ChromeHost: View {
         if let session, session.isActive {
             session.lowerKeyboard()
         } else {
-            scroll.expand()
+            scroll.expandByHand()
         }
     }
 

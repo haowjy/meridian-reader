@@ -82,7 +82,7 @@ final class ChromeTests: XCTestCase {
             XCTAssertEqual(layout(.browse, width: w, progress: 1, played: true).field.rect.width, browseNew)
             XCTAssertEqual(layout(.library, width: w, progress: 1).field.rect.width, library)
             XCTAssertEqual(layout(.library, width: w, progress: 1, played: true).field.rect.width, libraryPlayed)
-            XCTAssertEqual(layout(.reader, width: w, progress: 1, played: true).field.rect.width, libraryPlayed, "the title chip")
+            XCTAssertEqual(layout(.reader, width: w, progress: 1, played: true).field.rect.width, w - 2 * M.margin, "Listen never folds: its card stays full width")
             XCTAssertEqual(layout(.library, width: w, played: true, keyboard: true).field.rect.width, libraryPlayed, "keyboard: [field][icon][▶][✕]")
             XCTAssertEqual(layout(.browse, width: w, played: true, back: true, forward: true, keyboard: true).field.rect.width, browseNew)
         }
@@ -149,7 +149,7 @@ final class ChromeTests: XCTestCase {
                         let tag = "\(width) \(destination) played \(played) progress \(progress) keyboard \(keyboard)"
                         let shown = [l.pill, l.field, l.nav, l.play, l.more].filter(\.isShown)
                         for piece in shown {
-                            let isCard = destination == .reader && piece == l.field && progress == 0
+                            let isCard = destination == .reader && piece == l.field
                             XCTAssertEqual(piece.rect.height, isCard ? M.card : M.barHeight, tag)
                             XCTAssertGreaterThanOrEqual(piece.rect.width, M.minTapTarget, tag)
                             XCTAssertGreaterThanOrEqual(piece.rect.minX, M.margin - 0.01, tag)
@@ -239,6 +239,40 @@ final class ChromeTests: XCTestCase {
         scroll(reverse, to: [40, 30, 20, 12, 10])
         reverse.settle()
         XCTAssertEqual(reverse.progress, 1, "a half fold that turns back still ends folded")
+    }
+
+    @MainActor
+    func testExpandingByHandWinsOverScrollingDownUntilTheTopOrANewScreen() {
+        let chrome = ChromeScroll()
+        chrome.anchor(at: 10)
+        scroll(chrome, to: [60, 110, 160])
+        XCTAssertTrue(chrome.isCollapsed)
+        chrome.expandByHand()
+        XCTAssertFalse(chrome.isCollapsed)
+        XCTAssertTrue(chrome.isPinnedExpanded)
+        scroll(chrome, to: [200, 260, 330])
+        chrome.settle()
+        XCTAssertEqual(chrome.progress, 0, "the rest of that scroll (momentum included) does not fold it")
+        scroll(chrome, to: [300, 400, 520])
+        XCTAssertEqual(chrome.progress, 0, "nor a later scroll down, or one up")
+        XCTAssertFalse(chrome.isCollapsed)
+        scroll(chrome, to: [3])
+        XCTAssertFalse(chrome.isPinnedExpanded, "the top clears the pin")
+        scroll(chrome, to: [60, 110])
+        XCTAssertTrue(chrome.isCollapsed, "a scroll down from the top folds again")
+    }
+
+    @MainActor
+    func testANewScreenOrPageClearsThePin() {
+        for clear in [{ (c: ChromeScroll) in c.reset() }, { $0.expand() }] {
+            let chrome = ChromeScroll()
+            chrome.anchor(at: 10)
+            chrome.expandByHand()
+            clear(chrome)
+            XCTAssertFalse(chrome.isPinnedExpanded)
+            scroll(chrome, to: [60, 110, 160])
+            XCTAssertTrue(chrome.isCollapsed)
+        }
     }
 
     @MainActor

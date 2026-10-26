@@ -7,7 +7,8 @@ import QuartzCore
 /// continuous `progress` (0 expanded, 1 collapsed) that follows the finger on the way down only:
 /// `progress += dy / travel` for a scroll down, and a scroll up never gives a row back (decided:
 /// the second row is too big to pop out on every reverse flick). The chrome comes back by the
-/// screen icon's tap, a swipe up on the bar, or the very top of the text (0 at the top). Once the
+/// screen icon's tap, a swipe up on the bar (both pin it expanded: scrolling down does not fold it
+/// again until the top, a new screen or page), or the very top of the text (0 at the top). Once the
 /// finger has been still for `settleDelay` a half-folded chrome finishes folding. It is the
 /// mockups' `bindScroll` without its reverse follow, and
 /// `displayed` is its per-frame smoothing: an exponential filter with a `smoothing` time constant,
@@ -32,6 +33,10 @@ final class ChromeScroll {
     var isLocked = false
     /// The destination keeps its chrome expanded whatever the scroll (Listen): scroll reports move
     /// nothing, and turning it on expands.
+    /// The user expanded it by hand (the icon's tap, a swipe up on the row): scrolling down does not
+    /// fold it again, for that scroll or any later one, until the text is back at its top, a new screen
+    /// or page is up, or the screen is left. The pin is what makes the tap win over the scroll.
+    private(set) var isPinnedExpanded = false
     var holdsExpanded = false {
         didSet { if holdsExpanded { expand() } }
     }
@@ -67,9 +72,11 @@ final class ChromeScroll {
         guard !isLocked, !holdsExpanded, !fullScreen else { return }
         if offset <= Self.topEdge {
             settling?.cancel()
+            isPinnedExpanded = false
             set(0)
             return
         }
+        guard !isPinnedExpanded else { return }
         guard delta != 0, abs(delta) <= Self.jump else { return }
         guard delta > 0 else { return }
         set(min(1, progress + delta / Self.travel))
@@ -81,7 +88,10 @@ final class ChromeScroll {
     /// fold is decided by the move itself. The top still always expands (a status-bar tap).
     func anchor(at offset: CGFloat) {
         last = offset
-        if offset <= Self.topEdge { set(0) }
+        if offset <= Self.topEdge {
+            isPinnedExpanded = false
+            set(0)
+        }
     }
 
     /// Finishes a fold the finger stopped partway through: scrolling only ever folds.
@@ -90,10 +100,20 @@ final class ChromeScroll {
         if progress > 0, progress < 1 { set(1) }
     }
 
-    /// Back to two rows: the icon's tap, a swipe up on the collapsed row, a new screen.
+    /// Back to two rows because a screen or page changed (a new screen, a page reader opening): scrolling
+    /// folds it again from here, so this clears the pin.
     func expand() {
         settling?.cancel()
+        isPinnedExpanded = false
         set(0)
+    }
+
+    /// Back to two rows by the user's hand (the icon's tap, a swipe up on the collapsed row): it stays,
+    /// whatever the scroll does next (`isPinnedExpanded`). A momentum scroll already under way cannot
+    /// fold it either.
+    func expandByHand() {
+        expand()
+        isPinnedExpanded = true
     }
 
     func setFullScreen(_ on: Bool) {
