@@ -54,8 +54,8 @@ private enum CardLayout {
 /// title chip). Plain values and slots, so both pages build the same card.
 ///
 /// ```
-/// [art]  Notes on Tides             (Voice) (Save)    art, title, site · time left, then two round controls
-///        example.org · 9 min left
+/// [art]  Notes on Tides             (Voice) (Save)    art, title, site and time left, then two round controls
+///        example.org   9 min left
 /// [━━━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━]     scrubber, nothing under it (no times)
 ///  Aa      ⏮        (▶)        ⏭         1×        transport: five equal slots
 /// ```
@@ -64,8 +64,9 @@ private enum CardLayout {
 /// layout, so the scrubber's track sits 64 pt from the top and the disc 80 pt.
 struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, Speed: View>: View {
     let title: String
-    /// Under the title: the site and time left, or a status note.
-    var detail: String?
+    /// Under the title, set apart by space (never a separator character): the site, then the time left,
+    /// or one status note. The first part truncates first; the others never do.
+    var detail: [String] = []
     var artwork: Image?
     var artworkLetter: String
     let playState: PlayState
@@ -85,6 +86,8 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
     @ViewBuilder var speed: Speed
 
     @Environment(\.readingPalette) private var reading
+    /// The gap between the site and the time left: `Spacing.s` (12 pt), growing with the caption as `DetailLine`'s does.
+    @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var spacing = Spacing.s
 
     private var palette: ReadingPalette { reading ?? .app }
 
@@ -134,11 +137,20 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
                     .typeStyle(.row, weight: .semibold)
                     .foregroundStyle(palette.ink)
                     .lineLimit(1)
-                if let detail {
-                    Text(detail)
-                        .typeStyle(.caption)
-                        .foregroundStyle(palette.secondaryInk)
-                        .lineLimit(1)
+                if !detail.isEmpty {
+                    HStack(spacing: spacing) {
+                        ForEach(Array(detail.enumerated()), id: \.offset) { index, part in
+                            if index == 0 {
+                                Text(part).lineLimit(1)
+                            } else {
+                                Text(part).lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                            }
+                        }
+                    }
+                    .typeStyle(.caption)
+                    .foregroundStyle(palette.secondaryInk)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(DetailLine.accessibilityLabel(detail))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -200,18 +212,18 @@ struct VoiceChromeButton: View {
 struct ReaderPlayerCardGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("Reader: not started") { card(state: .idle, detail: "example.org · 9 min") }
+            PreviewState("Reader: not started") { card(state: .idle, detail: ["example.org", "9 min"]) }
             PreviewState("Now Playing, saved") {
-                card(state: .playing, detail: "example.org · 6 min left", saved: true)
+                card(state: .playing, detail: ["example.org", "6 min left"], saved: true)
                     .onReadingPreview(.sepia)
             }
             PreviewState("Paused, a status note") {
-                card(state: .paused, detail: "Preparing next…").onReadingPreview(.dark)
+                card(state: .paused, detail: ["Preparing next…"]).onReadingPreview(.dark)
             }
         }
     }
 
-    private func card(state: PlayState, detail: String, saved: Bool = false) -> some View {
+    private func card(state: PlayState, detail: [String], saved: Bool = false) -> some View {
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
         return ReaderPlayerCard(title: "Notes on Tides", detail: detail, artworkLetter: "N", playState: state,
                                 onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {

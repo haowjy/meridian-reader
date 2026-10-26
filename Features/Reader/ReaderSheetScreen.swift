@@ -62,7 +62,7 @@ struct ReaderSheetScreen: View {
         let isFinished = actions.article?.finishedAt != nil
         let timeDetail = isFinished ? String(localized: "Finished") : listen.detail
         let compactCard = sizeClass == .regular ? nil
-            : card(actions, start: start, detail: isFinished ? timeDetail : detail(listen.detail).joined(separator: " · "))
+            : card(actions, start: start, detail: isFinished ? [timeDetail].compactMap { $0 } : detail(listen.detail))
         let playerTitle = ArticleRowTitle.lineOne(title: readerArticle.title, source: readerArticle.sourceLabel,
                                                   address: readerArticle.origin.canonicalURL)
         let playerLetter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,
@@ -149,7 +149,7 @@ struct ReaderSheetScreen: View {
     }
 
     /// Compact width: the card the chrome draws above row 2, and ⋯'s row for ☝︎.
-    private func card(_ actions: ArticleActions, start: ListenSpot, detail: String?) -> ChromeCard {
+    private func card(_ actions: ArticleActions, start: ListenSpot, detail: [String]) -> ChromeCard {
         let title = ArticleRowTitle.lineOne(title: readerArticle.title, source: readerArticle.sourceLabel,
                                             address: readerArticle.origin.canonicalURL)
         let letter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,

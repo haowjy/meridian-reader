@@ -115,8 +115,8 @@ struct NowPlayingScreen: View {
             let note = NowPlayingControls.note(of: speech, detectedLanguage: speech.sessionDetectedLanguage)
             ReaderPlayerCard(
                 title: now.lineOne,
-                detail: note ?? (now.isFinished ? String(localized: "Finished")
-                    : [source, left > 0 ? ListeningTime.leftLabel(minutes: left) : nil].compactMap { $0 }.joined(separator: " · ")),
+                detail: note.map { [$0] } ?? (now.isFinished ? [String(localized: "Finished")]
+                    : [source, left > 0 ? ListeningTime.leftLabel(minutes: left) : nil].compactMap { $0 }),
                 artwork: artwork, artworkLetter: now.artworkLetter, playState: speech.playState(of: .article(now.articleKey)),
                 canSkip: speech.canSkipToPreviousParagraph || speech.canSkipToNextParagraph,
                 onSkipBack: speech.skipToPreviousParagraph, onSkipForward: speech.skipToNextParagraph,

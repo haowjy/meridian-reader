@@ -136,7 +136,7 @@ way. Widths are the mockups' `width-table.md` (address 263 expanded with the arr
 - **Listen is a destination, not a sheet**: it shows in place under the same chrome with
   Listen lit, row 2 as everywhere (`[pill]  [empty ▶ slot]  [⋯]`, the three parted by one `rowGap`, 10 pt; every
   piece 48 pt tall, so the pill is a capsule about 5.5 bars wide on a 402 pt screen), and a glass player card above row 2, one gap
-  up, 140 pt: artwork, title, site and time left, Voice and Save at the right, the full-width scrubber (no
+  up, 140 pt: artwork, title, site and time left (two parts set apart by a 12 pt gap, no "·" or other separator; the site truncates first, the time left never does), Voice and Save at the right, the full-width scrubber (no
   times under it; the title block opens the article's origin and never seeks, only the track does), and the transport Aa, ⏮, ▶, ⏭, speed. Listen never collapses on
   scroll, so the title chip form exists only for the shared layout (the card's contents fade over the first
   30% of a fold; the chip is the title alone). The page hands the card to the chrome (`ChromeCard`, a preference) because it
