@@ -21,8 +21,14 @@ enum ChromeMetrics {
     static let gap: CGFloat = 2 * unit
     /// Gap between two pieces on one row: [pill] [▶] [⋯], [content] [icon] [▶] [⋯], ‹ › and the field.
     /// About a quarter of the bar's height, the same between every pair. The one size here that is not
-    /// a multiple of the unit: at 10 the pill is 5.5 bars wide on a 402 pt screen.
+    /// a multiple of the unit.
     static let rowGap: CGFloat = 10
+    /// The three-segment pill's width: one constant on every iPhone, never derived from the screen. It is
+    /// the iPhone SE's: with the gaps, ▶ and ⋯ it fills the SE's 375 pt exactly (`bottomRowWidth`, margin 12 each side).
+    static let pillWidth: CGFloat = 235
+    /// The bottom row's whole width: [pill] [▶ slot] [⋯] with one `rowGap` between. Fixed (351). On a wider
+    /// phone the row keeps this size and is centred, so the space either side is equal; it is never stretched.
+    static let bottomRowWidth: CGFloat = pillWidth + 2 * (rowGap + barHeight)
     /// The space above the top row and below the bottom row.
     static let topPadding: CGFloat = unit
     static let bottomPadding: CGFloat = 2 * unit

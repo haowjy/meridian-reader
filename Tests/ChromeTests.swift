@@ -69,15 +69,15 @@ final class ChromeTests: XCTestCase {
             XCTAssertEqual(layout(.library, width: w, back: true).field.rect.width, none, "no arrows outside the Browser")
             XCTAssertEqual(layout(.browse, width: w).field.rect.width, none)
             XCTAssertEqual(layout(.library, width: w).field.rect.width, none)
-            XCTAssertEqual(layout(.library, width: w).pill.rect.width, none - 116, "row 2, nothing played: ▶'s slot stays reserved and empty, so the pill is the same")
-            XCTAssertEqual(layout(.library, width: w, played: true).pill.rect.width, none - 116, "[pill][▶][⋯]")
+            XCTAssertEqual(layout(.library, width: w).pill.rect.width, 235, "row 2, nothing played: ▶'s slot stays reserved and empty, and the pill is the SE's 235 on every phone")
+            XCTAssertEqual(layout(.library, width: w, played: true).pill.rect.width, 235, "[pill][▶][⋯]")
         }
     }
 
     func testCollapsedWidthsAtEveryPhone() {
         // (width, Browse with both arrows and nothing played, Browse with ▶, Browse new page with ▶, Library, Library with ▶)
         for (width, browseBoth, browsePlayed, browseNew, library, libraryPlayed) in
-            [(375.0, 129.0, 119.0, 177.0, 235.0, 177.0), (393, 147, 137, 195, 253, 195), (430, 184, 126, 232, 290, 232)] {
+            [(375.0, 129.0, 119.0, 177.0, 235.0, 177.0), (393, 129, 119, 177, 235, 177), (430, 129, 119, 177, 235, 177)] {  // the bottom row is the SE's 351 pt block on every phone
             let w = CGFloat(width)
             XCTAssertEqual(layout(.browse, width: w, progress: 1, back: true, forward: true).field.rect.width, browseBoth)
             XCTAssertEqual(layout(.browse, width: w, progress: 1, played: true, back: true, forward: true).field.rect.width, browsePlayed)
@@ -109,10 +109,10 @@ final class ChromeTests: XCTestCase {
     }
 
     func testFoldedArrowsGiveWayToTheFieldForwardFirst() {
-        // ‹ › ▶ on the 17 Pro (402) leave the field 88 pt: › goes, ‹ stays (146); the SE (375) keeps ‹ at 119.
+        // ‹ › ▶ leave the field 88 pt: › goes, ‹ stays (119). The bottom row is the SE's 351 pt block on every phone, so the 17 Pro (402) matches the SE.
         let pro = layout(.browse, width: 402, progress: 1, played: true, back: true, forward: true)
         XCTAssertTrue(pro.navShowsBack && !pro.navShowsForward)
-        XCTAssertEqual(pro.field.rect.width, 146)
+        XCTAssertEqual(pro.field.rect.width, 119)
         XCTAssertGreaterThanOrEqual(pro.field.rect.width, M.minimumField)
         let se = layout(.browse, width: 375, progress: 1, played: true, back: true, forward: true)
         XCTAssertTrue(se.navShowsBack && !se.navShowsForward)
@@ -128,7 +128,7 @@ final class ChromeTests: XCTestCase {
     }
 
     func testPlayStaysAtTheWidthTablesX() {
-        for (width, x) in [(375.0, 257.0), (393, 275), (430, 312)] {
+        for (width, x) in [(375.0, 257.0), (393, 266), (430, 284.5)] {  // the centred 351 pt row: ▶ at width − (width − 351) / 2 − 106
             for progress in [0.0, 1] {
                 XCTAssertEqual(layout(.library, width: CGFloat(width), progress: CGFloat(progress), played: true).play.rect.minX, x, "▶ at \(width)")
             }
@@ -145,7 +145,7 @@ final class ChromeTests: XCTestCase {
             XCTAssertEqual(l.pill.rect.width, l.expandedPillWidth)
             XCTAssertGreaterThanOrEqual(l.expandedPillWidth / M.barHeight, 4.8, "a long capsule, not a fat one, at \(width)")
         }
-        XCTAssertEqual(layout(.library, width: 402, played: true).expandedPillWidth, 262)
+        XCTAssertEqual(layout(.library, width: 402, played: true).expandedPillWidth, 235)
     }
 
     func testPlayKeepsItsSlotAndTheIconSitsLeftOfIt() {
@@ -156,7 +156,7 @@ final class ChromeTests: XCTestCase {
                 XCTAssertEqual(expanded.more.rect, collapsed.more.rect)
                 XCTAssertEqual(collapsed.pill.rect.maxX + M.rowGap, collapsed.play.rect.minX, "[icon][▶]")
                 XCTAssertEqual(collapsed.play.rect.maxX + M.rowGap, collapsed.more.rect.minX, "[▶][⋯]")
-                XCTAssertEqual(expanded.more.rect.maxX, width - M.margin)
+                XCTAssertEqual(expanded.more.rect.maxX, width - max(M.margin, (width - M.bottomRowWidth) / 2), "⋯ ends the centred row")
             }
         }
         XCTAssertFalse(layout(.library).play.isShown, "no ▶ before anything has played")
@@ -195,8 +195,38 @@ final class ChromeTests: XCTestCase {
                 }
             }
         }
-        XCTAssertEqual(layout(.reader, width: 402).expandedPillWidth, 262)
+        XCTAssertEqual(layout(.reader, width: 402).expandedPillWidth, 235)
         XCTAssertEqual(layout(.library, width: 375).expandedPillWidth, 235)
+    }
+
+    /// The bottom row is a fixed 351 pt block, the SE's: the same size on every phone, centred with equal space
+    /// either side on a wider one, never stretched, and its pill identical across 375 / 393 / 402 / 430.
+    func testTheBottomRowIsOneFixedSizeCentredOnWiderPhones() {
+        XCTAssertEqual(M.pillWidth, 235)
+        XCTAssertEqual(M.bottomRowWidth, 351)
+        XCTAssertEqual(M.margin, 12, "the SE's 375 − 351 = 24: margin 12 each side")
+        let widths: [CGFloat] = [375, 393, 402, 430]
+        for played in [false, true] {
+            for destination in ChromeDestination.allCases {
+                let se = layout(destination, width: 375, played: played)
+                for width in widths {
+                    let l = layout(destination, width: width, played: played)
+                    let inset = (width - 351) / 2
+                    XCTAssertEqual(l.pill.rect.width, se.pill.rect.width, "same pill width at \(width)")
+                    XCTAssertEqual(l.pill.rect.minX, inset, "the row starts at an equal inset at \(width)")
+                    XCTAssertEqual(width - l.more.rect.maxX, inset, "and ends at the same inset at \(width)")
+                    XCTAssertEqual(l.more.rect.width, M.barHeight)
+                    XCTAssertEqual(l.more.rect.minX - l.pill.rect.maxX, 2 * M.rowGap + M.barHeight, "[pill][▶ slot][⋯] at \(width)")
+                    XCTAssertEqual(l.pill.rect.minY, se.pill.rect.minY)
+                    XCTAssertEqual(l.more.rect.minY, se.more.rect.minY)
+                }
+            }
+        }
+        // The pill's x is the one centring offset from the SE: a phone's pill is the SE's, moved right.
+        for width in widths {
+            let l = layout(.library, width: width)
+            XCTAssertEqual(l.pill.rect.minX - layout(.library, width: 375).pill.rect.minX, (width - 375) / 2)
+        }
     }
 
     func testEveryPieceIsAsTallAsTheBarWideEnoughToTapAndInsideTheMargins() {

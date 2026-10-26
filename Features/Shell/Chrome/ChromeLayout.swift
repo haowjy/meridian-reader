@@ -66,6 +66,10 @@ struct ChromeLayout: Equatable {
         typealias K = ChromeMetrics
         let bar = K.barHeight, gap = K.gap, rowGap = K.rowGap, margin = K.margin
         let rowY = K.readerFootprint - K.bottomPadding - bar
+        // The bottom row is one fixed-size block (`bottomRowWidth`, the SE's), centred on a wider phone: its left
+        // and right edges are the margins on the SE and equal insets on anything wider. Never stretched.
+        let rowX = max(margin, (w - K.bottomRowWidth) / 2)
+        let rowRight = w - rowX
         let row1Y = rowY - gap - bar
         let isBrowse = s.destination == .browse, isReader = s.destination == .reader
         // Listen's card has the play button, so ▶ isn't drawn there: its slot stays empty (the pill never widens).
@@ -76,7 +80,7 @@ struct ChromeLayout: Equatable {
         let row2 = !s.editing && hold
 
         // Row 2 keeps one slot for ▶ and ⋯ in every form.
-        let moreRect = CGRect(x: w - margin - bar, y: rowY, width: bar, height: bar)
+        let moreRect = CGRect(x: rowRight - bar, y: rowY, width: bar, height: bar)
         let playRect = CGRect(x: moreRect.minX - rowGap - bar, y: rowY, width: bar, height: bar)
         let iconX = moreRect.minX - rowGap - bar - played * (bar + rowGap)
         let rightEdge = iconX - rowGap
@@ -85,12 +89,12 @@ struct ChromeLayout: Equatable {
         play = ChromePiece(rect: playRect, isShown: played > 0 && row2)
         editBar = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar),
                               isShown: s.editing && hold)
-        // Row 2 is [pill][▶ slot][⋯] on every destination and state: the pill is one fixed width, ▶'s slot is
+        // Row 2 is [pill][▶ slot][⋯] on every destination and state: the pill is one fixed width (`K.pillWidth`), ▶'s slot is
         // reserved (empty before anything has played and on Listen), so tabs never move or resize it.
-        expandedPillWidth = w - 2 * margin - 2 * (rowGap + bar)
+        expandedPillWidth = K.pillWidth
         fold = s.fold
 
-        let pillExpanded = ChromePiece(rect: CGRect(x: margin, y: rowY, width: expandedPillWidth, height: bar), isShown: row2)
+        let pillExpanded = ChromePiece(rect: CGRect(x: rowX, y: rowY, width: expandedPillWidth, height: bar), isShown: row2)
         let pillFolded = ChromePiece(rect: CGRect(x: iconX, y: rowY, width: bar, height: bar), isShown: row2)
         pill = .mix(pillExpanded, pillFolded, s.fold)
 
@@ -103,7 +107,7 @@ struct ChromeLayout: Equatable {
         let forward: CGFloat = pair ? 1 : 0
         var foldedBack: CGFloat = s.keyboard || !s.canGoBack ? 0 : back
         var foldedForward: CGFloat = s.keyboard || !s.canGoForward ? 0 : forward
-        func foldedFieldX() -> CGFloat { margin + navWidth(foldedBack + foldedForward) + (foldedBack + foldedForward > 0 ? rowGap : 0) }
+        func foldedFieldX() -> CGFloat { rowX + navWidth(foldedBack + foldedForward) + (foldedBack + foldedForward > 0 ? rowGap : 0) }
         while rightEdge - foldedFieldX() < K.minimumField, foldedBack + foldedForward > 0 {
             if foldedForward > 0 { foldedForward = 0 } else { foldedBack = 0 }
         }
@@ -112,7 +116,7 @@ struct ChromeLayout: Equatable {
         navShowsForward = s.fold < 0.5 ? forward > 0 : foldedForward > 0
         let navExpanded = ChromePiece(rect: CGRect(x: margin, y: row1Y, width: navWidth(back + forward), height: bar),
                                       isShown: back + forward > 0 && hold)
-        let navFolded = ChromePiece(rect: CGRect(x: margin, y: rowY, width: navWidth(foldedBack + foldedForward), height: bar),
+        let navFolded = ChromePiece(rect: CGRect(x: rowX, y: rowY, width: navWidth(foldedBack + foldedForward), height: bar),
                                     isShown: foldedBack + foldedForward > 0 && hold)
         nav = .mix(navExpanded, navFolded, s.fold)
 
