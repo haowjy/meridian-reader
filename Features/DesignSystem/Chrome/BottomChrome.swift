@@ -14,6 +14,11 @@ enum BottomChrome {
     static let iconSize: CGFloat = 19
     /// Every control glyph in the compact chrome, the field's controls too: one size, fixed, medium.
     static let chromeGlyph = Font.system(size: ChromeMetrics.segmentGlyphHeight, weight: .medium)
+    /// The glyph inside a round icon control (`roundFieldControl`): the chrome glyph's weight (medium),
+    /// scaled to the 36 pt circle. Fixed, like every chrome glyph.
+    static let roundGlyph = Font.system(size: 18, weight: .medium)
+    /// Text on a round control's face (the speed): the same weight, even-width digits.
+    static let roundText = Font.system(size: 15, weight: .medium).monospacedDigit()
     /// Text standing in for a field control (the speed). Like the glyphs it keeps its size at
     /// large text sizes, so the controls never crowd.
     static let toolbarTextSize: CGFloat = 17
@@ -71,10 +76,18 @@ extension View {
         modifier(FieldControlFrame())
     }
 
-    /// A field control on a round fill of its own, standing apart from a field: ☝︎ in a sheet's
-    /// top bar, ✕ beside the search field.
+    /// The app's one round icon control: 36 pt, `fill` with a hairline edge, the glyph at
+    /// `BottomChrome.roundGlyph`, taps anywhere in 44 pt. Voice, the bookmark, Aa and ☝︎ on the
+    /// player card and in a sheet's top bar, ✕ beside the search field. Use `RoundIconButton` for
+    /// a plain symbol button.
     func roundFieldControl(fill: Color) -> some View {
-        fieldControlFrame().background(Circle().fill(fill))
+        modifier(RoundFieldFace(fill: fill, isText: false))
+    }
+
+    /// The same face for a short text instead of a glyph (the playback speed): a circle, or a
+    /// capsule as wide as the text needs.
+    func roundFieldText(fill: Color) -> some View {
+        modifier(RoundFieldFace(fill: fill, isText: true))
     }
 
     /// Text standing in for a field control (the speed in Now Playing's scrub capsule): as tall
@@ -129,6 +142,27 @@ private struct FieldControlFrame: ViewModifier {
                 .frame(width: side, height: side)
                 .tapTarget(side)
         }
+    }
+}
+
+private struct RoundFieldFace: ViewModifier {
+    let fill: Color
+    let isText: Bool
+    @Environment(\.readingPalette) private var reading
+
+    func body(content: Content) -> some View {
+        let side = BottomChrome.fieldControlSize
+        let edge = reading?.hairline ?? Palette.hairline
+        content
+            .font(isText ? BottomChrome.roundText : BottomChrome.roundGlyph)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, isText ? Spacing.xxs : 0)
+            .frame(minWidth: isText ? BottomChrome.minTapTarget : side, minHeight: side, maxHeight: side)
+            .background { Capsule().fill(fill) }
+            .overlay { Capsule().strokeBorder(edge, lineWidth: 0.5) }
+            .tapTarget(side)
+            .accessibilityShowsLargeContentViewer()
     }
 }
 

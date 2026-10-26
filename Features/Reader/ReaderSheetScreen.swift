@@ -167,13 +167,13 @@ struct ReaderSheetScreen: View {
             VoiceChromeButton(identifier: "readerVoice") { shell.present(.voice(.article(readerArticle.id))) }
         } save: {
             SaveToggleButton(isSaved: actions.isSaved, identifier: "readerBookmark",
-                             onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
+                             onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder, round: true)
         } scrub: {
             readerScrubTrack
         } appearance: {
             TextAppearanceControl(arrowEdge: .bottom)
         } speed: {
-            SpeedButton(speech: speech)
+            SpeedButton(speech: speech, round: true)
         }
         let jump = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
                            availability: MenuAvailability(when: sessionReady)) {

@@ -112,6 +112,11 @@ struct ReaderScrubRow<Trailing: View>: View {
     @State private var lastPreview: Int?
     /// The finger's height in the track's coordinates (negative = above it).
     @State private var fingerY: CGFloat = 0
+    /// True while a finger is down on the track. The system resets it when the gesture ends *or is
+    /// cancelled* (a scroll or sheet gesture taking the touch, a second touch, the app going
+    /// inactive), and `onEnded` is not called for a cancel, so this is how a cancel is seen.
+    @GestureState private var touching = false
+    @Environment(\.scenePhase) private var scenePhase
     @State private var haptics = UISelectionFeedbackGenerator()
     @State private var speedHaptics = UIImpactFeedbackGenerator(style: .light)
     @State private var endHaptics = UIImpactFeedbackGenerator(style: .rigid)
@@ -182,6 +187,7 @@ struct ReaderScrubRow<Trailing: View>: View {
                     .padding(.leading, isCapsule ? -Self.fieldLeading : 0)
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
+                            .updating($touching) { _, state, _ in state = true }
                             .onChanged { v in scrub(v, width: w) }
                             .onEnded { v in endScrub(v, width: w) }
                     )
@@ -194,6 +200,14 @@ struct ReaderScrubRow<Trailing: View>: View {
                                                  track: track, fingerY: fingerY) }
         }
         .animation(Motion.snappy, value: dragging)
+        // However a drag stops, the bubble, the text's preview and the scrub state stop with it.
+        .onChange(of: touching) { _, isTouching in
+            if !isTouching, dragging { cancelScrub() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active, dragging { cancelScrub() }
+        }
+        .onDisappear { if dragging { cancelScrub() } }
         .accessibilityElement()
         .accessibilityIdentifier("readerScrubber")
         .accessibilityLabel("Article position")
@@ -252,16 +266,28 @@ struct ReaderScrubRow<Trailing: View>: View {
         }
     }
 
-    private func endScrub(_ v: DragGesture.Value, width w: CGFloat) {
-        let moved = hypot(v.translation.width, v.translation.height)
-        let f = dragFraction ?? Double(v.location.x / w)
-        let tappedThumb = grabbedThumb && moved < 4
+    /// Everything a drag leaves behind: the thumb, the speed, the bubble's target and the text's
+    /// preview. Safe to call when nothing is dragging.
+    private func resetScrub() {
         dragFraction = nil
         lastTarget = nil
         lastPreview = nil
         grabbedThumb = false
         speed = .normal
+        fingerY = 0
         onScrubPreview(nil)
+    }
+
+    /// The drag was taken away (not released): end it without seeking, the playhead stays put.
+    private func cancelScrub() {
+        resetScrub()
+    }
+
+    private func endScrub(_ v: DragGesture.Value, width w: CGFloat) {
+        let moved = hypot(v.translation.width, v.translation.height)
+        let f = dragFraction ?? Double(v.location.x / w)
+        let tappedThumb = grabbedThumb && moved < 4
+        resetScrub()
         // A tap on the thumb itself is not a seek (it would jump back to the sentence start).
         guard !tappedThumb else { return }
         onScrubCommit(map.target(at: f))
@@ -286,8 +312,11 @@ struct ReaderScrubBubble {
 
     /// Where the bubble's bottom edge goes, in the coordinates `track` resolves to: just above
     /// the track, or above the finger once it slides up past that, so it rides with the finger.
-    static func bottom(track: CGRect, fingerY: CGFloat) -> CGFloat {
-        min(track.minY - trackGap, track.minY + fingerY - fingerGap)
+    static func bottom(track: CGRect, fingerY: CGFloat, aboveContainer: Bool = false) -> CGFloat {
+        let rides = min(track.minY - trackGap, track.minY + fingerY - fingerGap)
+        // The player card keeps its title row and buttons clear: the bubble never comes lower than
+        // just above the card's top edge (the container's origin).
+        return aboveContainer ? min(rides, -trackGap) : rides
     }
 
     struct Key: PreferenceKey {
@@ -301,7 +330,9 @@ struct ReaderScrubBubble {
 extension View {
     /// Draws the scrub bubble of a `ReaderScrubRow` inside this view across this view's full
     /// width (the reader's scrub band), above the finger.
-    func readerScrubBubble() -> some View {
+    /// `aboveContainer`: the bubble stays above this view's top edge (the player card, whose own
+    /// rows it must not cover).
+    func readerScrubBubble(aboveContainer: Bool = false) -> some View {
         overlayPreferenceValue(ReaderScrubBubble.Key.self, alignment: .topLeading) { bubble in
             if let bubble {
                 GeometryReader { proxy in
@@ -309,7 +340,8 @@ extension View {
                         // A zero-height frame aligned to the bottom: the bubble grows upward from
                         // `bottom`, whatever its height.
                         .frame(width: proxy.size.width, height: 0, alignment: .bottom)
-                        .offset(y: ReaderScrubBubble.bottom(track: proxy[bubble.track], fingerY: bubble.fingerY))
+                        .offset(y: ReaderScrubBubble.bottom(track: proxy[bubble.track], fingerY: bubble.fingerY,
+                                                        aboveContainer: aboveContainer))
                 }
                 .allowsHitTesting(false)
             }

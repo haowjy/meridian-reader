@@ -6,17 +6,9 @@ struct TextAppearanceButton: View {
     let isOpen: Bool
     let action: () -> Void
 
-    @Environment(\.readingPalette) private var reading
-
     var body: some View {
-        Button(action: action) {
-            Image(systemName: Icons.textAppearance)
-                .foregroundStyle(isOpen ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink)
-                .roundFieldControl(fill: isOpen ? reading?.highlight ?? Palette.playingTint : BottomChrome.fieldFill(reading))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("textAppearanceButton")
-        .accessibilityLabel("Text Appearance")
+        RoundIconButton(symbol: Icons.textAppearance, label: "Text Appearance",
+                        identifier: "textAppearanceButton", isOn: isOpen, action: action)
     }
 }
 

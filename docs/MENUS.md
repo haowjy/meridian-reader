@@ -284,3 +284,4 @@ The names for the chrome that runs along the bottom of every screen.
 | `ListenTransportView` | view | Speech-bound wrapper for `NowPlayingTransport` (skips, play/pause disc) with swipe gesture. |
 | `NowPlayingTransport` | view | The 5-slot transport row component: skip-back, play/pause disc (52 pt), skip-forward. |
 | `ReaderScrubRow` | view | The scrub bar in the bottom band (Now Playing: live; Reader: position 0). |
+| `RoundIconButton` | view | The app's one round icon button (36 pt, field fill, hairline, 18 pt medium glyph via `roundFieldControl`): Voice, Aa, ☝︎. The card's bookmark (`SaveToggleButton(round:)`) and speed (`SpeedButton(round:)`) use the same face. |

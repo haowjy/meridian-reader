@@ -34,8 +34,6 @@ private struct PlayerCardSurface: ViewModifier {
 
 private enum CardLayout {
     static let art: CGFloat = 36
-    /// The title row's two round controls (Voice, bookmark).
-    static let control: CGFloat = 36
     /// The scrubber row is `fieldControlSize` high with its track in the middle: pulled up so
     /// the track sits 64 pt from the card's top.
     static let scrubTop: CGFloat = 46
@@ -93,13 +91,15 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
             scrub
                 .padding(.horizontal, CardLayout.scrubInset)
                 .padding(.top, CardLayout.scrubTop)
-            HStack {
-                Text(elapsed)
-                Spacer(minLength: Spacing.s)
+            // One label style, medium like the controls. The elapsed time ticks, so its digits are
+            // even; the time left ("−9 min") keeps its natural width: even-width digits would also
+            // widen the minus and leave a gap after it.
+            HStack(spacing: 0) {
+                Text(elapsed).monospacedDigit()
+                Spacer(minLength: 0)
                 Text(timeLeft)
             }
-            .typeStyle(.caption)
-            .monospacedDigit()
+            .typeStyle(.caption, weight: .medium)
             .foregroundStyle(palette.secondaryInk)
             .padding(.horizontal, CardLayout.scrubInset)
             .padding(.top, CardLayout.labelsTop)
@@ -109,7 +109,7 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
                 .padding(.horizontal, Spacing.s)
                 .padding(.top, CardLayout.transportTop)
         }
-        .readerScrubBubble()
+        .readerScrubBubble(aboveContainer: true)
         .foregroundStyle(palette.ink)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("readingPlayerCard")
@@ -131,11 +131,10 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            // Two fixed 36 pt controls flush right (the mockup's card): the bookmark's own frame
-            // is as wide as it is offered, so without a width it would share the row with the title.
+            // Two round controls (36 pt each, the app's one round icon face) flush right.
             HStack(spacing: Spacing.xs) {
                 voice
-                save.frame(width: CardLayout.control)
+                save
             }
             .fixedSize()
         }
@@ -175,17 +174,8 @@ struct VoiceChromeButton: View {
     var identifier = "voiceChrome"
     let action: () -> Void
 
-    @Environment(\.readingPalette) private var reading
-
     var body: some View {
-        Button(action: action) {
-            Image(systemName: Icons.voice)
-                .foregroundStyle(reading?.ink ?? Palette.ink)
-                .roundFieldControl(fill: BottomChrome.fieldFill(reading))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(identifier)
-        .accessibilityLabel(Verbs.voice)
+        RoundIconButton(symbol: Icons.voice, label: Verbs.voice, identifier: identifier, action: action)
     }
 }
 
@@ -217,7 +207,7 @@ struct ReaderPlayerCardGallery: View {
         } appearance: {
             TextAppearanceButton(isOpen: false) {}
         } speed: {
-            Text("1×").typeStyle(.caption).fieldTextFrame()
+            Text("1×").foregroundStyle(Palette.ink).roundFieldText(fill: Palette.chrome)
         }
         .frame(height: ChromeMetrics.card)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ChromeMetrics.barHeight / 2, style: .continuous))

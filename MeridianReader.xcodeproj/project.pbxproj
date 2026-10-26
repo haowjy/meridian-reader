@@ -37,6 +37,7 @@
 		10B1684E38E3904260C24233 /* FolderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C15F2A9F527FEF3D8476269 /* FolderScreen.swift */; };
 		11411A53149D55CAAD435B79 /* SpeechController+Advance.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABF8DCDADBF530570E8FB5E /* SpeechController+Advance.swift */; };
 		1168F417C3862D04ADD28D22 /* RetentionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC3281E7C6A0D516C612ED2D /* RetentionTests.swift */; };
+		12044731891FBD58C2AC8206 /* ScrubBubbleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75BAB3AF8CE3F855A7BED50C /* ScrubBubbleTests.swift */; };
 		13CDAC716ADC986D27EECF1C /* ListenTimingLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 752C294BE2F93A20E8DF07B5 /* ListenTimingLog.swift */; };
 		1466BE2F35AC652D1490CD1D /* SheetPullHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F968C0F18E9D51BBA4E89AD /* SheetPullHandoff.swift */; };
 		1687E6E361AFCF72579BC87D /* af_heart.bin in Resources */ = {isa = PBXBuildFile; fileRef = 9FB2770B8F5CE7E0D9B73AA5 /* af_heart.bin */; };
@@ -104,6 +105,7 @@
 		410A5B160135DED6993F5982 /* LibraryMigrationReceipt.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7755AAF6221CB2EBD33E209 /* LibraryMigrationReceipt.swift */; };
 		4146BE1E26E4D8BA2F0FD1ED /* ChromeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F8BB62E8A584A0007101F2 /* ChromeState.swift */; };
 		419E03834EB2A6AAAE357EF2 /* CoreFlowsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FAF4E54306B4B2D2305D158 /* CoreFlowsUITests.swift */; };
+		4231392C8CB5F4C020B69DC0 /* RoundIconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71C8FDB4053C6DB88808B4BF /* RoundIconButton.swift */; };
 		423777E594FD2C8115E41889 /* ClusteredPlayerDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49553A97DD0B7DD9D06C339D /* ClusteredPlayerDock.swift */; };
 		426FBA3D243AD6A174385722 /* VoiceChoiceRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D80480B1B5CBAD0F39517E3 /* VoiceChoiceRows.swift */; };
 		43EAD58FD208795C766B3A02 /* FluidAudioProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2D33B33A2E941E5709DB0E /* FluidAudioProvider.swift */; };
@@ -606,11 +608,13 @@
 		700F8C5B3C4BFA17CC29C300 /* ListeningTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningTime.swift; sourceTree = "<group>"; };
 		71838CE3E335D181BC4FD7F3 /* FolderDeletePrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderDeletePrompt.swift; sourceTree = "<group>"; };
 		71A244B812F6792B323D2C0F /* PlayStateButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayStateButton.swift; sourceTree = "<group>"; };
+		71C8FDB4053C6DB88808B4BF /* RoundIconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoundIconButton.swift; sourceTree = "<group>"; };
 		7340F212B9E13B808DED8B27 /* ChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeTests.swift; sourceTree = "<group>"; };
 		73E94E5E93EE460FD354D960 /* BottomChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomChrome.swift; sourceTree = "<group>"; };
 		7409E49A2BF7FF09539F7227 /* MoveTreeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveTreeSheet.swift; sourceTree = "<group>"; };
 		752C294BE2F93A20E8DF07B5 /* ListenTimingLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenTimingLog.swift; sourceTree = "<group>"; };
 		75797A66B0F3D2FC59A6183B /* OffscreenWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OffscreenWebView.swift; sourceTree = "<group>"; };
+		75BAB3AF8CE3F855A7BED50C /* ScrubBubbleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrubBubbleTests.swift; sourceTree = "<group>"; };
 		75F86233903E17AF286E72A0 /* LibraryStore+Dedupe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryStore+Dedupe.swift"; sourceTree = "<group>"; };
 		75FEFC2F6D0489D50118942C /* ReaderScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderScripts.swift; sourceTree = "<group>"; };
 		760ADC276A4146F0BE3E2294 /* FolderMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderMenu.swift; sourceTree = "<group>"; };
@@ -874,6 +878,7 @@
 				E2A5C9144F982FF6E57C49A9 /* PlayedNotSavedTests.swift */,
 				E3015ED4CFBD5A0CCFD025A0 /* PrepareOverviewTests.swift */,
 				EC3281E7C6A0D516C612ED2D /* RetentionTests.swift */,
+				75BAB3AF8CE3F855A7BED50C /* ScrubBubbleTests.swift */,
 				0805C4F2BD25167FBB6A2B53 /* TextChunkerTests.swift */,
 				D424D7C28771A64E4AEDC7C8 /* VoiceSelectionTests.swift */,
 				8E391C686BD5569CB6650472 /* WhatsNewStoreTests.swift */,
@@ -957,6 +962,7 @@
 				61E72572C73AC20F3B9107A0 /* ReadingChrome.swift */,
 				D396B73BEFEC5E440402C4F2 /* ReadingPage.swift */,
 				5034608E93346E0D0FE990F2 /* ReadingSample.swift */,
+				71C8FDB4053C6DB88808B4BF /* RoundIconButton.swift */,
 				442725515CE634B09949AA06 /* SaveToggleButton.swift */,
 				BD910880AE9653FEE02B23D5 /* ScreenTitle.swift */,
 				01D9228D2671B6B9F8154361 /* ScrubBar.swift */,
@@ -2163,6 +2169,7 @@
 				3308650D2A501F9B253ADEF8 /* RenderPace.swift in Sources */,
 				508A26D3B28587FAFEE475FD /* RenderTiming.swift in Sources */,
 				D4E76A50F3AF47C7F6624622 /* RootView.swift in Sources */,
+				4231392C8CB5F4C020B69DC0 /* RoundIconButton.swift in Sources */,
 				E66FDAE628BD70C929F825F0 /* SaveToggleButton.swift in Sources */,
 				67BA8F35AA3E8DCAF29C0A99 /* SavedArticle.swift in Sources */,
 				1918E519F113943229143527 /* ScreenTitle.swift in Sources */,
@@ -2255,6 +2262,7 @@
 				A264E85279F0302CA22BF028 /* PlayedNotSavedTests.swift in Sources */,
 				C4CAEB4006354A74C6341B86 /* PrepareOverviewTests.swift in Sources */,
 				1168F417C3862D04ADD28D22 /* RetentionTests.swift in Sources */,
+				12044731891FBD58C2AC8206 /* ScrubBubbleTests.swift in Sources */,
 				F3C75124CA0179F859EFD3C6 /* TextChunkerTests.swift in Sources */,
 				99E2F08B11E8FCCD2A612704 /* VoiceSelectionTests.swift in Sources */,
 				B70ED7D6152371A363F0CD2E /* WhatsNewStoreTests.swift in Sources */,

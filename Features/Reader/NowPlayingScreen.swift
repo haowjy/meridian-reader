@@ -129,14 +129,14 @@ struct NowPlayingScreen: View {
                 VoiceChromeButton(identifier: "nowPlayingVoice") { shell.present(.voice(.article(now.articleKey))) }
             } save: {
                 SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
-                                 onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
+                                 onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder, round: true)
                     .disabled(actions.readerArticle == nil)
             } scrub: {
                 playerScrub(spot: spot) { EmptyView() }
             } appearance: {
                 TextAppearanceControl(arrowEdge: .bottom)
             } speed: {
-                SpeedButton(speech: speech)
+                SpeedButton(speech: speech, round: true)
             }
         }
         let jump = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
@@ -213,6 +213,7 @@ struct NowPlayingScreen: View {
                 buffered: bufferedSpans(scrubMap),
                 onScrubPreview: { p in
                     scrubPreview = p
+                    if p != nil { jumpMode = false }
                     if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
                 },
                 onScrubCommit: seek(to:),
@@ -299,7 +300,8 @@ struct NowPlayingScreen: View {
 
     /// ☝︎ then a tap: play from that paragraph.
     private func jump(to index: Int) {
-        guard jumpMode else { return }
+        // Only ☝︎'s deliberate tap seeks, never a tap while a scrub is up.
+        guard jumpMode, scrubPreview == nil else { return }
         jumpMode = false
         following = true
         speech.play(fromParagraph: index)

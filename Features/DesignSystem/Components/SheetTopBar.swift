@@ -88,25 +88,10 @@ struct JumpModeButton: View {
     let isOn: Bool
     let action: () -> Void
 
-    @Environment(\.readingPalette) private var reading
-
     var body: some View {
-        Button(action: action) {
-            Image(systemName: isOn ? Icons.jumpOn : Icons.jump)
-                .foregroundStyle(glyph)
-                .roundFieldControl(fill: fill)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("listenJump")
-        .accessibilityLabel(isOn ? "Cancel listen from a paragraph" : "Listen from a paragraph")
-    }
-
-    private var glyph: Color {
-        isOn ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink
-    }
-
-    private var fill: Color {
-        isOn ? reading?.highlight ?? Palette.playingTint : BottomChrome.fieldFill(reading)
+        RoundIconButton(symbol: isOn ? Icons.jumpOn : Icons.jump,
+                        label: isOn ? "Cancel listen from a paragraph" : "Listen from a paragraph",
+                        identifier: "listenJump", isOn: isOn, action: action)
     }
 }
 

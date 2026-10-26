@@ -164,4 +164,23 @@ final class CoreFlowsUITests: XCTestCase {
         idle(1)
         XCTAssertTrue(panel.exists, "a choice leaves it open")
     }
+
+    /// A drag on the card's scrubber that leaves the track vertically (a long way down, past the
+    /// card, and released there) leaves no scrub behind: the bubble and its speed chip are gone,
+    /// and the title row's buttons are in reach again.
+    func testScrubThatLeavesTheTrackVerticallyEndsCleanly() throws {
+        let app = launchLibrary()
+        openListen(app)
+
+        let scrubber = app.otherElements["readerScrubber"].exists ? app.otherElements["readerScrubber"] : find(app, "readerScrubber")
+        XCTAssertTrue(appears(scrubber, timeout: 5), "the card's scrubber")
+        let start = scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5))
+        let farBelow = scrubber.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 12))
+        start.press(forDuration: 0.3, thenDragTo: farBelow)
+        idle(1)
+        XCTAssertFalse(find(app, "readerScrubBubble").exists, "no bubble once the finger is up")
+        XCTAssertFalse(find(app, "readerScrubSpeed").exists, "no speed chip once the finger is up")
+        let playing = app.buttons["nowPlayingVoice"].exists
+        XCTAssertTrue(app.buttons[playing ? "nowPlayingVoice" : "readerVoice"].isHittable, "Voice is not covered")
+    }
 }
