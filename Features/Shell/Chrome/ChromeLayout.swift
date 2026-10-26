@@ -68,7 +68,7 @@ struct ChromeLayout: Equatable {
         let rowY = K.readerFootprint - K.bottomPadding - bar
         let row1Y = rowY - gap - bar
         let isBrowse = s.destination == .browse, isReader = s.destination == .reader
-        // Listen's card has the play button, so its row is [pill][⋯]: the pill takes ▶'s width.
+        // Listen's card has the play button, so ▶ isn't drawn there: its slot stays empty (the pill never widens).
         let played: CGFloat = s.played && !isReader ? 1 : 0
         let hold = !s.fullScreen
         /// ‹ ›'s capsule for this many arrows (0, 1 or 2).
@@ -85,7 +85,9 @@ struct ChromeLayout: Equatable {
         play = ChromePiece(rect: playRect, isShown: played > 0 && row2)
         editBar = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar),
                               isShown: s.editing && hold)
-        expandedPillWidth = w - 2 * margin - rowGap - bar - played * (bar + rowGap)
+        // Row 2 is [pill][▶ slot][⋯] on every destination and state: the pill is one fixed width, ▶'s slot is
+        // reserved (empty before anything has played and on Listen), so tabs never move or resize it.
+        expandedPillWidth = w - 2 * margin - 2 * (rowGap + bar)
         fold = s.fold
 
         let pillExpanded = ChromePiece(rect: CGRect(x: margin, y: rowY, width: expandedPillWidth, height: bar), isShown: row2)

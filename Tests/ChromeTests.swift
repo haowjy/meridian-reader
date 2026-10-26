@@ -69,7 +69,7 @@ final class ChromeTests: XCTestCase {
             XCTAssertEqual(layout(.library, width: w, back: true).field.rect.width, none, "no arrows outside the Browser")
             XCTAssertEqual(layout(.browse, width: w).field.rect.width, none)
             XCTAssertEqual(layout(.library, width: w).field.rect.width, none)
-            XCTAssertEqual(layout(.library, width: w).pill.rect.width, none - 58, "row 2, nothing played: [pill][⋯]")
+            XCTAssertEqual(layout(.library, width: w).pill.rect.width, none - 116, "row 2, nothing played: ▶'s slot stays reserved and empty, so the pill is the same")
             XCTAssertEqual(layout(.library, width: w, played: true).pill.rect.width, none - 116, "[pill][▶][⋯]")
         }
     }
@@ -162,21 +162,41 @@ final class ChromeTests: XCTestCase {
         XCTAssertFalse(layout(.library).play.isShown, "no ▶ before anything has played")
     }
 
-    func testListenHasNoPlayDiscAndItsPillTakesTheFreedWidthAtEveryFold() {
+    func testListenHasNoPlayDiscAndItsSlotStaysEmptyAtEveryFold() {
         for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
+            let library = layout(.library, width: width, played: true)
             for progress in [0.0, 1.0] {
                 let l = layout(.reader, width: width, progress: CGFloat(progress), played: true)
                 XCTAssertFalse(l.play.isShown, "Listen's card has the play button at \(width)")
                 XCTAssertEqual(l.fold, 0, "Listen never folds")
-                XCTAssertEqual(l.pill.rect.minX, M.margin)
-                XCTAssertEqual(l.pill.rect.maxX + M.rowGap, l.more.rect.minX, "[pill][⋯] one gap apart at \(width)")
-                XCTAssertEqual(l.more.rect.maxX, width - M.margin)
-                XCTAssertEqual(l.pill.rect.width, width - 2 * M.margin - M.rowGap - M.barHeight)
+                XCTAssertEqual(l.pill.rect, library.pill.rect, "the pill is the Library's, not wider, at \(width)")
+                XCTAssertEqual(l.more.rect, library.more.rect)
+                XCTAssertEqual(l.pill.rect.maxX + M.rowGap, library.play.rect.minX, "▶'s slot stays empty between the pill and ⋯")
+                XCTAssertEqual(library.play.rect.maxX + M.rowGap, l.more.rect.minX)
                 XCTAssertEqual(l.field.rect.height, M.card, "the card stays")
             }
         }
         XCTAssertTrue(layout(.library, played: true).play.isShown, "▶ stays on the other destinations")
         XCTAssertTrue(layout(.browse, progress: 1, played: true).play.isShown, "and when folded")
+    }
+
+    /// One pill, one width, one x on every destination and state (▶ or not): tabs never move or resize it.
+    func testThePillAndMoreNeverMoveOrResizeAcrossDestinationsAndStates() {
+        for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
+            let reference = layout(.library, width: width, played: true)
+            for destination in ChromeDestination.allCases {
+                for played in [false, true] {
+                    for back in [false, true] {
+                        let l = layout(destination, width: width, played: played, back: back, forward: back)
+                        XCTAssertEqual(l.pill.rect, reference.pill.rect, "\(destination) played \(played) at \(width)")
+                        XCTAssertEqual(l.more.rect, reference.more.rect)
+                        XCTAssertEqual(l.expandedPillWidth, reference.expandedPillWidth)
+                    }
+                }
+            }
+        }
+        XCTAssertEqual(layout(.reader, width: 402).expandedPillWidth, 262)
+        XCTAssertEqual(layout(.library, width: 375).expandedPillWidth, 235)
     }
 
     func testEveryPieceIsAsTallAsTheBarWideEnoughToTapAndInsideTheMargins() {
