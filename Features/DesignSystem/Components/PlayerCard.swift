@@ -32,6 +32,13 @@ private struct PlayerCardSurface: ViewModifier {
     }
 }
 
+/// What the card's title block opens when it is tapped: the article's place in the Library or its page.
+struct CardOrigin {
+    /// "Open <title> in Library" / "Open <title> in Browser".
+    let label: String
+    let open: () -> Void
+}
+
 private enum CardLayout {
     static let art: CGFloat = 36
     /// The scrubber row is `fieldControlSize` high with its track in the middle: pulled up so
@@ -68,6 +75,8 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
     let onPlayPause: () -> Void
     /// Long-press on play / pause (developer options: the listen debug panel); nil = none.
     var onPlayLongPress: (() -> Void)?
+    /// The title block's tap (art, title, site): nil leaves it inert. It never seeks.
+    var origin: CardOrigin?
     @ViewBuilder var voice: Voice
     @ViewBuilder var save: Save
     /// The bare scrubber (`ReaderScrubRow` with `isCapsule: false`).
@@ -103,6 +112,22 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
 
     private var header: some View {
         HStack(spacing: Spacing.xs) {
+            titleBlock
+            // Two round controls (36 pt each, the app's one round icon face) flush right.
+            HStack(spacing: Spacing.xs) {
+                voice
+                save
+            }
+            .fixedSize()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: CardLayout.art)
+    }
+
+    /// Art, title and detail: one Button (44 pt high, inside the block only) when the article has an origin.
+    @ViewBuilder
+    private var titleBlock: some View {
+        let block = HStack(spacing: Spacing.xs) {
             ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: CardLayout.art)
             VStack(alignment: .leading, spacing: 0) {
                 Text(title)
@@ -117,15 +142,21 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            // Two round controls (36 pt each, the app's one round icon face) flush right.
-            HStack(spacing: Spacing.xs) {
-                voice
-                save
-            }
-            .fixedSize()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: CardLayout.art)
+        if let origin {
+            Button(action: origin.open) {
+                block
+                    .frame(minHeight: ChromeMetrics.minTapTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(origin.label)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("listenOrigin")
+        } else {
+            block
+        }
     }
 
     private var transport: some View {

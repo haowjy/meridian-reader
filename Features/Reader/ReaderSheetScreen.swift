@@ -157,7 +157,8 @@ struct ReaderSheetScreen: View {
         let view = ReaderPlayerCard(
             title: title, detail: detail, artworkLetter: letter, playState: speech.playState(of: .article(readerArticle.id)),
             canSkip: false, onSkipBack: {}, onSkipForward: {},
-            onPlayPause: { self.listen(from: nil, start: start) }
+            onPlayPause: { self.listen(from: nil, start: start) },
+            origin: actions.cardOrigin(title: title)
         ) {
             VoiceChromeButton(identifier: "readerVoice") { shell.present(.voice(.article(readerArticle.id))) }
         } save: {

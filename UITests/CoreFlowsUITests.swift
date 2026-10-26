@@ -106,6 +106,39 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertFalse(icon.exists)
     }
 
+    /// Listen's floating ‹ returns to where it was entered from, and is gone in full screen.
+    func testListenBackReturnsToWhereItWasEnteredFrom() throws {
+        let app = launchLibrary()
+        openListen(app)
+        let back = app.buttons["listenBack"]
+        XCTAssertTrue(appears(back, timeout: 5), "entered from the Library: ‹ floats top left")
+        let text = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        text.tap()
+        XCTAssertTrue(eventually { !back.exists }, "full screen removes it")
+        text.tap()
+        XCTAssertTrue(appears(back, timeout: 3), "and leaving full screen brings it back")
+
+        tapWhenHittable(back)
+        XCTAssertTrue(appears(app.libraryHome, timeout: 5), "back in the Library, where it was")
+        XCTAssertTrue(app.buttons["chromeLibrary"].isSelected)
+        XCTAssertFalse(back.exists)
+        XCTAssertFalse(app.buttons["chromeReaderMore"].exists, "Listen is down")
+    }
+
+    /// The title block is a button that opens the article's place and never seeks.
+    func testListenTitleBlockOpensTheArticlesPlaceInTheLibrary() throws {
+        let app = launchLibrary()
+        openListen(app)
+        let origin = app.buttons["listenOrigin"]
+        XCTAssertTrue(appears(origin, timeout: 5))
+        XCTAssertTrue(origin.label.hasPrefix("Open "), origin.label)
+        XCTAssertTrue(origin.label.hasSuffix(" in Library"), origin.label)
+        tapWhenHittable(origin)
+        XCTAssertTrue(appears(app.libraryHome, timeout: 5), "the Library at the article's place")
+        XCTAssertTrue(app.buttons["chromeLibrary"].isSelected)
+        XCTAssertFalse(app.buttons["listenBack"].exists, "left Listen another way: no ‹ left over")
+    }
+
     /// The Library's row keeps ▶ once a page has played, and Listen's does not.
     func testPlayStaysOnTheLibraryRowButNotListens() throws {
         let app = launchLibrary()
@@ -200,9 +233,9 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(app.buttons[playing ? "nowPlayingVoice" : "readerVoice"].isHittable, "Voice is not covered")
     }
 
-    /// The card's title block (art, title, source and time left) is inert: a tap on it, even on
-    /// its lower edge beside the scrubber, never seeks and never reaches the page behind (a tap there hides the chrome).
-    func testTapOnTheCardTitleBlockNeverSeeks() throws {
+    /// A tap on the card's title block (art, title, source and time left), even low on it beside the scrubber,
+    /// goes to the article's place and never seeks; it never reaches the page behind either (a tap there hides the chrome).
+    func testTapOnTheCardTitleBlockOpensItsPlaceAndNeverSeeks() throws {
         let app = launchLibrary()
         openListen(app)
 
@@ -215,12 +248,11 @@ final class CoreFlowsUITests: XCTestCase {
         if play.exists, play.label == "Pause" { play.tap() }
         XCTAssertTrue(eventually(5) { play.label == "Play" }, "paused")
         let before = scrubber.value as? String
-        // Down the title block (36 pt art row at 12 pt), then its very bottom edge, 60% across.
-        for y in [24.0, 38.0, 44.0, 47.0] {
-            card.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0)).withOffset(CGVector(dx: 0, dy: y)).tap()
-            idle(0.5)
-            XCTAssertTrue(scrubber.exists, "the card is still there after a tap on the title block (y \(y)): the chrome did not hide")
-            XCTAssertEqual(scrubber.value as? String, before, "a tap on the title block (y \(y)) must not seek")
-        }
+        // Low on the title block, 60% across.
+        card.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0)).withOffset(CGVector(dx: 0, dy: 38)).tap()
+        XCTAssertTrue(appears(app.libraryHome, timeout: 5), "it opened the article's place")
+        tapWhenHittable(app.buttons["chromeListen"])
+        XCTAssertTrue(appears(scrubber, timeout: 5), "Listen again")
+        XCTAssertEqual(scrubber.value as? String, before, "and nothing sought")
     }
 }

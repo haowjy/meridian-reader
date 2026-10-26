@@ -191,6 +191,22 @@ extension ArticleActions {
         return actions.readingPageMenu(now.map { .nowPlaying(actions.goTo($0)) } ?? .open, compact: compact)
     }
 
+    /// Where the page on Listen lives: the Library at its folder (or the home) when it is in the
+    /// Library, else its web page; nil when it has neither (the title block then does nothing).
+    var listenOrigin: ListenOrigin? {
+        if let article, article.isInLibrary { return .library(path: article.folder.map { library.path(to: $0) } ?? []) }
+        if let url = websiteURL, url.isWeb { return .browser(url) }
+        return nil
+    }
+
+    /// The card's title block: opens `listenOrigin` and never seeks. nil when there is none.
+    func cardOrigin(title: String) -> CardOrigin? {
+        guard let origin = listenOrigin else { return nil }
+        return CardOrigin(label: origin.label(title: title)) { [shell, readerArticle] in
+            shell.openOrigin(origin, article: readerArticle)
+        }
+    }
+
     /// Now Playing's *Go to <place>*: the folder the page plays from, or the Library's home for a
     /// saved page in none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website
     /// opens it). Playback keeps going.

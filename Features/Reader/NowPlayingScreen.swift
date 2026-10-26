@@ -121,7 +121,8 @@ struct NowPlayingScreen: View {
                 canSkip: speech.canSkipToPreviousParagraph || speech.canSkipToNextParagraph,
                 onSkipBack: speech.skipToPreviousParagraph, onSkipForward: speech.skipToNextParagraph,
                 onPlayPause: speech.pressNowPlaying,
-                onPlayLongPress: developer.isEnabled ? { shell.present(.listenDebug) } : nil
+                onPlayLongPress: developer.isEnabled ? { shell.present(.listenDebug) } : nil,
+                origin: actions.cardOrigin(title: now.lineOne)
             ) {
                 VoiceChromeButton(identifier: "nowPlayingVoice") { shell.present(.voice(.article(now.articleKey))) }
             } save: {

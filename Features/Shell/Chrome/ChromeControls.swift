@@ -194,6 +194,24 @@ struct ChromeRoundLabel: View {
     }
 }
 
+/// Listen's ‹: a round glass button floating at the top left, the Library's ‹ face (a 48 pt circle).
+/// It returns to where Listen was entered from; the title block's tap is separate and never seeks.
+struct ListenBackButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ChromeRoundLabel(symbol: Icons.back, label: Verbs.back)
+                .frame(width: ChromeMetrics.barHeight, height: ChromeMetrics.barHeight)
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, ChromeMetrics.margin)
+        .padding(.top, ChromeMetrics.unit)
+        .accessibilityLabel(Verbs.back)
+        .accessibilityIdentifier("listenBack")
+    }
+}
+
 /// The play / pause button beside the pill: a ring that fills as the page plays around ▶ or ⏸.
 /// Its own view because the ring reads the live offset, which moves several times a second.
 struct ChromePlayButton: View {

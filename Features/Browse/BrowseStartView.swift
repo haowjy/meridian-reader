@@ -257,6 +257,15 @@ struct BrowseStartView: View {
                                                                               libraryReader: shell.libraryReader != nil))
         .onChange(of: isRegular, initial: true) { _, regular in shell.readsInPlace = !regular }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Listen's ‹ (compact): back to where Listen was entered from. Not in full screen, and not when
+        // there is nowhere to go back to (a cold launch straight to Listen).
+        .overlay(alignment: .topLeading) {
+            if !isRegular, shell.listenBackTarget != nil, !shell.chromeScroll.fullScreen {
+                ListenBackButton(action: shell.backFromListen)
+                    .transition(.opacity)
+            }
+        }
+        .animation(reduceMotion ? nil : Motion.snappy, value: shell.chromeScroll.fullScreen)
         // Compact: the one bottom chrome, over the browser, the Library, the Reader and Now
         // Playing alike. The Reader is a destination: it keeps the pill (row 2) under its text, and
         // the Reader or Now Playing hands the chrome the card it draws above it.
