@@ -155,8 +155,8 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(library.allSatisfy { !$0.isEmpty }, "the segments are there: \(library)")
         // The pill is the SE's 235 pt on every phone, in a 351 pt row centred on the screen (12 pt in on the SE).
         let screenWidth = app.windows.firstMatch.frame.width
-        XCTAssertEqual(library.last!.maxX - library.first!.minX, 235 - 2 * 4, accuracy: 3, "the pill, less its 4 pt insets: \(library)")
-        XCTAssertEqual(library.first!.minX, (screenWidth - 351) / 2 + 4, accuracy: 3, "the row is centred at \(screenWidth)")
+        XCTAssertEqual(library.last!.maxX - library.first!.minX, 235, accuracy: 1, "the pill: \(library)")
+        XCTAssertEqual(library.first!.minX, (screenWidth - 351) / 2, accuracy: 1, "the row is centred at \(screenWidth)")
         tapWhenHittable(app.buttons["chromeBrowser"])
         XCTAssertTrue(eventually { app.buttons["chromeBrowser"].isSelected })
         let browser = frames()
