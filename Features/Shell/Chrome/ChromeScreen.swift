@@ -23,6 +23,8 @@ struct ChromeScreen {
     var field: (FocusState<Bool>.Binding) -> AnyView = { _ in AnyView(EmptyView()) }
     /// The ⋯ button, filling the frame the host gives it.
     let more: AnyView
+    /// The Browser's reader mode: the round control that listens to the page, at the end of row 1.
+    var listen: AnyView?
     /// Library Edit: replaces the pill and ⋯ on row 2 with the selection's actions.
     var editBar: AnyView?
 }

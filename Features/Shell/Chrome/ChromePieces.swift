@@ -47,6 +47,7 @@ struct ChromePieces: View, Animatable {
             piece(layout.editBar) {
                 screen.editBar.frame(maxHeight: .infinity).chromeSurface(Capsule())
             }
+            piece(layout.listen) { screen.listen }
             piece(layout.more) { more }
         }
         .chromeGlassContainer()

@@ -62,10 +62,17 @@ struct ChromeHost: View {
     /// What the app says the chrome is now. Its `progress` is the fold's end under Reduce Motion
     /// (one end or the other, never between) and 0 otherwise: the fold between is drawn by
     /// `ChromeFold`, so a scroll report redraws the pieces and not this view.
+    /// The Browser or the Library shows a page as the Reader draws it, in place.
+    private var readerMode: Bool {
+        (destination == .browse && shell.pageReader != nil) || (destination == .library && shell.libraryReader != nil)
+    }
+    /// The chrome stays expanded whatever the text does: Listen's card, a reader's controls.
+    private var pinned: Bool { destination == .reader || readerMode }
+
     private var live: ChromeState {
         ChromeState(destination: destination, progress: reduceMotion ? (scroll.isCollapsed ? 1 : 0) : 0, fullScreen: scroll.fullScreen, played: playback.isAvailable,
                     canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, keyboard: isSearching,
-                    readerMode: (destination == .browse && shell.pageReader != nil) || (destination == .library && shell.libraryReader != nil), editing: screen.editBar != nil)
+                    readerMode: readerMode, editing: screen.editBar != nil)
     }
 
     private var state: ChromeState { reduceMotion ? shown ?? live : live }
@@ -115,9 +122,14 @@ struct ChromeHost: View {
         }
         .onChange(of: isSearching || shell.menu != nil, initial: true) { _, locked in scroll.isLocked = locked }
         .onChange(of: destination, initial: true) { _, new in
-            scroll.holdsExpanded = new == .reader
+            scroll.holdsExpanded = pinned
             scroll.reset()
             focused = session?.isFocused == true
+        }
+        // A reader opening or closing in place is a different text driving the chrome (and ends its full screen).
+        .onChange(of: readerMode) { _, _ in
+            scroll.holdsExpanded = pinned
+            scroll.reset()
         }
         .onChange(of: focused) { _, isFocused in
             guard let session else { return }

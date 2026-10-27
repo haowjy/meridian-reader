@@ -44,6 +44,24 @@ final class ChromeTests: XCTestCase {
         XCTAssertTrue(edit.editBar.isShown)
     }
 
+    /// Browse reader mode: the Listen control is a bar-sized disc at the end of row 1 and the field gives it
+    /// its room; any other state has no control and the field runs to the margin.
+    func testBrowseReaderModeHasTheListenDiscAtTheEndOfRowOneAndTheFieldYieldsToIt() {
+        let width: CGFloat = 393
+        let page = ChromeLayout(width: width, state: ChromeState(destination: .browse, progress: 0, played: true))
+        let reader = ChromeLayout(width: width, state: ChromeState(destination: .browse, progress: 1, played: true, readerMode: true))
+        XCTAssertFalse(page.listen.isShown)
+        XCTAssertTrue(reader.listen.isShown)
+        XCTAssertEqual(reader.listen.rect.width, M.barHeight)
+        XCTAssertEqual(reader.listen.rect.height, M.barHeight)
+        XCTAssertEqual(reader.listen.rect.maxX, width - M.margin)
+        XCTAssertEqual(reader.listen.rect.minY, reader.field.rect.minY)
+        XCTAssertEqual(reader.field.rect.maxX + M.rowGap, reader.listen.rect.minX)
+        XCTAssertEqual(page.field.rect.maxX, width - M.margin, "the field runs to the margin without the control")
+        let library = ChromeLayout(width: width, state: ChromeState(destination: .library, progress: 1, played: true, readerMode: true))
+        XCTAssertFalse(library.listen.isShown, "the Library's capsule is the field itself")
+    }
+
     // MARK: Tokens
 
     func testOneBarHeightDerivesEveryFootprintAndWidth() {

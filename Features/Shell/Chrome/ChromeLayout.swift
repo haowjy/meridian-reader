@@ -30,6 +30,8 @@ struct ChromePiece: Equatable {
 /// expanded    [‹][›][ address / search                  ]        row 1; the Reader's is its card
 ///             [ Listen | Library | Browser ][▶][⋯]               row 2 (Listen: no ▶, the card has one)
 /// collapsed   [‹][›][ address ↻][icon][▶][⋯]                     one row (the arrows that work); never on Listen, whose card stays
+/// reader mode [‹][›][ address                       ][🎧]     the Browser's page as the Reader draws it: Listen ends row 1
+///             [‹][ Aa | ▶ Listen · 9 min               ]         the Library's Read: the capsule is the field
 /// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
 /// keyboard    [ 🔍 field                      ⊗ 🎤 ][Cancel]    margin to margin on every phone: the field, one gap, Cancel (no icon, ▶ or ⋯)
 /// full screen (nothing)
@@ -52,6 +54,8 @@ struct ChromeLayout: Equatable {
     var more: ChromePiece
     /// A Library selection's actions: row 2 whole, in place of the pill, ▶ and ⋯.
     var editBar: ChromePiece
+    /// The Browser's reader mode: the round control that listens to the page, at the end of row 1.
+    var listen: ChromePiece
     /// How far the pill has folded (`ChromeState.fold`).
     var fold: CGFloat
     /// The pill's width while expanded: its segments are laid out in it.
@@ -59,7 +63,7 @@ struct ChromeLayout: Equatable {
 
     /// The top edge of the highest piece, nil when nothing shows (full screen).
     var top: CGFloat? {
-        [pill, field, nav, play, more, editBar].filter(\.isShown).map(\.rect.minY).min()
+        [pill, field, nav, play, more, editBar, listen].filter(\.isShown).map(\.rect.minY).min()
     }
 
     init(width w: CGFloat, state s: ChromeState) {
@@ -110,6 +114,7 @@ struct ChromeLayout: Equatable {
         // (so › never hides behind a lone ‹ after going back to the first page). Folded: only the
         // arrows that work, and they give way to a field that would be narrower than `minimumField`
         // (› first), never while the keyboard is up. Elsewhere (a Library page read in place): ‹ alone.
+        let listens = isBrowse && s.readerMode
         let pair = isBrowse && (s.canGoBack || s.canGoForward)
         let back: CGFloat = pair || (s.readerMode && s.canGoBack) ? 1 : 0
         let forward: CGFloat = pair ? 1 : 0
@@ -135,8 +140,12 @@ struct ChromeLayout: Equatable {
             fieldExpanded = ChromePiece(rect: CGRect(x: margin, y: rowY - gap - K.card, width: w - 2 * margin, height: K.card), isShown: hold)
         } else {
             let x = margin + navWidth(back + forward) + (back + forward > 0 ? rowGap : 0)
-            fieldExpanded = ChromePiece(rect: CGRect(x: x, y: row1Y, width: w - margin - x, height: bar), isShown: hold)
+            let right = w - margin - (listens ? bar + rowGap : 0)
+            fieldExpanded = ChromePiece(rect: CGRect(x: x, y: row1Y, width: right - x, height: bar), isShown: hold)
         }
         field = .mix(fieldExpanded, fieldFolded, s.fold)
+        // Where it ends row 1 it stays through the keyboard's move (its rect doesn't move; it only goes).
+        let listenRect = CGRect(x: w - margin - bar, y: row1Y, width: bar, height: bar)
+        listen = .mix(ChromePiece(rect: listenRect, isShown: listens && hold), ChromePiece(rect: listenRect, isShown: false), s.fold)
     }
 }

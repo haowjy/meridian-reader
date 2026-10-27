@@ -184,17 +184,25 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   and pulling do nothing to it, a ▶ / ⏸ floats for 3 s. Leaving full screen returns to what the chrome
   was (collapsed stays collapsed).
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
-  `BrowsePageReader`): the chrome stays expanded, the address keeps the URL, the reader icon sits
-  in a lit capsule and toggles back, and a slim bar under the status bar holds Aa and Listen. The
-  reader's theme runs up under the status bar. The web page under it takes no touches and is
-  hidden from VoiceOver; a swipe from the left edge does what ‹ does (back, which closes the
-  reader). Listen plays the page and opens Now Playing (the Listen destination); a page you hear
-  gets *Now Playing* there instead, and opening its reader never switches destination.
-- **Library Read replaces the Library in place** (same `BrowsePageReader`, `ShellState.libraryReader`):
+  `ReaderSurface`): the chrome stays expanded and pinned (it never folds), the address keeps the
+  URL (narrower by one round control), the reader icon sits in a lit capsule and toggles back. The
+  text is a reading page like the Reader's (`ReadingPage`, in place): Pages or Scroll as the
+  Appearance setting says, the footer, a tap in the middle for full screen, *Play from Here* on a
+  selection, and it opens at the page's saved listening spot, underlined. The reader's theme runs up
+  under the status bar. Listen is a round headphones control (`readerListen`) at the end of the
+  address row, a different glyph from the chrome's ▶ / ⏸ ring; it tints with the accent while this
+  page is what you hear. It plays the page and opens Now Playing (the Listen destination); a page
+  you hear shows the playhead and Jump to Audio in its text and the floating ▶ / ⏸, and opening its
+  reader never switches destination. Aa is ⋯ → *Text Appearance*, a popover on ⋯. The web page
+  under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
+  what ‹ does (back, which closes the reader).
+- **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
   a row's ⋯ → Read shows the article's text over the Library, which stays the lit segment and under it
-  with its scroll; the chrome stays expanded (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
-  or a left-edge swipe closes it, nothing plays and there is no player card. Listen in its bar plays
-  and goes to Listen. At regular width Read keeps opening the sheet.
+  with its scroll; the chrome stays expanded and pinned (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
+  or a left-edge swipe closes it, and there is no player card. The search field's place holds one
+  capsule, `[Aa] [▶ Listen · N min]` (`readerListen`; *Continue · N min left* part-way, *Listen Again* once the
+  article has finished): Aa opens the text appearance panel, Listen plays and goes to Listen.
+  Nothing plays until Listen. At regular width Read keeps opening the sheet.
 - **⋯** opens the screen's ⋯ panel ("Menus", below). The compact chrome has no 🕘 or ＋ buttons:
   *History* is a tile of every compact ⋯ (Browser, Library, Reader, Now Playing), and the Library's
   ⋯ adds *New Folder…*, *Import from…* and *Paste Text…*. On the Browser the page's *Save to

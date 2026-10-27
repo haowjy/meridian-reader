@@ -170,11 +170,14 @@ final class ShellState {
     /// The address pill's reader icon toggles it; it is the page's own, so it ends when the page changes.
     private(set) var pageReader: ReaderArticle?
     /// A Library page read in place (Library *Read*): its text replaces the Library's content, like the
-    /// Browser's reader mode, under the same chrome with the Library segment lit. Nothing plays and
-    /// the destination does not change; ‹ (or the edge swipe) puts the Library back as it was.
+    /// Browser's reader mode, under the same chrome with the Library segment lit. Nothing plays until
+    /// Listen (which raises Now Playing); the destination does not change; ‹ (or the edge swipe)
+    /// puts the Library back as it was.
     private(set) var libraryReader: ReaderArticle?
     /// Compact width reads in place (`libraryReader`, `pageReader`); regular width keeps the Reader sheet.
     var readsInPlace = false
+    /// The text appearance panel of the Browser's in-place reader, opened from ⋯ (the Library's has Aa on its capsule).
+    var readerAppearanceOpen = false
     /// Counts the endings of an in-place reader (`closePageReader`): an extraction that began
     /// under an earlier count opens nothing (the user left, or the page moved on, meanwhile).
     private(set) var pageReaderEpoch = 0
@@ -361,6 +364,7 @@ final class ShellState {
     /// The page itself again.
     func closePageReader() {
         pageReader = nil
+        readerAppearanceOpen = false
         pageReaderEpoch += 1
     }
 
@@ -474,9 +478,20 @@ final class ShellState {
     }
 
     private var readingInPlace: ReadingInPlace {
+        readingInPlace(bottomClearance: ChromeMetrics.readerFootprint,
+                       overTextClearance: chromeScroll.isCollapsed ? ChromeMetrics.collapsedFootprint : ChromeMetrics.readerFootprint)
+    }
+
+    /// The Library's Read and the Browser's reader mode in place: the chrome there never folds and has
+    /// no card, so the text keeps clear of its two rows and what floats over it sits above them.
+    var pageReadingInPlace: ReadingInPlace {
+        readingInPlace(bottomClearance: ChromeMetrics.footprint, overTextClearance: ChromeMetrics.footprint)
+    }
+
+    private func readingInPlace(bottomClearance: CGFloat, overTextClearance: CGFloat) -> ReadingInPlace {
         ReadingInPlace(
-            bottomClearance: ChromeMetrics.readerFootprint,
-            overTextClearance: chromeScroll.isCollapsed ? ChromeMetrics.collapsedFootprint : ChromeMetrics.readerFootprint,
+            bottomClearance: bottomClearance,
+            overTextClearance: overTextClearance,
             scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0) },
             anchored: { [chromeScroll] in chromeScroll.anchor(at: $0) },
             fullScreen: Binding(get: { [chromeScroll] in chromeScroll.fullScreen }, set: { [chromeScroll] in chromeScroll.setFullScreen($0) }))

@@ -17,7 +17,7 @@ final class CoreFlowsUITests: XCTestCase {
         tapWhenHittable(reader)
 
         // The page's text replaces the page; Listen there plays it in Now Playing.
-        let listen = app.buttons["pageReaderListen"]
+        let listen = app.buttons["readerListen"]
         XCTAssertTrue(appears(listen, timeout: 10), "the page's reader view")
         tapWhenHittable(listen)
         let play = app.buttons["listenPlayPause"]
@@ -52,7 +52,7 @@ final class CoreFlowsUITests: XCTestCase {
         let app = launchLibrary()
         tapWhenHittable(libraryCell(app, "Demo Listen Article").buttons["rowMore"])
         tapWhenHittable(find(app, "menuRead"))
-        XCTAssertTrue(appears(app.otherElements["browsePageReader"], timeout: 10), "the page's text, in place")
+        XCTAssertTrue(appears(app.otherElements["inPlaceReader"], timeout: 10), "the page's text, in place")
         XCTAssertTrue(app.buttons["chromeLibrary"].isSelected, "the Library stays lit")
         XCTAssertFalse(app.buttons["chromeListen"].isSelected, "not the Listen destination")
         XCTAssertFalse(app.buttons["chromeReaderMore"].exists, "no Listen screen")
@@ -61,11 +61,11 @@ final class CoreFlowsUITests: XCTestCase {
 
         tapWhenHittable(app.buttons["libraryReaderBack"])
         XCTAssertTrue(appears(app.libraryHome, timeout: 5), "back to the Library")
-        XCTAssertFalse(app.otherElements["browsePageReader"].exists)
+        XCTAssertFalse(app.otherElements["inPlaceReader"].exists)
 
         tapWhenHittable(libraryCell(app, "Demo Listen Article").buttons["rowMore"])
         tapWhenHittable(find(app, "menuRead"))
-        tapWhenHittable(app.buttons["pageReaderListen"])
+        tapWhenHittable(app.buttons["readerListen"])
         XCTAssertTrue(appears(app.buttons["listenPlayPause"], timeout: 10), "Listen is the one way into Listen")
         XCTAssertTrue(app.buttons["chromeListen"].isSelected)
     }
@@ -207,7 +207,7 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(link, timeout: 10))
         link.tap()
         tapWhenHittable(find(app, "addressReader"))
-        tapWhenHittable(app.buttons["pageReaderListen"])
+        tapWhenHittable(app.buttons["readerListen"])
         XCTAssertTrue(appears(app.buttons["listenPlayPause"], timeout: 10), "Now Playing")
 
         let jump = app.buttons["nowPlayingJumpToAudio"]
@@ -415,12 +415,12 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(link, timeout: 10))
         link.tap()
         tapWhenHittable(find(app, "addressReader"))
-        XCTAssertTrue(appears(app.buttons["pageReaderListen"], timeout: 10), "reader view")
+        XCTAssertTrue(appears(app.buttons["readerListen"], timeout: 10), "reader view")
         tapWhenHittable(find(app, "browseBack"))
         XCTAssertTrue(appears(app.links["Next page"], timeout: 10), "page one")
-        XCTAssertFalse(app.buttons["pageReaderListen"].exists)
+        XCTAssertFalse(app.buttons["readerListen"].exists)
         tapWhenHittable(find(app, "browseForward"))
-        XCTAssertTrue(appears(app.buttons["pageReaderListen"], timeout: 15), "› re-enters the reader view")
+        XCTAssertTrue(appears(app.buttons["readerListen"], timeout: 15), "› re-enters the reader view")
     }
 
     /// ↻ is a whole 44 pt control inside the field's end, never squeezed or clipped by the field's width.

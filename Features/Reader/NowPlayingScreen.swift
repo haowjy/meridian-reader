@@ -261,7 +261,8 @@ struct NowPlayingScreen: View {
     private func text(_ now: NowPlaying, readerArticle: ReaderArticle?) -> some View {
         if let html = readingHTML(now, readerArticle: readerArticle) {
             SpokenText(speech: speech, html: html,
-                       title: readerArticle?.title ?? now.title,
+                       heading: ReaderHeading(title: readerArticle?.title ?? now.title, detail: [], titleHidden: true),
+                       spoken: true, document: speech.document,
                        finished: now.isFinished, isChapter: now.isChapter, scrubMap: scrubMap,
                        scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
@@ -342,69 +343,6 @@ extension SpeechController {
     func spokenParagraph(scrubPreview: Int?) -> Int? {
         guard let now = nowPlaying, !now.isFinished else { return nil }
         return scrubPreview ?? currentParagraphIndex
-    }
-}
-
-/// The text, the spoken paragraph in full ink and its sentence underlined.
-/// Its own view because the sentence follows the live offset, which
-/// moves several times a second: only this leaf (and the web view's bridge, which sends only
-/// changes) redraws for it.
-private struct SpokenText: View {
-    let speech: SpeechController
-    let html: String
-    /// nil: the page has none.
-    let title: String?
-    let finished: Bool
-    let isChapter: Bool
-    let scrubMap: ReaderScrubMap?
-    let scrubPreview: Int?
-    let jumpMode: Bool
-    let scrollRequest: ReaderScrollRequest?
-    let follows: Bool
-    let opensAt: ReadingHandOver?
-    let onUserScroll: () -> Void
-    let onSpotSide: (JumpDirection) -> Void
-    let onTap: (Int) -> Void
-    let onOpenLink: (URL) -> Void
-    var onPlaySelection: ((Int, Int) -> Void)?
-
-    var body: some View {
-        let paragraph = speech.currentParagraphIndex
-        HTMLReadingView(
-            html: html,
-            heading: ReaderHeading(title: title, detail: [], titleHidden: true),
-            activeParagraphIndex: speech.spokenParagraph(scrubPreview: scrubPreview),
-            sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),
-            spokenWord: finished || scrubPreview != nil ? nil : spokenWord(paragraph),
-            jumpMode: jumpMode,
-            scrollRequest: scrollRequest,
-            follows: follows && !finished,
-            opensAt: opensAt,
-            onUserScroll: onUserScroll,
-            onSpotSide: onSpotSide,
-            onOpenLink: onOpenLink,
-            pageTimeLeft: { [document = speech.document, rate = speech.rateMultiplier, isChapter] in
-                ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate, chapter: isChapter)
-            },
-            onPlaySelection: onPlaySelection,
-            onTapParagraph: onTap
-        )
-    }
-
-    /// The word being spoken: its paragraph and the UTF-16 offset in it.
-    private func spokenWord(_ paragraph: Int) -> ReadingPages.Spot? {
-        let doc = speech.document
-        guard doc.paragraphs.indices.contains(paragraph) else { return nil }
-        return ReadingPages.Spot(paragraph: paragraph,
-                                 offset: speech.spokenUTF16Offset - doc.startUTF16Offset(forParagraph: paragraph))
-    }
-
-    private func sentence(_ paragraph: Int) -> ReaderSentence? {
-        let doc = speech.document
-        guard let scrubMap, doc.paragraphs.indices.contains(paragraph) else { return nil }
-        let within = speech.spokenUTF16Offset - doc.startUTF16Offset(forParagraph: paragraph)
-        guard let range = scrubMap.sentenceRange(paragraph: paragraph, offset: within) else { return nil }
-        return ReaderSentence(paragraph: paragraph, start: range.lowerBound, end: range.upperBound)
     }
 }
 

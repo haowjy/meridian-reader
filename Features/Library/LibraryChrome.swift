@@ -55,7 +55,9 @@ struct LibraryChrome {
             backID: "libraryReaderBack",
             onBack: shell.closeLibraryReader,
             field: { focus in
-                AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt,
+                // Reading a page in place: the field's place is the page's Listen capsule (Aa, Listen).
+                if let article = shell.libraryReader { return AnyView(ReaderListenCapsule(article: article)) }
+                return AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt,
                                     focus: focus, fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard))
             },
             more: AnyView(MoreMenuButton(id: "libraryMore", chrome: true) { compactMenu }

@@ -127,8 +127,8 @@ struct BrowseStartView: View {
                     }
 
                     if let article = shell.pageReader, !isRegular {
-                        BrowsePageReader(article: article, speech: speech,
-                                         onEdgeSwipeBack: webStore.canGoBack ? goBack : nil)
+                        ReaderSurface(article: article, speech: speech,
+                                      onEdgeSwipeBack: webStore.canGoBack ? goBack : nil)
                     }
                 }
                 .ignoresSafeArea(.container, edges: isRegular ? [] : .bottom)
@@ -250,7 +250,7 @@ struct BrowseStartView: View {
                     .transition(.opacity)
                 // Library Read: the page's text in place of the Library, which stays under it as it was.
                 if let article = shell.libraryReader, !isRegular {
-                    BrowsePageReader(article: article, speech: speech, onEdgeSwipeBack: shell.closeLibraryReader)
+                    ReaderSurface(article: article, speech: speech, onEdgeSwipeBack: shell.closeLibraryReader)
                         .covered(shell.reader != nil || shell.isNowPlayingPresented)
                         .transition(.opacity)
                 }
@@ -337,7 +337,9 @@ struct BrowseStartView: View {
                                            onReload: reloadOrStop,
                                            onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
             },
-            more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) })
+            more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) }
+                .textAppearancePopover(isPresented: Bindable(shell).readerAppearanceOpen, arrowEdge: .bottom)),
+            listen: shell.pageReader.map { AnyView(ReaderListenButton(article: $0)) }
         )
     }
 
@@ -431,7 +433,10 @@ struct BrowseStartView: View {
                              icon: showing ? Icons.readerShowing : Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
-        return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
+        // Reader mode has no Aa of its own on screen: the menu opens the text appearance panel.
+        let appearance = showing ? [MenuRow(id: "moreTextAppearance", title: String(localized: "Text Appearance"),
+                                            icon: Icons.textAppearance) { shell.readerAppearanceOpen = true }] : []
+        return MenuContext(item: appearance + (webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows), screen: screen,
                            tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader))
     }
 

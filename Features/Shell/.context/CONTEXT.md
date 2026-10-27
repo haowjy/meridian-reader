@@ -78,7 +78,7 @@ changing the shell code.
   collapsed, one play/pause button, one screen icon, glass inside one `GlassEffectContainer` on
   iOS 26 with a blur and glass tint as the fallback. Its translucent fade takes the colour of what is under it: a
   web page's `underPageBackgroundColor` (`WebViewStore.pageBackground`, KVO), paper, or the reading
-  theme. The in-place reader (`BrowsePageReader`) covers a web view that takes no touches, so it
+  theme. The in-place reader (`ReaderSurface`) covers a web view that takes no touches, so it
   carries its own left-edge swipe for ‹. The rest of design 5e (PR2 to PR4) is under "Planned"
   there. Regular width is untouched.
 - **Regular width: the browser and the Library share the field band** (`SurfaceBand`: the field and its ✕),
