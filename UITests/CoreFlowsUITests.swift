@@ -423,6 +423,28 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(app.buttons["readerListen"], timeout: 15), "› re-enters the reader view")
     }
 
+    /// Aa sits in the address field beside ↻ only while the page shows as its reader view, and opens the
+    /// text appearance panel; the ⋯ menu's Text Appearance row opens the same panel.
+    func testBrowserReaderModeHasAaInTheAddressField() throws {
+        let app = launch(["-browseTestPages"])
+        XCTAssertTrue(appears(app.links["Next page"], timeout: 10))
+        XCTAssertFalse(app.buttons["readerAppearance"].exists, "no Aa on the web page")
+        tapWhenHittable(find(app, "addressReader"))
+        let aa = app.buttons["readerAppearance"]
+        XCTAssertTrue(appears(aa, timeout: 10), "Aa in the field in reader mode")
+        let reload = app.buttons["addressReload"]
+        XCTAssertLessThan(aa.frame.maxX, reload.frame.minX + 1, "Aa sits before ↻")
+        XCTAssertEqual(aa.frame.height, reload.frame.height, accuracy: 0.5, "the same control size as ↻")
+        tapWhenHittable(aa)
+        XCTAssertTrue(appears(find(app, "textAppearancePanel"), timeout: 5), "the panel opens")
+        tapWhenHittable(aa)
+        XCTAssertTrue(eventually { !self.find(app, "textAppearancePanel").exists }, "Aa again closes it")
+
+        tapWhenHittable(find(app, "browseMore"))
+        tapWhenHittable(find(app, "moreTextAppearance"))
+        XCTAssertTrue(appears(find(app, "textAppearancePanel"), timeout: 5), "the ⋯ row opens the same panel")
+    }
+
     /// ↻ is a whole 44 pt control inside the field's end, never squeezed or clipped by the field's width.
     func testReloadIsAWholeControlInsideTheField() throws {
         let app = launch(["-browseTestPages"])

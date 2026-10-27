@@ -176,7 +176,8 @@ final class ShellState {
     private(set) var libraryReader: ReaderArticle?
     /// Compact width reads in place (`libraryReader`, `pageReader`); regular width keeps the Reader sheet.
     var readsInPlace = false
-    /// The text appearance panel of the Browser's in-place reader, opened from ⋯ (the Library's has Aa on its capsule).
+    /// The text appearance panel of the Browser's in-place reader: open from Aa in the address field or from ⋯ → Text
+    /// Appearance, always pointing at Aa (the Library's has Aa on its capsule).
     var readerAppearanceOpen = false
     /// Counts the endings of an in-place reader (`closePageReader`): an extraction that began
     /// under an earlier count opens nothing (the user left, or the page moved on, meanwhile).

@@ -341,8 +341,7 @@ struct BrowseStartView: View {
                                            onReload: reloadOrStop,
                                            onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
             },
-            more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) }
-                .textAppearancePopover(isPresented: Bindable(shell).readerAppearanceOpen, arrowEdge: .bottom)),
+            more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) }),
             listen: shell.pageReader.map { AnyView(ReaderListenButton(article: $0)) }
         )
     }
