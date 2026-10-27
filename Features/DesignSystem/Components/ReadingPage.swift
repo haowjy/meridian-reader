@@ -102,10 +102,13 @@ private struct InPlaceFrame<Header: View, Content: View, OverText: View>: View {
         chrome.attach(place)
     }
 
+    /// No band of its own: the card is the chrome's. A zero-height band, not `EmptyView`, which
+    /// `ReadingBars` measures as the whole screen's room (the text's bottom inset was 812 pt, so
+    /// the middle of the visible text was off the page and a jump to the audio left it at the top).
     var body: some View {
         ReadingBars(chrome: chrome, headerBackground: palette.background, headerSlide: statusBarHeight,
                     bottomClearance: place.bottomClearance, overTextClearance: place.overTextClearance, header: header,
-                    content: content, band: EmptyView(), overText: overText)
+                    content: content, band: Color.clear.frame(height: 0), overText: overText)
             .background(palette.background.ignoresSafeArea())
             .readingSurface(palette)
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }
