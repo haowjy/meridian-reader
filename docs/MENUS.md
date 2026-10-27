@@ -207,6 +207,8 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | reload | never | no page up |
 | preparedAudio | never | never |
 
+The row is the second path to the panel: Aa in the address field (`readerAppearance`) opens it too, and the panel points at Aa either way.
+
 ### screen at libraryHome
 
 | Option | Hidden when | Greyed when |

@@ -428,6 +428,7 @@ final class CoreFlowsUITests: XCTestCase {
     func testBrowserReaderModeHasAaInTheAddressField() throws {
         let app = launch(["-browseTestPages"])
         XCTAssertTrue(appears(app.links["Next page"], timeout: 10))
+        app.links["Next page"].tap()
         XCTAssertFalse(app.buttons["readerAppearance"].exists, "no Aa on the web page")
         tapWhenHittable(find(app, "addressReader"))
         let aa = app.buttons["readerAppearance"]
@@ -437,8 +438,10 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertEqual(aa.frame.height, reload.frame.height, accuracy: 0.5, "the same control size as ↻")
         tapWhenHittable(aa)
         XCTAssertTrue(appears(find(app, "textAppearancePanel"), timeout: 5), "the panel opens")
-        tapWhenHittable(aa)
-        XCTAssertTrue(eventually { !self.find(app, "textAppearancePanel").exists }, "Aa again closes it")
+        let dismiss = app.otherElements["PopoverDismissRegion"]
+        XCTAssertTrue(dismiss.exists, "the popover's backdrop")
+        dismiss.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.2)).tap()
+        XCTAssertTrue(eventually { !self.find(app, "textAppearancePanel").exists }, "a tap outside closes it")
 
         tapWhenHittable(find(app, "browseMore"))
         tapWhenHittable(find(app, "moreTextAppearance"))

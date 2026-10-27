@@ -113,7 +113,10 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   44 x 44 control (`BottomChrome.minTapTarget`), its glyph in the chrome ink at the chrome glyph weight
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
   about 150 pt (`ChromeMetrics.readerIconWidth`). There is no 🎧 in it on compact width: play and
-  pause live in the chrome's own button.
+  pause live in the chrome's own button. While the page shows as its reader view the field is
+  `[reader icon][URL][Aa][↻]`: Aa (`readerAppearance`, VoiceOver *Text Appearance*) is the same 44 x 44
+  control as ↻ and sits before it, so the URL truncates first. Aa is not drawn on the web page or while
+  the search field is open (opening search closes its panel).
 - **Row 2** is the pill, a 48 pt round play / pause with a thin progress ring (not drawn before
   anything has played, and **not on Listen**, whose card has the ▶). **The bottom row is one fixed-size block** (`ChromeMetrics.bottomRowWidth`
   = 351 pt: pill 235 + 10 + ▶ 48 + 10 + ⋯ 48, the iPhone SE's width less its two 12 pt margins), the
@@ -194,7 +197,7 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   address row, a different glyph from the chrome's ▶ / ⏸ ring; it tints with the accent while this
   page is what you hear. It plays the page and opens Now Playing (the Listen destination); a page
   you hear shows the playhead and Jump to Audio in its text and the floating ▶ / ⏸, and opening its
-  reader never switches destination (the floating ⏸ there pauses; it does not leave the reader). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor, no following. Aa is ⋯ → *Text Appearance*, a popover on ⋯. The web page
+  reader never switches destination (the floating ⏸ there pauses; it does not leave the reader). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor, no following. Aa is in the address field beside ↻ (`readerAppearance`), and ⋯ → *Text Appearance* opens the same panel, a popover pointing at Aa either way. The web page
   under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
   what ‹ does (back, which closes the reader).
 - **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
@@ -1304,7 +1307,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Browser ⋯ / Reader ⋯ / Now Playing ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
 | ⋯ → Website (Reader, Now Playing) | no shortcut | leaves the Reader (the sheet closes on regular width, and the library) and shows / loads the page in the browser; audio continues |
 | ⋯ → Settings (`SettingsView`); on iPad also the sidebar's Settings | Done | `.sheet` (a form sheet on iPad); Voice, Language, Speed, Appearance, Reading, Prepared Audio and Acknowledgements push inside it |
-| Reader / Now Playing → Aa (`TextAppearanceControl`) | tap outside | popover from Aa |
+| Reader / Now Playing → Aa (`TextAppearanceControl`); Browser reader mode → Aa in the address field, or ⋯ → Text Appearance | tap outside | popover from Aa |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | Done (grabber) | `.sheet`, medium/large |
 | Library (`LibrarySurface`): the home | the chrome's Browser (the sidebar's on iPad) | in-place surface (shared bottom chrome); leave restores browse |
