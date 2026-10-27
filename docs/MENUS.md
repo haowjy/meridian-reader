@@ -202,6 +202,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
+| textAppearance | the browser shows the web page, not its reader | never |
 | follow | never | browser: no web page up |
 | reload | never | no page up |
 | preparedAudio | never | never |

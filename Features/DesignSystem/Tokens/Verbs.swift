@@ -130,6 +130,8 @@ enum Verbs {
     static let sort = String(localized: "Sort")
     static let newSearch = String(localized: "New Search")
     static let reload = String(localized: "Reload")
+    /// The Aa panel: the Browser's reader mode has no Aa on screen, so its ⋯ opens it.
+    static let textAppearance = String(localized: "Text Appearance")
     /// ✕ in the address field while a page loads.
     static let stopLoading = String(localized: "Stop Loading")
     /// The ⋯ panel's last rows and the screens they open.

@@ -17,10 +17,10 @@ struct MenuContext {
     var item: [MenuRow] = []
     var screen: [MenuRow]
     var tiles: [MenuRow]
-    /// Opened on a reading page (the Reader or Now Playing): the panel takes its colours.
+    /// Opened on a reading page (the Reader, Now Playing or the Browser's reader mode): the panel takes its colours.
     var isOnReadingPage = false
 
-    /// A screen's own block, from `MenuRegistry` (C98): *Sort*, *Follow…*, *Reload* where they
+    /// A screen's own block, from `MenuRegistry` (C98): *Text Appearance*, *Sort*, *Follow…*, *Reload* where they
     /// apply, then *Prepared Audio*.
     /// `custom` gives the rows only a screen can make (its *Sort*, *Follow…*, *Reload*). Settings
     /// is a tile (C140), not a list row.
