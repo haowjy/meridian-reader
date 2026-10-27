@@ -252,7 +252,7 @@ below).
 (`ShellState.libraryPath`, folders that no longer exist dropped), or the browser on its last page,
 reloaded. A fresh install opens the Library. Kept on the device in UserDefaults
 `shell.lastSurface` (`SurfaceMemory`). Reopened on the Library, the browser's last page loads the
-first time you go there, and stays remembered until then, across relaunches. UI-test launches
+first time you go there, and stays remembered until then, across relaunches. `-uiTesting` launches
 start on the browser unless `-restoreSurface`.
 
 **Regular width: one band on both surfaces** (`SurfaceBand`, decisions D22 and D23): the field

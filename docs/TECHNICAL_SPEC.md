@@ -51,7 +51,6 @@ Features/
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a library over its own files
-UITests/    the smoke flow and the in-place Reader chrome flow (MeridianReaderUITests)
 ```
 
 ## Architecture
@@ -574,8 +573,9 @@ The button is a round 44 pt glass circle at the right edge, 12 pt above the play
 ## Tests (C133)
 
 Critical-only: crash guard and recovery policy, prepare cache integrity, no data loss on a
-failed save, no text dropped by the chunker, one smoke UI test, and (at the owner's request) the
-compact chrome: unit tests of its state, layout and scroll controller and one UI test. About 13 s to run. The audit
+failed save, no text dropped by the chunker, and (at the owner's request) the compact chrome: unit tests of its
+state, layout and scroll controller. About 5 s to run. There are no UI tests: they were dropped at
+the owner's request, and the flows they covered are checked by hand on the running app. The audit
 table is in the decision log (C133).
 
 ## Retention and Prepared Audio (C134, C135, C136)
