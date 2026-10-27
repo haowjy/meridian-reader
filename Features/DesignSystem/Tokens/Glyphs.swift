@@ -55,12 +55,12 @@ enum Panel {
 }
 
 extension View {
-    /// The shadow under things that float over the page: Jump to Audio, a book cover.
+    /// The shadow under things that float over the page: a book cover.
     func floatingShadow(opacity: Double = 0.14) -> some View {
         shadow(color: Palette.scrim.opacity(opacity), radius: 12, y: 4)
     }
 
-    /// The floating shadow, darker, for controls over the reading text (Jump to Audio, the
+    /// The floating shadow, darker, for controls over the reading text (the
     /// floating ▶ / ⏸): the text runs under them.
     func overTextShadow() -> some View {
         floatingShadow(opacity: 0.2)

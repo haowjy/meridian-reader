@@ -1,37 +1,41 @@
 import SwiftUI
 import UIKit
 
-/// The bars of a reading sheet (the Reader and Now Playing) and full screen.
+/// The bars of a reading page (the Reader and Now Playing) and full screen.
 ///
-/// The text fills the sheet; the header (grabber, top bar, the ☝︎ hint) and the bottom band are
-/// drawn over it, and the text's scroll view insets its content by their measured heights
+/// The text fills the screen; the header (top bar, the ☝︎ hint) and the bottom band are drawn over
+/// it (`ReadingBars`), and the text's scroll view insets its content by their measured heights
 /// (`insets`), so the first line starts below the header and the last scrolls clear of the band.
 /// Full screen (`hidden`) slides the bars off their edges and hides the status bar; the insets
-/// stay as they are, so the text never moves when the bars go or come back.
+/// stay as they are, so the text never moves when the bars go or come back. On compact width the
+/// whole bottom chrome goes with them (`ReadingInPlace`).
 ///
-/// - A finger drag on the text moving up (scrolling down) past `hideDistance` hides the bars
-///   (`dragged(by:)`); scrolling back up leaves them hidden (C105). Programmatic scrolls and a
-///   drag's movement while it pulls the sheet never reach it.
-/// - A tap in the middle of the text toggles them (`tappedCentre`); a tap at either edge turns
-///   a screen (`revealFloatingControl`) and leaves them as they are (`TapZone`).
+/// - **Full screen is a tap in the middle of the text, in and out, and nothing else**
+///   (`tappedCentre`). Scrolling never enters or leaves it; a tap at either edge turns a screen
+///   (`revealFloatingControl`) and leaves the bars as they are (`TapZone`). On regular width a pull
+///   down at the top of the text brings the bars back (`pulledDownAtTop`); compact full screen is
+///   left by the middle tap alone.
 /// - In full screen a small play / pause floats at the bottom right (`floatingControl`) for
 ///   `floatingDuration` after full screen begins, an edge tap (a page turn) or a tap on it. A tap
 ///   in the middle brings the bars back instead, and they carry the play control.
-/// - While VoiceOver runs the bars never hide (`Sheet` shows them when it starts). The ☝︎ jump mode and the popovers keep them
-///   without a rule here: the web view reports nothing in jump mode, and a popover or the ⋯
-///   menu takes every touch until it closes.
+/// - While VoiceOver runs the bars never hide (`ReadingBars` shows them when it starts). The ☝︎
+///   jump mode and the popovers keep them without a rule here: the web view reports nothing in
+///   jump mode, and a popover or the ⋯ menu takes every touch until it closes.
 ///
-/// One per reading sheet, for its life (`Sheet(chrome:)` puts it in its content's environment).
-/// What scrolls the text reads it there: the reading web view feeds it drags and taps.
+/// One per reading page, for its life (`ReadingBars` puts it in its content's environment). What
+/// scrolls the text reads it there: the reading web view feeds it drags and taps.
 @MainActor
 @Observable
 final class ReadingChrome {
-    /// Full screen: the bars, the grabber and the status bar are hidden.
-    private(set) var hidden = false
+    /// Full screen: the bars and the status bar are hidden. Regular width keeps it here; compact
+    /// width reads the compact chrome's (`attach`), so there is one copy.
+    var hidden: Bool { fullScreen?.wrappedValue ?? ownHidden }
+    private var ownHidden = false
+    @ObservationIgnored private var fullScreen: Binding<Bool>?
     /// The header's and the band's heights (the band's includes the home indicator's inset):
-    /// the room the text leaves for them. Measured by `Sheet`; unchanged by `hidden`.
+    /// the room the text leaves for them. Measured by `ReadingBars`; unchanged by `hidden`.
     var insets = ReaderTextInsets()
-    /// The home indicator's inset (the bottom safe area), measured by `Sheet`: Pages mode's footer
+    /// The home indicator's inset (the bottom safe area), measured by `ReadingBars`: Pages mode's footer
     /// sits on it.
     var homeIndicator: CGFloat = 0
     /// Pages mode's footer, above the home indicator (0 in Scroll mode), measured by the reading
@@ -40,31 +44,46 @@ final class ReadingChrome {
     /// The floating play / pause shows (only in full screen).
     private(set) var floatingControl = false
 
-    /// How far the finger moves up, without turning back, before the bars hide.
-    static let hideDistance: CGFloat = 16
-    /// How far the finger moves down, without turning back, before they come back.
-    static let showDistance: CGFloat = 8
     /// How long the floating play / pause stays after it appears.
     static let floatingDuration: Duration = .seconds(3)
 
-    /// The finger's movement since it last turned back (down positive).
-    @ObservationIgnored private var run: CGFloat = 0
+    /// Compact width: where the text's own scrolling goes (the chrome host's collapse), as an
+    /// offset from the text's top; set by `attach`. Not called in full screen.
+    @ObservationIgnored var onUserScroll: (CGFloat) -> Void = { _ in }
+    /// Compact width: the text moved without a finger deciding anything (a restore, following the
+    /// audio, a scrub, or any move in full screen); the collapse measures from here next.
+    @ObservationIgnored var onScrollAnchor: (CGFloat) -> Void = { _ in }
     @ObservationIgnored private var floatingTimer: Task<Void, Never>?
 
-    /// A finger drag on the text began: a new run.
-    func dragBegan() {
-        run = 0
+    /// Compact width: full screen is the compact chrome's, and the text's scrolling goes to it.
+    func attach(_ place: ReadingInPlace) {
+        fullScreen = place.fullScreen
+        onUserScroll = place.scrolled
+        onScrollAnchor = place.anchored
     }
 
-    /// The finger moved `delta` (down positive) during a drag on the text.
-    func dragged(by delta: CGFloat) {
-        guard delta != 0 else { return }
-        run = (run < 0) == (delta < 0) ? run + delta : delta
-        // Scrolling back up never brings them back (C105): only a tap in the middle does.
-        if run <= -Self.hideDistance { hide() }
+    private func setHidden(_ value: Bool) {
+        if let fullScreen { fullScreen.wrappedValue = value } else { ownHidden = value }
     }
 
-    /// A tap in the middle of the text: the bars toggle.
+    /// A finger scrolled the text to `offset` (0 at its top). Full screen takes no part in it.
+    func userScrolled(to offset: CGFloat) {
+        if hidden { onScrollAnchor(offset) } else { onUserScroll(offset) }
+    }
+
+    /// The text is at `offset` without a finger having moved it.
+    func textMoved(to offset: CGFloat) {
+        onScrollAnchor(offset)
+    }
+
+    /// A pull down at the top of the text in full screen brings the bars back (regular width, where
+    /// the chrome owns no copy of full screen).
+    func pulledDownAtTop() {
+        guard fullScreen == nil else { return }
+        show()
+    }
+
+    /// A tap in the middle of the text: full screen toggles.
     func tappedCentre() {
         hidden ? show() : hide()
     }
@@ -92,14 +111,14 @@ final class ReadingChrome {
     /// The bars come back (over the text: nothing moves).
     func show() {
         guard hidden else { return }
-        hidden = false
+        setHidden(false)
         floatingTimer?.cancel()
         floatingControl = false
     }
 
     private func hide() {
         guard !hidden, !UIAccessibility.isVoiceOverRunning else { return }
-        hidden = true
+        setHidden(true)
         revealFloatingControl()
     }
 
@@ -128,6 +147,14 @@ final class ReadingChrome {
     }
 }
 
+/// Where the spoken sentence is, from the visible text: Jump to Audio's arrow points that way.
+enum JumpDirection {
+    /// Above the visible text (it is earlier in the article; Pages: on an earlier page).
+    case up
+    /// Below it.
+    case down
+}
+
 /// Room the text leaves for the bars drawn over it (points; the bottom includes the home
 /// indicator's inset).
 struct ReaderTextInsets: Equatable {
@@ -135,10 +162,10 @@ struct ReaderTextInsets: Equatable {
     var bottom: CGFloat = 0
 }
 
-/// The play / pause floating at the bottom right of a reading sheet in full screen, while
+/// The play / pause floating at the bottom right of a reading page in full screen, while
 /// `ReadingChrome.floatingControl` says so: a small accent disc (`PlayStateButton`'s
 /// `floatingDisc`) with the floating shadow. A tap on it plays or pauses and keeps it a while
-/// longer. Goes in the sheet's `overText`, which places it above the home indicator.
+/// longer. Goes in the page's `overText`, which places it above the home indicator.
 struct FloatingPlayButton: View {
     let state: PlayState
     let action: () -> Void
@@ -164,6 +191,6 @@ struct FloatingPlayButton: View {
 }
 
 extension EnvironmentValues {
-    /// Set by `Sheet(chrome:)` on its content; nil elsewhere (no full screen).
+    /// Set by `ReadingBars` on its content; nil elsewhere (no full screen).
     @Entry var readingChrome: ReadingChrome? = nil
 }

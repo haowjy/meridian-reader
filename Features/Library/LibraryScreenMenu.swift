@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The ⋯ for the Library screen on top (the home or a folder): the screen's rows, the same on
-/// both (`MenuRegistry`, C98): *Sort*, *Prepared Audio*, then `[Settings][Saved][Reader]`. The surface's ＋ shows the same
+/// both (`MenuRegistry`, C98): *Sort*, *Prepared Audio*, then the tiles (`MenuContext.tiles`). The surface's ＋ shows the same
 /// creating rows (`createRows`), acting on the screen on top (`topFolder`). Nothing in it acts on
 /// the browser's page.
 @MainActor
@@ -30,9 +30,9 @@ struct LibraryScreenMenu {
     }
 
     /// The screen's rows (C98, C100): *Sort ›* (not in a folder that keeps its own order),
-    /// *Prepared Audio*; then `[Settings][Saved][Reader]`. Reader opens Now Playing when audio
+    /// *Prepared Audio*; then `[Settings][Saved][Reader]` (`[Settings][Saved][History][Reader]` on compact width). Reader opens Now Playing when audio
     /// is playing, greyed otherwise.
-    var menu: MenuContext {
+    func menu(compact: Bool) -> MenuContext {
         let folder = topFolder
         var facts = MenuRegistry.Facts()
         facts.isFixedOrder = false
@@ -40,12 +40,12 @@ struct LibraryScreenMenu {
                                                 shell: shell) { option in
             option == .sort ? sortRow(folder) : nil
         }
-        let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader,
+        let reader = MenuRow(id: "moreListen", title: Verbs.listen, icon: Icons.listen,
                              availability: MenuAvailability(when: speech.nowPlaying != nil),
                              accessibilityHint: String(localized: "Go to Now Playing")) { [shell] in
             shell.showNowPlaying()
         }
-        return MenuContext(screen: screenRows, tiles: MenuContext.tiles(shell, last: reader))
+        return MenuContext(screen: screenRows, tiles: MenuContext.tiles(shell, compact: compact, last: reader))
     }
 
     /// ＋: the create group (`LibraryCreateMenu`) into the screen on top.

@@ -18,6 +18,16 @@ struct NowPlayingControls: View {
         notes
     }
 
+    static let bufferingLabel = String(localized: "Preparing next…")
+
+    /// The status line when there is one: preparing the next paragraphs, the render note, or the
+    /// language note; none once the page has finished. The compact card shows it under the title.
+    static func note(of speech: SpeechController, detectedLanguage: String?) -> String? {
+        guard speech.nowPlaying?.isFinished != true else { return nil }
+        if speech.isBufferingNext { return bufferingLabel }
+        return speech.renderNote ?? speech.languageResolution(detected: detectedLanguage).note
+    }
+
     /// Buffering / Apple-fallback / language notes and the developer Debug chip.
     @ViewBuilder
     private var notes: some View {
@@ -54,7 +64,7 @@ struct NowPlayingControls: View {
             HStack(spacing: Spacing.xs) {
                 ProgressView()
                     .controlSize(.small)
-                Text("Preparing next…")
+                Text(Self.bufferingLabel)
                     .accessibilityIdentifier("listenBufferingLabel")
                 Spacer(minLength: 0)
             }

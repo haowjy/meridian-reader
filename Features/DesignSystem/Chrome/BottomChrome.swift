@@ -1,27 +1,9 @@
 import SwiftUI
 
-/// The one bottom-chrome design, shared by the browser, the library and the reader
-/// (docs/NAVIGATION.md). The browser and the Library draw the same three-row band, so swapping
-/// between them changes no pixel of its frame:
-///
-/// ```
-/// ┌ .bar band ────────────────────────────────────┐
-/// │ ╭ Now Playing bar (or placeholder) ─────────╮ │  ← the full row; ⏸ over ⋯'s slot
-/// │ ╰───────────────────────────────────────────╯ │
-/// │ [⇄] ( field capsule: address / Library search ) │  ← the swap, then `bottomChromeField()`
-/// │  [‹]   [›]   [＋/🔖]  [🕘]   [⋯]              │  ← `BottomToolbarLayout`, explicit slots,
-/// └───────────────────────────────── home indicator ┘    ⋯ always slot 5
-/// ```
-///
-/// The Reader and Now Playing share one band (`ReadingBottomBand`): integrated controls
-/// (title, scrub, transport) flat on the page background, separated by a hairline divider.
+/// The sizes and helpers every bottom control shares, on both widths (docs/NAVIGATION.md): glyph
+/// and tap-target sizes, the field capsule, the transport discs. The compact chrome's own sizes are
+/// `ChromeMetrics`; the regular-width band's layout is in `RegularBand.swift`.
 enum BottomChrome {
-    /// Horizontal margin of the band's content.
-    static let horizontalMargin = Spacing.bandMargin
-    /// Space above the first row inside the band.
-    static let topPadding = Spacing.xs
-    /// Space between the field capsule and the toolbar row.
-    static let rowSpacing = Spacing.xxs
     /// Vertical padding inside the field capsule.
     static let fieldVerticalPadding = Spacing.xxs
     /// Field capsule / toolbar row height.
@@ -30,13 +12,20 @@ enum BottomChrome {
     static func fieldFill(_ reading: ReadingPalette?) -> Color { reading?.card ?? Palette.chrome }
     /// Toolbar glyph size.
     static let iconSize: CGFloat = 19
+    /// Every control glyph in the compact chrome, the field's controls too: one size, fixed, medium.
+    static let chromeGlyph = Font.system(size: ChromeMetrics.segmentGlyphHeight, weight: .medium)
+    /// The glyph inside a round icon control (`roundFieldControl`): the chrome glyph's weight (medium),
+    /// scaled to the 36 pt circle. Fixed, like every chrome glyph.
+    static let roundGlyph = Font.system(size: 18, weight: .medium)
+    /// Text on a round control's face (the speed): the same weight, even-width digits.
+    static let roundText = Font.system(size: 15, weight: .medium).monospacedDigit()
     /// Text standing in for a field control (the speed). Like the glyphs it keeps its size at
     /// large text sizes, so the controls never crowd.
     static let toolbarTextSize: CGFloat = 17
     /// Small controls inside the field capsule (mic, the speed) and in a sheet's top bar (☝︎).
     static let fieldControlSize: CGFloat = 36
     /// The smallest tap area of a control (`tapTarget`), whatever it looks like.
-    static let minTapTarget: CGFloat = 44
+    static let minTapTarget = ChromeMetrics.minTapTarget
     /// Now Playing's round play / pause in the transport's centre slot. Fixed like the toolbar
     /// glyphs (the large content viewer shows it at large text sizes). The row stays
     /// `rowHeight`; the disc reaches past it above and below by half the difference.
@@ -48,7 +37,7 @@ enum BottomChrome {
     static let headerDiscSize: CGFloat = 56
     /// The glyph inside the header disc.
     static let headerDiscGlyph: CGFloat = (transportDiscGlyph * headerDiscSize / transportDiscSize).rounded()
-    /// The play / pause disc floating over a reading sheet in full screen: one tap target wide.
+    /// The play / pause disc floating over a reading page in full screen: one tap target wide.
     static let floatingDiscSize: CGFloat = minTapTarget
     /// The glyph inside the floating disc.
     static let floatingDiscGlyph: CGFloat = 18
@@ -64,17 +53,6 @@ enum BottomChrome {
 }
 
 extension View {
-    /// The bottom band: content inset by the standard margins on the system bar material (on the
-    /// reading page, tinted with its background), which runs down through the home indicator. `bottomInset` = extra
-    /// bottom padding when the caller is laid out edge to edge (the reader); 0 when it already
-    /// sits in the safe area (Browse).
-    func bottomChromeBand(bottomInset: CGFloat = 0, bottomPadding: CGFloat = 0) -> some View {
-        self.padding(.horizontal, BottomChrome.horizontalMargin)
-            .padding(.top, BottomChrome.topPadding)
-            .padding(.bottom, bottomPadding + bottomInset)
-            .modifier(BottomChromeBandBackground())
-    }
-
     /// The field capsule: the browser's address field, the reader's scrub row and title row.
     /// 44 pt, growing with Dynamic Type (up to `maxTextGrowth`) so its text never clips.
     func bottomChromeField(leading: CGFloat = Spacing.s, trailing: CGFloat = Spacing.xxs) -> some View {
@@ -92,15 +70,24 @@ extension View {
     }
 
     /// A small control inside the field capsule (mic, Jump, bookmark): 36 pt with a body-size
-    /// glyph, growing with Dynamic Type like the capsule; taps land anywhere in 44 pt.
+    /// glyph, growing with Dynamic Type like the capsule; taps land anywhere in 44 pt. In the
+    /// compact chrome's field: the chrome's fixed glyph in a 30 pt frame.
     func fieldControlFrame() -> some View {
         modifier(FieldControlFrame())
     }
 
-    /// A field control on a round fill of its own, standing apart from a field: ☝︎ in a sheet's
-    /// top bar, ✕ beside the search field.
+    /// The app's one round icon control: 36 pt, `fill` with a hairline edge, the glyph at
+    /// `BottomChrome.roundGlyph`, taps anywhere in 44 pt. Voice, the bookmark, Aa and ☝︎ on the
+    /// player card and in a sheet's top bar, ✕ beside the search field. Use `RoundIconButton` for
+    /// a plain symbol button.
     func roundFieldControl(fill: Color) -> some View {
-        fieldControlFrame().background(Circle().fill(fill))
+        modifier(RoundFieldFace(fill: fill, isText: false))
+    }
+
+    /// The same face for a short text instead of a glyph (the playback speed): a circle, or a
+    /// capsule as wide as the text needs.
+    func roundFieldText(fill: Color) -> some View {
+        modifier(RoundFieldFace(fill: fill, isText: true))
     }
 
     /// Text standing in for a field control (the speed in Now Playing's scrub capsule): as tall
@@ -117,25 +104,6 @@ extension View {
     }
 }
 
-private struct BottomChromeBandBackground: ViewModifier {
-    @Environment(\.readingPalette) private var reading
-
-    func body(content: Content) -> some View {
-        if let reading, reading.theme != .matchApp {
-            // The bar material, tinted with the reading theme's page so the band reads as part of it.
-            content.background {
-                ZStack {
-                    Rectangle().fill(.bar)
-                    reading.background.opacity(0.85)
-                }
-                .ignoresSafeArea(edges: .bottom)
-            }
-        } else {
-            content.background(.bar)
-        }
-    }
-}
-
 /// Fixed height (not minHeight): a Capsule with unbounded height becomes a circle when the layout
 /// proposes a large vertical size (e.g. the idle address bar without the mic's frame).
 private struct BottomChromeField: ViewModifier {
@@ -143,26 +111,58 @@ private struct BottomChromeField: ViewModifier {
     let trailing: CGFloat
     @ScaledMetric(relativeTo: .body) private var height = BottomChrome.rowHeight
     @Environment(\.readingPalette) private var reading
+    @Environment(\.isChromeField) private var isChromeField
 
     func body(content: Content) -> some View {
         content
             .padding(.leading, leading)
             .padding(.trailing, trailing)
             .padding(.vertical, BottomChrome.fieldVerticalPadding)
-            .frame(height: BottomChrome.grown(height, from: BottomChrome.rowHeight))
-            .background(BottomChrome.fieldFill(reading), in: Capsule())
+            .frame(height: isChromeField ? ChromeMetrics.barHeight : BottomChrome.grown(height, from: BottomChrome.rowHeight))
+            .chromeSurface(Capsule(), fill: BottomChrome.fieldFill(reading))
     }
 }
 
 private struct FieldControlFrame: ViewModifier {
     @ScaledMetric(relativeTo: .body) private var size = BottomChrome.fieldControlSize
+    @Environment(\.isChromeField) private var isChromeField
 
     func body(content: Content) -> some View {
-        let side = BottomChrome.grown(size, from: BottomChrome.fieldControlSize)
+        if isChromeField {
+            // In the compact chrome's fixed-height field: the chrome's glyph, in the field's slot.
+            content
+                .font(BottomChrome.chromeGlyph)
+                .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
+                .tapTarget(Glyph.fieldLeading)
+                .accessibilityShowsLargeContentViewer()
+        } else {
+            let side = BottomChrome.grown(size, from: BottomChrome.fieldControlSize)
+            content
+                .font(.body)
+                .frame(width: side, height: side)
+                .tapTarget(side)
+        }
+    }
+}
+
+private struct RoundFieldFace: ViewModifier {
+    let fill: Color
+    let isText: Bool
+    @Environment(\.readingPalette) private var reading
+
+    func body(content: Content) -> some View {
+        let side = BottomChrome.fieldControlSize
+        let edge = reading?.hairline ?? Palette.hairline
         content
-            .font(.body)
-            .frame(width: side, height: side)
+            .font(isText ? BottomChrome.roundText : BottomChrome.roundGlyph)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, isText ? Spacing.xxs : 0)
+            .frame(minWidth: isText ? BottomChrome.minTapTarget : side, minHeight: side, maxHeight: side)
+            .background { Capsule().fill(fill) }
+            .overlay { Capsule().strokeBorder(edge, lineWidth: 0.5) }
             .tapTarget(side)
+            .accessibilityShowsLargeContentViewer()
     }
 }
 
@@ -181,198 +181,3 @@ private struct FieldTextFrame: ViewModifier {
             .tapTarget(side)
     }
 }
-
-/// Toolbar row layout: five equal slots, evenly spaced, one grid for every bottom toolbar,
-/// so each icon sits at the same x on every screen:
-///
-/// ```
-/// Browse   [‹]  [›]  [🔖]  [🕘]  [⋯]
-/// Library  [‹]  [›]  [＋]  [🕘]  [⋯]
-/// Now Playing [🔖] [⏮] (⏸) [⏭] [⋯]
-/// ```
-///
-/// Each item sits in the slot it names with `.toolbarSlot(_:)`; an item without one sits at its
-/// position in the row. A slot nothing names stays empty, so a row with fewer items never slides
-/// them along, and ⋯ (`.toolbarSlot(BottomToolbarLayout.moreSlot)`) grows the morph menu from the
-/// same spot everywhere.
-struct BottomToolbarLayout: Layout {
-    static let slotCount = 5
-    /// ⋯'s slot, the last.
-    static let moreSlot = slotCount - 1
-
-    /// Width of one slot in a row `rowWidth` wide.
-    static func slotWidth(rowWidth: CGFloat) -> CGFloat { rowWidth / CGFloat(slotCount) }
-
-    /// Center x of slot `index` (0-based) from the row's leading edge.
-    static func slotCenterX(_ index: Int, rowWidth: CGFloat) -> CGFloat {
-        slotWidth(rowWidth: rowWidth) * (CGFloat(index) + 0.5)
-    }
-
-    /// The slot of subview `index`: the one it names, else its position; within the row.
-    static func slot(named: Int?, forSubview index: Int) -> Int {
-        min(max(named ?? index, 0), slotCount - 1)
-    }
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let height = subviews.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
-        return CGSize(width: proposal.width ?? 320, height: max(BottomChrome.rowHeight, height))
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let slot = Self.slotWidth(rowWidth: bounds.width)
-        for (i, view) in subviews.enumerated() {
-            let s = Self.slot(named: view[ToolbarSlotKey.self], forSubview: i)
-            view.place(at: CGPoint(x: bounds.minX + Self.slotCenterX(s, rowWidth: bounds.width), y: bounds.midY),
-                       anchor: .center, proposal: ProposedViewSize(width: slot, height: bounds.height))
-        }
-    }
-}
-
-private struct ToolbarSlotKey: LayoutValueKey {
-    static let defaultValue: Int? = nil
-}
-
-extension View {
-    /// The slot (0-based) this item takes in a `BottomToolbarLayout` row.
-    func toolbarSlot(_ index: Int) -> some View {
-        layoutValue(key: ToolbarSlotKey.self, value: index)
-    }
-}
-
-/// The bottom band shared by the Reader and Now Playing: integrated controls on the page
-/// background, separated from the text by a hairline divider. No card, no shadow: the controls
-/// sit directly on the reading surface.
-struct ReadingBottomBand<Content: View, Floating: View>: View {
-    @ViewBuilder var content: Content
-    @ViewBuilder var floating: Floating
-
-    @Environment(\.readingPalette) private var reading
-
-    var body: some View {
-        content
-            .readerScrubBubble()
-            .bottomChromeBand(bottomPadding: Spacing.xs)
-            .overlay(alignment: .top) {
-                VStack(spacing: 0) {
-                    Rectangle()
-                        .fill(reading?.hairline ?? Palette.hairline)
-                        .frame(height: 1 / UIScreen.main.scale)
-                    floating
-                }
-            }
-    }
-}
-
-/// A toolbar row with one wide control: the first item in slot 1, the last in slot 5 (⋯, so the
-/// morph menu grows from the same spot as everywhere else), and the middle one across slots 2–4
-/// with `Spacing.xs` either side. The end items keep the toolbar row's height at its bottom, so
-/// they sit exactly where slot 1 and ⋯ sit in `BottomToolbarLayout` while the wide control may
-/// be taller (a 48 pt pill).
-///
-/// ```
-/// Reader   [🔖]  [ ▶  Listen  9 min  ]  [⋯]
-/// ```
-struct BottomToolbarSpanLayout: Layout {
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let height = subviews.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
-        return CGSize(width: proposal.width ?? 320, height: max(BottomChrome.rowHeight, height))
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        guard subviews.count == 3 else { return }
-        let slot = BottomToolbarLayout.slotWidth(rowWidth: bounds.width)
-        let edge = ProposedViewSize(width: slot, height: BottomChrome.rowHeight)
-        let edgeY = bounds.maxY - BottomChrome.rowHeight / 2
-        subviews[0].place(at: CGPoint(x: bounds.minX + BottomToolbarLayout.slotCenterX(0, rowWidth: bounds.width),
-                                      y: edgeY), anchor: .center, proposal: edge)
-        subviews[1].place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
-                          proposal: ProposedViewSize(width: slot * 3 - Spacing.xs * 2, height: bounds.height))
-        subviews[2].place(at: CGPoint(x: bounds.minX + BottomToolbarLayout.slotCenterX(4, rowWidth: bounds.width),
-                                      y: edgeY), anchor: .center, proposal: edge)
-    }
-}
-
-#if DEBUG
-/// The bottom band on each surface: the browser's and the Library's three rows, slot for slot,
-/// and the Reader's spanning row.
-struct BottomToolbarGallery: View {
-    var body: some View {
-        PreviewGallery {
-            PreviewState("browser") {
-                band {
-                    barRow(playing)
-                    fieldRow(Icons.library) {
-                        AddressField(reader: .available, listen: .idle) { Text("news.example.org") }
-                    }
-                    BottomToolbarLayout {
-                        icon(Icons.back).toolbarSlot(0)
-                        icon(Icons.forward).disabled(true).toolbarSlot(1)
-                        SaveToggleButton(isSaved: false, identifier: "preview", onToggle: {}).toolbarSlot(2)
-                        icon(Icons.history).toolbarSlot(3)
-                        icon(Icons.more).toolbarSlot(BottomToolbarLayout.moreSlot)
-                    }
-                }
-            }
-            PreviewState("library, nothing played") {
-                band {
-                    barRow(NowPlayingBar.placeholder())
-                    fieldRow(Icons.browser) { SearchField(text: .constant("")) }
-                    BottomToolbarLayout {
-                        icon(Icons.back).disabled(true).toolbarSlot(0)
-                        icon(Icons.forward).disabled(true).toolbarSlot(1)
-                        icon(Icons.add).toolbarSlot(2)
-                        icon(Icons.history).toolbarSlot(3)
-                        icon(Icons.more).toolbarSlot(BottomToolbarLayout.moreSlot)
-                    }
-                }
-            }
-            PreviewState("reader") {
-                band {
-                    BottomToolbarSpanLayout {
-                        icon(Icons.save)
-                        PlayStateButton(state: .idle, look: .pill(title: "Listen", detail: "9 min", expands: true)) {}
-                        icon(Icons.more)
-                    }
-                }
-            }
-            PreviewState("named slots, gaps kept") {
-                band {
-                    BottomToolbarLayout {
-                        icon(Icons.back).disabled(true).toolbarSlot(0)
-                        icon(Icons.more).toolbarSlot(BottomToolbarLayout.moreSlot)
-                    }
-                }
-            }
-        }
-    }
-
-    private var playing: NowPlayingBar {
-        NowPlayingBar(title: "Notes on Tides", detail: ["example.com", "6 min left"], progress: 0.4, state: .paused,
-                      onOpen: {}, onPlayPause: {}, menu: nil)
-    }
-
-    private func barRow(_ bar: NowPlayingBar) -> some View {
-        bar.padding(.bottom, Spacing.xxs)
-    }
-
-    /// The swap, a toolbar button tight to the leading edge, then the field.
-    private func fieldRow<Field: View>(_ swap: String, @ViewBuilder field: () -> Field) -> some View {
-        BandFieldRow(swap: BandSwap(systemImage: swap, label: "Swap", hint: "", identifier: "preview", action: {}),
-                     field: field)
-    }
-
-    private func band<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        VStack(spacing: BottomChrome.rowSpacing) { content() }
-            .bottomChromeBand(bottomPadding: Spacing.xs)
-            .tint(Palette.ink)
-    }
-
-    private func icon(_ name: String) -> some View {
-        Button {} label: { Image(systemName: name).toolbarIconFrame() }
-    }
-}
-
-#Preview("BottomToolbar · light", traits: .sizeThatFitsLayout) { BottomToolbarGallery().previewVariant(.light) }
-#Preview("BottomToolbar · dark", traits: .sizeThatFitsLayout) { BottomToolbarGallery().previewVariant(.dark) }
-#Preview("BottomToolbar · AX5", traits: .sizeThatFitsLayout) { BottomToolbarGallery().previewVariant(.largestText) }
-#endif

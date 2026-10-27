@@ -30,8 +30,10 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   UI tests). **Test policy (C133): critical tests only**, guarding costly regressions: the
   engine crash guard and C129 recovery (`EngineCrashGuardTests`), cache integrity (audio in the
   wrong voice never counts as prepared, `PrepareOverviewTests`), a failed save never losing
-  an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), and one
-  smoke UI test (`CoreFlowsUITests.testSaveAndPlayABrowsedArticle`). Add a test only for data
+  an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), one
+  smoke UI test (`CoreFlowsUITests.testSaveAndPlayABrowsedArticle`), and, at the owner's request,
+  the compact chrome: unit tests of its state, layout and scroll controller (`ChromeTests`) and one
+  UI test (`testInPlaceReaderFoldsOnScrollAndFullScreenIsAMiddleTap`). Add a test only for data
   loss, crashes, store migration or cache integrity; verify everything else on the running app.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
 - One scheme, `MeridianReader`, with two test targets: `MeridianReaderTests` (unit, `Tests/`) and
@@ -117,12 +119,16 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   symbols alone. Give every button in one a symbol.
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
-- **Bottom chrome (a redesign is in progress, not shipped)**: compact width is moving from the two-surface
-  band (`SurfaceBand`) to one floating chrome with three destinations (Reader, Library, Browser), two rows
-  expanded and one collapsed, still no system tab bar (see `docs/NAVIGATION.md`, "Planned"). Until its PRs
-  merge, change `SurfaceBand`; after, change the chrome host, never one screen. Build controls from `BottomChrome` helpers (`bottomChromeField`,
+- **Bottom chrome**: compact width draws one floating chrome host
+  (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Listen, Library, Browser; Listen is `ChromeDestination.reader` in code), two rows
+  expanded and one collapsed, no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; PR2 to PR4 of the
+  redesign are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
+  or circle (radius = height / 2; one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, footprints 116 and 60, hit areas 44), every control glyph
+  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, scroll down only: scrolling up never gives a row back; the icon, a swipe up on the bar or the top of the text, offset <= 4, expand it), Listen is a destination under the same chrome with a glass player card above row 2 (no sheet, Close pill or pull-down; full screen is a middle tap that removes the chrome), and the compact address pill ends
+  in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
+  `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
-  (`BottomToolbarLayout`, `BottomToolbarSpanLayout`) so sizing, Dynamic Type and 44 pt taps stay
+  (`BottomToolbarLayout`) so sizing, Dynamic Type and 44 pt taps stay
   consistent.
 - **Voice libraries stay in `Features/Speech/Engines/<Library>/`**, registered in
   `AppComposition`. Shared code never imports or names one, or switches on engine types: a

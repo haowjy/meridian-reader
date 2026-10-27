@@ -14,6 +14,8 @@ import WebKit
 ///   - `thin` ("Thin page"): readable by that check, but its article text is invisible, so the
 ///     saved copy (which drops short invisible text) has almost nothing to listen to;
 ///   - `untitled`: an article with no `<title>` and no heading, so it has no title (`ArticleRowTitle`);
+///   - `popup`: a screen-tall (`100vh`) block, text, and a `position:fixed;bottom:0` banner with an
+///     "Accept cookies" button, like a site's cookie or open-in-app popup: the chrome must not hide it;
 ///   - `book-N`: chapter N of the demo book (`DemoBook`, `-seedDemoBook`).
 /// - **`story`**: a story to follow, served to the browser and to Follow's fetch queue, which a
 ///   Debug build always serves (`AppComposition.makeFollow`):
@@ -75,6 +77,22 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
                 "<p id=\"p\(i)\">Paragraph \(i). " + String(repeating: other, count: 4) + (i == 1 ? links : "") + "</p>"
                     + (i == 2 ? tallPicture : "")
             }.joined()
+        case "popup":
+            // No heading above the block: it starts at the page's top edge, so its bottom is the viewport's.
+            title = nil
+            let hero = "<div id=\"hero\" style=\"margin:-24px -24px 24px;height:100vh;background:#cfe0f5;display:flex;align-items:flex-end;padding:12px;box-sizing:border-box\">"
+                + "<span>A 100vh block: its bottom edge is the bottom of the visible page</span></div>"
+            let banner = "<div id=\"popup\" style=\"position:fixed;left:0;right:0;bottom:0;height:64px;background:#222;color:#fff;"
+                + "display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:17px\">"
+                + "<span>We use cookies</span><button style=\"font-size:17px;padding:8px 12px\">Accept cookies</button></div>"
+            // Reads back what each viewport unit measures, in points, for the tests and the screenshots.
+            let probe = "<div id=\"units\" style=\"position:absolute;top:60px;left:12px;font-size:15px;background:#fff;padding:4px\"></div>"
+                + "<script>function m(u){var e=document.createElement('div');e.style.cssText='position:absolute;visibility:hidden;height:'+u;"
+                + "document.body.appendChild(e);var h=e.getBoundingClientRect().height;e.remove();return Math.round(h)}"
+                + "document.getElementById('units').textContent='inner '+innerHeight+' vh '+m('100vh')+' svh '+m('100svh')"
+                + "+' lvh '+m('100lvh')+' dvh '+m('100dvh');"
+                + "var u=document.getElementById('units'),t=u.textContent;function y(){u.textContent=t+' y '+Math.round(scrollY)}y();addEventListener('scroll',y);</script>"
+            body = probe + hero + (1...8).map { _ in "<p>" + String(repeating: sentence, count: 4) + "</p>" }.joined() + banner
         case "thin":
             title = "Thin page"
             // Each paragraph is long enough for the readable check (which ignores opacity) and
@@ -94,6 +112,7 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
                 + "<p><a href=\"reader-test://story/toc\" \(link)>A story to follow</a></p>"
                 + "<p><a href=\"reader-test://pages/thin\" \(link)>Thin page</a></p>"
                 + "<p><a href=\"reader-test://pages/untitled\" \(link)>A page with no title</a></p>"
+                + "<p><a href=\"reader-test://pages/popup\" \(link)>A page with a bottom popup</a></p>"
                 + "<p><a id=\"book\" href=\"#\" \(link)>Download an EPUB</a></p>"
                 + bookLink
         }

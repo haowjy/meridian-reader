@@ -48,9 +48,9 @@ struct SavedArticleSuggestion: AddressSuggestionSource {
 /// What the address field suggests for typed text: matching history first, then saved articles,
 /// then Google's suggestions; each URL or term once (case-insensitive).
 enum AddressSuggestions {
-    static let maxVisits = 4
-    static let maxSaved = 3
-    static let maxRows = 10
+    static let maxVisits = 2
+    static let maxSaved = 1
+    static let maxRows = SearchSuggestions.maxRows
 
     static func build<Visits: Sequence, Articles: Sequence>(
         query: String, visits: Visits, articles: Articles, google: [String]
@@ -59,7 +59,8 @@ enum AddressSuggestions {
         guard !q.isEmpty else { return [] }
 
         var rows: [AddressSuggestion] = []
-        var seen = Set<String>()
+        // What is typed is the card's first row, so no row repeats it.
+        var seen: Set<String> = [q]
         func isNew(_ key: String) -> Bool { seen.insert(key.lowercased()).inserted }
         func matches(_ page: some AddressSuggestionSource) -> Bool {
             "\(page.lineOne) \(page.suggestionHost) \(page.urlString)".lowercased().contains(q)
@@ -84,7 +85,7 @@ enum AddressSuggestions {
         }
 
         for text in google where isNew(text) {
-            rows.append(AddressSuggestion(id: "google-\(text)", title: text, subtitle: "Google Search",
+            rows.append(AddressSuggestion(id: "google-\(text)", title: text, subtitle: nil,
                                           faviconData: nil, host: "", query: text, kind: .google))
             if rows.count >= maxRows { break }
         }

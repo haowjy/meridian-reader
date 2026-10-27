@@ -65,6 +65,9 @@ struct ListenTransportView: View {
 /// opens the speed list, pointing at it.
 struct SpeedButton: View {
     @Bindable var speech: SpeechController
+    /// On the round control face of the player card's transport (as Aa across from it), not bare
+    /// text in a scrub capsule.
+    var round = false
     @State private var showsPicker = false
     @Environment(\.readingPalette) private var reading
 
@@ -72,9 +75,15 @@ struct SpeedButton: View {
 
     var body: some View {
         Button { showsPicker = true } label: {
-            Text(ListenRate.label(speech.rateMultiplier))
-                .foregroundStyle(palette.ink)
-                .fieldTextFrame()
+            if round {
+                Text(ListenRate.label(speech.rateMultiplier))
+                    .foregroundStyle(palette.ink)
+                    .roundFieldText(fill: BottomChrome.fieldFill(reading))
+            } else {
+                Text(ListenRate.label(speech.rateMultiplier))
+                    .foregroundStyle(palette.ink)
+                    .fieldTextFrame()
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(Verbs.speed) \(ListenRate.label(speech.rateMultiplier))")

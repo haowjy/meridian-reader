@@ -67,12 +67,33 @@ enum Palette {
     /// Dims and shadows: the dim behind a sheet or the ⋯ panel, a floating control's shadow.
     static let scrim = Color.black
 
+    // MARK: Glass (the compact chrome before iOS 26)
+
+    /// A chrome piece's fill over the blur behind it: the page shows through. Light is white at
+    /// 58%, dark is (44, 44, 48) at 55%.
+    static let glass = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark ? UIColor(red: 44 / 255, green: 44 / 255, blue: 48 / 255, alpha: 0.55)
+            : UIColor(white: 1, alpha: 0.58)
+    })
+    /// The light edge of a glass piece: an inner 0.5 pt rim and a highlight on its top edge.
+    static let glassEdge = Color(uiColor: UIColor { traits in
+        UIColor(white: 1, alpha: traits.userInterfaceStyle == .dark ? 0.14 : 0.75)
+    })
+    /// The soft shadow under a glass piece.
+    static let glassShadow = Color(uiColor: UIColor { traits in
+        UIColor(white: 0, alpha: traits.userInterfaceStyle == .dark ? 0.45 : 0.14)
+    })
+
     // MARK: Washes (translucent fills)
 
     /// How strong an accent wash is: a tint of the accent behind text in ink (a paragraph
     /// pressed in jump mode). What sits on one is checked for contrast against the wash
     /// composited on what is under it.
     static let washOpacity = 0.15
+    /// The lit part of a chrome control (the pill's current segment, the reader icon while the
+    /// reader view shows): the accent at this strength, behind ink text and an accent glyph.
+    static let litOpacity = 0.2
+    static var lit: Color { accent.opacity(litOpacity) }
 
     /// A control drawn in its own colour that has nothing to do: as faint as the system dims a
     /// disabled toolbar button (‹ / › with no history), so a dimmed 🔖 or ▶ matches them.

@@ -6,19 +6,17 @@ import SwiftUI
 /// inside (a back pill, ⌄). The body hands its pulls over itself: the reading web view does, and
 /// any other scroll view through `handsPullToSheet(from:)`. While pulled it looks like a system
 /// sheet (`PullDownLook`): it shrinks a little and the dim behind it lifts. Top corners
-/// `Radius.card`. Used by the Reader sheet, Now Playing and Follow's chapter preview.
+/// `Radius.card`. Used by Follow's chapter preview and, on regular width, the Reader and Now
+/// Playing (compact width shows them in place: `ReadingInPlace`).
 ///
 /// It is drawn in `palette` (the reading theme's colours for the Reader and Now Playing, the same
 /// for both), which it sets on what it holds (`readingSurface`). A dark theme over a light app
 /// gets a heavier dim behind it, so the strip above reads dark, and light status bar content.
 ///
-/// With a `ReadingChrome` (the Reader and Now Playing) the text fills the sheet down to the
-/// screen's foot and the header (grabber and top bar) and the bottom `band` are drawn over it,
-/// measured into the chrome's `insets`; `overText` floats over the text just above the band (Jump
-/// to Audio, the floating play / pause), near the foot in full screen (above Pages mode's footer). Full screen slides the
-/// header and the band off their edges (fades them under Reduce Motion), hides the status bar,
-/// dims the home indicator and paints the strip above the sheet in the page's colour. Without
-/// one (Follow's preview) the header sits above the content and nothing hides.
+/// With a `ReadingChrome` (the Reader and Now Playing on regular width) the text fills the sheet
+/// as `ReadingBars` lays it out; full screen also hides the status bar, dims the home indicator
+/// and paints the strip above the sheet in the page's colour. Without one (Follow's preview) the
+/// header sits above the content and nothing hides.
 ///
 /// Present it by inserting it (`if … { Sheet(…) }`); it animates its own rise and, once closed,
 /// calls `onDismiss` for the owner to remove it. Under Reduce Motion it fades instead of moving.
@@ -48,8 +46,6 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.readingAppearance) private var appearance
-    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @Environment(\.sheetRisesOnAppear) private var risesOnAppear
     @State private var risen = false
     @State private var closed = false
@@ -58,10 +54,6 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     @State private var height: CGFloat = 0
     /// The status bar's height (the top safe area), for the player's status bar scrim.
     @State private var statusBarHeight: CGFloat = 0
-    /// The home indicator's inset (the bottom safe area): the band's background runs through it.
-    @State private var bottomInset: CGFloat = 0
-    @State private var headerHeight: CGFloat = 0
-    @State private var bandHeight: CGFloat = 0
     /// `onDismiss` has run (it runs once, whichever of the completion and its fallback is first).
     @State private var dismissed = false
     @State private var pullHandoff = SheetPullHandoff()
@@ -125,11 +117,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }
-        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
         .systemBars(lightStatusBar: palette.isDark && isUp, hidden: fullScreen)
-        .onChange(of: voiceOver) { _, on in if on { chrome?.show() } }
-        .onChange(of: bandHeight + bottomInset, initial: true) { _, bottom in chrome?.insets.bottom = bottom }
-        .onChange(of: bottomInset, initial: true) { _, inset in chrome?.homeIndicator = inset }
         .onAppear {
             if risesOnAppear { withAnimation(Motion.standard) { risen = true } }
         }
@@ -145,50 +133,14 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         .gesture(pullDown)
     }
 
-    /// The reading sheet's layout: the text to the screen's foot, the header and the band over
-    /// it, measured into `chrome.insets`. Hidden, they slide off their edges by their own height
-    /// (the band's through the home indicator, the header's past the strip above the sheet).
+    /// The reading sheet's layout: the text to the screen's foot, the header and the band over it.
     private func overlaidBars(_ chrome: ReadingChrome) -> some View {
-        let hidden = chrome.hidden
-        let slides = hidden && !reduceMotion
-        return ZStack(alignment: .top) {
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .ignoresSafeArea(.container, edges: .bottom)
-            // Pages mode is for reading: nothing floats over its text while the bars are hidden
-            // (C108); with them shown, Jump to Audio sits above the band as in Scroll (C111).
-            // Jump's own rule is `ReadingChrome.showsJumpToAudio` (C128): bars up only, both modes.
-            if appearance.layout != .pages || !hidden {
-                overText
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, (hidden ? chrome.pageFooter : bandHeight) + Spacing.s)
-            }
-            headerBlock
-                .background {
-                    UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,
-                                           style: .continuous)
-                        .fill(palette.background)
-                }
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                    headerHeight = $0
-                    chrome.insets.top = $0
-                }
-                .offset(y: slides ? -(headerHeight + statusBarHeight + Self.topGap) : 0)
-                .opacity(hidden ? 0 : 1)
-                .allowsHitTesting(!hidden)
-                .accessibilityHidden(hidden)
-        }
-        .overlay(alignment: .bottom) {
-            band
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bandHeight = $0 }
-                .offset(y: slides ? bandHeight + bottomInset : 0)
-                .opacity(hidden ? 0 : 1)
-                .allowsHitTesting(!hidden)
-                .accessibilityHidden(hidden)
-        }
-        .animation(Motion.standard, value: hidden)
-        .environment(\.sheetPullHandoff, pullHandoff)
-        .environment(\.readingChrome, chrome)
+        ReadingBars(chrome: chrome,
+                    headerBackground: UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,
+                                                             style: .continuous).fill(palette.background),
+                    headerSlide: statusBarHeight + Self.topGap, header: headerBlock, content: content, band: band,
+                    overText: overText)
+            .environment(\.sheetPullHandoff, pullHandoff)
     }
 
     /// Follows a vertical pull (down freely, up with rubber-band resistance); released far enough

@@ -5,7 +5,7 @@ import WebKit
 
 /// The browser, and the root of the shell: the web page or start page with its bottom chrome,
 /// the address search layer, and over it the layers `ShellState` says are up, in order: the
-/// library, the Reader sheet, Now Playing, the one ⋯ menu overlay and the one sheet.
+/// library, the Reader, Now Playing, the one ⋯ menu overlay and the one sheet.
 struct BrowseStartView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.articleExtractor) private var extractor
@@ -24,6 +24,11 @@ struct BrowseStartView: View {
     @State private var alertMessage: String?
     @Environment(\.readingAppearance) private var readingAppearance
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The Library's screen state, shared by its screens and the bottom chrome (which the shell owns).
+    @State private var libraryScreen = LibraryScreenState()
+    /// The Library ⋯'s *Turn Off Prepare* asked: the question shows by the ⋯.
+    @State private var turningOff: Folder?
+    @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
     private var webStore: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
@@ -34,6 +39,13 @@ struct BrowseStartView: View {
     }
 
     private var hasPage: Bool { webStore.hasPage }
+
+    /// What the chrome covers at the bottom of the page: two rows, one once it has folded (or while a search
+    /// is open: the field's row), nothing at regular width, where the chrome has its own bar below the page.
+    private var obscuredBottom: CGFloat {
+        guard !isRegular else { return 0 }
+        return search.isActive || shell.chromeScroll.isCollapsed ? ChromeMetrics.collapsedFootprint : ChromeMetrics.footprint
+    }
 
     /// Create the browse WKWebView only after the first non-start navigation; keep it thereafter.
     private var showsBrowseWebView: Bool {
@@ -75,7 +87,9 @@ struct BrowseStartView: View {
             .onChange(of: webStore.isLoading) { _, loading in
                 guard !loading else { return }
                 run { await $0.recordVisit() }
+                reenterReaderIfAsked()
             }
+            .onChange(of: webStore.isReaderable) { _, _ in reenterReaderIfAsked() }
             .onChange(of: search.text) { _, text in
                 // Typing (or clearing) while dictating takes over from the mic.
                 if let dictation, dictation.isListening, text != dictation.transcript {
@@ -88,41 +102,68 @@ struct BrowseStartView: View {
             }
     }
 
-    /// The page (or start page), the search layer over it, and the bottom chrome.
+    /// The page (or start page), the search layer over it, and at regular width the bottom chrome.
+    /// Compact width draws the chrome in `layers`, over the page and the Library alike.
     private var browser: some View {
         VStack(spacing: 0) {
             ZStack {
-                if showsBrowseWebView {
-                    WebView(store: webStore)
-                        .opacity(hasPage ? 1 : 0)
-                        .allowsHitTesting(hasPage)
-                        .onAppear { browseWebViewMounted = true }
-                }
+                // The page runs under the chrome, through the bottom safe area, and keeps its last
+                // line clear of the chrome by an inset.
+                ZStack {
+                    if showsBrowseWebView {
+                        WebView(store: webStore,
+                                bottomInset: isRegular ? 0 : ChromeMetrics.footprint,
+                                obscuredBottom: obscuredBottom,
+                                onScroll: isRegular ? nil : { [chrome = shell.chromeScroll] in chrome.scrolled(to: $0) })
+                            .opacity(hasPage ? 1 : 0)
+                            // Under the in-place reader the page is neither touched nor read aloud.
+                            .allowsHitTesting(hasPage && shell.pageReader == nil)
+                            .accessibilityHidden(shell.pageReader != nil)
+                            .onAppear { browseWebViewMounted = true }
+                    }
 
-                if !hasPage {
-                    startPage
+                    if !hasPage {
+                        startPage
+                    }
+
+                    if let article = shell.pageReader, !isRegular {
+                        BrowsePageReader(article: article, speech: speech,
+                                         onEdgeSwipeBack: webStore.canGoBack ? goBack : nil)
+                    }
                 }
+                .ignoresSafeArea(.container, edges: isRegular ? [] : .bottom)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Safari-style search session: full-bleed Recent Searches / suggestions over the page.
             .overlay {
                 if search.isActive && shell.isBrowsing {
-                    searchLayer
+                    ZStack {
+                        // Opaque to the bottom edge, behind the field and the keyboard: the list stops above
+                        // the chrome's row, but the page must never show through the strip under it.
+                        Palette.paper.ignoresSafeArea(edges: .bottom)
+                        searchLayer
+                            .padding(.bottom, isRegular ? 0 : ChromeMetrics.collapsedFootprint)
+                    }
                 }
             }
             .clipped()
 
             // The library draws its own chrome and covers this; the reader overlay draws its own
             // too, but this stays under it so its pull-down reveals the browser whole.
-            if !shell.isInLibrary {
+            if isRegular && !shell.isInLibrary {
                 bottomChrome
             }
         }
-        // The page area is clipped to the safe area; when paper shows there (the start page, the
-        // search layer), it continues up under the status bar.
+        // The page area is clipped to the safe area; what shows there (paper on the start page and
+        // the search layer, the in-place reader's theme, a web page's own background) continues
+        // up under the status bar.
         .background {
             if !hasPage || search.isActive {
                 Palette.paper.ignoresSafeArea()
+            } else if shell.pageReader != nil && !isRegular {
+                readingAppearance.palette(accent: AppAppearance.shared.accent).background.ignoresSafeArea()
+            } else if let page = webStore.pageBackground {
+                Color(uiColor: page).ignoresSafeArea()
             }
         }
     }
@@ -197,30 +238,144 @@ struct BrowseStartView: View {
 
     // MARK: - Layers
 
-    /// The library, the Reader sheet over it (or over the browser), Now Playing over everything.
-    /// Each layer is out of reach and hidden from VoiceOver while one covers it.
+    /// The library, the Reader over it (or over the browser), Now Playing over them, and at
+    /// compact width the bottom chrome over all of them. On compact width the Reader and Now Playing
+    /// are destinations drawn in place under the chrome and cross-fade with the others; on regular
+    /// width they are sheets that rise. Each layer is out of reach and hidden from VoiceOver while one covers it.
     private var layers: some View {
         ZStack {
             if shell.isInLibrary {
-                LibrarySurface()
-                    .covered(shell.reader != nil || shell.isNowPlayingPresented)
+                LibrarySurface(chrome: libraryChrome)
+                    .covered(shell.reader != nil || shell.isNowPlayingPresented || shell.libraryReader != nil)
                     .transition(.opacity)
+                // Library Read: the page's text in place of the Library, which stays under it as it was.
+                if let article = shell.libraryReader, !isRegular {
+                    BrowsePageReader(article: article, speech: speech, onEdgeSwipeBack: shell.closeLibraryReader)
+                        .covered(shell.reader != nil || shell.isNowPlayingPresented)
+                        .transition(.opacity)
+                }
             }
             if let reader = shell.reader {
                 ReaderSheetScreen(state: reader, speech: speech)
                     .id(reader.presentation)
                     .covered(shell.isNowPlayingPresented)
+                    .transition(.opacity)
             }
             if shell.isNowPlayingPresented {
                 NowPlayingScreen(speech: speech)
                     .id(shell.nowPlayingPresentation)
+                    .transition(.opacity)
+            }
+        }
+        .animation(isRegular || reduceMotion ? nil : Motion.snappy, value: ReadingLayers(reader: shell.reader?.presentation,
+                                                                              nowPlaying: shell.nowPlayingPresentation,
+                                                                              libraryReader: shell.libraryReader != nil))
+        .onChange(of: isRegular, initial: true) { _, regular in shell.readsInPlace = !regular }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Listen's ‹ (compact): back to where Listen was entered from. Not in full screen, and not when
+        // there is nowhere to go back to (a cold launch straight to Listen).
+        .overlay(alignment: .topLeading) {
+            if !isRegular, shell.listenBackTarget != nil, !shell.chromeScroll.fullScreen {
+                ListenBackButton(action: shell.backFromListen)
+                    .transition(.opacity)
+            }
+        }
+        .animation(reduceMotion ? nil : Motion.snappy, value: shell.chromeScroll.fullScreen)
+        // Compact: the one bottom chrome, over the browser, the Library, the Reader and Now
+        // Playing alike. The Reader is a destination: it keeps the pill (row 2) under its text, and
+        // the Reader or Now Playing hands the chrome the card it draws above it.
+        .overlayPreferenceValue(ChromeCardKey.self) { card in
+            if !isRegular {
+                compactChrome(card)
             }
         }
     }
 
+    /// Which reading layers are up: a change cross-fades them on compact width.
+    private struct ReadingLayers: Equatable {
+        var reader: UUID?
+        var nowPlaying: UUID?
+        var libraryReader: Bool
+    }
+
+    // MARK: - Compact bottom chrome
+
+    private var libraryChrome: LibraryChrome {
+        LibraryChrome(shell: shell, library: library, speech: speech, preparedAudio: preparedAudio, screen: libraryScreen,
+                      topLevelSort: $topLevelSort, turningOff: $turningOff)
+    }
+
+    /// The host for the browser's and the Library's chrome. The browser's depends on the page
+    /// (saved or not), so the host sits inside its lookup.
+    private func compactChrome(_ card: ChromeCard?) -> some View {
+        let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
+        return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
+            ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen(), card: card)
+                .environment(libraryScreen)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+        }
+    }
+
+    private func browseChromeScreen(_ libraryPage: Article?) -> ChromeScreen {
+        let actions = pageActions(libraryPage)
+        let search = search
+        return ChromeScreen(
+            session: search,
+            cancelID: "addressCancel",
+            onCancel: shell.endAddressSearch,
+            // Like Safari: the session starts with the page's full address, selected.
+            begin: { [webStore] in search.begin(with: webStore.currentURL?.absoluteString ?? "") },
+            canGoBack: webStore.canGoBack,
+            canGoForward: webStore.canGoForward,
+            backID: "browseBack",
+            forwardID: "browseForward",
+            onBack: goBack,
+            onForward: goForward,
+            field: { focus in
+                AnyView(BrowseAddressField(speech: speech, dictation: dictation,
+                                           onOpenReader: { run { try await $0.openInReader(inPlace: true) } }, compact: true,
+                                           onReload: reloadOrStop,
+                                           onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
+            },
+            more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) })
+        )
+    }
+
+    // MARK: - ‹ ›
+
+    /// ‹: the previous page; the reader view it leaves comes back with ›.
+    private func goBack() {
+        shell.browserWillGoBack()
+        webStore.goBack()
+    }
+
+    /// ›: the next page, in reader view again when ‹ left it from there.
+    private func goForward() {
+        shell.browserWillGoForward()
+        webStore.goForward()
+    }
+
+    private func reenterReaderIfAsked() {
+        guard shell.takeReaderToReenter() else { return }
+        run { try await $0.openInReader(inPlace: true) }
+    }
+
+    // MARK: - ↻
+
+    /// A reload brings the page back as the page.
+    private func reload() {
+        shell.closePageReader()
+        webStore.refresh()
+    }
+
+    /// ↻ reloads the page; ✕ (while it loads) stops it.
+    private func reloadOrStop() {
+        if webStore.isLoading { webStore.stopLoading() } else { reload() }
+    }
+
     // MARK: - 🎧
 
-    /// 🎧: pause / resume when the page is what you hear; otherwise extract it and listen now.
+    /// 🎧 (regular width): pause / resume when the page is what you hear; otherwise extract it and listen now.
     /// What's playing keeps playing until this page is ready; a page with nothing to listen to
     /// changes nothing and says so.
     private func listen() {
@@ -267,15 +422,17 @@ struct BrowseStartView: View {
                     shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
                 }
             case .reload:
-                return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: webStore.refresh)
+                return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: reload)
             default: return nil
             }
         }
-        let reader = MenuRow(id: "moreReaderToggle", title: Verbs.reader, icon: Icons.reader,
+        let showing = shell.pageReader != nil
+        let reader = MenuRow(id: "moreReaderToggle", title: showing ? Verbs.showWebPage : Verbs.reader,
+                             icon: showing ? Icons.readerShowing : Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
-                             accessibilityHint: Verbs.openInReader) { run { try await $0.openInReader() } }
+                             accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
         return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
-                           tiles: MenuContext.tiles(shell, last: reader))
+                           tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader))
     }
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
@@ -302,6 +459,8 @@ struct BrowseStartView: View {
             )
             .task(id: favorites.count) { await library.backfillFavoriteIcons() }
         }
+        .modifier(CompactChromeInsets(isCompact: !isRegular))
+        .modifier(CompactChromeScroll(isCompact: !isRegular))
     }
 
     // MARK: - Address

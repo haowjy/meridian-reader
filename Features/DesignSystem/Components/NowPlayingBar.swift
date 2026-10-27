@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// What you hear, on every surface except Now Playing: a floating card above the bottom band's
-/// field capsule, built on the same `PlayerCard` surface as `ReadingPlayerCard`.
+/// field capsule, built on the same `PlayerCard` surface as `ReaderPlayerCard`.
 ///
 /// ```
 /// ╭──────────────────────────────────────────╮

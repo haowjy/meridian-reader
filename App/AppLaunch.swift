@@ -118,7 +118,7 @@ enum AppLaunch {
         } else {
             speech.prepare(session, at: ListenSpot(paragraph: p, utf16Offset: article.positionUTF16))
         }
-        shell.showNowPlaying()
+        shell.resumeNowPlayingAtLaunch()
         ListenTimingLog.log("kokoro_resume", [
             "ok": true, "key": ListenTimingLog.shortKey(article.listenKey), "p": p, "auto_play": autoPlay,
             "text": inText ? "same" : target.text == nil ? "unknown" : "other", "local": tts.usesLocalEngine,

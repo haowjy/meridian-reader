@@ -46,6 +46,8 @@ enum Verbs {
     /// A page in a folder: play from its start, on through the folder.
     static let playFromHere = String(localized: "Play from Here")
     static let playFromStart = String(localized: "Play from Start")
+    /// The Reader's and Now Playing's ⋯ on compact width: the next tap on a paragraph plays from it.
+    static let playFromParagraph = String(localized: "Play from a Paragraph")
     static let prepare = String(localized: "Prepare Audio")
     /// A page's, in its menu and in the Prepared Audio list: its audio deleted, and it stays out of
     /// every download (P8).
@@ -128,6 +130,8 @@ enum Verbs {
     static let sort = String(localized: "Sort")
     static let newSearch = String(localized: "New Search")
     static let reload = String(localized: "Reload")
+    /// ✕ in the address field while a page loads.
+    static let stopLoading = String(localized: "Stop Loading")
     /// The ⋯ panel's last rows and the screens they open.
     static let preparedAudio = String(localized: "Prepared Audio")
     static let settings = String(localized: "Settings")
@@ -148,6 +152,7 @@ enum Verbs {
     static let reader = String(localized: "Reader")
     /// The band's ‹ and ›.
     static let back = String(localized: "Back")
+    static let jumpToAudio = String(localized: "Jump to Audio")
     static let forward = String(localized: "Forward")
     /// ⋯ (a row's, a folder header's, the toolbar's) and the folder header's caption.
     static let more = String(localized: "More")
@@ -155,6 +160,8 @@ enum Verbs {
     static let showAll = String(localized: "Show All")
     /// The Reader's 📄 in the address field and the browser's ⋯ big button.
     static let openInReader = String(localized: "Open in Reader")
+    /// The address field's 📄 while the page shows as its reader view.
+    static let showWebPage = String(localized: "Show Web Page")
     /// The Reader's pill before a page is started (a part-way page says *Continue*).
     static let listen = String(localized: "Listen")
     /// *Import Book…*'s short title and the import sheet's confirming button.

@@ -26,6 +26,17 @@ struct LibraryActions {
         shell.openSaved(article.listenKey, in: library)
     }
 
+    /// *Read*: a saved page's text in place of the Library (compact), like the Browser's reader
+    /// mode: no change of destination and nothing plays. Regular width opens the Reader sheet; a
+    /// link opens in the browser.
+    func read(_ article: Article) {
+        if article.isLink || !shell.readsInPlace || !shell.isInLibrary {
+            open(article)
+            return
+        }
+        shell.openSaved(article.listenKey, in: library, inPlace: true)
+    }
+
     func playState(of article: Article) -> PlayState {
         speech.playState(of: .article(article.listenKey))
     }

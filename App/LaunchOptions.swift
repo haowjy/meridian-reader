@@ -11,11 +11,19 @@ struct LaunchOptions: Equatable {
         /// `-seedPlayedPages N`: also N pages played without saving, part-way ("Played Page 1"
         /// played most recently): the Library's Recent tab.
         var playedArticles = 0
+        /// `-seedDemoParagraphs N`: the article runs to N paragraphs (the first three as always, the rest
+        /// "Paragraph 4: ..." ... one sentence each), so there is text to scroll away from the audio.
+        var paragraphs = 3
+        /// `-seedDemoListenAt P`: the article's saved listening spot is paragraph P (0 = the start).
+        var listenAt = 0
     }
 
     /// `-uiTesting`: expose test-only accessibility markers and skip network-dependent features
-    /// (live Google suggestions), so results don't depend on the network.
+    /// (live search suggestions), so results don't depend on the network.
     var uiTesting = false
+    /// `-stubSuggestions` (with `-uiTesting`): the address field's live suggestions are fixed rows
+    /// (`SearchSuggestionProvider.stub`) rather than none.
+    var stubsSuggestions = false
     /// `-resetLibrary`: start as a fresh install does. Before anything reads them, the stored
     /// settings go (every owner's `storedKeys`: the engine, the voices and each voice library's own
     /// settings, language and speed, both appearances, the remembered surface and the Library's tab
@@ -48,6 +56,9 @@ struct LaunchOptions: Equatable {
     var scrubBubbleDemo = false
     /// `-slowMenuAnimation`: slow the ⋯ morph so a mid-animation frame can be captured.
     var slowMenuAnimation = false
+    /// `-chromeFallback`: draw the compact bottom chrome in its pre-iOS 26 skin (the blur and
+    /// glass tint) on a new OS, since no older simulator runtime is installed to look at it.
+    var forcesChromeFallback = false
     /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
     /// saved articles and bookmarks again.
     var rerunsLibraryMigration = false
@@ -106,10 +117,13 @@ struct LaunchOptions: Equatable {
             return arguments[i + 1]
         }
         uiTesting = flags.contains("-uiTesting")
+        stubsSuggestions = uiTesting && flags.contains("-stubSuggestions")
         resetsLibrary = flags.contains("-resetLibrary")
         if flags.contains("-seedDemoArticle") {
             demoArticle = DemoArticle(plainTextOnly: flags.contains("-seedDemoPlainText"),
-                                      playedArticles: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0)
+                                      playedArticles: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0,
+                                      paragraphs: value(after: "-seedDemoParagraphs").flatMap(Int.init) ?? 3,
+                                      listenAt: value(after: "-seedDemoListenAt").flatMap(Int.init) ?? 0)
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
         opensLibrary = flags.contains("-openLibrary")
@@ -121,6 +135,7 @@ struct LaunchOptions: Equatable {
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
+        forcesChromeFallback = flags.contains("-chromeFallback")
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
         seedsDemoBook = flags.contains("-seedDemoBook")
         demoBookPlace = value(after: "-seedDemoBookPlace").flatMap(Int.init)
@@ -152,7 +167,7 @@ struct LaunchOptions: Equatable {
     /// Whether the app reopens on the surface it was left on.
     var restoresSurface: Bool { !uiTesting || restoresSurfaceInUITests }
 
-    /// Live Google suggestions in the address field.
-    var fetchesSuggestions: Bool { !uiTesting }
+    /// Where the address field's live suggestions come from.
+    var suggestionProvider: SearchSuggestionProvider { uiTesting ? (stubsSuggestions ? .stub : .none) : .live }
 }
 #endif

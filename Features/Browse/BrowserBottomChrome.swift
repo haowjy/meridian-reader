@@ -1,12 +1,8 @@
 import SwiftUI
 
-/// The browser's bottom chrome: the band it shares with the Library (`SurfaceBand`):
-///
-/// ```
-/// [📚] ╭ Now Playing bar ──────────────────────╮   ← 📚 the Library; the bar always there
-/// ( 📄 address …                          🎧 )   ← 📄 / 🎧 on readable pages; 🎤 while searching
-/// [ ‹ ]   [ › ]   [ 🔖 ]   [ 🕘 ]   [ ⋯ ]      ← five slots; step aside while searching
-/// ```
+/// The browser's bottom chrome at regular width: the address field over the clustered dock, with
+/// the browse tools in it. Compact width draws the browser's chrome in the shell's one host
+/// (`ChromeHost`), whose address field is `BrowseAddressField`, the same one this uses.
 ///
 /// A thin load-progress line sits on its top edge. It is its own view so `estimatedProgress`
 /// ticks redraw only the line.
@@ -18,7 +14,7 @@ struct BrowserBottomChrome: View {
     let isSaved: Bool
     var onOpenReader: () -> Void
     /// 🎧: listen to the page now, or pause / resume it when it is what you hear.
-    var onListen: () -> Void
+    var onListen: () -> Void = {}
     var onSubmit: () -> Void
     var onMic: () -> Void
     /// 🔖: save the page to the Library, or remove it.
@@ -28,97 +24,31 @@ struct BrowserBottomChrome: View {
     let menu: () -> MenuContext
 
     @Environment(ShellState.self) private var shell
-    @Environment(\.horizontalSizeClass) private var sizeClass
-
-    /// Regular-width: omit phone swap + Now Playing row (sidebar + clustered dock own those).
-    private var isRegular: Bool { sizeClass == .regular }
 
     private var web: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
-    private var isDictating: Bool { dictation?.isActive == true }
 
     var body: some View {
-        Group {
-            if isRegular {
-                regularChrome
-            } else {
-                SurfaceBand(
-                    swap: .init(systemImage: Icons.library, label: Verbs.library,
-                                hint: String(localized: "Show the Library"), identifier: "browseLibrary",
-                                action: shell.openLibrary),
-                    session: search,
-                    cancelID: "addressCancel",
-                    onCancel: shell.endAddressSearch,
-                    // Like Safari: the session starts with the page's full address, selected.
-                    begin: { search.begin(with: web.currentURL?.absoluteString ?? "") },
-                    isBarCovered: shell.reader != nil
-                ) { focus in
-                    addressField(focus)
-                } toolbar: {
-                    toolbar
-                }
-            }
-        }
-        .overlay(alignment: .top) { LoadProgressLine(web: web) }
-        .animation(Motion.snappy, value: listenState)
+        regularChrome
+            .overlay(alignment: .top) { LoadProgressLine(web: web) }
     }
 
-    /// Regular: address field as main-pane chrome; clustered player + browse tools in the dock.
-    /// Sidebar owns Library swap. Compact path above is unchanged.
+    /// Address field as main-pane chrome; clustered player + browse tools in the dock. The sidebar
+    /// owns the Library swap.
     private var regularChrome: some View {
         VStack(spacing: 0) {
             SurfaceBand(
-                swap: nil,
                 session: search,
                 cancelID: "addressCancel",
                 onCancel: shell.endAddressSearch,
-                begin: { search.begin(with: web.currentURL?.absoluteString ?? "") },
-                isBarCovered: shell.reader != nil,
-                showsNowPlayingBar: false,
-                showsToolbar: false
+                begin: { search.begin(with: web.currentURL?.absoluteString ?? "") }
             ) { focus in
-                addressField(focus)
-            } toolbar: {
-                EmptyView()
+                BrowseAddressField(speech: speech, dictation: dictation, onOpenReader: onOpenReader, onListen: onListen,
+                                   onSubmit: onSubmit, onMic: onMic, focus: focus)
             }
             if !search.isActive {
                 ClusteredPlayerDock(speech: speech, isCovered: shell.reader != nil,
                                     trailingTools: AnyView(toolbar))
-            }
-        }
-    }
-
-    // MARK: - Address field
-
-    /// The page's canonical URL when 🎧 can listen to it (a readable page).
-    private var listenTarget: ListenTarget? {
-        guard !search.isActive, web.hasPage, web.isReaderable, let url = web.currentURL else { return nil }
-        return .webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
-    }
-
-    private var listenState: PlayState? {
-        listenTarget.map(speech.playState(of:))
-    }
-
-    private typealias Field = AddressField<TextFieldBox, MicBox>
-
-    private var readerButton: Field.ReaderButton {
-        if search.isActive { return .searching }
-        if shell.busy == .reader { return .extracting }
-        return web.hasPage && web.isReaderable ? .available : .hidden
-    }
-
-    private func addressField(_ focus: FocusState<Bool>.Binding) -> some View {
-        @Bindable var search = search
-        return Field(reader: readerButton, listen: listenState, onOpenReader: onOpenReader, onListen: onListen) {
-            TextFieldBox(text: $search.text, isDictating: isDictating, focus: focus, onSubmit: onSubmit)
-        } accessory: {
-            MicBox(shown: search.isActive, isDictating: isDictating,
-                   isListening: dictation?.isListening == true, action: onMic)
-        }
-        .overlay {
-            if isDictating {
-                Capsule().strokeBorder(Palette.accent, lineWidth: 1.5)
             }
         }
     }
@@ -169,6 +99,40 @@ private struct TextFieldBox: View {
     }
 }
 
+/// What sits at the address field's end while searching: ⊗ (with text), then 🎤.
+private struct AddressAccessories: View {
+    @Binding var text: String
+    let searching: Bool
+    let isDictating: Bool
+    let isListening: Bool
+    let onMic: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            if searching { ClearBox(text: $text) }
+            MicBox(shown: searching, isDictating: isDictating, isListening: isListening, action: onMic)
+        }
+    }
+}
+
+/// ⊗ inside the field's end while searching and there is text: empties it, the keyboard stays.
+private struct ClearBox: View {
+    @Binding var text: String
+
+    var body: some View {
+        if !text.isEmpty {
+            Button { text = "" } label: {
+                Image(systemName: Icons.clearText)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .fieldControlFrame()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Clear text")
+            .accessibilityIdentifier("addressClear")
+        }
+    }
+}
+
 /// 🎤, only while searching.
 private struct MicBox: View {
     let shown: Bool
@@ -207,5 +171,71 @@ struct LoadProgressLine: View {
             .frame(height: 2)
             .allowsHitTesting(false)
         }
+    }
+}
+
+/// The browser's address field: 📄 on readable pages (it toggles the page's reader view in compact
+/// width), the page's address, and at the trailing end 🎧 in the regular band or ↻ / ✕ in the compact
+/// chrome host (`compact`; play and pause live in the chrome's own button there). 🎤 while searching.
+struct BrowseAddressField: View {
+    @Bindable var speech: SpeechController
+    /// Address-bar dictation (nil until the mic is first used).
+    let dictation: AddressDictation?
+    var onOpenReader: () -> Void
+    /// The compact chrome host's field: ↻ / ✕ in place of 🎧.
+    var compact = false
+    /// 🎧 (regular width): listen to the page now, or pause / resume it when it is what you hear.
+    var onListen: () -> Void = {}
+    /// ↻ / ✕ (compact width).
+    var onReload: () -> Void = {}
+    var onSubmit: () -> Void
+    var onMic: () -> Void
+    let focus: FocusState<Bool>.Binding
+
+    @Environment(ShellState.self) private var shell
+
+    private var web: WebViewStore { shell.web }
+    private var search: SearchSession { shell.addressSearch }
+    private var isDictating: Bool { dictation?.isActive == true }
+
+    /// The page's canonical URL when 🎧 can listen to it (a readable page).
+    private var listenTarget: ListenTarget? {
+        guard !search.isActive, web.hasPage, web.isReaderable, let url = web.currentURL else { return nil }
+        return .webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
+    }
+
+    private var listenState: PlayState? {
+        compact ? nil : listenTarget.map(speech.playState(of:))
+    }
+
+    private var reloadButton: Field.ReloadButton? {
+        guard compact, !search.isActive, web.hasPage else { return nil }
+        return web.isLoading ? .stop : .reload
+    }
+
+    private typealias Field = AddressField<TextFieldBox, AddressAccessories>
+
+    private var readerButton: Field.ReaderButton {
+        if search.isActive { return .searching }
+        if shell.busy == .reader { return .extracting }
+        if compact && shell.pageReader != nil { return .showing }
+        return web.hasPage && web.isReaderable ? .available : .hidden
+    }
+
+    var body: some View {
+        @Bindable var search = search
+        Field(reader: readerButton, listen: listenState, reload: reloadButton, onOpenReader: onOpenReader,
+              onListen: onListen, onReload: onReload) {
+            TextFieldBox(text: $search.text, isDictating: isDictating, focus: focus, onSubmit: onSubmit)
+        } accessory: {
+            AddressAccessories(text: $search.text, searching: search.isActive, isDictating: isDictating,
+                               isListening: dictation?.isListening == true, onMic: onMic)
+        }
+        .overlay {
+            if isDictating {
+                Capsule().strokeBorder(Palette.accent, lineWidth: 1.5)
+            }
+        }
+        .animation(Motion.snappy, value: listenState)
     }
 }

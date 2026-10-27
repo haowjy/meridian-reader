@@ -93,6 +93,8 @@ final class SpeechController {
     /// Told about the `ReaderArticle` a page is started from (`listen(to:)`), before its session
     /// binds, so the recorder can keep a page the library doesn't have with its text.
     @ObservationIgnored var onListen: ((ReaderArticle) -> Void)?
+    /// A page starts or switches the audio (`start`), as the user pressed it: the shell records where.
+    @ObservationIgnored var onLaunch: (() -> Void)?
     /// The library as folders play through it (`SpeechController+Advance`). nil: every
     /// page plays to its end and stops.
     @ObservationIgnored var nextChapters: NextChapterProviding?
@@ -313,6 +315,7 @@ final class SpeechController {
     /// already bound plays from `spot`'s paragraph). A page in a folder carries on through it.
     func start(_ session: SpeechSession, at spot: ListenSpot = .top) {
         guard !session.document.isEmpty else { return }
+        onLaunch?()
         prepare(session, at: spot)
         userPerform(.play(from: spot.paragraph))
     }

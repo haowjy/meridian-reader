@@ -8,10 +8,13 @@ struct TextAppearanceControl: View {
     @Environment(\.readingAppearance) private var appearance
     @Environment(\.readingPalette) private var reading
     @State private var isOpen = false
+    /// Which edge of Aa the popover's arrow is on: `.top` under a top bar's Aa, `.bottom` for the
+    /// player card's, which sits at the screen's foot and has no room below it.
+    var arrowEdge: Edge = .top
 
     var body: some View {
         TextAppearanceButton(isOpen: isOpen) { isOpen.toggle() }
-            .popover(isPresented: $isOpen, arrowEdge: .top) {
+            .popover(isPresented: $isOpen, arrowEdge: arrowEdge) {
                 ReadingAppearancePanel(appearance: appearance)
                     .frame(width: Panel.width)
                     .presentationCompactAdaptation(.popover)

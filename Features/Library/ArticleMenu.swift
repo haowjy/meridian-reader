@@ -165,14 +165,63 @@ struct ArticleMenu: View {
 
 extension ArticleActions {
     /// The ⋯ panel of the Reader and Now Playing (decision D24, C140): the page's menu, then
-    /// *Prepared Audio*, then `[Settings][Saved][Reader]`. Reader is disabled: already reading.
+    /// *Prepared Audio*, then `[Settings][Saved][Listen]` (`[Settings][Saved][History][Listen]` on compact width). Listen is disabled: already reading.
     /// Website is reachable via Share in the article's own menu rows.
-    func readingPageMenu(_ place: ArticleMenu.Place) -> MenuContext {
-        let reader = MenuRow(id: "moreReader", title: Verbs.reader, icon: Icons.reader,
+    func readingPageMenu(_ place: ArticleMenu.Place, compact: Bool) -> MenuContext {
+        let reader = MenuRow(id: "moreListen", title: Verbs.listen, icon: Icons.listen,
                              availability: .disabled,
-                             accessibilityHint: String(localized: "Already in the Reader"))
+                             accessibilityHint: String(localized: "Already in Listen"))
         return MenuContext(item: ArticleMenu(actions: self, place: place).rows,
                            screen: MenuContext.screenRows(at: place.registryPlace, shell: shell),
-                           tiles: MenuContext.tiles(shell, last: reader), isOnReadingPage: true)
+                           tiles: MenuContext.tiles(shell, compact: compact, last: reader), isOnReadingPage: true)
+    }
+
+    /// The reading page on screen, with its ⋯ panel: the playing page on Now Playing, else the
+    /// Reader sheet's. The compact chrome's ⋯ opens it, so the page's menu is built here once for
+    /// both screens.
+    @MainActor
+    static func readingPageMenu(shell: ShellState, library: LibraryStore, speech: SpeechController,
+                                preparedAudio: PrepareCenter, follow: FollowCenter, compact: Bool) -> MenuContext {
+        let now = shell.isNowPlayingPresented ? speech.nowPlaying : nil
+        let readerArticle = now.map { library.nowPlayingContent(for: $0.articleKey) } ?? shell.readerArticle
+        let key = now?.articleKey ?? readerArticle?.id
+        let actions = ArticleActions(article: key.flatMap { library.article(key: $0, canonicalURL: readerArticle?.origin.canonicalURL) },
+                                     readerArticle: readerArticle, library: library, shell: shell, speech: speech,
+                                     preparedAudio: preparedAudio, follow: follow)
+        return actions.readingPageMenu(now.map { .nowPlaying(actions.goTo($0)) } ?? .open, compact: compact)
+    }
+
+    /// Where the page on Listen lives: the Library at its folder (or the home) when it is in the
+    /// Library, else its web page; nil when it has neither (the title block then does nothing).
+    var listenOrigin: ListenOrigin? {
+        if let article, article.isInLibrary { return .library(path: article.folder.map { library.path(to: $0) } ?? []) }
+        if let url = websiteURL, url.isWeb { return .browser(url) }
+        return nil
+    }
+
+    /// The card's title block: goes where ‹ goes, the place that launched the listening (it shares
+    /// `ShellState.listenLaunch`), and never seeks. With no launch record (a cold launch straight to
+    /// Listen) it opens the page's own place (`listenOrigin`); nil when there is none.
+    func cardOrigin(title: String) -> CardOrigin? {
+        if let launch = shell.listenBackTarget {
+            return CardOrigin(label: launch.origin.label(title: title)) { [shell] in shell.backFromListen() }
+        }
+        guard let origin = listenOrigin else { return nil }
+        return CardOrigin(label: origin.label(title: title)) { [shell, readerArticle] in
+            shell.openOrigin(origin, article: readerArticle)
+        }
+    }
+
+    /// Now Playing's *Go to <place>*: the folder the page plays from, or the Library's home for a
+    /// saved page in none; dimmed *Go to Library* for a page that plays from its site (⋯ → Website
+    /// opens it). Playback keeps going.
+    private func goTo(_ now: NowPlaying) -> ArticleMenu.GoTo {
+        if case .folder(let id, _) = now.playingFrom {
+            return ArticleMenu.GoTo(name: now.playingFrom.name, symbol: Icons.folder, availability: .enabled) { [shell, library] in
+                if let folder = library.folder(id: id) { shell.showLibrary(at: library.path(to: folder)) }
+            }
+        }
+        return ArticleMenu.GoTo(name: Verbs.library, symbol: Icons.library,
+                                availability: MenuAvailability(when: isSaved)) { [shell] in shell.showLibrary(at: []) }
     }
 }

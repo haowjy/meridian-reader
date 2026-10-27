@@ -15,6 +15,8 @@ struct SaveToggleButton: View {
     let onToggle: () -> Void
     /// Long-press → *Save to Folder…* (nil: no long-press).
     var onSaveToFolder: (() -> Void)?
+    /// On `roundFieldControl`'s face, like Voice and Aa (the player card), not a toolbar cell.
+    var round = false
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.readingPalette) private var reading
@@ -34,7 +36,7 @@ struct SaveToggleButton: View {
             }
             // Disabled (no page), it dims like ‹ and ›; the spinner shows in full.
             .opacity(isEnabled || isBusy ? 1 : Palette.disabledOpacity)
-            .toolbarIconFrame()
+            .modifier(SaveFace(round: round, fill: BottomChrome.fieldFill(reading)))
         }
         .buttonStyle(GlyphButtonStyle())
         .highPriorityGesture(
@@ -48,6 +50,20 @@ struct SaveToggleButton: View {
             if let onSaveToFolder {
                 Button(Verbs.saveToFolder, action: onSaveToFolder)
             }
+        }
+    }
+}
+
+private struct SaveFace: ViewModifier {
+    let round: Bool
+    let fill: Color
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if round {
+            content.roundFieldControl(fill: fill)
+        } else {
+            content.toolbarIconFrame()
         }
     }
 }

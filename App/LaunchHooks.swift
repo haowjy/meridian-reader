@@ -22,7 +22,7 @@ enum LaunchHooks {
                                     preparedAudio: PrepareListStore = PrepareListStore()) {
         let keys = SpeechController.storedKeys + LocalTTSCoordinator.storedKeys(for: engines)
             + AppAppearance.storedKeys + ReadingAppearance.storedKeys + LibraryTopLevel.storedKeys
-            + RecentSearches.storedKeys + ContentBlocker.storedKeys + SurfaceMemoryStore.storedKeys
+            + RecentSearches.storedKeys + SearchSuggestions.storedKeys + ContentBlocker.storedKeys + SurfaceMemoryStore.storedKeys
             + DeveloperSettings.storedKeys + WhatsNewStore.storedKeys
         for key in keys { defaults.removeObject(forKey: key) }
         preparedAudio.save([])
@@ -248,13 +248,20 @@ enum LaunchHooks {
     /// than the one before ("Played Page 1" most recently), which no store write does (a play is
     /// dated as it starts).
     static func seedDemoArticle(_ demo: LaunchOptions.DemoArticle, in library: LibraryStore) {
-        let paragraphs = [
+        var paragraphs = [
             "First paragraph for listen probe. This one is intentionally longer so Simulator UI tests can press next and previous before speech finishes the whole article on its own.",
             "Second paragraph so next and previous skip have somewhere to go. Extra sentences keep the synthesizer busy while the probe checks speed and paragraph controls.",
             "Third paragraph finishes the demo article used by Simulator UI tests. One more cushion of text so stop can be exercised while playback is still active.",
         ]
-        _ = try? library.save(webPage("Demo Listen Article", at: "https://example.com/demo", paragraphs: paragraphs,
-                                      html: !demo.plainTextOnly))
+        if demo.paragraphs > 3 {
+            for n in 4...demo.paragraphs {
+                paragraphs.append("Paragraph \(n): one sentence, about three lines long on a phone, so the paragraph is its own sentence "
+                                  + "and the article is long enough to scroll.")
+            }
+        }
+        let article = try? library.save(webPage("Demo Listen Article", at: "https://example.com/demo", paragraphs: paragraphs,
+                                                html: !demo.plainTextOnly))
+        if let article, demo.listenAt > 0 { library.recordPosition(article, paragraph: demo.listenAt, utf16Offset: 0) }
         for i in 0..<demo.playedArticles {
             let played = library.recordPlayback(webPage("Played Page \(i + 1)", at: "https://example.com/played-\(i + 1)",
                                                         paragraphs: ["Played page \(i + 1), first paragraph.",

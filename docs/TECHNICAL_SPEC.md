@@ -43,15 +43,15 @@ Core/
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
 Features/
-  Shell/    ShellState, bottom chrome, ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
+  Shell/    ShellState, the compact bottom chrome (`Chrome/`: `ChromeState`, `ChromeLayout`, `ChromeScroll`, `ChromeHost`, `ChromePieces`; its `ChromeMetrics` are in `DesignSystem/Chrome/`), ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
   DesignSystem/  tokens (incl. `RegularLayout`: the iPad sidebar, readable-measure and sheet widths)
   Browse/   start page, browser chrome, page actions (PageArticleService), dictation
-  Reader/   the Reader sheet, Now Playing (text that follows the audio, scrub row, controls)
+  Reader/   the Reader, Now Playing (text that follows the audio, scrub row, controls)
   Library/  the Library surface and screens (home, folder), rows, the Move tree, Favorites' sheet and ☆, the import sheet
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a library over its own files
-UITests/    one end-to-end smoke flow (MeridianReaderUITests)
+UITests/    the smoke flow and the in-place Reader chrome flow (MeridianReaderUITests)
 ```
 
 ## Architecture
@@ -73,11 +73,39 @@ UITests/    one end-to-end smoke flow (MeridianReaderUITests)
   band and `ClusteredPlayerDock`, `ReaderSheetScreen`'s `regularReadableMeasure`, `ShellSheetView`'s
   `regularInsetFormSheet` for Voice and Settings). State, data and playback are shared; compact
   chrome is untouched. Sizes live in `RegularLayout`. See NAVIGATION.md → "iPad and regular width".
+- **Compact bottom chrome** (`Features/Shell/Chrome/` with its tokens in `Features/DesignSystem/Chrome/`;
+  one rule set, no screen-specific cases). `ChromeState` is a pure value: destination, collapse
+  `progress` (continuous, 0 to 1), the Reader's `fullScreen`, played, back / forward, keyboard,
+  reader mode, editing. `ChromeLayout` is the one pure layout function from (width, state) to every
+  piece's rect and opacity (the mockups' `rectsFor`: each piece is `mix(expanded, collapsed,
+  progress)`, the keyboard's form is the collapsed one without arrows); it is sized by `ChromeMetrics`
+  (every size a multiple of a base unit of 4, one `barHeight` 48, names and values those of the
+  mockups' `SZ`, checked by `tools/check-tokens.js`). `ChromeScroll` (`ShellState.chromeScroll`) owns
+  the progress and `fullScreen` and is the one scroll controller the Library, the Browser and the
+  Reader feed (`progress += dy / 90`, snap 150 ms after the finger stops; Reader offsets that no
+  finger moved only re-anchor it, `anchor(at:)`; locked while the keyboard or ⋯ is up). `ChromeScroll.displayed`
+  chases the progress with a per-frame exponential filter (`ChromeScroll.smoothing`, the prototype's
+  55 ms time constant, stepped by a display link) and `ChromePieces`, animatable in it, draws every
+  piece each frame; any other change is one `Motion.standard` step. Under Reduce Motion the fold is
+  binary and every change of form (fold, keyboard, full screen) is a cross-fade of the whole host. The
+  reading page in place reads and toggles full screen through `ReadingInPlace`, so
+  `ReadingChrome.hidden` has no copy. `ShellState` owns the chrome's destination and the pill's
+  selection (`chromeDestination`, `select`). `ChromeHost` only wires those to the app: `ChromePlayback`
+  (the play button and the resume query), `ChromeFade` (the translucent gradient under the pieces),
+  `ChromeControls` (pill, navigation, play button), `ChromeSkin` (glass, or blur and tint before iOS
+  26). The Reader's and Now Playing's player card (`ReaderPlayerCard`, a design-system view of plain
+  values) is built by the screens and handed up as a preference (`ChromeCard`); the host draws it on
+  the field piece's glass, so one surface folds into the title chip.
+- **Reading pages.** The Reader and Now Playing are one `ReadingPage` (`ReaderSheet` and
+  `NowPlayingSheet` supply their bands): `ReadingBars` lays out the text between the top bar and
+  the band; compact width draws it in place under the chrome, regular width inside a `Sheet`
+  (`ReadingShowing`). `Sheet` and `SheetPullHandoff` remain for regular width and Follow's chapter preview.
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
-  sheet and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
+  and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. A reading
-  sheet's full screen is its own view state (`ReadingChrome`, held by `ReaderSheet` and
-  `NowPlayingSheet`, fed by the reading web view's drags and taps), not the shell's. The reading
+  page's full screen is its own view state (`ReadingChrome`, held by `ReaderSheet` and
+  `NowPlayingSheet`, fed by the reading web view's taps and pulls), not the shell's, except for the
+  one mirror the chrome host reads. The reading
   web view's coordinator decides what the text shows (its hold: a fresh article's top, a handed-over
   place, the saved spot, a scrub; the spoken sentence while following) and one of two layouts
   (`ReadingTextLayout`) puts it on screen and keeps the reader's place through new layouts:
@@ -99,7 +127,7 @@ UITests/    one end-to-end smoke flow (MeridianReaderUITests)
   `App/Fixtures/`; App hands Core, the design system and Features what a launch asks for: the
   test pages' handler to the browser's web view (`webViewSchemeHandlers`) and to the
   `URLPageFetcher` behind Follow's `FetchQueue`, the ⋯ panel's test marker and slowed morph
-  (`morphMenuMarksFocus`, `morphMenuAnimation`), Google suggestions off under `-uiTesting` and the
+  (`morphMenuMarksFocus`, `morphMenuAnimation`), search suggestions none (or the fixed `-stubSuggestions` rows) under `-uiTesting` and the
   scrub-bubble screenshot (environment values from `LaunchTestHooks`), the test EPUB in place of
   the Files picker (`BookImportActions.importsTestBook`, set in `AppMain`). No Feature reads
   `LaunchOptions`.
@@ -477,12 +505,12 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 | Reading a saved article | Yes (`cleanedHTML`) |
 | Listening | Yes: Apple voices; Phonon or Kokoro once its model is downloaded |
 | Loading pages, Save of a new page | No |
-| Google suggestions, favicons | No (they quietly don't show) |
+| Search suggestions, favicons | No (they quietly don't show) |
 
 ## Network use
 
 All of it is user-initiated or for the article in view: article loads, Google search and the unofficial
-Google suggest endpoint (`suggestqueries.google.com`, while typing in the address field), favicons
+Google suggest endpoint (`suggestqueries.google.com`, while typing in the address field and only while Settings › Browsing › Search Suggestions is on: an ephemeral `URLSession`, no cookies, cache, credentials or referrer, nothing logged, one request per typing pause, in-flight request cancelled), favicons
 of visited and bookmarked sites, and the one-time voice model downloads: Phonon's zip (GitHub release of `gradium-ai/xn-ptts`) and Kokoro's model and voice packs (Hugging
 Face), asked first on cellular or Low Data Mode. No analytics.
 
@@ -521,6 +549,8 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 
 `ReadingChrome.showsJumpToAudio(awayFromAudio:)` is the one rule for both layouts: `awayFromAudio && !hidden`. `NowPlayingSheet` shows the pill through it, so in full screen (Scroll or Pages) only `FloatingPlayButton` floats over the text, with its look, place and `floatingDuration` fade unchanged. `JumpToAudioRuleTests` checks it.
 
+The button is a round 44 pt glass circle at the right edge, 12 pt above the player card (Round 9f; it was a pill at the top, 9e, and above the band before): `NowPlayingSheet`'s overText puts `JumpToAudioButton` bottom-aligned and trailing, with the same `Spacing.s` trailing inset as the card's margin, in `ReadingBars`' overText slot, so the 12 pt gap is the slot's `overTextClearance + Spacing.s`, the same as the floating ▶'s: it follows the card (or the folded row) through a fold and never shifts on its own. Its face is `chromeSurface(Circle(), fill: BottomChrome.fieldFill(reading))`, the glass of the Listen ‹ and the other round controls (the reading card's fill before iOS 26), with `BottomChrome.chromeGlyph` in the theme's ink. The arrow is `arrow.up` / `arrow.down` (`Icons.jumpToAudioUp` / `Down`): `HTMLReadingWebView.Coordinator.updateSpotSide()` reports a `JumpDirection` through `onSpotSide` while the text is not following – Scroll: the spoken sentence's middle (`__readerSpokenRect`, cached per sentence and dropped on a reflow, so a drag costs no calls) against the middle of the visible text between the adjusted insets, checked on every `contentOffset` change; Pages: `PagesTextLayout.side(of:)`, the spoken spot against the page's first and next-page spots – and `NowPlayingScreen` keeps it in `spotSide`. Label "Jump to Audio" (`Verbs.jumpToAudio`), a hint that names the direction, id `nowPlayingJumpToAudio`; the circle is 44 pt, so it is its own tap target; `.transition(.opacity)` with `Motion.fadeOut` leaving (and `fadeIn`, not the spring, under Reduce Motion). It stays its own view (it reads `chrome.hidden` itself), so full screen removes it at once. Tapping it sets `following`, and `HTMLReadingWebView.Coordinator.goToSpoken(.animate)` scrolls through `ScrollTextLayout.centre(top:height:)` – the same helper that opens Now Playing on the spoken sentence, follows each new paragraph and shows a scrub – so the sentence lands in the middle of the visible text (`contentInset.top` to `bottom`), not at its top; at a document end it stops at the limit. `testJumpToAudioCentresTheSpotInTheVisibleText` (with `-seedDemoParagraphs` / `-seedDemoListenAt`) pins the middle within 40 pt, and `testJumpToAudioSitsAboveTheCardAtTheRightEdge` the place (44 pt round, card's right edge, 12 pt above the card; run on a 17 Pro and an SE). The text's bottom inset must be the card's footprint: `ReadingPage` passes a zero-height band (`Color.clear.frame(height: 0)`), because an `EmptyView` band was measured by `ReadingBars` at the whole proposed height (570 pt on a 17 Pro), which made the bottom inset 812 pt (the web view's height), put the visible-text middle off-screen and landed the sentence at the very top.
+
 ## Engine stop recovery (C129)
 
 - `EngineCrashGuard.beginCall` stamps the in-flight marker with `buildStamp` (executable size and
@@ -543,7 +573,8 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 ## Tests (C133)
 
 Critical-only: crash guard and recovery policy, prepare cache integrity, no data loss on a
-failed save, no text dropped by the chunker, and one smoke UI test. About 13 s to run. The audit
+failed save, no text dropped by the chunker, one smoke UI test, and (at the owner's request) the
+compact chrome: unit tests of its state, layout and scroll controller and one UI test. About 13 s to run. The audit
 table is in the decision log (C133).
 
 ## Retention and Prepared Audio (C134, C135, C136)

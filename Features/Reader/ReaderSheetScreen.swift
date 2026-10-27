@@ -1,9 +1,12 @@
 import SwiftUI
 
-/// The Reader sheet (`ReaderSheet`): one page for reading, over the surface that opened it, with
-/// its own Listen. The close pill names what is underneath ("‹ Browser", "‹ Library"); it, the
-/// grabber and a pull down close it to exactly where you were. Its top bar, 🔖 and ⋯ are Now
-/// Playing's too (decision D24), so Listen turns one into the other with nothing moving. Playback never stops for it.
+/// The Reader (`ReaderSheet`): one page for reading, with its own Listen. On compact width it is a
+/// destination in the chrome's pill, in place under the bottom chrome, which draws its player card
+/// (`ChromeCard`; Aa, Voice, 🔖 and the transport are in it, ☝︎ is a row of ⋯); Library and Browser in
+/// the pill leave it to exactly where you were. On regular width it is a sheet over the surface that
+/// opened it, closed by the close pill ("‹ Browser", "‹ Library"), the grabber and a pull down. Its
+/// top bar, 🔖 and ⋯ are Now Playing's too (decision D24), so Listen turns one into the other with
+/// nothing moving. Playback never stops for it.
 ///
 /// - The Reader never shows what you hear (the shell opens Now Playing for that page), so the
 ///   Now Playing bar above its toolbar is always another page.
@@ -17,11 +20,12 @@ import SwiftUI
 ///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
 ///   Prepare, Prepared Audio; then Settings / Saved / Reader, Reader disabled here, C140). Both act through
 ///   `ArticleActions`, as in Now Playing.
-/// - Aa, left of ☝︎, changes how the page reads (`TextAppearanceControl`), live.
+/// - Aa changes how the page reads (`TextAppearanceControl`), live: left of ☝︎ in the sheet's top bar,
+///   in the card's transport on compact width.
 /// - Voice (`VoiceChromeButton`), right of the title in the bottom band, opens the page's Voice
 ///   picker (same as ⋯ › Voice / Settings › Voice's list).
-/// - Scrolling down reads full screen, as in Now Playing (`ReaderSheet`, `ReadingChrome`); a link
-///   in the text opens in the browser.
+/// - A tap in the middle of the text reads full screen, as in Now Playing (`ReadingPage`,
+///   `ReadingChrome`); a link in the text opens in the browser.
 ///
 /// Save / Remove only flips 🔖: the article key is already the saved id (identity v2), so the
 /// view and any playing audio are untouched.
@@ -52,18 +56,22 @@ struct ReaderSheetScreen: View {
 
     private func sheet(_ actions: ArticleActions) -> some View {
         let start = listenStart(actions.article)
-        let listen = listenLabel(start, finished: actions.article?.finishedAt != nil)
+        let listen = readerArticle.listenLabel(from: start, finished: actions.article?.finishedAt != nil,
+                                               rate: speech.rateMultiplier)
         let palette = appearance.palette(accent: AppAppearance.shared.accent)
         let isFinished = actions.article?.finishedAt != nil
         let timeDetail = isFinished ? String(localized: "Finished") : listen.detail
+        let compactCard = sizeClass == .regular ? nil
+            : card(actions, start: start, detail: isFinished ? [timeDetail].compactMap { $0 } : detail(listen.detail))
         let playerTitle = ArticleRowTitle.lineOne(title: readerArticle.title, source: readerArticle.sourceLabel,
                                                   address: readerArticle.origin.canonicalURL)
         let playerLetter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,
                                                          address: readerArticle.origin.canonicalURL)
         return ReaderSheet(
-            backTitle: state.origin.backTitle,
+            showing: shell.readingShowing(
+                regular: sizeClass == .regular, close: .back(state.origin.backTitle),
+                onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) }),
             listenState: speech.playState(of: .article(readerArticle.id)),
-            onClose: { [shell, presentation = state.presentation] in shell.readerDidClose(presentation) },
             onListen: { self.listen(from: nil, start: start) },
             palette: palette
         ) {
@@ -109,7 +117,7 @@ struct ReaderSheetScreen: View {
                         .padding(.trailing, -(BottomChrome.minTapTarget - BottomChrome.iconSize) / 2)
                 }
                 // Scrub track (thin, no capsule, full width)
-                readerScrubTrack(palette: palette)
+                readerScrubTrack
                 // Transport: [1x] [⏮] (▶) [⏭] [...]
                 NowPlayingTransport(state: speech.playState(of: .article(readerArticle.id)),
                                     canSkipBack: false, canSkipForward: false,
@@ -117,14 +125,16 @@ struct ReaderSheetScreen: View {
                                     onPlayPause: { self.listen(from: nil, start: start) }) {
                     SpeedButton(speech: speech)
                 } more: {
-                    MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
-                        .foregroundStyle(palette.ink)
+                    // Compact width: the chrome's ⋯ (`ReadingPageMoreButton`) is the page's menu.
+                    if sizeClass == .regular {
+                        ReadingPageMoreButton(id: "readerMore").foregroundStyle(palette.ink)
+                    } else {
+                        Color.clear.frame(height: BottomChrome.rowHeight)
+                    }
                 }
             }
             .frame(maxWidth: sizeClass == .regular ? RegularLayout.playerClusterWidth : .infinity)
             .frame(maxWidth: .infinity)
-        } more: {
-            MoreMenuButton(id: "readerMore") { actions.readingPageMenu(.open) }
         } floating: {
             // The toast floats above the hairline.
             ZStack(alignment: .top) {
@@ -132,13 +142,44 @@ struct ReaderSheetScreen: View {
                 ShellToastLayer()
             }
         }
+        .chromeCard(compactCard)
         .task(id: WarmKey(id: readerArticle.id, count: readerArticle.document.count)) {
-            prepareListen(from: start, saved: actions.isSaved)
+            speech.warmUp(readerArticle, from: start, saved: actions.isSaved)
         }
     }
 
+    /// Compact width: the card the chrome draws above row 2, and ⋯'s row for ☝︎.
+    private func card(_ actions: ArticleActions, start: ListenSpot, detail: [String]) -> ChromeCard {
+        let title = ArticleRowTitle.lineOne(title: readerArticle.title, source: readerArticle.sourceLabel,
+                                            address: readerArticle.origin.canonicalURL)
+        let letter = ArticleRowTitle.artworkLetter(title: readerArticle.title, source: readerArticle.sourceLabel,
+                                                   address: readerArticle.origin.canonicalURL)
+        let view = ReaderPlayerCard(
+            title: title, detail: detail, artworkLetter: letter, playState: speech.playState(of: .article(readerArticle.id)),
+            canSkip: false, onSkipBack: {}, onSkipForward: {},
+            onPlayPause: { self.listen(from: nil, start: start) },
+            origin: actions.cardOrigin(title: title)
+        ) {
+            VoiceChromeButton(identifier: "readerVoice") { shell.present(.voice(.article(readerArticle.id))) }
+        } save: {
+            SaveToggleButton(isSaved: actions.isSaved, identifier: "readerBookmark",
+                             onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder, round: true)
+        } scrub: {
+            readerScrubTrack
+        } appearance: {
+            TextAppearanceControl(arrowEdge: .bottom)
+        } speed: {
+            SpeedButton(speech: speech, round: true)
+        }
+        let jump = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
+                           availability: MenuAvailability(when: sessionReady)) {
+            withAnimation(Motion.snappy) { jumpMode.toggle() }
+        }
+        return ChromeCard(content: AnyView(view), menuRows: [jump])
+    }
+
     /// A thin scrub track at position 0 for the Reader (before Listen starts).
-    private func readerScrubTrack(palette: ReadingPalette) -> some View {
+    private var readerScrubTrack: some View {
         let paragraphs = readerArticle.document.paragraphs
         return Group {
             if !paragraphs.isEmpty {
@@ -199,20 +240,6 @@ struct ReaderSheetScreen: View {
         return [readerArticle.sourceLabel, status ?? length].filter { !$0.isEmpty }
     }
 
-    /// Listen's title and the lighter time after it, at the current speed: "Listen" "9 min",
-    /// "Continue" "6 min left", "Listen Again".
-    private func listenLabel(_ start: ListenSpot, finished: Bool) -> (title: String, detail: String?) {
-        if finished { return (String(localized: "Listen Again"), nil) }
-        let doc = readerArticle.document
-        if start.isPartWay, doc.paragraphs.indices.contains(start.paragraph) {
-            let at = start.resolved(in: doc).utf16Offset
-            let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: at, rate: speech.rateMultiplier)
-            return (Verbs.continue, ListeningTime.leftLabel(minutes: left))
-        }
-        return (Verbs.listen,
-                ListeningTime.label(minutes: ListeningTime.minutes(utf16Length: totalLength, rate: speech.rateMultiplier)))
-    }
-
     // MARK: - Actions
 
     /// Listen (`paragraph` nil: from the page's saved spot, `start`; a finished page from the
@@ -233,30 +260,6 @@ struct ReaderSheetScreen: View {
         let handOver = scroll.handOver
         speech.listen(to: readerArticle, at: spot)
         shell.turnReaderIntoNowPlaying(handOver: handOver)
-    }
-
-    /// Identity alignment + the first audio for this article, so Listen starts quickly. The Reader
-    /// never shows what is playing, so this never touches live playback.
-    private func prepareListen(from start: ListenSpot, saved: Bool) {
-        guard sessionReady else { return }
-        let paragraphs = readerArticle.document.paragraphs
-        ListenTimingLog.log("reader_open", [
-            "key": ListenTimingLog.shortKey(readerArticle.id),
-            "paragraphs": paragraphs.count,
-            "chars": paragraphs.reduce(0) { $0 + $1.count },
-            "resume_p": start.paragraph,
-            "local_ready": speech.localTTS.usesLocalEngine,
-            "saved": saved,
-        ])
-        speech.localTTS.prepareListenIdentity(
-            key: readerArticle.id,
-            paragraphs: paragraphs,
-            trustedParagraphs: readerArticle.trustedParagraphs,
-            legacyKeys: readerArticle.legacyCacheKeys,
-            isLivePlayback: false
-        )
-        speech.localTTS.openArticle(cacheKey: readerArticle.id, paragraphs: paragraphs, from: start.paragraph,
-                                    isEphemeral: !saved)
     }
 
     private struct WarmKey: Hashable {
