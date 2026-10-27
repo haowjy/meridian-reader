@@ -2,7 +2,7 @@
 import Foundation
 import SwiftData
 
-/// What the UI-test and diagnostics launch arguments (`LaunchOptions`) do (Debug builds only). A
+/// What the probe, screenshot and diagnostics launch arguments (`LaunchOptions`) do (Debug builds only). A
 /// normal launch runs none of this.
 @MainActor
 enum LaunchHooks {

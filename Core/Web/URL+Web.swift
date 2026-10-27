@@ -8,12 +8,12 @@ extension URL {
     }
 
     #if DEBUG
-    /// The UI tests' offline pages' scheme (`reader-test://`, Debug builds). The app serves them
+    /// The Debug offline pages' scheme (`reader-test://`, Debug builds). The app serves them
     /// itself (`TestPageSchemeHandler`, which App gives the web views); Core knows only the name.
     static let testPageScheme = "reader-test"
     #endif
 
-    /// The web, plus (Debug builds) the UI tests' offline `reader-test://` pages: what the browser
+    /// The web, plus (Debug builds) the Debug offline `reader-test://` pages: what the browser
     /// checks for reader mode and lets you bookmark.
     var isWebOrTestPage: Bool {
         #if DEBUG

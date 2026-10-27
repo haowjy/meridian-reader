@@ -15,7 +15,7 @@ struct BookImportActions {
     var files = BookImportFiles.standard
 
     #if DEBUG
-    /// `-importTestEPUB`: the synthetic EPUB stands in for the picker, which a UI test can't
+    /// `-importTestEPUB`: the synthetic EPUB stands in for the picker, which a probe can't
     /// drive. Set by the launch (`AppMain`).
     static var importsTestBook = false
     #endif

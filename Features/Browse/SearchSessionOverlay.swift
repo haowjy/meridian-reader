@@ -174,7 +174,7 @@ private struct SuggestionRow<Leading: View>: View {
 }
 
 extension EnvironmentValues {
-    /// Where the address field's live suggestions come from; a launch swaps it for UI tests, so
-    /// results don't depend on the network.
+    /// Where the address field's live suggestions come from; a Debug launch (`-uiTesting`) swaps it
+    /// so results don't depend on the network.
     @Entry var searchSuggestionProvider = SearchSuggestionProvider.live
 }

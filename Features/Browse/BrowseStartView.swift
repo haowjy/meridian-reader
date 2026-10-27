@@ -181,7 +181,7 @@ struct BrowseStartView: View {
         )
     }
 
-    /// The page the browser shows, for 🔖 and ⋯: a web page (or a UI test's page); the start page
+    /// The page the browser shows, for 🔖 and ⋯: a web page (or a Debug `reader-test://` page); the start page
     /// is none.
     private var webPage: URL? { webStore.currentURL.flatMap { $0.isWebOrTestPage ? $0 : nil } }
 

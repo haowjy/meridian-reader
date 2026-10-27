@@ -3,7 +3,7 @@ import Foundation
 import ZIPFoundation
 
 /// `-importTestEPUB` (Debug builds only): an EPUB built here in code from text written for this
-/// app (the demo book's chapters), so a UI test can import a book through the real pipeline
+/// app (the demo book's chapters), so a probe can import a book through the real pipeline
 /// (`BookImporter`) and play it. A title page, which is front matter, then three chapters. The
 /// first opens with a line that sits loose in a `<div>` and carries a footnote, so the
 /// normalizer's work shows on screen.

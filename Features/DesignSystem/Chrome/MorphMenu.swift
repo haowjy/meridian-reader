@@ -140,7 +140,7 @@ struct MorphMenuOverlay<Item, Panel: View>: View {
             }
             #if DEBUG
             .overlay(alignment: .topLeading) {
-                // UI tests: where the focus icon's center really ends up on screen.
+                // `-uiTesting` marker: where the focus icon's center really ends up on screen.
                 if marksFocus, let focus {
                     Color.clear
                         .frame(width: 2, height: 2)
