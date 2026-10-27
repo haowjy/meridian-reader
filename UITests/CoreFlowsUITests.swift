@@ -78,9 +78,9 @@ final class CoreFlowsUITests: XCTestCase {
         openListen(app)
         let more = app.buttons["chromeReaderMore"]
 
-        let pill = app.buttons["chromeLibrary"], icon = app.buttons["chromeScreenIcon"], rowPlay = app.buttons["chromePlayPause"]
+        let pill = app.buttons["chromeLibrary"], capsule = app.buttons["chromeCapsule"], rowPlay = app.buttons["chromePlayPause"]
         let card = app.otherElements["readingPlayerCard"]
-        XCTAssertTrue(pill.exists && !icon.exists, "expanded: the pill")
+        XCTAssertTrue(pill.exists && !capsule.exists, "expanded: the pill")
         XCTAssertTrue(card.exists, "the player card is above it")
         XCTAssertFalse(rowPlay.exists, "Listen's row has no ▶: the card's is the one")
         XCTAssertTrue(app.buttons["listenPlayPause"].exists)
@@ -95,7 +95,7 @@ final class CoreFlowsUITests: XCTestCase {
             text.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.3)
         }
         idle(0.6)
-        XCTAssertTrue(pill.exists && !icon.exists && card.exists && more.exists, "scrolling down leaves the chrome as it was")
+        XCTAssertTrue(pill.exists && !capsule.exists && card.exists && more.exists, "scrolling down leaves the chrome as it was")
         top.press(forDuration: 0.05, thenDragTo: low, withVelocity: .slow, thenHoldForDuration: 0.3)
         idle(0.4)
         XCTAssertTrue(pill.exists && card.exists, "and scrolling up")
@@ -104,7 +104,7 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(eventually { !pill.exists && !card.exists && !more.exists }, "a middle tap removes the chrome")
         text.tap()
         XCTAssertTrue(eventually { pill.exists && card.exists && more.exists }, "another brings it back, expanded")
-        XCTAssertFalse(icon.exists)
+        XCTAssertFalse(capsule.exists)
     }
 
     /// Listen's floating ‹ returns to where it was entered from, and is gone in full screen.
@@ -522,8 +522,8 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(eventually { !cancel.exists }, "Cancel ends the session")
     }
 
-    /// A site's `position:fixed;bottom:0` popup ends above the chrome, expanded (two rows) and folded (one); expanding
-    /// by hand does not move the page.
+    /// A site's `position:fixed;bottom:0` popup ends above the chrome, expanded (two rows) and folded (the capsule);
+    /// expanding by hand does not move the page.
     func testAFixedBottomPopupSitsAboveTheChrome() throws {
         let app = launch(["-browseTestPages"])
         let link = app.links["A page with a bottom popup"]
@@ -531,7 +531,7 @@ final class CoreFlowsUITests: XCTestCase {
         tapWhenHittable(link)
         let accept = app.buttons["Accept cookies"]
         XCTAssertTrue(appears(accept, timeout: 10), "the popup is up")
-        let field = find(app, "addressField")
+        let field = find(app, "addressField"), capsule = app.buttons["chromeCapsule"]
         let units = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'inner '")).firstMatch
         XCTAssertTrue(appears(units, timeout: 5))
         XCTAssertTrue(eventually { accept.frame.maxY <= field.frame.minY + 1 && field.frame.minY > 0 },
@@ -540,23 +540,49 @@ final class CoreFlowsUITests: XCTestCase {
         popupExpanded.name = "popup-expanded"
         popupExpanded.lifetime = .keepAlways
         add(popupExpanded)
-        let expandedTop = field.frame.minY
         app.swipeUp(velocity: .slow)
-        XCTAssertTrue(eventually { field.frame.minY > expandedTop + 30 }, "the chrome folded to one row")
-        XCTAssertTrue(eventually(3) { accept.frame.maxY <= field.frame.minY + 1 },
-                      "collapsed: the popup is above the single row (\(accept.frame) vs \(field.frame))")
+        XCTAssertTrue(appears(capsule, timeout: 5), "the chrome folded to the capsule")
+        // The capsule's frame is its 44 pt hit area: 4 pt above its box, which is what the page keeps clear of.
+        let outset: CGFloat = 8
+        XCTAssertTrue(eventually(3) { accept.frame.maxY <= capsule.frame.minY + outset + 4 + 1 },
+                      "folded: the popup is above the capsule (\(accept.frame) vs \(capsule.frame))")
         let popupCollapsed = XCTAttachment(screenshot: app.screenshot())
         popupCollapsed.name = "popup-collapsed"
         popupCollapsed.lifetime = .keepAlways
         add(popupCollapsed)
-        // Expanding by hand (the screen icon's tap) changes the obscured inset, not the scroll position.
+        // Expanding by hand (the capsule's tap) changes the obscured inset, not the scroll position.
         let scrollY = { (units.label.components(separatedBy: " y ").last).flatMap { Int($0) } ?? -1 }
         let foldedY = scrollY()
         XCTAssertGreaterThan(foldedY, 0)
-        tapWhenHittable(app.buttons["chromeScreenIcon"])
-        XCTAssertTrue(eventually { field.frame.minY < expandedTop + 30 }, "the chrome expanded again")
+        tapWhenHittable(capsule)
+        XCTAssertTrue(eventually { field.exists && !capsule.exists }, "the chrome expanded again")
         idle(0.5)
         XCTAssertEqual(scrollY(), foldedY, accuracy: 1, "and the page did not move")
         XCTAssertTrue(eventually(3) { accept.frame.maxY <= field.frame.minY + 1 }, "the popup is above two rows again")
+    }
+
+    /// Scrolling down folds both rows into the capsule, scrolling up does not bring them back (a button does),
+    /// and the capsule's tap restores both rows.
+    func testScrollFoldsToTheCapsuleAndOnlyATapRestoresBothRows() throws {
+        let app = launch(["-browseTestPages"])
+        let link = app.links["A page with a bottom popup"]
+        for _ in 0..<4 where !(link.exists && link.isHittable) { app.swipeUp() }
+        tapWhenHittable(link)
+        let field = find(app, "addressField"), capsule = app.buttons["chromeCapsule"]
+        let pill = app.buttons["chromeBrowser"]
+        XCTAssertTrue(appears(field, timeout: 10))
+        XCTAssertTrue(pill.exists && !capsule.exists, "expanded: both rows, no capsule")
+        app.swipeUp(velocity: .slow)
+        XCTAssertTrue(appears(capsule, timeout: 5), "scrolling down folds to the capsule")
+        XCTAssertTrue(eventually { !field.exists && !pill.exists }, "both rows are gone")
+        XCTAssertLessThanOrEqual(capsule.frame.height, 44, "a 44 pt hit area")
+        // A short drag the other way: scrolling up, but not to the top of the page.
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+        idle(0.6)
+        XCTAssertTrue(capsule.exists && !field.exists && !pill.exists, "scrolling up gives no row back")
+        tapWhenHittable(capsule)
+        XCTAssertTrue(eventually { field.exists && pill.exists && !capsule.exists }, "the capsule's tap restores both rows")
     }
 }
