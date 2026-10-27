@@ -9,7 +9,7 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   `ChromeScreen` (field, arrows, ⋯); the Reader and Now Playing hand it their player card
   (`ChromeCard`). One state (`ChromeState`), one pure layout (`ChromeLayout`, from `ChromeMetrics`:
   `barHeight` 48, footprints 116 and 60, ▶ in one slot left of ⋯) and one scroll controller
-  (`ChromeScroll`, a continuous progress, scroll down only: scrolling up never expands it, the icon, a swipe up on the bar or the top of the text do; only a direct Listen / Play ends in Listen, Library Read and Browse reader mode open in place via `ReaderSurface`); the host
+  (`ChromeScroll`, a continuous progress, scroll down only: scrolling up never expands it, the folded capsule's tap or the top of the text do; only a direct Listen / Play ends in Listen, Library Read and Browse reader mode open in place via `ReaderSurface`); the host
   draws translucent glass (`ChromeSkin`; App sets `ChromeSkin.forcesMaterial` for `-chromeFallback`)
   with only a gradient fade behind. Screens reserve `ChromeMetrics.footprint` at the bottom (the Reader
   `readerFootprint`) (`CompactChromeInsets`) and report their scroll with `CompactChromeScroll`.

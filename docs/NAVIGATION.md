@@ -69,17 +69,29 @@ Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular 
 ```
 expanded    [‹ ›][ address / Search Library          ]        row 1: the screen's own (Listen's: its player card)
             [ Listen | Library | Browser ][▶][  ⋯  ]         row 2: where you are, play, menu (Listen: the ▶ slot stays empty)
-collapsed   [‹ ›][ address ↻ ][icon][▶][⋯]                    scrolled down: one row; only the arrows that work (Library: search)
-Listen      never collapses on scroll                         ‹ floats top left; a middle tap = full screen: nothing, a ▶ / ⏸ floats for 3 s
-searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no screen icon, ▶ or ⋯
+folded                         [ example.com ]                scrolled down: both rows are one small capsule that names the page
+Listen      never folds on scroll                             ‹ floats top left; a middle tap = full screen: nothing, a ▶ / ⏸ floats for 3 s
+searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no pill, ▶ or ⋯, no capsule
 ```
 
-Every piece is `mix(expanded, collapsed, progress)` of one pure layout (`ChromeLayout`, the mockups'
-`rectsFor`), so there is no state between "two rows" and "one row" that is not just a point on the
-way. Widths are the mockups' `width-table.md`. The bottom row is a **fixed 351 pt block** (below), so
-its widths are the SE's on every phone: collapsed address 129 with both arrows and nothing played, 119
-with ▶ (› gave way), 177 without arrows; the Library's search 235, 177 with ▶. Row 1 (the field above
-the pill) is still margin to margin, so it is the one thing that gets wider on a wider phone.
+Every piece is a pure function of one layout (`ChromeLayout`, the mockups' `rectsFor`) and a progress, so
+there is no state between "two rows" and "the capsule" that is not just a point on the way: the rows shrink
+into the capsule's centre while it grows from there (the glass blends one into the other). Widths are the
+mockups' `width-table.md`. The bottom row is a **fixed 351 pt block** (below), so its widths are the SE's
+on every phone. Row 1 (the field above the pill) is still margin to margin, so it is the one thing that
+gets wider on a wider phone.
+
+- **The collapse capsule** (`ChromeLayout.capsule`, `ChromePieces.capsulePiece`): what a scroll down folds
+  both rows into, on every screen that folds (the Browser's page, the Library and its folders and books,
+  Library Read, the Browser's reader mode in Scroll mode). 28 pt tall (`capsuleHeight`), 12 pt semibold
+  ink text (`capsuleFontSize`), 10 pt side padding (`capsuleSidePadding`), as wide as its text up to 240
+  pt (`capsuleMaxWidth`), centred, its bottom 8 pt above the safe line, on its own dark fill at about 70%
+  (`Palette.capsuleFill`) over the glass for contrast. The hit area is 44 pt tall and 8 pt wider each side
+  (`capsuleHitOutset`). It names where you are: the page's domain on the Browser (no `www.`, no path), the
+  screen's title in the Library (Library, Favorites, Recent, the folder or book), the article's title in
+  Library Read, the source in the Browser's reader mode (`ChromeScreen.capsuleTitle`). Audio keeps playing
+  while folded; ▶ / ⏸, the pill, ⋯ and the headphones are hidden with the rows, and the capsule's tap is
+  the way back to them. The footprint is 40 pt (`capsuleFootprint`). Settings and sheets have no capsule.
 
 - **The pill** `[Listen | Library | Browser]`: three equal segments, the lit one the screen you
   are on (an inset capsule, 4 pt on all four sides, its glyph accent, labels ink). The Listen
@@ -89,9 +101,9 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   Read and the Browser's reader mode open in place and never switch destination.
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, 48 pt
   (`ChromeMetrics.barHeight`), for every piece in every row and state (pill, fields, ‹ ›, ▶, ⋯, ✕,
-  the screen icon); the lit segment is inset 4 (40 tall). Hit areas are never below 44 pt
-  (`minTapTarget`). Every footprint derives from it: 116 expanded (two rows), 60 collapsed, ‹ 48,
-  ‹ › 96. Names and values are the mockups' `SZ` (`tools/check-tokens.js` compares them). Every
+  the capsule excepted); the lit segment is inset 4 (40 tall). Hit areas are never below 44 pt
+  (`minTapTarget`; the capsule's is 44 around its 28). Every footprint derives from it: 116 expanded (two
+  rows), 40 folded to the capsule, 60 for the keyboard's one row, ‹ 48, ‹ › 96. Names and values are the mockups' `SZ` (`tools/check-tokens.js` compares them). Every
   control glyph is 22 pt medium (`BottomChrome.chromeGlyph`), every label 11 pt semibold ink.
 - **Look.** Translucent glass, nothing opaque behind it: Liquid Glass inside one
   `GlassEffectContainer` on iOS 26, every piece answering a press; earlier iOS (and a Debug launch
@@ -105,10 +117,7 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   container) does fade glass, which is how Reduce Motion cross-fades.
 - **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (the pair shows whenever either way is
   open, the half that cannot move dimmed to 35% and disabled but in place; nothing on a new page), on the
-  Library its search field, on the Reader the player card. **Collapsed**, the Browser keeps the arrows
-  that work (‹, ›, or both: `ChromeLayout.foldedBack/Forward`); if the field would fall under
-  `minimumField` (112), › goes first, then ‹ (at 402 pt with ▶ and both arrows, › goes and ‹ stays).
-  › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerToReenter`).
+  Library its search field, on the Reader the player card. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerToReenter`).
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a whole
   44 x 44 control (`BottomChrome.minTapTarget`), its glyph in the chrome ink at the chrome glyph weight
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
@@ -125,26 +134,28 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   either side (12 at 375, 21 at 393, 25.5 at 402, 39.5 at 430). The ▶ slot between the pill and ⋯
   is always reserved on the expanded row, and where ▶ is absent (before anything has played, on Listen) it stays
   empty space with nothing drawn and no hit target, so switching tabs never moves or resizes a segment, and
-  ⋯ stays at the row's trailing edge. The collapsed row has no pill, so its rule is unchanged: ▶ right of the screen icon, ⋯ last, in the same 351 pt block (so ▶ and ⋯ do not move when it folds). With nothing loaded ▶ resumes the page
-  played last. ▶ and ⋯ keep one place in every form: ▶ never travels.
-- **Collapse follows the finger, down only.** One progress value, 0 expanded and 1 collapsed (`ChromeScroll`):
-  `progress += dy / 90` for a scroll down only, ignored while the keyboard or the ⋯ panel is up, and
-  150 ms after the finger stops a part-way fold settles to folded. Scrolling up never gives a row back,
-  on any screen (decided). The chrome expands only by a tap on the screen icon or the title chip, a swipe
-  up on the bar, or by reaching the top of the content (offset <= 4, which resets progress to 0)
-  (invariant 12). The Library and the Browser feed it; **Listen does not** (it never folds on scroll), and neither
-  do the in-place readers (Library Read, the Browser's reader mode: their chrome stays expanded).
-  **Expanding by hand pins**: the icon tap or the swipe up on the bar (`ChromeScroll.expandByHand`) holds
-  the chrome expanded while scrolling down, momentum included, until the offset returns to <= 4, a
-  destination changes, a new screen or page/article opens (`expand()`, `reset()`), or the screen is left. The lit segment is the icon: its glyph slides to the middle of
-  the shrinking pill while the other segments and the wash fade; the Browse arrows, the field and
-  the Listen's card fold the same way (`ChromePieces` is animatable in the progress). Reduce Motion:
-  no travel, the two forms cross-fade.
+  ⋯ stays at the row's trailing edge. With nothing loaded ▶ resumes the page
+  played last. ▶ and ⋯ keep one place in every expanded form: ▶ never travels.
+- **Collapse follows the finger, down only.** One progress value, 0 expanded and 1 folded into the capsule
+  (`ChromeScroll`): `progress += dy / 90` for a scroll down only, ignored while the keyboard or the ⋯ panel
+  is up, and 150 ms after the finger stops a part-way fold settles to folded. **Scrolling up never gives a
+  row back, on any screen** (decided, and still true with the capsule: the capsule is a button that brings
+  the rows back, not a scroll that does). They come back by a tap on the capsule, by reaching the top of the
+  content (offset <= 4, which resets progress to 0) (invariant 12), and by what is not a scroll: a new page
+  or screen loading, opening the address or search field, VoiceOver being on (the rows stay, they are what it
+  reads). The Library and the Browser feed it; **Listen does not** (it never folds on scroll), the Browser's
+  start page has no page to name and does not fold, and an in-place reader folds only in Scroll mode (Pages
+  mode turns pages by tap, so its chrome stays expanded).
+  **Expanding by hand pins**: the capsule's tap (`ChromeScroll.expandByHand`) holds the chrome expanded while
+  scrolling down, momentum included, until the offset returns to <= 4, a destination changes, a new
+  screen or page/article opens (`expand()`, `reset()`), or the screen is left. The fold tracks the
+  finger, and the rows shrink into the capsule's centre while it grows from there
+  (`ChromePieces` is animatable in the progress). Reduce Motion: no travel, the two forms cross-fade.
 - **Searching** (the keyboard up, or its session open): one row, **margin to margin on every phone**, Brave-style:
   the field (🔍 left, the text, a round ⊗ inside at the right while there is text, 🎤 at its end) and a **Cancel**
   text button (accent, 72 pt) at the right margin. It is not the fixed 351 pt block (the one exception to it): the
   field runs from the left margin (12) to Cancel, one 10 pt gap between, so it is 375 − 24 − 10 − 72 = 269 pt on the
-  SE and 296 pt on a 402 pt phone (`testTypingIsTheFieldAndCancelMarginToMargin`). The screen icon, ▶, ⋯ and any globe
+  SE and 296 pt on a 402 pt phone (`testTypingIsTheFieldAndCancelMarginToMargin`). The pill, ▶, ⋯, the capsule and any globe
   are not drawn while typing. Above the field the search layer is **opaque paper from under the safe area down to the
   keyboard**, and at its top, 12 pt under the safe area and 12 pt from each side, one **rounded card** of rows
   (`SearchSessionOverlay`): untouched (or empty), *Recent Searches* (header + Clear All, a 🔍 row each); typing, first
@@ -155,10 +166,10 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   footprint as its bottom `obscuredContentInsets` (plus min/max viewport insets), so a page's
   `position:fixed; bottom:0` banner (cookie bars, Reddit's "open in app"), sticky footers and `dvh`/`svh`/`lvh` sit
   above the glass instead of under it. The inset is the expanded footprint (116 pt, two rows) while the chrome is
-  expanded, and the collapsed footprint (60 pt, one row) once it has folded (`ChromeScroll.isCollapsed`) or while a
-  search is open. The home-indicator strip is added from the window's safe area (the web view extends under it, so
+  expanded, the capsule's (40 pt) once it has folded (`ChromeScroll.isCollapsed`), and the keyboard's row (60 pt)
+  while a search is open. The Library's lists and the readers keep one constant inset (116). The home-indicator strip is added from the window's safe area (the web view extends under it, so
   its own inset reads 0). The switch is **one step at the fold's midpoint**, not animated per frame: the page's
-  fixed elements jump once (about 56 pt) while the glass folds, and the page text reflows once, instead of the
+  fixed elements jump once (about 76 pt) while the glass folds, and the page text reflows once, instead of the
   whole page re-laying out on every frame of the fold. The scroll offset does not move (the scroll view's
   `contentInset` stays constant; only the web layout inset changes). Content still scrolls under the glass.
   Limits: legacy `100vh` is always the full frame in WebKit and follows neither inset, so a `100vh` hero extends
@@ -186,9 +197,9 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   row-highlight mechanism yet). The Library's scroll offset is view state: it returns only while the Library stayed mounted. **Full screen** is a tap in the middle of the text, in and out, and
   nothing else: it removes the whole chrome (no rows, no card, no fade, no status bar); scrolling
   and pulling do nothing to it, a ▶ / ⏸ floats for 3 s. Leaving full screen returns to what the chrome
-  was (collapsed stays collapsed).
+  was (folded stays folded).
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
-  `ReaderSurface`): the chrome stays expanded and pinned (it never folds), the address keeps the
+  `ReaderSurface`): the chrome folds on scroll in Scroll mode like a page (to a capsule naming the source) and stays expanded in Pages mode, the address keeps the
   URL (narrower by one round control), the reader icon sits in a lit capsule and toggles back. The
   text is a reading page like the Reader's (`ReadingPage`, in place): Pages or Scroll as the
   Appearance setting says, the footer, a tap in the middle for full screen, *Play from Here* on a
@@ -1033,7 +1044,7 @@ Below, the grabber and the pill at the top left are the regular-width sheet's; o
   fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
   doesn't move the text, so following goes on); a round *Jump to Audio* button floats over the text at the
-  right edge, 12 pt above the player card (level with the card's right edge; the folded row when the chrome folds;
+  right edge, 12 pt above the player card (level with the card's right edge; the capsule when the chrome folds;
   on regular width above the band): a 44 pt glass circle like the app's other round buttons, with an arrow
   that points to the spoken sentence, ↑ when it is above the visible text and ↓ when below (Pages: on an earlier or a later page).
   VoiceOver: "Jump to Audio", hint "Scrolls up / down to the sentence being read". Tap it (or start another page) and
@@ -1103,11 +1114,11 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   width it removes the whole chrome: both rows, the fade, the band, the top bar and the status bar
   go (fade only under Reduce Motion), the home indicator dims, and the text shows alone, never
   moving. **Scrolling does nothing to the chrome in full screen, and scrolling never enters or
-  leaves it.** Leaving full screen returns to what the chrome was before (collapsed stays collapsed).
+  leaves it.** Leaving full screen returns to what the chrome was before (folded stays folded).
   On regular width the sheet's grabber, top bar and bottom band hide and show together the same way.
   The app's own scrolls (following the audio, a scrub, opening at a spot) never change it. The bars
   stay while VoiceOver runs, while ☝︎ is on, and while Aa or ⋯ is open.
-- **Not in full screen**, scrolling down collapses the chrome to its one row (above); the text
+- **Not in full screen**, scrolling down folds the chrome to the capsule (above), in Scroll mode only; the text
   never moves for it.
 - **Taps on the text** (not on a link; ☝︎ keeps its paragraph taps): the right 30% of the width
   goes forward a screen, the left 30% back one (the visible text less one line, landing with a
