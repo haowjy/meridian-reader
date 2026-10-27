@@ -488,7 +488,7 @@ final class ShellState {
     /// what floats over it sits above them, or above the capsule once the rows have folded.
     var pageReadingInPlace: ReadingInPlace {
         readingInPlace(bottomClearance: ChromeMetrics.footprint,
-                       overTextClearance: chromeScroll.isCollapsed ? ChromeMetrics.capsuleFootprint : ChromeMetrics.footprint)
+                       overTextClearance: chromeScroll.isDrawnCollapsed ? ChromeMetrics.capsuleFootprint : ChromeMetrics.footprint)
     }
 
     private func readingInPlace(bottomClearance: CGFloat, overTextClearance: CGFloat) -> ReadingInPlace {

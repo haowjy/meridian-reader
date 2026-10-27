@@ -45,7 +45,7 @@ struct BrowseStartView: View {
     private var obscuredBottom: CGFloat {
         guard !isRegular else { return 0 }
         if search.isActive { return ChromeMetrics.collapsedFootprint }
-        return shell.chromeScroll.isCollapsed ? ChromeMetrics.capsuleFootprint : ChromeMetrics.footprint
+        return shell.chromeScroll.isDrawnCollapsed ? ChromeMetrics.capsuleFootprint : ChromeMetrics.footprint
     }
 
     /// Create the browse WKWebView only after the first non-start navigation; keep it thereafter.

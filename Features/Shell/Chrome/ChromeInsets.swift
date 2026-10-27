@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Where a screen's scroll position goes: the chrome collapses as it scrolls down and opens as it
-/// scrolls back.
+/// Where a screen's scroll position goes: the chrome folds into its capsule as it scrolls down (a tap on
+/// the capsule opens it).
 extension View {
     /// Reports this view's scroll views' offset to `chrome`, past the rubber band at both ends.
     func chromeScrollSource(_ chrome: ChromeScroll) -> some View {

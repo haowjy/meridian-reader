@@ -27,6 +27,9 @@ final class ChromeScroll {
     /// Past half: the chrome is a capsule. Its own property so a screen that only needs to know (the
     /// reading page's floating controls) is not redrawn by every step of `progress`.
     private(set) var isCollapsed = false
+    /// `isCollapsed` as drawn: past half in `displayed`, so what keeps clear of the chrome (the web
+    /// view's inset, the reading page's floating controls) moves with the chrome and not ahead of it.
+    private(set) var isDrawnCollapsed = false
     /// The Reader's full screen: the chrome is removed.
     private(set) var fullScreen = false
     /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
@@ -155,11 +158,17 @@ final class ChromeScroll {
         let next = displayed + (progress - displayed) * CGFloat(1 - exp(-dt / Self.smoothing))
         if abs(progress - next) < 0.0005 {
             displayed = progress
+            drawnCollapsed(progress)
             ticker?.stop()
             ticker = nil
         } else {
             displayed = next
+            drawnCollapsed(next)
         }
+    }
+
+    private func drawnCollapsed(_ value: CGFloat) {
+        if isDrawnCollapsed != (value >= 0.5) { isDrawnCollapsed = value >= 0.5 }
     }
 }
 
