@@ -85,8 +85,7 @@ gets wider on a wider phone.
   both rows into, on every screen that folds (the Browser's page, the Library and its folders and books,
   Library Read, the Browser's reader mode in Scroll mode). 28 pt tall (`capsuleHeight`), 12 pt semibold
   ink text (`capsuleFontSize`), 10 pt side padding (`capsuleSidePadding`), as wide as its text up to 240
-  pt (`capsuleMaxWidth`), centred, its bottom 8 pt above the safe line, on its own dark fill at about 70%
-  (`Palette.capsuleFill`) over the glass for contrast. The hit area is 44 pt tall and 8 pt wider each side
+  pt (`capsuleMaxWidth`), centred, its bottom 8 pt above the safe line, on its own fill (white at 74%, dark grey at 70% in dark mode, `Palette.capsuleFill`) over the glass for contrast. The hit area is 44 pt tall and 8 pt wider each side
   (`capsuleHitOutset`). It names where you are: the page's domain on the Browser (no `www.`, no path), the
   screen's title in the Library (Library, Favorites, Recent, the folder or book), the article's title in
   Library Read, the source in the Browser's reader mode (`ChromeScreen.capsuleTitle`). Audio keeps playing
@@ -180,9 +179,8 @@ gets wider on a wider phone.
   Listen lit, row 2 as everywhere (`[pill]  [empty ▶ slot]  [⋯]`, the three parted by one `rowGap`, 10 pt; every
   piece 48 pt tall, so the pill is a capsule about 5.5 bars wide on a 402 pt screen), and a glass player card above row 2, one gap
   up, 140 pt: artwork, title, site and time left (two parts set apart by a 12 pt gap, no "·" or other separator; the site truncates first, the time left never does), Voice and Save at the right, the full-width scrubber (no
-  times under it; the title block opens the article's origin and never seeks, only the track does), and the transport Aa, ⏮, ▶, ⏭, speed. Listen never collapses on
-  scroll, so the title chip form exists only for the shared layout (the card's contents fade over the first
-  30% of a fold; the chip is the title alone). The page hands the card to the chrome (`ChromeCard`, a preference) because it
+  times under it; the title block opens the article's origin and never seeks, only the track does), and the transport Aa, ⏮, ▶, ⏭, speed. Listen never folds on
+  scroll. The page hands the card to the chrome (`ChromeCard`, a preference) because it
   holds the article and the playhead; the chrome holds the geometry. ☝︎ Play from a paragraph is a
   row of the Reader's ⋯, the page's status note (preparing, voice and language notes) takes the card's
   second line. The text's bottom inset is the expanded footprint (card and row 2, 208 pt), so the
@@ -213,17 +211,17 @@ gets wider on a wider phone.
   what ‹ does (back, which closes the reader).
 - **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
   a row's ⋯ → Read shows the article's text over the Library, which stays the lit segment and under it
-  with its scroll; the chrome stays expanded and pinned (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
+  with its scroll; the chrome folds to a capsule naming the article on a scroll down in Scroll mode and stays expanded in Pages mode (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
   or a left-edge swipe closes it, and there is no player card. The search field's place holds one
-  capsule, `[Aa] [▶ Listen · N min]` (`readerListen`; *Continue · N min left* part-way, *Listen Again* once the
+  field, `[Aa] [▶ Listen · N min]` (`readerListen`; *Continue · N min left* part-way, *Listen Again* once the
   article has finished): Aa opens the text appearance panel, Listen plays and goes to Listen.
-  Nothing plays until Listen; for the page you hear the capsule reads *Now Playing* and goes to Listen. At regular width Read keeps opening the sheet.
+  Nothing plays until Listen; for the page you hear the field reads *Now Playing* and goes to Listen. At regular width Read keeps opening the sheet.
   A search in the Library ends when Read opens, so the chrome shows the reader's row and not the keyboard form.
 - **⋯** opens the screen's ⋯ panel ("Menus", below). The compact chrome has no 🕘 or ＋ buttons:
   *History* is a tile of every compact ⋯ (Browser, Library, Reader, Now Playing), and the Library's
   ⋯ adds *New Folder…*, *Import from…* and *Paste Text…*. On the Browser the page's *Save to
   Folder…* is in ⋯ too; the Reader tile reads *Show Web Page* while the in-place reader shows.
-- The field's, the card's and the title chip's text grows with Dynamic Type up to *xxxLarge* inside
+- The field's and the card's text grows with Dynamic Type up to *xxxLarge* inside
   the fixed 48 pt pieces (larger clips or overlaps); every glyph offers the large content viewer. Every tap target is at least 44 pt.
 - **Overlays, never rows:** prepare progress and toasts, on the top piece's edge.
 
@@ -1044,7 +1042,7 @@ Below, the grabber and the pill at the top left are the regular-width sheet's; o
   fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
   doesn't move the text, so following goes on); a round *Jump to Audio* button floats over the text at the
-  right edge, 12 pt above the player card (level with the card's right edge; the capsule when the chrome folds;
+  right edge, 12 pt above the player card (level with the card's right edge; the capsule when an in-place reader folds;
   on regular width above the band): a 44 pt glass circle like the app's other round buttons, with an arrow
   that points to the spoken sentence, ↑ when it is above the visible text and ↓ when below (Pages: on an earlier or a later page).
   VoiceOver: "Jump to Audio", hint "Scrolls up / down to the sentence being read". Tap it (or start another page) and
