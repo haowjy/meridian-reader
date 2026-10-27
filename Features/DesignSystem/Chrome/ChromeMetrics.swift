@@ -63,7 +63,7 @@ enum ChromeMetrics {
     // MARK: - The capsule (the folded chrome)
 
     /// The capsule that stands for both rows once a scroll down has folded them: it names the page (a
-    /// domain, a title) and a tap on it brings the rows back. Centred at the bottom row's height.
+    /// domain, a title) and a tap on it brings the rows back. Bottom-aligned with row 2.
     static let capsuleHeight: CGFloat = 7 * unit
     /// Fixed like every glyph and label here: it never grows with text size (a long press shows it large).
     static let capsuleFontSize: CGFloat = 12

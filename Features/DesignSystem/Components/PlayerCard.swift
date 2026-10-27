@@ -50,8 +50,7 @@ private enum CardLayout {
 }
 
 /// The Reader's and Now Playing's player card on compact width: one glass card above the chrome's
-/// row 2 (`ChromeLayout`'s `card` high; the chrome host supplies the glass and folds it into the
-/// title chip). Plain values and slots, so both pages build the same card.
+/// row 2 (`ChromeLayout`'s `card` high; the chrome host supplies the glass; Listen never folds). Plain values and slots, so both pages build the same card.
 ///
 /// ```
 /// [art]  Notes on Tides             (Voice) (Save)    art, title, site and time left, then two round controls

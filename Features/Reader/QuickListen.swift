@@ -44,8 +44,8 @@ struct QuickListen {
     }
 }
 
-/// The Library's Read: Aa at the left and *▶ Listen · 9 min* beside it, one capsule in the field's
-/// place on row 1, next to ‹. The capsule draws its own surface, as the search field does.
+/// The Library's Read: Aa at the left and *▶ Listen · 9 min* beside it, one field in its own
+/// place on row 1, next to ‹. The field draws its own surface, as the search field does.
 struct ReaderListenCapsule: View {
     let article: ReaderArticle
 

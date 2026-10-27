@@ -6,7 +6,7 @@ import SwiftUI
 /// Scroll), with the footer, a tap in the middle for full screen, and *Play from Here* on a
 /// selection; the text opens at the page's saved listening spot, underlined.
 ///
-/// What is around the text is the chrome's: the Library's capsule (Aa, Listen) or the Browser's
+/// What is around the text is the chrome's: the Library's Listen field (Aa, Listen) or the Browser's
 /// round Listen control (`ReaderListenCapsule`, `ReaderListenButton`), and ‹. Listen plays the page
 /// and raises Now Playing (the Listen destination), so this surface ends there; coming back with
 /// ‹ shows it again. While the page is what you hear its text shows the playhead as Now Playing's

@@ -24,13 +24,11 @@ final class ChromeTests: XCTestCase {
         state = ChromeState(destination: .library, progress: 1, editing: true)
         XCTAssertEqual(state.collapse, 0)
         let typing = ChromeState(destination: .library, progress: 1, keyboard: true)
-        XCTAssertEqual(typing.fold, 1, "the keyboard's row")
         XCTAssertEqual(typing.capsule, 0, "no capsule while typing: the field's row is the only row")
     }
 
     func testListenHoldsTheChromeExpandedWhateverTheScroll() {
         XCTAssertEqual(ChromeState(destination: .reader, progress: 1).collapse, 0)
-        XCTAssertEqual(ChromeState(destination: .reader, progress: 1).fold, 0)
         XCTAssertEqual(ChromeState(destination: .library, progress: 1).collapse, 1)
         XCTAssertEqual(ChromeState(destination: .reader, progress: 1).capsule, 0)
     }
@@ -66,7 +64,7 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(reader.field.rect.maxX + M.rowGap, reader.listen.rect.minX)
         XCTAssertEqual(page.field.rect.maxX, width - M.margin, "the field runs to the margin without the control")
         let library = ChromeLayout(width: width, state: ChromeState(destination: .library, progress: 0, played: true, readerMode: true))
-        XCTAssertFalse(library.listen.isShown, "the Library's capsule is the field itself")
+        XCTAssertFalse(library.listen.isShown, "the Library's Listen field is the field itself")
     }
 
     // MARK: Tokens
@@ -102,7 +100,7 @@ final class ChromeTests: XCTestCase {
         }
     }
 
-    /// Typing: the field and Cancel only (no screen icon, ▶, ⋯ or arrows), margin to margin on every phone:
+    /// Typing: the field and Cancel only (no pill, ▶, ⋯ or arrows), margin to margin on every phone:
     /// the field from the left margin, Cancel (a word, `cancelWidth`) ending at the right margin, one gap
     /// between, at the bottom row's y, whatever was played or where the arrows were. Not the fixed 351 block.
     func testTypingIsTheFieldAndCancelMarginToMargin() {

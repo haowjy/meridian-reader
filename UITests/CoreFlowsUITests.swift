@@ -542,9 +542,10 @@ final class CoreFlowsUITests: XCTestCase {
         add(popupExpanded)
         app.swipeUp(velocity: .slow)
         XCTAssertTrue(appears(capsule, timeout: 5), "the chrome folded to the capsule")
-        // The capsule's frame is its 44 pt hit area: 4 pt above its box, which is what the page keeps clear of.
-        let outset: CGFloat = 8
-        XCTAssertTrue(eventually(3) { accept.frame.maxY <= capsule.frame.minY + outset + 4 + 1 },
+        // The capsule's frame is its 44 pt hit area, 8 pt above its box; the page keeps clear 4 pt above the box
+        // (`topPadding`), so its edge is 4 pt below the hit area's top.
+        let outset: CGFloat = 8, topPadding: CGFloat = 4
+        XCTAssertTrue(eventually(3) { accept.frame.maxY <= capsule.frame.minY + outset - topPadding + 1 },
                       "folded: the popup is above the capsule (\(accept.frame) vs \(capsule.frame))")
         let popupCollapsed = XCTAttachment(screenshot: app.screenshot())
         popupCollapsed.name = "popup-collapsed"
@@ -575,7 +576,7 @@ final class CoreFlowsUITests: XCTestCase {
         app.swipeUp(velocity: .slow)
         XCTAssertTrue(appears(capsule, timeout: 5), "scrolling down folds to the capsule")
         XCTAssertTrue(eventually { !field.exists && !pill.exists }, "both rows are gone")
-        XCTAssertLessThanOrEqual(capsule.frame.height, 44, "a 44 pt hit area")
+        XCTAssertEqual(capsule.frame.height, 44, accuracy: 1, "a 44 pt hit area around the 28 pt capsule")
         // A short drag the other way: scrolling up, but not to the top of the page.
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
         let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
