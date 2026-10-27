@@ -439,6 +439,23 @@ final class CoreFlowsUITests: XCTestCase {
     /// Brave-style search: tapping the address field puts the field above the keyboard, margin to margin with
     /// Cancel at its right, and a card of rows at the top of the screen: `Search "typed"` first, then the
     /// suggestions (stubbed here, no network). ↖︎ fills the field without searching; Cancel ends the session.
+    func testAnEmptyFieldShowsRecentSearchesInTheTopCard() throws {
+        let app = launch(["-browseTestPages", "-stubSuggestions", "-browse.recentSearches", "\"cats meaning\\ndog food\\nweather\""])
+        let field = find(app, "addressField")
+        XCTAssertTrue(appears(field, timeout: 10))
+        field.tap()
+        let first = find(app, "recentSearch.cats meaning")
+        XCTAssertTrue(appears(first, timeout: 5), "Recent Searches are the card while the field is empty")
+        XCTAssertTrue(appears(find(app, "recentSearch.weather"), timeout: 3))
+        XCTAssertLessThan(first.frame.minY, 220, "the card is at the top, under the safe area")
+        XCTAssertTrue(appears(app.buttons["addressCancel"], timeout: 3))
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "keyboard-recents-\(Int(app.frame.width))"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["addressCancel"].tap()
+    }
+
     func testTypingASearchShowsTheSuggestionCardAndTheFullWidthField() throws {
         let app = launch(["-browseTestPages", "-stubSuggestions"])
         let field = find(app, "addressField")
