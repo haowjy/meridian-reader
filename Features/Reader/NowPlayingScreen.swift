@@ -44,6 +44,8 @@ struct NowPlayingScreen: View {
     /// The playing page's reading content, looked up by key when the page changes.
     @State private var content: NowPlayingContent?
     @State private var following = true
+    /// Which way the spoken sentence is from the visible text, while not following: Jump to Audio's arrow.
+    @State private var spotSide = JumpDirection.up
     @State private var jumpMode = false
     @State private var scrubMap: ReaderScrubMap?
     @State private var scrubPreview: Int?
@@ -79,6 +81,7 @@ struct NowPlayingScreen: View {
                 }),
             playState: speech.playState(of: .article(now.articleKey)),
             showsJumpToAudio: !following && !now.isFinished,
+            jumpDirection: spotSide,
             onPlayPause: speech.pressNowPlaying,
             onJumpToAudio: { following = true },
             palette: palette
@@ -266,7 +269,7 @@ struct NowPlayingScreen: View {
                        scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
                        opensAt: shell.nowPlayingOpensAt,
-                       onUserScroll: { following = false }, onTap: jump(to:), onOpenLink: shell.navigate(to:),
+                       onUserScroll: { following = false }, onSpotSide: { spotSide = $0 }, onTap: jump(to:), onOpenLink: shell.navigate(to:),
                        onPlaySelection: playFromSelection)
         } else {
             appearance.palette(accent: AppAppearance.shared.accent).background
@@ -375,6 +378,7 @@ private struct SpokenText: View {
     let follows: Bool
     let opensAt: ReadingHandOver?
     let onUserScroll: () -> Void
+    let onSpotSide: (JumpDirection) -> Void
     let onTap: (Int) -> Void
     let onOpenLink: (URL) -> Void
     var onPlaySelection: ((Int, Int) -> Void)?
@@ -395,6 +399,7 @@ private struct SpokenText: View {
             follows: follows && !finished,
             opensAt: opensAt,
             onUserScroll: onUserScroll,
+            onSpotSide: onSpotSide,
             onOpenLink: onOpenLink,
             pageTimeLeft: { [document = speech.document, rate = speech.rateMultiplier, isChapter] in
                 ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate, chapter: isChapter)

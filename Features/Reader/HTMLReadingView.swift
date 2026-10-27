@@ -43,7 +43,8 @@ final class ReadingScrollHandle {
 ///   in a paragraph too long to stay in view, again when the spoken sentence leaves the visible
 ///   text. Moves run on the `Motion.standard` spring (a jump under Reduce Motion). A finger drag
 ///   turns it off (`onUserScroll`); the owner turns it back on (Jump to Audio), which goes to the
-///   sentence.
+///   sentence. With it off, `onSpotSide` says which way the spoken sentence is from the visible text
+///   (above or below; Pages: an earlier or a later page): Jump to Audio's arrow.
 /// - `sentence`: the spoken sentence is underlined (CSS Custom Highlight, iOS 17.2+; earlier
 ///   systems show the paragraph's highlight alone).
 /// - `opensAtSentence` (the Reader, at a saved listening spot): the text opens with `sentence`
@@ -84,6 +85,8 @@ struct HTMLReadingView: View {
     var opensAt: ReadingHandOver? = nil
     var scrollHandle: ReadingScrollHandle? = nil
     var onUserScroll: () -> Void = {}
+    /// Where the spoken sentence is from the visible text, while the text isn't following it.
+    var onSpotSide: (JumpDirection) -> Void = { _ in }
     /// A link on the page was tapped (the reading view never follows one).
     var onOpenLink: (URL) -> Void = { _ in }
     /// Pages mode's footer: the time left from a page's first character (its listen paragraph and
@@ -134,6 +137,7 @@ struct HTMLReadingView: View {
             sizes: sizes,
             animates: !reduceMotion,
             onUserScroll: onUserScroll,
+            onSpotSide: onSpotSide,
             onOpenLink: onOpenLink,
             onPlaySelection: onPlaySelection,
             onTapParagraph: onTapParagraph
@@ -207,6 +211,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
     var sizes = ReadingStyle.Sizes()
     var animates = true
     var onUserScroll: () -> Void = {}
+    var onSpotSide: (JumpDirection) -> Void = { _ in }
     var onOpenLink: (URL) -> Void = { _ in }
     var onPlaySelection: ((_ paragraph: Int, _ offset: Int) -> Void)?
     let onTapParagraph: (Int) -> Void
@@ -269,6 +274,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         c.onTapParagraph = onTapParagraph
         c.onPlaySelection = onPlaySelection
         c.onUserScroll = onUserScroll
+        c.onSpotSide = onSpotSide
         c.onOpenLink = onOpenLink
         c.chrome = chrome
         // In full screen a pull at the top only rubber-bands (and brings the bars back); a drag
@@ -307,6 +313,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             }
         }
         var onUserScroll: () -> Void = {}
+        var onSpotSide: (JumpDirection) -> Void = { _ in }
         var onOpenLink: (URL) -> Void = { _ in }
         weak var chrome: ReadingChrome?
         weak var webView: WKWebView?
@@ -538,6 +545,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
         /// screen. A hand-over is the layout's to place; the spoken sentence goes to the middle
         /// while the text goes there.
         func placeHold() {
+            spotRect = nil
+            defer { updateSpotSide() }
             switch hold {
             case .handOver:
                 break
@@ -678,7 +687,9 @@ struct HTMLReadingWebView: UIViewRepresentable {
                     + scrollView.adjustedContentInset.top - scrollView.bounds.height
                 let offset = min(Self.scrolledIn(scrollView), max(farthest, 0))
                 MainActor.assumeIsolated {
-                    guard let self, !self.jumpMode else { return }
+                    guard let self else { return }
+                    self.updateSpotSide()
+                    guard !self.jumpMode else { return }
                     if byFinger { self.chrome?.userScrolled(to: offset) } else { self.chrome?.textMoved(to: offset) }
                 }
             }
@@ -700,7 +711,54 @@ struct HTMLReadingWebView: UIViewRepresentable {
         func stopFollowing() {
             guard follows else { return }
             follows = false
+            updateSpotSide()
             onUserScroll()
+        }
+
+        // MARK: Which way the spoken sentence is
+
+        /// The spoken sentence's place in the document, as the page last said (`args` is the call's
+        /// arguments, which name the sentence): the scroll layout's compare against the visible text.
+        private var spotRect: (args: String, top: CGFloat, height: CGFloat)?
+        private var spotRectAsked: String?
+        private var lastSide: JumpDirection?
+
+        private func spotArgs(_ spot: (paragraph: Int, sentence: ReaderSentence?)) -> String {
+            spot.sentence.map { "\($0.paragraph), \($0.start), \($0.end)" } ?? "\(spot.paragraph), null, null"
+        }
+
+        /// While the text isn't following the audio, tells the owner which way the spoken sentence is
+        /// (Jump to Audio's arrow). Scroll: its middle against the middle of the visible text, between
+        /// the insets (the page's answer is kept, so a drag costs no calls); Pages: its page against
+        /// the one shown. Only a change is reported.
+        func updateSpotSide() {
+            guard loaded, !follows, let spot = spokenSpot, let webView else { return }
+            if let pages = layout as? PagesTextLayout {
+                if let side = pages.side(of: ReadingPages.Spot(spot)) { report(side) }
+                return
+            }
+            let args = spotArgs(spot)
+            guard let rect = spotRect, rect.args == args else {
+                guard spotRectAsked != args else { return }
+                spotRectAsked = args
+                locate("window.__readerSpokenRect(\(args))") { [weak self] top, height in
+                    guard let self else { return }
+                    spotRectAsked = nil
+                    spotRect = (args, top, height)
+                    updateSpotSide()
+                }
+                return
+            }
+            let sv = webView.scrollView
+            let visibleTop = sv.contentOffset.y + sv.adjustedContentInset.top
+            let visibleBottom = sv.contentOffset.y + sv.bounds.height - sv.adjustedContentInset.bottom
+            report(rect.top + rect.height / 2 < (visibleTop + visibleBottom) / 2 ? .up : .down)
+        }
+
+        private func report(_ side: JumpDirection) {
+            guard side != lastSide else { return }
+            lastSide = side
+            onSpotSide(side)
         }
 
         /// Scrub-follow: the paragraph under the scrub thumb, in the middle.
@@ -771,6 +829,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
             let request = spokenRequest
             let args = spot.sentence.map { "\($0.paragraph), \($0.start), \($0.end)" } ?? "\(spot.paragraph), null, null"
             locate("window.__readerSpokenRect(\(args))") { [weak self] top, height in
+                self?.spotRect = (args, top, height)
                 // While the sheet is pulled the text is held at its top; the next sentence goes.
                 guard let self, request == spokenRequest, goesToSpoken, !pullHandoff.isPulling else { return }
                 layout.show(top: top, height: height, .centre(move))
@@ -780,6 +839,8 @@ struct HTMLReadingWebView: UIViewRepresentable {
         func setActiveParagraph(_ index: Int?) {
             let changed = pendingActive != index
             pendingActive = index
+            if changed { spotRect = nil }
+            defer { updateSpotSide() }
             guard sentActive != .some(index), let webView, loaded else { return }
             sentActive = .some(index)
             let arg = index.map(String.init) ?? "null"
@@ -794,7 +855,9 @@ struct HTMLReadingWebView: UIViewRepresentable {
         }
 
         func setSentence(_ sentence: ReaderSentence?) {
+            if pendingSentence != sentence { spotRect = nil }
             pendingSentence = sentence
+            defer { updateSpotSide() }
             guard sentSentence != .some(sentence), let webView, loaded else { return }
             sentSentence = .some(sentence)
             let args = sentence.map { "\($0.paragraph), \($0.start), \($0.end)" } ?? "null"

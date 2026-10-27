@@ -147,6 +147,14 @@ final class ReadingChrome {
     }
 }
 
+/// Where the spoken sentence is, from the visible text: Jump to Audio's arrow points that way.
+enum JumpDirection {
+    /// Above the visible text (it is earlier in the article; Pages: on an earlier page).
+    case up
+    /// Below it.
+    case down
+}
+
 /// Room the text leaves for the bars drawn over it (points; the bottom includes the home
 /// indicator's inset).
 struct ReaderTextInsets: Equatable {

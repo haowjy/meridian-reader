@@ -129,6 +129,9 @@ enum Icons {
     /// ☝︎ Listen from a paragraph: off, on.
     static let jump = "hand.tap"
     static let jumpOn = "hand.tap.fill"
+    /// Jump to Audio: the spoken sentence is above / below the visible text.
+    static let jumpToAudioUp = "arrow.up"
+    static let jumpToAudioDown = "arrow.down"
     /// Playing (bars beside a title, the tinted pill).
     static let playing = "waveform"
     static let sleepTimer = "moon.fill"

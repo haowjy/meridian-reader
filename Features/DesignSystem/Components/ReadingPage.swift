@@ -47,7 +47,7 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
     @ViewBuilder var band: Band
     /// Floats just above the bottom band's hairline (a toast).
     @ViewBuilder var floating: Floating
-    /// Floats over the text: just above the band (the full screen play button), or at its top, below the header (Jump to Audio).
+    /// Floats over the text: just above the band (Jump to Audio, the full screen play button).
     @ViewBuilder var overText: OverText
 
     var body: some View {

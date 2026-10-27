@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// A labelled capsule button: a sheet's close pill ("‹ Browser", "⌄ Library") and Listen, a book's Continue,
-/// Now Playing's "Jump to Audio". 48 pt tall (36 compact) at the default text size, growing with
+/// A labelled capsule button: a sheet's close pill ("‹ Browser", "⌄ Library") and Listen, a book's Continue. 48 pt tall (36 compact) at the default text size, growing with
 /// Dynamic Type up to `BottomChrome.maxTextGrowth` like the rest of the band; radius `Radius.pill`.
 ///
 /// A `detail` follows the title in regular weight, set apart by space rather than a separator:
@@ -17,8 +16,6 @@ struct PillButton<Leading: View>: View {
         case neutral
         /// Playing tint, accent text: the playing state of a filled pill.
         case tinted
-        /// Ink fill, paper text: a floating pill over reading text (Jump to Audio).
-        case inverted
     }
 
     enum Size {
@@ -113,7 +110,6 @@ struct PillButton<Leading: View>: View {
         case .filled: reading?.onAccent ?? Palette.onAccent
         case .neutral: reading?.ink ?? Palette.ink
         case .tinted: reading?.accent ?? Palette.accent
-        case .inverted: reading?.background ?? Palette.paper
         }
     }
 
@@ -122,7 +118,6 @@ struct PillButton<Leading: View>: View {
         case .filled: reading?.accent ?? Palette.accent
         case .neutral: BottomChrome.fieldFill(reading)
         case .tinted: reading?.highlight ?? Palette.playingTint
-        case .inverted: reading?.ink ?? Palette.ink
         }
     }
 }
@@ -177,9 +172,6 @@ struct PillButtonGallery: View {
             }
             PreviewState("tinted · playing") {
                 PillButton("Playing", detail: "Ch 24", systemImage: Icons.playing, style: .tinted) {}
-            }
-            PreviewState("inverted compact · Jump to Audio") {
-                PillButton("Jump to Audio", style: .inverted, size: .compact) {}
             }
             PreviewState("disabled") {
                 PillButton("Listen", systemImage: Icons.play) {}.disabled(true)

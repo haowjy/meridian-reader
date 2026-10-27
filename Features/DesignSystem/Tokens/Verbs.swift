@@ -152,6 +152,7 @@ enum Verbs {
     static let reader = String(localized: "Reader")
     /// The band's ‹ and ›.
     static let back = String(localized: "Back")
+    static let jumpToAudio = String(localized: "Jump to Audio")
     static let forward = String(localized: "Forward")
     /// ⋯ (a row's, a folder header's, the toolbar's) and the folder header's caption.
     static let more = String(localized: "More")

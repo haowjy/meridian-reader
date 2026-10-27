@@ -180,6 +180,13 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         if word < start || model.end.map({ word >= $0 }) == true { host.stopFollowing() }
     }
 
+    /// Which way `spot` is from the page shown: nil on it (or before the page is known).
+    func side(of spot: ReadingPages.Spot) -> JumpDirection? {
+        guard let start = model.start, model.shown != nil else { return nil }
+        if spot < start { return .up }
+        return model.end.map { spot >= $0 } == true ? .down : nil
+    }
+
     func turn(forward: Bool) -> Bool {
         guard let shown = model.shown else { return false }
         let index = shown.index + (forward ? 1 : -1)
@@ -477,6 +484,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
                   let parts = result as? [Any], parts.count == 2 else { return }
             if let spot = Self.spot(parts[0]) { model.start = spot }
             model.end = i + 1 < (model.shown?.count ?? 0) ? Self.spot(parts[1]) : nil
+            host.updateSpotSide()
         }
     }
 
