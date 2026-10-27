@@ -71,7 +71,7 @@ expanded    [‹ ›][ address / Search Library          ]        row 1: the scr
             [ Listen | Library | Browser ][▶][  ⋯  ]         row 2: where you are, play, menu (Listen: the ▶ slot stays empty)
 collapsed   [‹ ›][ address ↻ ][icon][▶][⋯]                    scrolled down: one row; only the arrows that work (Library: search)
 Listen      never collapses on scroll                         ‹ floats top left; a middle tap = full screen: nothing, a ▶ / ⏸ floats for 3 s
-searching   [ field                               ][✕]       the keyboard is up: no screen icon, ▶ or ⋯
+searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no screen icon, ▶ or ⋯
 ```
 
 Every piece is `mix(expanded, collapsed, progress)` of one pure layout (`ChromeLayout`, the mockups'
@@ -136,12 +136,17 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   the shrinking pill while the other segments and the wash fade; the Browse arrows, the field and
   the Listen's card fold the same way (`ChromePieces` is animatable in the progress). Reduce Motion:
   no travel, the two forms cross-fade.
-- **Searching** (the keyboard up, or its session open): one row, the field (its mic inside it) and ✕. The
-  screen icon, ▶ and ⋯ are not drawn: nothing there is needed while typing, and ✕ takes ⋯'s slot. The field
-  takes the width they leave: field + one 10 pt gap + ✕ 48 are the same fixed 351 pt block, centred, at the
-  bottom row's position, so the field is 293 pt on every phone (`testTypingIsTheFieldAndCancelFillingTheFixedBlock`).
-  Under it the Recent Searches / suggestions layer is opaque paper to the bottom edge (behind the field and the
-  keyboard); only its list stops above the row, so the page never shows through the strip under the field.
+- **Searching** (the keyboard up, or its session open): one row, **margin to margin on every phone**, Brave-style:
+  the field (🔍 left, the text, a round ⊗ inside at the right while there is text, 🎤 at its end) and a **Cancel**
+  text button (accent, 72 pt) at the right margin. It is not the fixed 351 pt block (the one exception to it): the
+  field runs from the left margin (12) to Cancel, one 10 pt gap between, so it is 375 − 24 − 10 − 72 = 269 pt on the
+  SE and 296 pt on a 402 pt phone (`testTypingIsTheFieldAndCancelMarginToMargin`). The screen icon, ▶, ⋯ and any globe
+  are not drawn while typing. Above the field the search layer is **opaque paper from under the safe area down to the
+  keyboard**, and at its top, 12 pt under the safe area and 12 pt from each side, one **rounded card** of rows
+  (`SearchSessionOverlay`): untouched (or empty), *Recent Searches* (header + Clear All, a 🔍 row each); typing, first
+  `Search “typed”` (🔍, runs the search; for an address, `Go to “…”`), then up to 2 history matches, 1 saved page and the
+  engine's live suggestions, 6 rows in all. Each suggestion row has 🔍 on the left and a ↖︎ on the right that puts its text in the
+  field without searching; a row's tap runs it. Library's search uses the same Cancel in the row (its list is its own).
 - **Web pages know the chrome (Browse, iOS 26+, compact width)**: the Browse `WKWebView` reports the chrome's
   footprint as its bottom `obscuredContentInsets` (plus min/max viewport insets), so a page's
   `position:fixed; bottom:0` banner (cookie bars, Reddit's "open in app"), sticky footers and `dvh`/`svh`/`lvh` sit
@@ -257,7 +262,7 @@ the same spot. ⋯ is never replaced.
 
 - **A new search** is a tap on the address field: it selects the article's address, so typing
   replaces it (Recent Searches show full-bleed, Safari-style); ✕ cancels and restores the article's
-  address. Swipe down lowers the keyboard but stays in search mode (typed text and ✕ kept). The
+  address. Swipe down lowers the keyboard but stays in search mode (typed text and Cancel kept). The
   page stays loaded underneath. ⋯ → *New Search* opens the start page with an empty field.
   Text without a scheme loads as an address only when its host ends in letters (`.com`, `.uk`,
   `.js`) or is an IP address; anything else ("3.14", "e.g.") is a Google search, and the
@@ -825,23 +830,28 @@ whether you finished it are stored once saving works again, even across failed c
 **Library search** is the bottom field, the same session as the browser's (`SearchSession`,
 `ShellState.librarySearch`; drawn by `ChromeHost` on compact width, `SurfaceBand` on regular):
 focusing it turns the chrome into its one searching row (on regular width it hides the dock's
-toolbar) so the field sits above the keyboard with a round ✕ (on a folder screen it goes back to
+toolbar) so the field sits above the keyboard with Cancel at its right (on a folder screen it goes back to
 the home first, the list it filters); swipe-down / scroll lowers the keyboard but **stays in search
-mode**; ✕ exits and clears the filter. While there is text, the home's list holds the folders
+mode**; Cancel exits and clears the filter. While there is text, the home's list holds the folders
 (by name, or a book's author) and pages (titles, sites, excerpts) that match, across the whole
 tree in the selected tab, each with its location.
 
-**Editing the address** (a ✕ state, so it closes like one):
-- The toolbar steps aside and the field sits right above the keyboard, with a round ✕ to its right.
-- A full-bleed **Recent Searches** / suggestions layer covers the article (Safari): header + Clear All,
-  magnifying-glass rows, and an ↑← control that fills the term into the field without navigating.
-- ✕ exits search mode: keyboard down, the article's address restored.
+**Editing the address** (a Cancel state, so it closes like one):
+- The toolbar steps aside and the field sits right above the keyboard, full width, with **Cancel** (text) to its right.
+- An opaque layer covers the article with a rounded **card** at its top (Brave): `Search “typed”`, then history, a saved
+  page and live suggestions, or Recent Searches (header + Clear All) while the field is empty; every row has a 🔍 and
+  a ↖︎ that fills the term into the field without navigating.
+- Cancel exits search mode: keyboard down, the article's address restored.
 - Scrolling the Recent Searches / suggestions list drags the keyboard down with the finger
   (interactive, like Safari); with nothing listed, a swipe down on the layer lowers it. Either way
-  it **stays in search mode** — typed text and ✕ remain; tap the field to type again.
+  it **stays in search mode** — typed text and Cancel remain; tap the field to type again.
 - Focusing selects the whole address, so typing replaces it. While the field is empty or still
   shows the untouched address, **Recent Searches** (local, newest first, Clear All) are shown;
-  otherwise Recents / Saved / Google suggestions.
+  otherwise the card's rows. **Live suggestions** come from Google's suggest endpoint (the app's one engine) as you type:
+  one request after a 150 ms pause, the request in flight cancelled by the next keystroke and an answer that arrives late
+  ignored, at most 6 rows in all, none for text that would load as an address, nothing on failure (the local rows stay),
+  an ephemeral session with no cookies, cache or referrer, and nothing logged. **Settings › Browsing › Search Suggestions**
+  (default on) turns them off; its footer says the typed text is sent to Google.
 - 🎤 appears **only while searching** (the address field's `SearchSession`), not on the idle
   address bar. It dictates on-device (`SFSpeechRecognizer`, `requiresOnDeviceRecognition` when
   the locale supports it): partial text streams into the field; it stops on a second tap, on
@@ -1282,7 +1292,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Screen | Button | Presentation |
 |--------|--------|--------------|
 | Browser (start page / web page) | — | root |
-| Browser → editing the address | ✕ round, right of the field | in place; tap outside or drag down |
+| Browser → editing the address | Cancel (text), right of the field | in place; tap outside or drag down |
 | Browser ⋯ / Reader ⋯ / Now Playing ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
 | ⋯ → Website (Reader, Now Playing) | no shortcut | leaves the Reader (the sheet closes on regular width, and the library) and shows / loads the page in the browser; audio continues |
 | ⋯ → Settings (`SettingsView`); on iPad also the sidebar's Settings | Done | `.sheet` (a form sheet on iPad); Voice, Language, Speed, Appearance, Reading, Prepared Audio and Acknowledgements push inside it |

@@ -127,7 +127,7 @@ UITests/    the smoke flow and the in-place Reader chrome flow (MeridianReaderUI
   `App/Fixtures/`; App hands Core, the design system and Features what a launch asks for: the
   test pages' handler to the browser's web view (`webViewSchemeHandlers`) and to the
   `URLPageFetcher` behind Follow's `FetchQueue`, the ⋯ panel's test marker and slowed morph
-  (`morphMenuMarksFocus`, `morphMenuAnimation`), Google suggestions off under `-uiTesting` and the
+  (`morphMenuMarksFocus`, `morphMenuAnimation`), search suggestions none (or the fixed `-stubSuggestions` rows) under `-uiTesting` and the
   scrub-bubble screenshot (environment values from `LaunchTestHooks`), the test EPUB in place of
   the Files picker (`BookImportActions.importsTestBook`, set in `AppMain`). No Feature reads
   `LaunchOptions`.
@@ -505,12 +505,12 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 | Reading a saved article | Yes (`cleanedHTML`) |
 | Listening | Yes: Apple voices; Phonon or Kokoro once its model is downloaded |
 | Loading pages, Save of a new page | No |
-| Google suggestions, favicons | No (they quietly don't show) |
+| Search suggestions, favicons | No (they quietly don't show) |
 
 ## Network use
 
 All of it is user-initiated or for the article in view: article loads, Google search and the unofficial
-Google suggest endpoint (`suggestqueries.google.com`, while typing in the address field), favicons
+Google suggest endpoint (`suggestqueries.google.com`, while typing in the address field and only while Settings › Browsing › Search Suggestions is on: an ephemeral `URLSession`, no cookies, cache, credentials or referrer, nothing logged, one request per typing pause, in-flight request cancelled), favicons
 of visited and bookmarked sites, and the one-time voice model downloads: Phonon's zip (GitHub release of `gradium-ai/xn-ptts`) and Kokoro's model and voice packs (Hugging
 Face), asked first on cellular or Low Data Mode. No analytics.
 
