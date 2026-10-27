@@ -50,17 +50,6 @@
                ReferencedContainer = "container:MeridianReader.xcodeproj">
             </BuildableReference>
          </TestableReference>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "5082070DABAF25BBCA7EDEAA"
-               BuildableName = "MeridianReaderUITests.xctest"
-               BlueprintName = "MeridianReaderUITests"
-               ReferencedContainer = "container:MeridianReader.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

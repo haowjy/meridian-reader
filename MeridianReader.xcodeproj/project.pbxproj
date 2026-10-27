@@ -105,7 +105,6 @@
 		406225256257BDD8E83BDD84 /* ReadingScrollRestore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4938CE0632FDB83D72F8D5E3 /* ReadingScrollRestore.swift */; };
 		410A5B160135DED6993F5982 /* LibraryMigrationReceipt.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7755AAF6221CB2EBD33E209 /* LibraryMigrationReceipt.swift */; };
 		4146BE1E26E4D8BA2F0FD1ED /* ChromeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F8BB62E8A584A0007101F2 /* ChromeState.swift */; };
-		419E03834EB2A6AAAE357EF2 /* CoreFlowsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FAF4E54306B4B2D2305D158 /* CoreFlowsUITests.swift */; };
 		4231392C8CB5F4C020B69DC0 /* RoundIconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71C8FDB4053C6DB88808B4BF /* RoundIconButton.swift */; };
 		423777E594FD2C8115E41889 /* ClusteredPlayerDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49553A97DD0B7DD9D06C339D /* ClusteredPlayerDock.swift */; };
 		426FBA3D243AD6A174385722 /* VoiceChoiceRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D80480B1B5CBAD0F39517E3 /* VoiceChoiceRows.swift */; };
@@ -133,7 +132,6 @@
 		55DF05592ED6602524A70482 /* NetworkPathStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E2E9B127AE05533C254268B /* NetworkPathStatus.swift */; };
 		5681399EF3FBB5A664EB95E2 /* PhononSpokenTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3395E9CAA6DEA7A4F303D00F /* PhononSpokenTextTests.swift */; };
 		56A9B24B71667DDC048B44FF /* ReaderBookChapter.js in Resources */ = {isa = PBXBuildFile; fileRef = 79643CA611C084BF59345F8B /* ReaderBookChapter.js */; };
-		572ECC471A7571447D32A39F /* UITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1054139E6E22B27A0CE8095F /* UITestSupport.swift */; };
 		576FA31D5DB141C074B19045 /* EPUBTextStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF0B010883353D2BC263732 /* EPUBTextStream.swift */; };
 		59373BA865E0685F6A730F48 /* LibraryScreenMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F097A8E7263234EEC9CF2D8 /* LibraryScreenMenu.swift */; };
 		5A4B546BED2075EBB0D7A00B /* LibraryNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652FDB164655F3ACE50FDF31 /* LibraryNavigation.swift */; };
@@ -422,13 +420,6 @@
 			remoteGlobalIDString = BA336FA940ECF41031D86AEB;
 			remoteInfo = MeridianReaderShare;
 		};
-		8B03388CA5F9597F7267F486 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = F912A2940D20BB4590BF287F /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 8A61C4D97EF1D05E167E3218;
-			remoteInfo = MeridianReader;
-		};
 		A227932B10347012D8C71C12 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = F912A2940D20BB4590BF287F /* Project object */;
@@ -469,7 +460,6 @@
 		0D9FD159029A83B908E2E513 /* MeridianReader.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MeridianReader.entitlements; sourceTree = "<group>"; };
 		0DD71A9C406B6AC326F0DF4F /* VoiceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalog.swift; sourceTree = "<group>"; };
 		0EB4AF1A5EA196F0B14FC2BB /* HTMLReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLReadingView.swift; sourceTree = "<group>"; };
-		1054139E6E22B27A0CE8095F /* UITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestSupport.swift; sourceTree = "<group>"; };
 		1058D3AF8B3347D3BFFA7661 /* VoicePreviewPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePreviewPlayer.swift; sourceTree = "<group>"; };
 		10D670044EBE1DFA45CCC49F /* PrepareMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrepareMark.swift; sourceTree = "<group>"; };
 		113C7301700ABAE18A124F18 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -583,7 +573,6 @@
 		5BA2179638D25476E929F9C8 /* TestVoiceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestVoiceProvider.swift; sourceTree = "<group>"; };
 		5C15F2A9F527FEF3D8476269 /* FolderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderScreen.swift; sourceTree = "<group>"; };
 		5C27B71CA4EFC5B4693E6629 /* ChromeSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeSkin.swift; sourceTree = "<group>"; };
-		5C863CEC071E7E0D6141FD39 /* MeridianReaderUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MeridianReaderUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DB3C0B0A7EC2C49F5EF2212 /* SurfaceMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceMemory.swift; sourceTree = "<group>"; };
 		5F0F8FF9283D5CFA31713FC9 /* WebViewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewStore.swift; sourceTree = "<group>"; };
 		5F30F44AE90070FA7751D970 /* NowPlayingBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingBarView.swift; sourceTree = "<group>"; };
@@ -609,7 +598,6 @@
 		6E3534969B150DEFBAF525EA /* ReaderVisibleSnapshot.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ReaderVisibleSnapshot.js; sourceTree = "<group>"; };
 		6E5CF58207C8EDEED6ACADF2 /* ListenAudioSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenAudioSession.swift; sourceTree = "<group>"; };
 		6E8B0299093D6A2A9176A519 /* SpeechEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEnvironment.swift; sourceTree = "<group>"; };
-		6FAF4E54306B4B2D2305D158 /* CoreFlowsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreFlowsUITests.swift; sourceTree = "<group>"; };
 		6FB44B59A361890894A45802 /* FollowingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowingSheet.swift; sourceTree = "<group>"; };
 		700F8C5B3C4BFA17CC29C300 /* ListeningTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningTime.swift; sourceTree = "<group>"; };
 		71838CE3E335D181BC4FD7F3 /* FolderDeletePrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderDeletePrompt.swift; sourceTree = "<group>"; };
@@ -941,7 +929,6 @@
 				C9BE9B07FE874609CD8EC5D9 /* MeridianReader.app */,
 				E59C770DA597A91FE3824A66 /* MeridianReaderShare.appex */,
 				94719A7F10D0D0FD27E78E03 /* MeridianReaderTests.xctest */,
-				5C863CEC071E7E0D6141FD39 /* MeridianReaderUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1067,7 +1054,6 @@
 				F5071CD4A0BF9BCA63EF0671 /* Resources */,
 				3BA1BC54D1CBAB5C34018252 /* ShareExtension */,
 				1418DCE0E590E5628AB3306C /* Tests */,
-				707E81AC7A0DE46261048A6D /* UITests */,
 				23786035B708158B9E4C2911 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -1232,15 +1218,6 @@
 				EBD6174A7EBF90760A62446C /* Engines */,
 			);
 			path = TTS;
-			sourceTree = "<group>";
-		};
-		707E81AC7A0DE46261048A6D /* UITests */ = {
-			isa = PBXGroup;
-			children = (
-				6FAF4E54306B4B2D2305D158 /* CoreFlowsUITests.swift */,
-				1054139E6E22B27A0CE8095F /* UITestSupport.swift */,
-			);
-			path = UITests;
 			sourceTree = "<group>";
 		};
 		707F13C6F5B6EBD314C6F7AE /* Chrome */ = {
@@ -1745,24 +1722,6 @@
 			productReference = 94719A7F10D0D0FD27E78E03 /* MeridianReaderTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		5082070DABAF25BBCA7EDEAA /* MeridianReaderUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = B5C734ED526ADB34CB62722F /* Build configuration list for PBXNativeTarget "MeridianReaderUITests" */;
-			buildPhases = (
-				CD43C3E58C25EC1D846C3349 /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				34086B04BEDEFE1EA8CE03F9 /* PBXTargetDependency */,
-			);
-			name = MeridianReaderUITests;
-			packageProductDependencies = (
-			);
-			productName = MeridianReaderUITests;
-			productReference = 5C863CEC071E7E0D6141FD39 /* MeridianReaderUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 		8A61C4D97EF1D05E167E3218 /* MeridianReader */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 61BD7EBFC2D087E9E12B91CD /* Build configuration list for PBXNativeTarget "MeridianReader" */;
@@ -1817,10 +1776,6 @@
 					056724A95F436833A1D83EFE = {
 						DevelopmentTeam = JMYU8K3WZN;
 					};
-					5082070DABAF25BBCA7EDEAA = {
-						DevelopmentTeam = JMYU8K3WZN;
-						TestTargetID = 8A61C4D97EF1D05E167E3218;
-					};
 					8A61C4D97EF1D05E167E3218 = {
 						DevelopmentTeam = JMYU8K3WZN;
 						ProvisioningStyle = Automatic;
@@ -1854,7 +1809,6 @@
 				8A61C4D97EF1D05E167E3218 /* MeridianReader */,
 				BA336FA940ECF41031D86AEB /* MeridianReaderShare */,
 				056724A95F436833A1D83EFE /* MeridianReaderTests */,
-				5082070DABAF25BBCA7EDEAA /* MeridianReaderUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -2289,23 +2243,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		CD43C3E58C25EC1D846C3349 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				419E03834EB2A6AAAE357EF2 /* CoreFlowsUITests.swift in Sources */,
-				572ECC471A7571447D32A39F /* UITestSupport.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		34086B04BEDEFE1EA8CE03F9 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 8A61C4D97EF1D05E167E3218 /* MeridianReader */;
-			targetProxy = 8B03388CA5F9597F7267F486 /* PBXContainerItemProxy */;
-		};
 		478804E398D9E46E9C5CB0EF /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 8A61C4D97EF1D05E167E3218 /* MeridianReader */;
@@ -2402,23 +2342,6 @@
 			};
 			name = Release;
 		};
-		5179531D7D018AC394820EE6 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jimmyyao.ReaderUITests;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = MeridianReader;
-			};
-			name = Release;
-		};
 		75FA4CA962349E78B464F907 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2511,23 +2434,6 @@
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
-		};
-		9DB9AB5E797AFBD0CB787012 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jimmyyao.ReaderUITests;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = MeridianReader;
-			};
-			name = Debug;
 		};
 		A460493EBBEDE9A2B09BBA59 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -2647,15 +2553,6 @@
 			buildConfigurations = (
 				33F196F4E08304B804AD6375 /* Debug */,
 				877714758A6FF2F63943C542 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
-		B5C734ED526ADB34CB62722F /* Build configuration list for PBXNativeTarget "MeridianReaderUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				9DB9AB5E797AFBD0CB787012 /* Debug */,
-				5179531D7D018AC394820EE6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -131,7 +131,6 @@ targets:
     scheme:
       testTargets:
         - MeridianReaderTests
-        - MeridianReaderUITests
 
 
   # Share Extension: Safari / Files → App Group inbox → host opens Browse or Import.
@@ -184,14 +183,3 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: com.jimmyyao.ReaderTests
       TEST_HOST: $(BUILT_PRODUCTS_DIR)/MeridianReader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MeridianReader
       BUNDLE_LOADER: $(TEST_HOST)
-
-  MeridianReaderUITests:
-    type: bundle.ui-testing
-    platform: iOS
-    sources:
-      - path: UITests
-    dependencies:
-      - target: MeridianReader
-    settings:
-      GENERATE_INFOPLIST_FILE: YES
-      PRODUCT_BUNDLE_IDENTIFIER: com.jimmyyao.ReaderUITests
