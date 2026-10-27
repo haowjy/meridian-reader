@@ -25,9 +25,13 @@ struct SurfaceBand<Field: View>: View {
                 .accessibilityIdentifier("bandField")
             if session.isActive {
                 Button(action: onCancel) {
-                    Image(systemName: Icons.close)
-                        .foregroundStyle(Palette.ink)
-                        .roundFieldControl(fill: Palette.chrome)
+                    Text(Verbs.cancel)
+                        .typeStyle(.row)
+                        .foregroundStyle(Palette.accent)
+                        .lineLimit(1)
+                        .frame(minHeight: BottomChrome.minTapTarget)
+                        .padding(.horizontal, Spacing.xxs)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Verbs.cancel)

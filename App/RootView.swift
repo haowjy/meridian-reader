@@ -82,7 +82,7 @@ private struct LaunchTestHooks: ViewModifier {
             .environment(\.morphMenuMarksFocus, options.uiTesting)
             .environment(\.morphMenuAnimation, options.slowMenuAnimation ? .easeInOut(duration: 3) : Motion.standard)
             .environment(\.webViewSchemeHandlers, options.servesTestPages ? TestPageSchemeHandler.handlers : [:])
-            .environment(\.fetchesSearchSuggestions, options.fetchesSuggestions)
+            .environment(\.searchSuggestionProvider, options.suggestionProvider)
             .environment(\.showsScrubBubbleDemo, options.scrubBubbleDemo)
     }
 }

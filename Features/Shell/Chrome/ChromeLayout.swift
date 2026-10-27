@@ -31,7 +31,7 @@ struct ChromePiece: Equatable {
 ///             [ Listen | Library | Browser ][▶][⋯]               row 2 (Listen: no ▶, the card has one)
 /// collapsed   [‹][›][ address ↻][icon][▶][⋯]                     one row (the arrows that work); never on Listen, whose card stays
 /// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
-/// keyboard    [ field                               ][✕]       the whole block: field, one gap, ✕ (no icon, ▶ or ⋯)
+/// keyboard    [ 🔍 field                      ⊗ 🎤 ][Cancel]    margin to margin on every phone: the field, one gap, Cancel (no icon, ▶ or ⋯)
 /// full screen (nothing)
 /// ```
 ///
@@ -48,7 +48,7 @@ struct ChromeLayout: Equatable {
     /// Which of ‹ and › the capsule draws (the other's circle isn't there).
     var navShowsBack = false
     var navShowsForward = false
-    /// ⋯, or ✕ while the keyboard is up.
+    /// ⋯, or Cancel (a word, `ChromeMetrics.cancelWidth` wide) while the keyboard is up.
     var more: ChromePiece
     /// A Library selection's actions: row 2 whole, in place of the pill, ▶ and ⋯.
     var editBar: ChromePiece
@@ -79,14 +79,17 @@ struct ChromeLayout: Equatable {
         func navWidth(_ arrows: CGFloat) -> CGFloat { arrows >= 2 ? K.navPairWidth : arrows * K.navSingleWidth }
         let row2 = !s.editing && hold
 
-        // Row 2 keeps one slot for ▶ and ⋯ in every form.
-        let moreRect = CGRect(x: rowRight - bar, y: rowY, width: bar, height: bar)
-        let playRect = CGRect(x: moreRect.minX - rowGap - bar, y: rowY, width: bar, height: bar)
-        let iconX = moreRect.minX - rowGap - bar - played * (bar + rowGap)
-        // Typing: only the field and ✕ (the screen icon and ▶ aren't needed there), so the field takes their
-        // width: field + gap + ✕ still fill the fixed block, centred where the bottom row is.
+        // Typing: only the field and Cancel (no screen icon, ▶ or ⋯: nothing there needs to stay put), so the
+        // row is not the fixed block: the field runs from the left margin to Cancel, which ends at the right
+        // margin, on every phone.
         let typing = s.keyboard && !s.editing && hold
+        // Row 2 keeps one slot for ▶ and ⋯ in every form.
+        let moreRect = typing ? CGRect(x: w - margin - K.cancelWidth, y: rowY, width: K.cancelWidth, height: bar)
+                              : CGRect(x: rowRight - bar, y: rowY, width: bar, height: bar)
+        let playRect = CGRect(x: rowRight - bar - rowGap - bar, y: rowY, width: bar, height: bar)
+        let iconX = rowRight - bar - rowGap - bar - played * (bar + rowGap)
         let rightEdge = typing ? moreRect.minX - rowGap : iconX - rowGap
+        let leftEdge = typing ? margin : rowX
 
         more = ChromePiece(rect: moreRect, isShown: row2)
         play = ChromePiece(rect: playRect, isShown: played > 0 && row2 && !typing)
@@ -112,7 +115,7 @@ struct ChromeLayout: Equatable {
         let forward: CGFloat = pair ? 1 : 0
         var foldedBack: CGFloat = s.keyboard || !s.canGoBack ? 0 : back
         var foldedForward: CGFloat = s.keyboard || !s.canGoForward ? 0 : forward
-        func foldedFieldX() -> CGFloat { rowX + navWidth(foldedBack + foldedForward) + (foldedBack + foldedForward > 0 ? rowGap : 0) }
+        func foldedFieldX() -> CGFloat { leftEdge + navWidth(foldedBack + foldedForward) + (foldedBack + foldedForward > 0 ? rowGap : 0) }
         while rightEdge - foldedFieldX() < K.minimumField, foldedBack + foldedForward > 0 {
             if foldedForward > 0 { foldedForward = 0 } else { foldedBack = 0 }
         }

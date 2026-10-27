@@ -1,10 +1,13 @@
 import SwiftData
 import SwiftUI
 
-/// The address search session's full-bleed layer over the page (Safari): Recent Searches while
-/// the field is untouched, otherwise suggestions (history, saved articles, Google). Scrolling the
-/// list drags the keyboard down with the finger (the system's interactive dismissal); with
-/// nothing to list, a swipe down lowers it. Either way the session stays.
+/// The address search session's layer over the page (Brave's search): opaque paper down to the
+/// keyboard, and at its top, under the safe area, one rounded card of rows. Untouched, the card is
+/// Recent Searches; typing, it is `Search "typed"` (runs the search), then what matches in history and
+/// saved pages, then the search engine's live suggestions (`SearchSuggestions`). A row's ↖︎ puts its
+/// text in the field without searching. Scrolling the card's layer drags the keyboard down with the
+/// finger (the system's interactive dismissal); with nothing to list, a swipe down lowers it. Either
+/// way the session stays.
 struct SearchSessionOverlay: View {
     let session: SearchSession
     let recentSearches: [String]
@@ -15,10 +18,13 @@ struct SearchSessionOverlay: View {
 
     /// The saved pages, for suggestions: read only while the layer is up.
     @Query(LibraryQueries.savedInLibrary) private var articles: [Article]
-    @State private var google: [String] = []
-    @Environment(\.fetchesSearchSuggestions) private var fetchesGoogle
+    /// The engine's suggestions for what is typed. They stay until the next answer replaces them
+    /// (no flicker between keystrokes), and go at once when there is nothing to ask about.
+    @State private var live: [String] = []
+    @Environment(\.searchSuggestionProvider) private var provider
+    @AppStorage(SearchSuggestions.storageKey) private var suggestionsOn = true
 
-    private static let googleDebounce: Duration = .milliseconds(280)
+    private var typed: String { session.text.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private var showsRecentSearches: Bool {
         session.isUntouched && !recentSearches.isEmpty && !isDictating
@@ -27,25 +33,30 @@ struct SearchSessionOverlay: View {
     private var suggestions: [AddressSuggestion] {
         guard !showsRecentSearches else { return [] }
         return AddressSuggestions.build(query: session.text, visits: visits.prefix(RecentVisit.maxEntries),
-                                        articles: articles.lazy.map(SavedArticleSuggestion.init), google: google)
+                                        articles: articles.lazy.map(SavedArticleSuggestion.init), google: live)
     }
 
     var body: some View {
         let suggestions = suggestions
+        let hasTyped = !session.isUntouched && !typed.isEmpty
         ZStack(alignment: .top) {
+            // (An identifier on a container would replace the rows' own, so it sits on the paper only.)
             Palette.paper
                 .ignoresSafeArea(edges: .bottom)
+                .accessibilityIdentifier("addressEditBackdrop")
 
-            if showsRecentSearches || !suggestions.isEmpty {
+            if showsRecentSearches || hasTyped {
                 ScrollView {
                     Group {
                         if showsRecentSearches {
-                            recentSearchesList
+                            recentSearchesCard
                         } else {
-                            suggestionsList(suggestions)
+                            suggestionsCard(suggestions)
                         }
                     }
-                    .padding(.top, Spacing.xxs)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .padding(.horizontal, ChromeMetrics.margin)
+                    .padding(.top, Spacing.s)
                 }
                 .scrollDismissesKeyboard(.interactively)
             } else {
@@ -57,22 +68,14 @@ struct SearchSessionOverlay: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("addressEditBackdrop")
         .task(id: session.text) {
-            let results = await Self.googleSuggestions(for: session.text, enabled: fetchesGoogle)
-            if !Task.isCancelled { google = results }
+            let rows = await SearchSuggestions.rows(typed: session.text, enabled: suggestionsOn && !session.isUntouched,
+                                                    provider: provider)
+            if !Task.isCancelled { live = rows }
         }
     }
 
-    /// Google's suggestions for typed text, after a short pause in typing.
-    private static func googleSuggestions(for text: String, enabled: Bool) async -> [String] {
-        guard let q = GoogleSuggestClient.query(forTyped: text, enabled: enabled) else { return [] }
-        do { try await Task.sleep(for: googleDebounce) } catch { return [] }
-        return await GoogleSuggestClient.suggestions(for: q)
-    }
-
-    private var recentSearchesList: some View {
+    private var recentSearchesCard: some View {
         VStack(spacing: 0) {
             SectionHeader(title: Verbs.recentSearches, size: .page, actionTitle: Verbs.clearAll,
                           actionIdentifier: "recentSearchesClear", action: onClearRecentSearches)
@@ -82,19 +85,27 @@ struct SearchSessionOverlay: View {
 
             ForEach(recentSearches, id: \.self) { term in
                 SymbolRowSeparator(leadingInset: Spacing.m)
-                SuggestionRow(title: term, subtitle: nil, openLabel: term, onOpen: { onSubmit(term) },
-                              onFill: { session.fill(term) }) {
+                SuggestionRow(title: term, subtitle: nil, openLabel: term, identifier: "recentSearch.\(term)",
+                              onOpen: { onSubmit(term) }, onFill: { session.fill(term) }) {
                     Image(systemName: Icons.search).foregroundStyle(Palette.secondaryInk)
                 }
             }
         }
+        .background(Palette.chrome)
     }
 
-    private func suggestionsList(_ rows: [AddressSuggestion]) -> some View {
+    private func suggestionsCard(_ rows: [AddressSuggestion]) -> some View {
         VStack(spacing: 0) {
+            // First: what is typed, as a search (or, for an address, opened).
+            SuggestionRow(title: typedRowTitle, subtitle: nil, openLabel: typedRowTitle, identifier: "searchTyped",
+                          onOpen: { onSubmit(session.text) }, onFill: nil) {
+                Image(systemName: BrowseURLParser.isSearch(typed) ? Icons.search : Icons.browser)
+                    .foregroundStyle(Palette.secondaryInk)
+            }
             ForEach(rows) { row in
-                SuggestionRow(title: row.title, subtitle: row.subtitle, onOpen: { onSubmit(row.query) },
-                              onFill: { session.fill(row.query) }) {
+                SymbolRowSeparator(leadingInset: Spacing.m)
+                SuggestionRow(title: row.title, subtitle: row.subtitle, identifier: "searchSuggestion.\(row.title)",
+                              onOpen: { onSubmit(row.query) }, onFill: { session.fill(row.query) }) {
                     switch row.kind {
                     case .recent, .saved:
                         ArtworkTile(image: row.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
@@ -104,11 +115,13 @@ struct SearchSessionOverlay: View {
                         Image(systemName: Icons.search).foregroundStyle(Palette.secondaryInk)
                     }
                 }
-                if row.id != rows.last?.id {
-                    SymbolRowSeparator(leadingInset: Spacing.m)
-                }
             }
         }
+        .background(Palette.chrome)
+    }
+
+    private var typedRowTitle: String {
+        BrowseURLParser.isSearch(typed) ? String(localized: "Search “\(typed)”") : String(localized: "Go to “\(typed)”")
     }
 }
 
@@ -119,8 +132,10 @@ private struct SuggestionRow<Leading: View>: View {
     let subtitle: String?
     /// Accessibility label of the open button, when its icon would otherwise be read too.
     var openLabel: String? = nil
+    var identifier: String? = nil
     let onOpen: () -> Void
-    let onFill: () -> Void
+    /// nil: no ↖︎ (the typed text is already in the field).
+    let onFill: (() -> Void)?
     @ViewBuilder let leading: () -> Leading
 
     var body: some View {
@@ -131,17 +146,20 @@ private struct SuggestionRow<Leading: View>: View {
                 openButton
             }
 
-            Button(action: onFill) {
-                Image(systemName: Icons.fillField)
-                    .rowSymbol()
-                    .fontWeight(.medium)
-                    .foregroundStyle(Palette.secondaryInk)
-                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
-                    .contentShape(Rectangle())
+            if let onFill {
+                Button(action: onFill) {
+                    Image(systemName: Icons.fillField)
+                        .rowSymbol()
+                        .fontWeight(.medium)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Insert into search field")
+                .accessibilityIdentifier(identifier.map { "\($0).fill" } ?? "")
+                .padding(.trailing, Spacing.xxs)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Insert into search field")
-            .padding(.trailing, Spacing.xxs)
         }
     }
 
@@ -151,11 +169,12 @@ private struct SuggestionRow<Leading: View>: View {
                 .padding(.leading, Spacing.m)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier ?? "")
     }
 }
 
 extension EnvironmentValues {
-    /// Live Google suggestions in the address field; a launch turns them off for UI tests, so
+    /// Where the address field's live suggestions come from; a launch swaps it for UI tests, so
     /// results don't depend on the network.
-    @Entry var fetchesSearchSuggestions = true
+    @Entry var searchSuggestionProvider = SearchSuggestionProvider.live
 }

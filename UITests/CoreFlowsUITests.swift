@@ -199,7 +199,7 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(app.buttons["chromePlayPause"], timeout: 5), "Library: ▶ on the row")
     }
 
-    /// Jump to Audio is for the bars up only (C128): scrolled away from the audio the pill shows,
+    /// Jump to Audio is for the bars up only (C128): scrolled away from the audio the button shows,
     /// a middle tap into full screen removes it at once, and leaving full screen brings it back.
     func testJumpToAudioLeavesWithFullScreen() throws {
         let app = launch(["-browseTestPages"])
@@ -215,10 +215,10 @@ final class CoreFlowsUITests: XCTestCase {
         let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15))
         let low = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
         low.press(forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0.3)
-        XCTAssertTrue(appears(jump, timeout: 5), "scrolled away from the audio: the pill")
+        XCTAssertTrue(appears(jump, timeout: 5), "scrolled away from the audio: the button")
 
         text.tap()
-        XCTAssertTrue(eventually(1) { !jump.exists }, "full screen removes the pill at once")
+        XCTAssertTrue(eventually(1) { !jump.exists }, "full screen removes the button at once")
         Thread.sleep(forTimeInterval: 1)
         XCTAssertFalse(jump.exists, "and it stays away through full screen")
         text.tap()
@@ -257,20 +257,21 @@ final class CoreFlowsUITests: XCTestCase {
         let jump = app.buttons["nowPlayingJumpToAudio"]
         for (from, to) in [(high, low), (low, high)] {
             for _ in 0..<3 { from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .fast, thenHoldForDuration: 0.2) }
-            XCTAssertTrue(appears(jump, timeout: 5), "scrolled away from the audio: the pill")
+            XCTAssertTrue(appears(jump, timeout: 5), "scrolled away from the audio: the button")
             XCTAssertFalse(again.exists && again.frame.minY > 0 && again.frame.maxY < card.frame.minY, "the spot is out of view")
             jump.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
             idle(2)
             XCTAssertEqual(again.frame.midY, viewportMid, accuracy: 40,
                            "the spot is in the middle of the visible text, not at its top: \(again.frame)")
-            XCTAssertTrue(eventually(2) { !jump.exists }, "the pill goes once the audio is shown")
+            XCTAssertTrue(eventually(2) { !jump.exists }, "the button goes once the audio is shown")
         }
     }
 
-    /// Jump to Audio floats at the top of the text: centred, below the status bar, level with the
-    /// floating ‹ without meeting it, and below the ☝︎ hint when that is up (it never covers a
-    /// control).
-    func testJumpToAudioSitsAtTheTopClearOfTheBackAndTheHint() throws {
+    /// Jump to Audio is a round 44 pt button at the right edge, 12 pt above the player card and
+    /// level with the card's right edge, whatever the screen (17 Pro, SE): not at the top, so it
+    /// never meets the floating ‹ or the ☝︎ hint, and the thumb reaches it. Scrolled up the text and
+    /// down it, it is the same place, with the arrow pointing the other way (the shots show it).
+    func testJumpToAudioSitsAboveTheCardAtTheRightEdge() throws {
         let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "40", "-seedDemoListenAt", "20",
                           "-seedDemoBook", "-seedDemoFolders", "-openLibrary"])
         XCTAssertTrue(appears(app.libraryHome, timeout: 10), "the Library")
@@ -278,30 +279,31 @@ final class CoreFlowsUITests: XCTestCase {
         let playPause = app.buttons["listenPlayPause"]
         XCTAssertTrue(appears(playPause, timeout: 10), "Now Playing")
         tapWhenHittable(playPause)
-        let window = app.windows.firstMatch.frame
-        let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
-        let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65))
-        for _ in 0..<3 { from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .fast, thenHoldForDuration: 0.2) }
+        let card = find(app, "readingPlayerCard")
+        XCTAssertTrue(appears(card, timeout: 5), "the player card")
         let jump = app.buttons["nowPlayingJumpToAudio"]
-        XCTAssertTrue(appears(jump, timeout: 5), "scrolled away from the audio: the pill")
-        let pill = jump.frame
-        XCTAssertEqual(pill.midX, window.midX, accuracy: 1, "centred")
-        XCTAssertLessThan(pill.minY, window.height * 0.2, "at the top of the screen, not the middle")
-        XCTAssertGreaterThanOrEqual(pill.minY, 20, "below the status bar")
-        let back = app.buttons["listenBack"]
-        XCTAssertTrue(appears(back, timeout: 3), "the floating ‹")
-        XCTAssertFalse(pill.intersects(back.frame), "the pill and ‹ never meet: \(pill) \(back.frame)")
-        XCTAssertEqual(pill.midY, back.frame.midY, accuracy: 6, "level with the ‹ circle")
-
-        // The ☝︎ hint comes up in the header: the pill is below it.
-        tapWhenHittable(app.buttons["chromeReaderMore"])
-        tapWhenHittable(find(app, "listenJump"))
-        let hint = find(app, "listenJumpHint")
-        XCTAssertTrue(appears(hint, timeout: 5), "the ☝︎ hint")
-        idle(1)
-        XCTAssertTrue(jump.exists, "the pill stays")
-        XCTAssertGreaterThanOrEqual(jump.frame.minY, hint.frame.maxY, "below the hint")
-        XCTAssertFalse(jump.frame.intersects(hint.frame))
+        XCTAssertFalse(jump.exists, "on the audio: no button")
+        let high = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        let low = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65))
+        var placed: [CGRect] = []
+        for (name, from, to) in [("below", high, low), ("above", low, high)] {
+            for _ in 0..<3 { from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .fast, thenHoldForDuration: 0.2) }
+            XCTAssertTrue(appears(jump, timeout: 5), "scrolled away from the audio: the button")
+            idle(1)
+            let frame = jump.frame
+            placed.append(frame)
+            XCTAssertGreaterThanOrEqual(frame.width, 44, "a 44 pt tap target")
+            XCTAssertGreaterThanOrEqual(frame.height, 44, "a 44 pt tap target")
+            XCTAssertEqual(frame.width, frame.height, accuracy: 1, "round")
+            XCTAssertEqual(frame.maxX, card.frame.maxX, accuracy: 2, "level with the card's right edge: \(frame) \(card.frame)")
+            XCTAssertEqual(card.frame.minY - frame.maxY, 12, accuracy: 2, "12 pt above the card: \(frame) \(card.frame)")
+            XCTAssertFalse(app.buttons["listenBack"].frame.intersects(frame), "never meets the ‹")
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "jump-spot-\(name)-\(Int(app.windows.firstMatch.frame.width))"
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+        XCTAssertEqual(placed[0], placed[1], "the same place whichever way it points")
     }
 
     /// Voice and the bookmark sit pinned at the card's trailing edge (the mockup's card), the title
@@ -434,6 +436,49 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(reload.frame.height, 44)
         XCTAssertLessThanOrEqual(reload.frame.maxX, app.frame.width - 12, "↻ ends inside the field")
     }
+    /// Brave-style search: tapping the address field puts the field above the keyboard, margin to margin with
+    /// Cancel at its right, and a card of rows at the top of the screen: `Search "typed"` first, then the
+    /// suggestions (stubbed here, no network). ↖︎ fills the field without searching; Cancel ends the session.
+    func testTypingASearchShowsTheSuggestionCardAndTheFullWidthField() throws {
+        let app = launch(["-browseTestPages", "-stubSuggestions"])
+        let field = find(app, "addressField")
+        XCTAssertTrue(appears(field, timeout: 10))
+        field.tap()
+        let cancel = app.buttons["addressCancel"]
+        XCTAssertTrue(appears(cancel, timeout: 5), "Cancel replaces ✕")
+        field.typeText("cats")
+        let typed = find(app, "searchTyped")
+        XCTAssertTrue(appears(typed, timeout: 5), "the first row searches what is typed")
+        XCTAssertTrue(typed.label.contains("cats"), typed.label)
+        for row in ["cats meaning", "cats near me", "cats news"] {
+            XCTAssertTrue(appears(find(app, "searchSuggestion.\(row)"), timeout: 5), "\(row), after the debounce")
+        }
+        let lastRow = find(app, "searchSuggestion.cats news")
+        XCTAssertLessThan(typed.frame.minY, 140, "the card is at the top, under the safe area")
+        XCTAssertLessThan(typed.frame.maxX, app.frame.width - 11, "inside the card's margin")
+        XCTAssertGreaterThan(lastRow.frame.minY, typed.frame.maxY - 1, "below it, in the same card")
+        let band = find(app, "bandField")
+        XCTAssertEqual(band.frame.minX, 12, accuracy: 1, "the field starts at the left margin")
+        XCTAssertEqual(cancel.frame.maxX, app.frame.width - 12, accuracy: 1, "Cancel ends at the right margin")
+        XCTAssertEqual(cancel.frame.minX - band.frame.maxX, 10, accuracy: 2)
+        XCTAssertGreaterThan(band.frame.minY, lastRow.frame.maxY, "the field sits below the card, above the keyboard")
+        XCTAssertTrue(app.buttons["addressClear"].exists, "⊗ while there is text")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "keyboard-search-\(Int(app.frame.width))"
+        shot.lifetime = .keepAlways
+        add(shot)
+
+        // ↖︎ puts the suggestion in the field and does not search.
+        find(app, "searchSuggestion.cats meaning.fill").tap()
+        XCTAssertTrue(eventually { (field.value as? String) == "cats meaning" }, "\(String(describing: field.value))")
+        XCTAssertTrue(typed.exists, "still searching")
+        // ⊗ empties the field.
+        app.buttons["addressClear"].tap()
+        XCTAssertTrue(eventually { (field.value as? String ?? "").isEmpty || (field.value as? String) == "Search or enter address" })
+        cancel.tap()
+        XCTAssertTrue(eventually { !cancel.exists }, "Cancel ends the session")
+    }
+
     /// A site's `position:fixed;bottom:0` popup ends above the chrome, expanded (two rows) and folded (one); expanding
     /// by hand does not move the page.
     func testAFixedBottomPopupSitsAboveTheChrome() throws {

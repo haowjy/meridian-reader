@@ -193,19 +193,25 @@ private struct ReadingSettingsPage: View {
     }
 }
 
-/// Settings › Browsing: Block Ads (`ContentBlocker`).
+/// Settings › Browsing: Block Ads (`ContentBlocker`) and Search Suggestions (`SearchSuggestions`).
 private struct BrowsingSettingsSection: View {
     @Bindable var blocker: ContentBlocker
+    @AppStorage(SearchSuggestions.storageKey) private var suggestions = true
 
     var body: some View {
         Section {
             SettingsToggleRow(title: String(localized: "Block Ads"), symbol: Icons.blockAds,
                               isOn: $blocker.isEnabled, accessibilityID: "blockAdsToggle")
+            SettingsToggleRow(title: String(localized: "Search Suggestions"), symbol: Icons.search,
+                              isOn: $suggestions, accessibilityID: "searchSuggestionsToggle")
         } header: {
             SectionHeader(title: String(localized: "Browsing"), size: .settings).listHeader()
         } footer: {
-            Text("Blocks ads and trackers on pages loaded after you change this.")
-                .listFooter()
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Blocks ads and trackers on pages loaded after you change this.")
+                Text("Search Suggestions sends what you type in the address field to Google to suggest searches.")
+            }
+            .listFooter()
         }
         .listCard()
     }

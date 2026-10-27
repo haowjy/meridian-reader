@@ -116,12 +116,22 @@ struct ChromePieces: View, Animatable {
         }
     }
 
-    /// ⋯, or ✕ while a search is editing.
+    /// ⋯, or the word Cancel while a search is editing (a text button in the accent, as Clear All is).
     @ViewBuilder
     private var more: some View {
         if state.keyboard {
-            Button(action: screen.onCancel) { ChromeRoundLabel(symbol: Icons.close, label: Verbs.cancel) }
-                .buttonStyle(.plain)
+            Button(action: screen.onCancel) {
+                Text(Verbs.cancel)
+                    .typeStyle(.row)
+                    .foregroundStyle(Palette.accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .dynamicTypeSize(...Self.largestText)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .chromeLargeContent(Verbs.cancel, symbol: Icons.close)
+            }
+            .buttonStyle(.plain)
                 .accessibilityLabel(Verbs.cancel)
                 .accessibilityIdentifier(screen.cancelID)
         } else {

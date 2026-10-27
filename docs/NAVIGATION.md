@@ -957,10 +957,10 @@ Below, the grabber and the pill at the top left are the regular-width sheet's; o
 │                 ───                  │ ← grabber
 │ ( ⌄ example.com )         (Aa) (☝︎)  │ ← the Reader's top bar; the pill names where it
 │                                      │   plays from
-│          ( Jump to Audio )           │ ← top centre, below the header; after you scroll away,
-│ … text dimmed; the spoken paragraph  │   bars up only (C128). No title card in the text (the
-│   highlighted in full ink, the       │   title is in the band)
-│   sentence underlined …              │
+│ … text dimmed; the spoken paragraph  │   No title card in the text (the title is in the band)
+│   highlighted in full ink, the       │
+│   sentence underlined …         (↑)  │ ← Jump to Audio: right edge, 12 pt above the card; after
+│                                      │   you scroll away, bars up only (C128)
 │ ─────────────────────────────────────│ ← hairline divider
 │ [art] Title              9 min left  │ ← artwork, title, time left
 │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━] 1×   │ ← thin scrub + speed
@@ -981,8 +981,7 @@ Below, the grabber and the pill at the top left are the regular-width sheet's; o
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
   stays readable. The article's first heading is hidden (the band shows the
   title, so the heading would duplicate it). The spoken paragraph is on the theme's highlight;
-  every paragraph stays in full ink (C105). The *Jump to Audio* pill is ink with the article's
-  colour for its text; the scrub row, the bubble, the jump hint, the ⋯ panel and the speed popover
+  every paragraph stays in full ink (C105). The *Jump to Audio* button takes the card's fill and the theme's ink; the scrub row, the bubble, the jump hint, the ⋯ panel and the speed popover
   take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on the
   same reading article, in both, so everything below applies to it too.
 - **The bottom band** (flat on the page background, no card, no shadow) shows the artwork tile,
@@ -1012,9 +1011,11 @@ Below, the grabber and the pill at the top left are the regular-width sheet's; o
   spoken sentence instead (below). The spoken paragraph lights up to full ink while the one before dims (a short
   fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
-  doesn't move the text, so following goes on); a *Jump to Audio* pill floats over the text at its
-  top, centred just below the header (the status bar; on a phone level with the floating ‹, below the ☝︎ hint when that
-  is up; no arrow: the spoken sentence may be above or below). Tap it (or start another page) and
+  doesn't move the text, so following goes on); a round *Jump to Audio* button floats over the text at the
+  right edge, 12 pt above the player card (level with the card's right edge; the folded row when the chrome folds;
+  on regular width above the band): a 44 pt glass circle like the app's other round buttons, with an arrow
+  that points to the spoken sentence, ↑ when it is above the visible text and ↓ when below (Pages: on an earlier or a later page).
+  VoiceOver: "Jump to Audio", hint "Scrolls up / down to the sentence being read". Tap it (or start another page) and
   following resumes: the text scrolls so the spoken sentence is in the middle of the visible
   text (between the top of the screen and the bottom chrome), as when Now Playing opens, and
   stops at the document's ends where it can't centre. Scrubbing scrolls to the paragraph under
@@ -1104,7 +1105,7 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   back; scrolling never leaves it, and compact full screen is left by the middle tap alone
   (on regular width it never closes the sheet; a pull that begins with the bars showing closes it as
   usual, and while it pulls the sheet it never hides or shows the bars).
-- *Jump to Audio* shows only with the bars up, at the top of the text (centred, below the header), and only while the
+- *Jump to Audio* shows only with the bars up, at the right edge just above the card, and only while the
   text is away from the audio. It never shows in full screen, in Scroll or Pages: there the
   floating ▶ (unchanged: bottom right, fades after 3 s) is the only control over the text (C128,
   one rule, `ReadingChrome.showsJumpToAudio`).
@@ -1124,11 +1125,12 @@ time; Follow's chapter preview always scrolls.
 
 ┌──────────────────────────────────────┐   overview (a tap in the middle: bars shown)
 │ ⌄ pages                        Aa ☝︎ │ ← the top bar
-│            [Jump to Audio]           │ ← at the top, when the voice is on another page (C111)
+│                                      │
 │ ┃ ┌──────────────────────────┐ ┃     │ ← the same page, scaled down (no reflow) into a card
 │ ┃ │ Second page              │ ┃     │   centred between the bars, outlined in the accent;
 │ ┃ │ This offline test …      │ ┃     │   the neighbouring pages peek at either side
 │ ┃ └──────────────────────────┘ ┃     │
+│                                 (↑)  │ ← Jump to Audio, when the voice is on another page (C111)
 │ ─●──────────────────────────── 1×    │ ← the bottom band
 └──────────────────────────────────────┘
 ```
@@ -1142,7 +1144,7 @@ time; Follow's chapter preview always scrolls.
   reading, so nothing reflows), outlined in the accent; the pages before and after are cards of
   their own beside it, the same size, parted by a gap and outlined in the theme's quiet rule grey
   (C116), fully drawn; a card ends at the text's bottom margin, with no strip kept for the
-  footer, and *Jump to Audio* may float over its head (C117); the accent outline follows the card centred as they swipe; the cards swipe sideways as pages do, and a tap anywhere on the card zooms back
+  footer, and *Jump to Audio* may float over its foot (C117); the accent outline follows the card centred as they swipe; the cards swipe sideways as pages do, and a tap anywhere on the card zooms back
   into reading. Under Reduce Motion the change is a short fade instead of the zoom.
 - **The footer** (`2 min left` on the left, `33%` on the right), only while reading. The time is
   what is left from the first character of the article shown to the end of the article's text, at the
@@ -1158,7 +1160,7 @@ time; Follow's chapter preview always scrolls.
   the close pill do).
 - **No following, nothing over the text** (C108): Pages is for reading. It never turns by itself
   with the audio: once the voice leaves the article shown, Now Playing offers *Jump to Audio* in
-  its usual place at the top, as in Scroll (only while the bars show, C111), which shows the spoken sentence's page once. Neither
+  its usual place above the band, as in Scroll (only while the bars show, C111), which shows the spoken sentence's page once. Neither
   the floating *Jump to Audio* nor the floating play / pause shows in Pages. Opening Now Playing
   in Pages still opens on the page you hear, or the Reader's handed-over line (D2).
 - **Play from Here** (C109): selecting text (both modes) adds *Play from Here* to the system edit

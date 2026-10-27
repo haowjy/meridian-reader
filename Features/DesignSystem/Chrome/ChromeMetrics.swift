@@ -29,6 +29,9 @@ enum ChromeMetrics {
     /// The bottom row's whole width: [pill] [▶ slot] [⋯] with one `rowGap` between. Fixed (351). On a wider
     /// phone the row keeps this size and is centred, so the space either side is equal; it is never stretched.
     static let bottomRowWidth: CGFloat = pillWidth + 2 * (rowGap + barHeight)
+    /// Cancel's width while a search is editing: a word, not a circle. The keyboard's row is
+    /// [field][Cancel] from margin to margin on every phone, the field taking what Cancel leaves.
+    static let cancelWidth: CGFloat = 72
     /// The space above the top row and below the bottom row.
     static let topPadding: CGFloat = unit
     static let bottomPadding: CGFloat = 2 * unit

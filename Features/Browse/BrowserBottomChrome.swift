@@ -99,6 +99,40 @@ private struct TextFieldBox: View {
     }
 }
 
+/// What sits at the address field's end while searching: ⊗ (with text), then 🎤.
+private struct AddressAccessories: View {
+    @Binding var text: String
+    let searching: Bool
+    let isDictating: Bool
+    let isListening: Bool
+    let onMic: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            if searching { ClearBox(text: $text) }
+            MicBox(shown: searching, isDictating: isDictating, isListening: isListening, action: onMic)
+        }
+    }
+}
+
+/// ⊗ inside the field's end while searching and there is text: empties it, the keyboard stays.
+private struct ClearBox: View {
+    @Binding var text: String
+
+    var body: some View {
+        if !text.isEmpty {
+            Button { text = "" } label: {
+                Image(systemName: Icons.clearText)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .fieldControlFrame()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Clear text")
+            .accessibilityIdentifier("addressClear")
+        }
+    }
+}
+
 /// 🎤, only while searching.
 private struct MicBox: View {
     let shown: Bool
@@ -179,7 +213,7 @@ struct BrowseAddressField: View {
         return web.isLoading ? .stop : .reload
     }
 
-    private typealias Field = AddressField<TextFieldBox, MicBox>
+    private typealias Field = AddressField<TextFieldBox, AddressAccessories>
 
     private var readerButton: Field.ReaderButton {
         if search.isActive { return .searching }
@@ -194,8 +228,8 @@ struct BrowseAddressField: View {
               onListen: onListen, onReload: onReload) {
             TextFieldBox(text: $search.text, isDictating: isDictating, focus: focus, onSubmit: onSubmit)
         } accessory: {
-            MicBox(shown: search.isActive, isDictating: isDictating,
-                   isListening: dictation?.isListening == true, action: onMic)
+            AddressAccessories(text: $search.text, searching: search.isActive, isDictating: isDictating,
+                               isListening: dictation?.isListening == true, onMic: onMic)
         }
         .overlay {
             if isDictating {

@@ -19,8 +19,11 @@ struct LaunchOptions: Equatable {
     }
 
     /// `-uiTesting`: expose test-only accessibility markers and skip network-dependent features
-    /// (live Google suggestions), so results don't depend on the network.
+    /// (live search suggestions), so results don't depend on the network.
     var uiTesting = false
+    /// `-stubSuggestions` (with `-uiTesting`): the address field's live suggestions are fixed rows
+    /// (`SearchSuggestionProvider.stub`) rather than none.
+    var stubsSuggestions = false
     /// `-resetLibrary`: start as a fresh install does. Before anything reads them, the stored
     /// settings go (every owner's `storedKeys`: the engine, the voices and each voice library's own
     /// settings, language and speed, both appearances, the remembered surface and the Library's tab
@@ -114,6 +117,7 @@ struct LaunchOptions: Equatable {
             return arguments[i + 1]
         }
         uiTesting = flags.contains("-uiTesting")
+        stubsSuggestions = uiTesting && flags.contains("-stubSuggestions")
         resetsLibrary = flags.contains("-resetLibrary")
         if flags.contains("-seedDemoArticle") {
             demoArticle = DemoArticle(plainTextOnly: flags.contains("-seedDemoPlainText"),
@@ -163,7 +167,7 @@ struct LaunchOptions: Equatable {
     /// Whether the app reopens on the surface it was left on.
     var restoresSurface: Bool { !uiTesting || restoresSurfaceInUITests }
 
-    /// Live Google suggestions in the address field.
-    var fetchesSuggestions: Bool { !uiTesting }
+    /// Where the address field's live suggestions come from.
+    var suggestionProvider: SearchSuggestionProvider { uiTesting ? (stubsSuggestions ? .stub : .none) : .live }
 }
 #endif

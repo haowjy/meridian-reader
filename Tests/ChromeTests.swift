@@ -74,11 +74,10 @@ final class ChromeTests: XCTestCase {
         }
     }
 
-    /// Typing: the field and ✕ only (no screen icon, ▶, ⋯ or arrows). Field + gap + ✕ is the fixed 351 block,
-    /// centred and at the bottom row's y, whatever was played or where the arrows were.
-    func testTypingIsTheFieldAndCancelFillingTheFixedBlock() {
-        let typingWidth = M.bottomRowWidth - M.rowGap - M.barHeight
-        XCTAssertEqual(typingWidth, 293)
+    /// Typing: the field and Cancel only (no screen icon, ▶, ⋯ or arrows), margin to margin on every phone:
+    /// the field from the left margin, Cancel (a word, `cancelWidth`) ending at the right margin, one gap
+    /// between, at the bottom row's y, whatever was played or where the arrows were. Not the fixed 351 block.
+    func testTypingIsTheFieldAndCancelMarginToMargin() {
         for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
             for destination in [ChromeDestination.browse, .library] {
                 for played in [false, true] {
@@ -89,19 +88,20 @@ final class ChromeTests: XCTestCase {
                     XCTAssertFalse(l.play.isShown, tag)
                     XCTAssertFalse(l.nav.isShown && l.navShowsBack, tag)
                     XCTAssertTrue(l.field.isShown && l.more.isShown, tag)
-                    XCTAssertEqual(l.field.rect.width, typingWidth, tag)
-                    XCTAssertEqual(l.field.rect.minX, rest.pill.rect.minX, "field starts where the pill does: \(tag)")
-                    XCTAssertEqual(l.more.rect.maxX, rest.more.rect.maxX, "✕ is where ⋯ is: \(tag)")
-                    XCTAssertEqual(l.field.rect.minY, rest.more.rect.minY, tag)
+                    XCTAssertEqual(l.field.rect.minX, M.margin, "the field starts at the left margin: \(tag)")
+                    XCTAssertEqual(l.more.rect.maxX, width - M.margin, "Cancel ends at the right margin: \(tag)")
+                    XCTAssertEqual(l.more.rect.width, M.cancelWidth, tag)
+                    XCTAssertEqual(l.more.rect.height, M.barHeight, tag)
                     XCTAssertEqual(l.more.rect.minX - l.field.rect.maxX, M.rowGap, tag)
-                    XCTAssertEqual(l.field.rect.minX - M.margin, width - l.more.rect.maxX - M.margin, "centred: \(tag)")
+                    XCTAssertEqual(l.field.rect.width, width - 2 * M.margin - M.rowGap - M.cancelWidth, tag)
+                    XCTAssertEqual(l.field.rect.minY, rest.more.rect.minY, tag)
+                    XCTAssertEqual(l.more.rect.minY, rest.more.rect.minY, tag)
                 }
             }
         }
     }
 
     func testCollapsedWidthsAtEveryPhone() {
-        let typingField = M.bottomRowWidth - M.rowGap - M.barHeight
         // (width, Browse with both arrows and nothing played, Browse with ▶, Browse new page with ▶, Library, Library with ▶)
         for (width, browseBoth, browsePlayed, browseNew, library, libraryPlayed) in
             [(375.0, 129.0, 119.0, 177.0, 235.0, 177.0), (393, 129, 119, 177, 235, 177), (430, 129, 119, 177, 235, 177)] {  // the bottom row is the SE's 351 pt block on every phone
@@ -112,7 +112,8 @@ final class ChromeTests: XCTestCase {
             XCTAssertEqual(layout(.library, width: w, progress: 1).field.rect.width, library)
             XCTAssertEqual(layout(.library, width: w, progress: 1, played: true).field.rect.width, libraryPlayed)
             XCTAssertEqual(layout(.reader, width: w, progress: 1, played: true).field.rect.width, w - 2 * M.margin, "Listen never folds: its card stays full width")
-            XCTAssertEqual(layout(.library, width: w, played: true, keyboard: true).field.rect.width, typingField, "keyboard: [field][✕] fills the block")
+            let typingField = w - 2 * M.margin - M.rowGap - M.cancelWidth
+            XCTAssertEqual(layout(.library, width: w, played: true, keyboard: true).field.rect.width, typingField, "keyboard: [field][Cancel] margin to margin")
             XCTAssertEqual(layout(.browse, width: w, played: true, back: true, forward: true, keyboard: true).field.rect.width, typingField)
         }
     }
