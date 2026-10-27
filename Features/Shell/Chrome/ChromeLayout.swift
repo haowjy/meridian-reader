@@ -5,10 +5,16 @@ import CoreGraphics
 struct ChromePiece: Equatable {
     var rect: CGRect
     var isShown: Bool
+    /// How far the fold has shrunk it: its content is laid out at `fullWidth` by `fullHeight` and scaled by
+    /// this, so a label is drawn smaller as the piece shrinks and never reflowed (clipped, truncated) into it.
+    var scale: CGFloat = 1
+
+    var fullWidth: CGFloat { scale > 0 ? rect.width / scale : rect.width }
+    var fullHeight: CGFloat { scale > 0 ? rect.height / scale : rect.height }
 
     /// Capsules and circles: half the bar's height, so the Reader's card (taller than a bar) keeps a
     /// bar's corners.
-    var radius: CGFloat { min(rect.height, ChromeMetrics.barHeight) / 2 }
+    var radius: CGFloat { min(fullHeight, ChromeMetrics.barHeight) / 2 }
     /// A piece shown in only one of two forms stays through the move between them (its rect
     /// shrinks away where it should); the ends are the forms themselves.
     static func mix(_ a: ChromePiece, _ b: ChromePiece, _ t: CGFloat) -> ChromePiece {
@@ -145,7 +151,7 @@ struct ChromeLayout: Equatable {
                    width: p.rect.width * f, height: p.rect.height * f)
         }
         func receding(_ p: ChromePiece) -> ChromePiece {
-            c > 0 ? ChromePiece(rect: scaled(p, away), isShown: p.isShown && away > 0) : p
+            c > 0 ? ChromePiece(rect: scaled(p, away), isShown: p.isShown && away > 0, scale: away) : p
         }
         let capsuleFull = CGRect(x: centre.x - s.capsuleWidth / 2, y: centre.y - K.capsuleHeight / 2,
                                  width: s.capsuleWidth, height: K.capsuleHeight)
