@@ -15,7 +15,10 @@ import SwiftUI
 /// first thing in the text (no card shows them).
 struct ReaderSurface: View {
     let article: ReaderArticle
-    @Bindable var speech: SpeechController
+    let speech: SpeechController
+    /// Another layer is over it (the Library, Now Playing, a sheet): it stays mounted for its place
+    /// in the text, but leaves the status bar, the chrome's fold and the audio-following to what shows.
+    let covered: Bool
     /// The left-edge swipe: what the chrome's ‹ does (the web view's own swipe sits under this
     /// view, out of reach). nil when there is nothing to go back to.
     let onEdgeSwipeBack: (() -> Void)?
@@ -36,7 +39,8 @@ struct ReaderSurface: View {
         let listen = QuickListen(article: article, speech: speech, shell: shell, library: library)
         let hearing = listen.isHearing
         let finished = hearing && speech.nowPlaying?.isFinished == true
-        ReadingPage(showing: .inPlace(shell.pageReadingInPlace), chrome: chrome, palette: palette) {
+        let place = inPlace
+        ReadingPage(showing: .inPlace(place), chrome: chrome, palette: palette) {
             EmptyView()
         } banner: {
             EmptyView()
@@ -54,7 +58,8 @@ struct ReaderSurface: View {
                                   direction: spotSide) { following = true }
                     .offset(y: ChromeMetrics.topPadding)
                     .frame(maxHeight: .infinity, alignment: .bottom)
-                FloatingPlayButton(state: speech.playState(of: .article(article.id)), action: listen.press)
+                FloatingPlayButton(state: speech.playState(of: .article(hearing ? speech.activeSessionID ?? article.id : article.id)),
+                                   action: hearing ? speech.pressNowPlaying : listen.press)
                     .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
@@ -64,6 +69,17 @@ struct ReaderSurface: View {
         .onChange(of: hearing) { _, _ in following = true }
         .task(id: WarmKey(id: article.id, count: article.document.count)) { listen.warmUp() }
         .task(id: ScrubKey(hearing: hearing, count: speech.document.count)) { await buildScrubMap(hearing) }
+    }
+
+    /// The shell's in-place reading, silent while covered: a hidden reader's follow moves must not
+    /// become the Library's fold anchor.
+    private var inPlace: ReadingInPlace {
+        var place = shell.pageReadingInPlace
+        guard covered else { return place }
+        place.scrolled = { _ in }
+        place.anchored = { _ in }
+        place.covered = true
+        return place
     }
 
     // MARK: - Text
@@ -76,7 +92,7 @@ struct ReaderSurface: View {
             spoken: hearing, document: hearing ? speech.document : article.document,
             finished: finished, scrubMap: hearing ? scrubMap : nil,
             savedSentence: hearing ? nil : savedSentence(start),
-            follows: following, opensAtSentence: !hearing,
+            follows: following && !covered, opensAtSentence: !hearing,
             onUserScroll: { following = false }, onSpotSide: { spotSide = $0 },
             onTap: { _ in }, onOpenLink: shell.navigate(to:),
             onPlaySelection: { playFromSelection(listen, hearing: hearing, paragraph: $0, offset: $1) })

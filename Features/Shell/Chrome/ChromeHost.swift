@@ -59,9 +59,6 @@ struct ChromeHost: View {
     private var session: SearchSession? { screen.session }
     private var isSearching: Bool { session?.isActive == true }
 
-    /// What the app says the chrome is now. Its `progress` is the fold's end under Reduce Motion
-    /// (one end or the other, never between) and 0 otherwise: the fold between is drawn by
-    /// `ChromeFold`, so a scroll report redraws the pieces and not this view.
     /// The Browser or the Library shows a page as the Reader draws it, in place.
     private var readerMode: Bool {
         (destination == .browse && shell.pageReader != nil) || (destination == .library && shell.libraryReader != nil)
@@ -69,6 +66,9 @@ struct ChromeHost: View {
     /// The chrome stays expanded whatever the text does: Listen's card, a reader's controls.
     private var pinned: Bool { destination == .reader || readerMode }
 
+    /// What the app says the chrome is now. Its `progress` is the fold's end under Reduce Motion
+    /// (one end or the other, never between) and 0 otherwise: the fold between is drawn by
+    /// `ChromeFold`, so a scroll report redraws the pieces and not this view.
     private var live: ChromeState {
         ChromeState(destination: destination, progress: reduceMotion ? (scroll.isCollapsed ? 1 : 0) : 0, fullScreen: scroll.fullScreen, played: playback.isAvailable,
                     canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, keyboard: isSearching,

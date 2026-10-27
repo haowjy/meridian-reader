@@ -352,6 +352,7 @@ final class ShellState {
     /// A Library page's text in place of the Library (`libraryReader`), with the chrome expanded.
     func openLibraryReader(_ article: ReaderArticle) {
         guard isInLibrary, reader == nil, !isNowPlayingPresented else { return }
+        endLibrarySearch()
         libraryReader = article
         chromeScroll.expand()
     }

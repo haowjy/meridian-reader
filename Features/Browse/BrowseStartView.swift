@@ -127,8 +127,9 @@ struct BrowseStartView: View {
                     }
 
                     if let article = shell.pageReader, !isRegular {
-                        ReaderSurface(article: article, speech: speech,
+                        ReaderSurface(article: article, speech: speech, covered: isCovered,
                                       onEdgeSwipeBack: webStore.canGoBack ? goBack : nil)
+                            .id(article.id)
                     }
                 }
                 .ignoresSafeArea(.container, edges: isRegular ? [] : .bottom)
@@ -250,7 +251,10 @@ struct BrowseStartView: View {
                     .transition(.opacity)
                 // Library Read: the page's text in place of the Library, which stays under it as it was.
                 if let article = shell.libraryReader, !isRegular {
-                    ReaderSurface(article: article, speech: speech, onEdgeSwipeBack: shell.closeLibraryReader)
+                    ReaderSurface(article: article, speech: speech,
+                                  covered: shell.reader != nil || shell.isNowPlayingPresented,
+                                  onEdgeSwipeBack: shell.closeLibraryReader)
+                        .id(article.id)
                         .covered(shell.reader != nil || shell.isNowPlayingPresented)
                         .transition(.opacity)
                 }
@@ -410,11 +414,13 @@ struct BrowseStartView: View {
     }
 
     /// The browser's ⋯: the page's menu (`ArticleMenu`) while a page is up, then *New Search*,
-    /// *Follow…*, *Reload*, *Prepared audio*, *Settings*, then `[Favorites][History][Reader]`.
+    /// *Text Appearance* (in reader mode), *Follow…*, *Reload*, *Prepared audio*, *Settings*, then
+    /// `[Favorites][History][Reader]`.
     private func menu(_ actions: ArticleActions) -> MenuContext {
         var facts = MenuRegistry.Facts()
         facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
         facts.hasWebPage = hasPage
+        facts.inReaderMode = shell.pageReader != nil
         // No *New Search*: a tap on the address field starts one (C98).
         let screen = MenuContext.screenRows(at: .browser, facts: facts, shell: shell) { option in
             switch option {
@@ -422,6 +428,10 @@ struct BrowseStartView: View {
                 return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) {
                     guard let url = webStore.currentURL else { return }
                     shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
+                }
+            case .textAppearance:
+                return MenuRow(id: "moreTextAppearance", title: Verbs.textAppearance, icon: Icons.textAppearance) {
+                    shell.readerAppearanceOpen = true
                 }
             case .reload:
                 return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: reload)
@@ -433,11 +443,8 @@ struct BrowseStartView: View {
                              icon: showing ? Icons.readerShowing : Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
-        // Reader mode has no Aa of its own on screen: the menu opens the text appearance panel.
-        let appearance = showing ? [MenuRow(id: "moreTextAppearance", title: String(localized: "Text Appearance"),
-                                            icon: Icons.textAppearance) { shell.readerAppearanceOpen = true }] : []
-        return MenuContext(item: appearance + (webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows), screen: screen,
-                           tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader))
+        return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
+                           tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader), isOnReadingPage: showing)
     }
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }

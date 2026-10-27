@@ -129,7 +129,8 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   150 ms after the finger stops a part-way fold settles to folded. Scrolling up never gives a row back,
   on any screen (decided). The chrome expands only by a tap on the screen icon or the title chip, a swipe
   up on the bar, or by reaching the top of the content (offset <= 4, which resets progress to 0)
-  (invariant 12). The Library and the Browser feed it; **Listen does not** (it never folds on scroll).
+  (invariant 12). The Library and the Browser feed it; **Listen does not** (it never folds on scroll), and neither
+  do the in-place readers (Library Read, the Browser's reader mode: their chrome stays expanded).
   **Expanding by hand pins**: the icon tap or the swipe up on the bar (`ChromeScroll.expandByHand`) holds
   the chrome expanded while scrolling down, momentum included, until the offset returns to <= 4, a
   destination changes, a new screen or page/article opens (`expand()`, `reset()`), or the screen is left. The lit segment is the icon: its glyph slides to the middle of
@@ -193,7 +194,7 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   address row, a different glyph from the chrome's ▶ / ⏸ ring; it tints with the accent while this
   page is what you hear. It plays the page and opens Now Playing (the Listen destination); a page
   you hear shows the playhead and Jump to Audio in its text and the floating ▶ / ⏸, and opening its
-  reader never switches destination. Aa is ⋯ → *Text Appearance*, a popover on ⋯. The web page
+  reader never switches destination (the floating ⏸ there pauses; it does not leave the reader). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor, no following. Aa is ⋯ → *Text Appearance*, a popover on ⋯. The web page
   under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
   what ‹ does (back, which closes the reader).
 - **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
@@ -202,7 +203,8 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   or a left-edge swipe closes it, and there is no player card. The search field's place holds one
   capsule, `[Aa] [▶ Listen · N min]` (`readerListen`; *Continue · N min left* part-way, *Listen Again* once the
   article has finished): Aa opens the text appearance panel, Listen plays and goes to Listen.
-  Nothing plays until Listen. At regular width Read keeps opening the sheet.
+  Nothing plays until Listen; for the page you hear the capsule reads *Now Playing* and goes to Listen. At regular width Read keeps opening the sheet.
+  A search in the Library ends when Read opens, so the chrome shows the reader's row and not the keyboard form.
 - **⋯** opens the screen's ⋯ panel ("Menus", below). The compact chrome has no 🕘 or ＋ buttons:
   *History* is a tile of every compact ⋯ (Browser, Library, Reader, Now Playing), and the Library's
   ⋯ adds *New Folder…*, *Import from…* and *Paste Text…*. On the Browser the page's *Save to

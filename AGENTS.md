@@ -125,7 +125,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   redesign are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
   or circle (radius = height / 2; one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, footprints 116 and 60, hit areas 44), every control glyph
   `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, scroll down only: scrolling up never gives a row back; the icon, a swipe up on the bar or the top of the text, offset <= 4, expand it), Listen is a destination under the same chrome with a glass player card above row 2 (no sheet, Close pill or pull-down; full screen is a middle tap that removes the chrome), and the compact address pill ends
-  in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
+  in reload, not 🎧 (iPad keeps 🎧; the Browser's reader mode adds a 🎧 Listen control after the pill). Change the chrome host, never one screen; on regular width change
   `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
   (`BottomToolbarLayout`) so sizing, Dynamic Type and 44 pt taps stay

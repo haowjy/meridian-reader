@@ -33,6 +33,7 @@ struct QuickListen {
     /// Plays the page from `start` and raises Now Playing (the Listen destination); this reader is
     /// only a temporary view, so it ends there. The page you hear goes to Now Playing as it is.
     func press() {
+        guard !isDisabled else { return }
         if !isHearing { speech.listen(to: article, at: start) }
         shell.showNowPlaying()
     }
