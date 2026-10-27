@@ -40,6 +40,13 @@ struct BrowseStartView: View {
 
     private var hasPage: Bool { webStore.hasPage }
 
+    /// What the chrome covers at the bottom of the page: two rows, one once it has folded (or while a search
+    /// is open: the field's row), nothing at regular width, where the chrome has its own bar below the page.
+    private var obscuredBottom: CGFloat {
+        guard !isRegular else { return 0 }
+        return search.isActive || shell.chromeScroll.isCollapsed ? ChromeMetrics.collapsedFootprint : ChromeMetrics.footprint
+    }
+
     /// Create the browse WKWebView only after the first non-start navigation; keep it thereafter.
     private var showsBrowseWebView: Bool {
         browseWebViewMounted || hasPage
@@ -106,6 +113,7 @@ struct BrowseStartView: View {
                     if showsBrowseWebView {
                         WebView(store: webStore,
                                 bottomInset: isRegular ? 0 : ChromeMetrics.footprint,
+                                obscuredBottom: obscuredBottom,
                                 onScroll: isRegular ? nil : { [chrome = shell.chromeScroll] in chrome.scrolled(to: $0) })
                             .opacity(hasPage ? 1 : 0)
                             // Under the in-place reader the page is neither touched nor read aloud.
@@ -129,8 +137,13 @@ struct BrowseStartView: View {
             // Safari-style search session: full-bleed Recent Searches / suggestions over the page.
             .overlay {
                 if search.isActive && shell.isBrowsing {
-                    searchLayer
-                        .padding(.bottom, isRegular ? 0 : ChromeMetrics.collapsedFootprint)
+                    ZStack {
+                        // Opaque to the bottom edge, behind the field and the keyboard: the list stops above
+                        // the chrome's row, but the page must never show through the strip under it.
+                        Palette.paper.ignoresSafeArea(edges: .bottom)
+                        searchLayer
+                            .padding(.bottom, isRegular ? 0 : ChromeMetrics.collapsedFootprint)
+                    }
                 }
             }
             .clipped()

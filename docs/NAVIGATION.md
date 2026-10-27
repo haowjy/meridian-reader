@@ -71,7 +71,7 @@ expanded    [‹ ›][ address / Search Library          ]        row 1: the scr
             [ Listen | Library | Browser ][▶][  ⋯  ]         row 2: where you are, play, menu (Listen: the ▶ slot stays empty)
 collapsed   [‹ ›][ address ↻ ][icon][▶][⋯]                    scrolled down: one row; only the arrows that work (Library: search)
 Listen      never collapses on scroll                         ‹ floats top left; a middle tap = full screen: nothing, a ▶ / ⏸ floats for 3 s
-searching   [ field                    ][icon][▶][✕]          the keyboard is up
+searching   [ field                               ][✕]       the keyboard is up: no screen icon, ▶ or ⋯
 ```
 
 Every piece is `mix(expanded, collapsed, progress)` of one pure layout (`ChromeLayout`, the mockups'
@@ -136,7 +136,26 @@ the pill) is still margin to margin, so it is the one thing that gets wider on a
   the shrinking pill while the other segments and the wash fade; the Browse arrows, the field and
   the Listen's card fold the same way (`ChromePieces` is animatable in the progress). Reduce Motion:
   no travel, the two forms cross-fade.
-- **Searching** (the keyboard up, or its session open): one row, the field, the screen icon, ▶ and ✕.
+- **Searching** (the keyboard up, or its session open): one row, the field (its mic inside it) and ✕. The
+  screen icon, ▶ and ⋯ are not drawn: nothing there is needed while typing, and ✕ takes ⋯'s slot. The field
+  takes the width they leave: field + one 10 pt gap + ✕ 48 are the same fixed 351 pt block, centred, at the
+  bottom row's position, so the field is 293 pt on every phone (`testTypingIsTheFieldAndCancelFillingTheFixedBlock`).
+  Under it the Recent Searches / suggestions layer is opaque paper to the bottom edge (behind the field and the
+  keyboard); only its list stops above the row, so the page never shows through the strip under the field.
+- **Web pages know the chrome (Browse, iOS 26+, compact width)**: the Browse `WKWebView` reports the chrome's
+  footprint as its bottom `obscuredContentInsets` (plus min/max viewport insets), so a page's
+  `position:fixed; bottom:0` banner (cookie bars, Reddit's "open in app"), sticky footers and `dvh`/`svh`/`lvh` sit
+  above the glass instead of under it. The inset is the expanded footprint (116 pt, two rows) while the chrome is
+  expanded, and the collapsed footprint (60 pt, one row) once it has folded (`ChromeScroll.isCollapsed`) or while a
+  search is open. The home-indicator strip is added from the window's safe area (the web view extends under it, so
+  its own inset reads 0). The switch is **one step at the fold's midpoint**, not animated per frame: the page's
+  fixed elements jump once (about 56 pt) while the glass folds, and the page text reflows once, instead of the
+  whole page re-laying out on every frame of the fold. The scroll offset does not move (the scroll view's
+  `contentInset` stays constant; only the web layout inset changes). Content still scrolls under the glass.
+  Limits: legacy `100vh` is always the full frame in WebKit and follows neither inset, so a `100vh` hero extends
+  under the chrome (as in Safari with its bar up); iOS before 26 keeps the constant content inset only (no obscured
+  inset); the in-place Reader is SwiftUI, not a web view, and has its own bottom inset; iPad regular layout is
+  untouched. Fixture: `reader-test://pages/popup`, `testAFixedBottomPopupSitsAboveTheChrome`.
 - **Listen is a destination, not a sheet**: it shows in place under the same chrome with
   Listen lit, row 2 as everywhere (`[pill]  [empty ▶ slot]  [⋯]`, the three parted by one `rowGap`, 10 pt; every
   piece 48 pt tall, so the pill is a capsule about 5.5 bars wide on a 402 pt screen), and a glass player card above row 2, one gap

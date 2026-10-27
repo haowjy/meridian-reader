@@ -31,7 +31,7 @@ struct ChromePiece: Equatable {
 ///             [ Listen | Library | Browser ][▶][⋯]               row 2 (Listen: no ▶, the card has one)
 /// collapsed   [‹][›][ address ↻][icon][▶][⋯]                     one row (the arrows that work); never on Listen, whose card stays
 /// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
-/// keyboard    [ field                    ][icon][▶][✕]
+/// keyboard    [ field                               ][✕]       the whole block: field, one gap, ✕ (no icon, ▶ or ⋯)
 /// full screen (nothing)
 /// ```
 ///
@@ -83,10 +83,13 @@ struct ChromeLayout: Equatable {
         let moreRect = CGRect(x: rowRight - bar, y: rowY, width: bar, height: bar)
         let playRect = CGRect(x: moreRect.minX - rowGap - bar, y: rowY, width: bar, height: bar)
         let iconX = moreRect.minX - rowGap - bar - played * (bar + rowGap)
-        let rightEdge = iconX - rowGap
+        // Typing: only the field and ✕ (the screen icon and ▶ aren't needed there), so the field takes their
+        // width: field + gap + ✕ still fill the fixed block, centred where the bottom row is.
+        let typing = s.keyboard && !s.editing && hold
+        let rightEdge = typing ? moreRect.minX - rowGap : iconX - rowGap
 
         more = ChromePiece(rect: moreRect, isShown: row2)
-        play = ChromePiece(rect: playRect, isShown: played > 0 && row2)
+        play = ChromePiece(rect: playRect, isShown: played > 0 && row2 && !typing)
         editBar = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar),
                               isShown: s.editing && hold)
         // Row 2 is [pill][▶ slot][⋯] on every destination and state: the pill is one fixed width (`K.pillWidth`), ▶'s slot is
@@ -96,7 +99,9 @@ struct ChromeLayout: Equatable {
 
         let pillExpanded = ChromePiece(rect: CGRect(x: rowX, y: rowY, width: expandedPillWidth, height: bar), isShown: row2)
         let pillFolded = ChromePiece(rect: CGRect(x: iconX, y: rowY, width: bar, height: bar), isShown: row2)
-        pill = .mix(pillExpanded, pillFolded, s.fold)
+        var pillMixed = ChromePiece.mix(pillExpanded, pillFolded, s.fold)
+        if typing { pillMixed.isShown = false }
+        pill = pillMixed
 
         // ‹ ›. Expanded in the Browser: the pair whenever either way is open, the one that isn't dimmed
         // (so › never hides behind a lone ‹ after going back to the first page). Folded: only the

@@ -9,7 +9,7 @@ import UIKit
 /// expanded    [‹][›][ address / Search Library          ]        row 1; Listen's is its player card
 ///             [ Listen | Library | Browser ][▶][  ⋯  ]          row 2: where you are, play, menu (Listen: no ▶)
 /// collapsed   [‹][›][ address ][icon][▶][⋯]                      scrolled down: one row (never on Listen)
-/// keyboard    [ field                    ][icon][▶][✕]           the keyboard is up (or its session open)
+/// keyboard    [ field                               ][✕]       the keyboard is up (or its session open): field + ✕ fill the block
 /// full screen (nothing)                                         the Reader's middle tap
 /// ```
 ///

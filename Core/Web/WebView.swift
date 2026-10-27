@@ -7,11 +7,57 @@ extension EnvironmentValues {
     @Entry var webViewSchemeHandlers: [String: any WKURLSchemeHandler] = [:]
 }
 
+/// A web view that reports the chrome's footprint as its bottom obscured inset: that footprint above
+/// the safe area, plus the safe area itself (the page runs under the home indicator). Re-applied when the
+/// safe area arrives or changes, which is after the first `updateUIView`.
+final class ObscuredWebView: WKWebView {
+    var obscuredBottom: CGFloat = 0 { didSet { if obscuredBottom != oldValue { applyObscuredInset() } } }
+
+    private func applyObscuredInset() {
+        guard #available(iOS 26.0, *) else { return }
+        // Zero stays zero: nothing covers the page (regular width, no chrome).
+        // The window's, not the view's: SwiftUI lets the page run under the home indicator, and the view's
+        // own safe area can read 0 there.
+        let home = max(safeAreaInsets.bottom, window?.safeAreaInsets.bottom ?? 0)
+        let bottom = obscuredBottom > 0 ? obscuredBottom + home : 0
+        let insets = UIEdgeInsets(top: 0, left: 0, bottom: bottom, right: 0)
+        if obscuredContentInsets != insets { obscuredContentInsets = insets }
+        // What `lvh` (the large viewport) and `svh` (the small one) measure: the folded chrome's footprint and the
+        // expanded one's, as in Safari with its bar folded and unfolded (`dvh` follows the obscured inset). Both
+        // zero where nothing covers the page. (`100vh` itself stays the whole frame: WebKit ties it to neither.)
+        let folded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: ChromeMetrics.collapsedFootprint + home, right: 0) : .zero
+        let expanded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: ChromeMetrics.footprint + home, right: 0) : .zero
+        if minimumViewportInset != folded || maximumViewportInset != expanded {
+            setMinimumViewportInset(folded, maximumViewportInset: expanded)
+        }
+    }
+
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        applyObscuredInset()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        applyObscuredInset()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        applyObscuredInset()
+    }
+}
+
 struct WebView: UIViewRepresentable {
     var store: WebViewStore
     /// Room the page keeps clear at the bottom, for chrome floating over it: the page scrolls
     /// through it, so its last line can rise above the chrome.
     var bottomInset: CGFloat = 0
+    /// What the chrome covers at the bottom of the page *right now*, above the home indicator: the page's own
+    /// layout viewport ends above it, so a `position:fixed;bottom:0` banner, a sticky footer and `100vh`
+    /// all sit above the chrome (iOS 26's `obscuredContentInsets`; before it the page runs under the chrome,
+    /// as `bottomInset` alone leaves it). It follows the chrome's fold in one step, not every frame.
+    var obscuredBottom: CGFloat = 0
     /// The user's scroll position (0 at the top of the page), while they drag or the page coasts.
     var onScroll: ((CGFloat) -> Void)?
 
@@ -23,7 +69,7 @@ struct WebView: UIViewRepresentable {
         let config = WKWebViewConfiguration.appWebView(pageScripts: true,
                                                        schemeHandlers: context.environment.webViewSchemeHandlers)
 
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = ObscuredWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = !store.staysOnPage
@@ -38,6 +84,7 @@ struct WebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.store = store
         context.coordinator.onScroll = onScroll
+        (webView as? ObscuredWebView)?.obscuredBottom = obscuredBottom
         if webView.scrollView.contentInset.bottom != bottomInset {
             webView.scrollView.contentInset.bottom = bottomInset
             webView.scrollView.verticalScrollIndicatorInsets.bottom = bottomInset

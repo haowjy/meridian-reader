@@ -434,4 +434,41 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(reload.frame.height, 44)
         XCTAssertLessThanOrEqual(reload.frame.maxX, app.frame.width - 12, "↻ ends inside the field")
     }
+    /// A site's `position:fixed;bottom:0` popup ends above the chrome, expanded (two rows) and folded (one); expanding
+    /// by hand does not move the page.
+    func testAFixedBottomPopupSitsAboveTheChrome() throws {
+        let app = launch(["-browseTestPages"])
+        let link = app.links["A page with a bottom popup"]
+        for _ in 0..<4 where !(link.exists && link.isHittable) { app.swipeUp() }
+        tapWhenHittable(link)
+        let accept = app.buttons["Accept cookies"]
+        XCTAssertTrue(appears(accept, timeout: 10), "the popup is up")
+        let field = find(app, "addressField")
+        let units = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'inner '")).firstMatch
+        XCTAssertTrue(appears(units, timeout: 5))
+        XCTAssertTrue(eventually { accept.frame.maxY <= field.frame.minY + 1 && field.frame.minY > 0 },
+                      "expanded: the popup's button ends above the chrome (\(accept.frame) vs \(field.frame))")
+        let popupExpanded = XCTAttachment(screenshot: app.screenshot())
+        popupExpanded.name = "popup-expanded"
+        popupExpanded.lifetime = .keepAlways
+        add(popupExpanded)
+        let expandedTop = field.frame.minY
+        app.swipeUp(velocity: .slow)
+        XCTAssertTrue(eventually { field.frame.minY > expandedTop + 30 }, "the chrome folded to one row")
+        XCTAssertTrue(eventually(3) { accept.frame.maxY <= field.frame.minY + 1 },
+                      "collapsed: the popup is above the single row (\(accept.frame) vs \(field.frame))")
+        let popupCollapsed = XCTAttachment(screenshot: app.screenshot())
+        popupCollapsed.name = "popup-collapsed"
+        popupCollapsed.lifetime = .keepAlways
+        add(popupCollapsed)
+        // Expanding by hand (the screen icon's tap) changes the obscured inset, not the scroll position.
+        let scrollY = { (units.label.components(separatedBy: " y ").last).flatMap { Int($0) } ?? -1 }
+        let foldedY = scrollY()
+        XCTAssertGreaterThan(foldedY, 0)
+        tapWhenHittable(app.buttons["chromeScreenIcon"])
+        XCTAssertTrue(eventually { field.frame.minY < expandedTop + 30 }, "the chrome expanded again")
+        idle(0.5)
+        XCTAssertEqual(scrollY(), foldedY, accuracy: 1, "and the page did not move")
+        XCTAssertTrue(eventually(3) { accept.frame.maxY <= field.frame.minY + 1 }, "the popup is above two rows again")
+    }
 }
