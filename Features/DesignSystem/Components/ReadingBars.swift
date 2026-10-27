@@ -10,8 +10,9 @@ import SwiftUI
 /// `Sheet` (regular width) and `ReadingInPlace` (compact width) both draw this; they differ in what
 /// surrounds it. `bottomClearance` is the room under the band that something else occupies (the
 /// compact chrome, whose card is the band there): the text keeps clear of it, folded or not.
-/// `overTextClearance` is how far above the bottom what floats over the text (Jump to Audio, the
-/// full screen play button) sits while the bars show: above the card, or above the folded row.
+/// `overTextClearance` is how far above the bottom what floats over the text (the full screen play
+/// button) sits while the bars show: above the card, or above the folded row. What floats at the
+/// top (Jump to Audio) places itself below `ReadingChrome.insets.top`, the header.
 struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: View, OverText: View>: View {
     let chrome: ReadingChrome
     /// The header's shape and colour (a sheet's rounded top, or a plain rectangle).
@@ -42,7 +43,7 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .ignoresSafeArea(.container, edges: .bottom)
             // Pages mode is for reading: nothing floats over its text while the bars are hidden
-            // (C108); with them shown, Jump to Audio sits above the band as in Scroll (C111).
+            // (C108); with them shown, Jump to Audio sits at the top, below the header, as in Scroll.
             // Jump's own rule is `ReadingChrome.showsJumpToAudio` (C128): bars up only, both modes.
             if appearance.layout != .pages || !hidden {
                 overText

@@ -225,6 +225,88 @@ final class CoreFlowsUITests: XCTestCase {
         XCTAssertTrue(appears(jump, timeout: 3), "leaving full screen brings it back")
     }
 
+    /// Jump to Audio scrolls the spoken spot to the middle of the visible text (between the top of
+    /// the screen and the player card), not to its top edge.
+    func testJumpToAudioCentresTheSpotInTheVisibleText() throws {
+        let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "40", "-seedDemoListenAt", "20",
+                          "-seedDemoBook", "-seedDemoFolders", "-openLibrary"])
+        XCTAssertTrue(appears(app.libraryHome, timeout: 10), "the Library")
+        openListen(app)
+        let playPause = app.buttons["listenPlayPause"]
+        XCTAssertTrue(appears(playPause, timeout: 10), "Now Playing")
+        // Held still, so the spoken paragraph doesn't move on.
+        tapWhenHittable(playPause)
+        idle(2)
+        let card = find(app, "readingPlayerCard")
+        XCTAssertTrue(appears(card, timeout: 5))
+        let viewportMid = card.frame.minY / 2
+        let paragraphs = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Paragraph '"))
+        // The spoken paragraph is the one the text opened with in the middle.
+        let spoken = paragraphs.allElementsBoundByIndex.first {
+            $0.frame.minY <= viewportMid && viewportMid <= $0.frame.maxY
+        }
+        let spot = try XCTUnwrap(spoken, "a paragraph is in the middle of the visible text")
+        let label = spot.label
+        NSLog("JUMPPROBE open: \(label.prefix(14)) \(spot.frame) viewport mid \(viewportMid)")
+
+        // Scroll away from the audio, up the text and down it: the text follows no more and the
+        // pill shows. Jump to Audio brings the spot back to the middle.
+        let high = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        let low = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65))
+        let again = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", String(label.prefix(13)))).firstMatch
+        let jump = app.buttons["nowPlayingJumpToAudio"]
+        for (from, to) in [(high, low), (low, high)] {
+            for _ in 0..<3 { from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .fast, thenHoldForDuration: 0.2) }
+            XCTAssertTrue(appears(jump, timeout: 5), "scrolled away from the audio: the pill")
+            XCTAssertFalse(again.exists && again.frame.minY > 0 && again.frame.maxY < card.frame.minY, "the spot is out of view")
+            jump.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            idle(2)
+            NSLog("JUMPPROBE after jump: \(again.frame) viewport mid \(viewportMid)")
+            XCTAssertEqual(again.frame.midY, viewportMid, accuracy: 40,
+                           "the spot is in the middle of the visible text, not at its top: \(again.frame)")
+            XCTAssertTrue(eventually(2) { !jump.exists }, "the pill goes once the audio is shown")
+        }
+    }
+
+    /// Jump to Audio floats at the top of the text: centred, below the status bar, level with the
+    /// floating ‹ without meeting it, and below the ☝︎ hint when that is up (it never covers a
+    /// control).
+    func testJumpToAudioSitsAtTheTopClearOfTheBackAndTheHint() throws {
+        let app = launch(["-seedDemoArticle", "-seedDemoParagraphs", "40", "-seedDemoListenAt", "20",
+                          "-seedDemoBook", "-seedDemoFolders", "-openLibrary"])
+        XCTAssertTrue(appears(app.libraryHome, timeout: 10), "the Library")
+        openListen(app)
+        let playPause = app.buttons["listenPlayPause"]
+        XCTAssertTrue(appears(playPause, timeout: 10), "Now Playing")
+        tapWhenHittable(playPause)
+        let window = app.windows.firstMatch.frame
+        let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65))
+        for _ in 0..<3 { from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .fast, thenHoldForDuration: 0.2) }
+        let jump = app.buttons["nowPlayingJumpToAudio"]
+        XCTAssertTrue(appears(jump, timeout: 5), "scrolled away from the audio: the pill")
+        let pill = jump.frame
+        NSLog("JUMPPROBE pill \(pill) window \(window)")
+        XCTAssertEqual(pill.midX, window.midX, accuracy: 1, "centred")
+        XCTAssertLessThan(pill.minY, window.height * 0.2, "at the top of the screen, not the middle")
+        XCTAssertGreaterThan(pill.minY, 47, "below the status bar")
+        let back = app.buttons["listenBack"]
+        XCTAssertTrue(appears(back, timeout: 3), "the floating ‹")
+        XCTAssertFalse(pill.intersects(back.frame), "the pill and ‹ never meet: \(pill) \(back.frame)")
+        XCTAssertEqual(pill.midY, back.frame.midY, accuracy: 6, "level with the ‹ circle")
+
+        // The ☝︎ hint comes up in the header: the pill is below it.
+        tapWhenHittable(app.buttons["chromeReaderMore"])
+        tapWhenHittable(find(app, "listenJump"))
+        let hint = find(app, "listenJumpHint")
+        XCTAssertTrue(appears(hint, timeout: 5), "the ☝︎ hint")
+        idle(1)
+        NSLog("JUMPPROBE hint \(hint.frame) pill \(jump.frame)")
+        XCTAssertTrue(jump.exists, "the pill stays")
+        XCTAssertGreaterThanOrEqual(jump.frame.minY, hint.frame.maxY, "below the hint")
+        XCTAssertFalse(jump.frame.intersects(hint.frame))
+    }
+
     /// Voice and the bookmark sit pinned at the card's trailing edge (the mockup's card), the title
     /// keeping the room in between.
     func testCardVoiceAndBookmarkArePinnedFarRight() throws {

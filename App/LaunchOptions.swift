@@ -11,6 +11,11 @@ struct LaunchOptions: Equatable {
         /// `-seedPlayedPages N`: also N pages played without saving, part-way ("Played Page 1"
         /// played most recently): the Library's Recent tab.
         var playedArticles = 0
+        /// `-seedDemoParagraphs N`: the article runs to N paragraphs (the first three as always, the rest
+        /// "Paragraph 4: ..." ... one sentence each), so there is text to scroll away from the audio.
+        var paragraphs = 3
+        /// `-seedDemoListenAt P`: the article's saved listening spot is paragraph P (0 = the start).
+        var listenAt = 0
     }
 
     /// `-uiTesting`: expose test-only accessibility markers and skip network-dependent features
@@ -112,7 +117,9 @@ struct LaunchOptions: Equatable {
         resetsLibrary = flags.contains("-resetLibrary")
         if flags.contains("-seedDemoArticle") {
             demoArticle = DemoArticle(plainTextOnly: flags.contains("-seedDemoPlainText"),
-                                      playedArticles: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0)
+                                      playedArticles: value(after: "-seedPlayedPages").flatMap(Int.init) ?? 0,
+                                      paragraphs: value(after: "-seedDemoParagraphs").flatMap(Int.init) ?? 3,
+                                      listenAt: value(after: "-seedDemoListenAt").flatMap(Int.init) ?? 0)
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
         opensLibrary = flags.contains("-openLibrary")

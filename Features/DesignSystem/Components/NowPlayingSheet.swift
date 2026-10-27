@@ -10,9 +10,9 @@ import SwiftUI
 /// │                 ───                  │ <- grabber (the sheet's)
 /// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- `SheetTopBar`, as in the Reader: the pill (the sheet's)
 /// │ `banner` (the ^ hint, while on)      │   names where it plays from and shrinks it; Aa, `accessory`
-/// │ `text`: dimmed, SPOKEN in full ink   │ <- fills the page, under the header and the band;
-/// │         dimmed                       │   follows the audio
-/// │            ( Jump to Audio )         │ <- after you scroll away, bars up only (C128)
+/// │          ( Jump to Audio )           │ <- top centre, below the header: after you scroll away,
+/// │ `text`: dimmed, SPOKEN in full ink   │   bars up only (C128). The text fills the page, under
+/// │         dimmed                       │   the header and the band; it follows the audio
 /// │ ─────────────────────────────────────│ <- hairline divider
 /// │ [art] Title          time left (Voice)│ <- title; Voice trailing (aligned right)
 /// │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ <- scrub row
@@ -22,7 +22,8 @@ import SwiftUI
 ///
 /// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
 /// `playState` / `onPlayPause`, the only control over the text then; Jump to Audio shows only with
-/// the bars up (C128). On regular width the pill, the grabber and a pull down shrink it
+/// the bars up (C128), at the top of the text (centred, below the header), where it keeps off the
+/// middle of the screen and the bottom chrome. On regular width the pill, the grabber and a pull down shrink it
 /// (the showing's `onClose`, after it has gone). `floating` floats just above the bottom band's hairline (a
 /// toast), as in the Reader.
 struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
@@ -63,15 +64,17 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
         } floating: {
             floating
         } overText: {
-            ZStack(alignment: .bottom) {
+            ZStack {
                 jumpToAudio
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 FloatingPlayButton(state: playState, action: onPlayPause)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
     }
 
-    /// Floats over the text, so the text keeps running under it. No arrow: the spoken sentence
-    /// may be above or below. Inverted: an ink pill with the page's colour for its text.
+    /// Floats over the text at its top, so the text keeps running under it. No arrow: the spoken
+    /// sentence may be above or below. Inverted: an ink pill with the page's colour for its text.
     private var jumpToAudio: some View {
         JumpToAudioPill(chrome: chrome, awayFromAudio: showsJumpToAudio, action: onJumpToAudio)
     }
@@ -81,10 +84,16 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
 /// its overText before the compact chrome attaches (`ReadingChrome.attach`), so a read made by the
 /// page's body would only watch the sheet's own copy of full screen and miss the compact chrome's.
 /// It leaves with a fast fade the moment full screen begins and returns only on exit (C128).
+/// It sits at the top of the text, centred, just below the header (the top bar, the ☝︎ hint): on a
+/// phone level with the floating ‹'s circle (which is 48 pt, 4 pt below the status bar, at the
+/// leading edge, so they never meet) and clear of the status bar.
 private struct JumpToAudioPill: View {
     let chrome: ReadingChrome
     let awayFromAudio: Bool
     let action: () -> Void
+
+    /// The ‹ circle is 48 pt tall at 4 pt below the safe area; the compact pill is 36 pt.
+    private static let levelWithBack: CGFloat = 4 + (48 - 36) / 2
 
     var body: some View {
         let shows = chrome.showsJumpToAudio(awayFromAudio: awayFromAudio)
@@ -96,6 +105,8 @@ private struct JumpToAudioPill: View {
                     .transition(.opacity)
             }
         }
+        // Below the header; with none (a phone without the ☝︎ hint) level with the ‹ circle's middle.
+        .padding(.top, chrome.insets.top + (chrome.insets.top > 0 ? Spacing.xs : Self.levelWithBack))
         .animation(shows ? Motion.snappy : Motion.fadeOut, value: shows)
     }
 }
