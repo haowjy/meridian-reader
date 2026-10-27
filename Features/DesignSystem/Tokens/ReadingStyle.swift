@@ -3,9 +3,7 @@ import UIKit
 
 /// The reading page's look in HTML (the Reader and Now Playing render articles in a web view):
 /// the reading theme's tokens (`ReadingPalette`) written as CSS, the same page for both sheets.
-/// Every paragraph is in full ink (C105); the spoken one sits on the highlight, and the spoken sentence is underlined in the theme's accent. The Reader's title and source
-/// line are part of the page; Now Playing's title card is a native view over a slot at the top of
-/// the page (`.reader-top`).
+/// Every paragraph is in full ink (C105); the spoken one sits on the highlight, and the spoken sentence is underlined in the theme's accent. The title and source line are part of the page.
 ///
 /// Everything that can change while a page is up is a CSS variable: the type sizes (Dynamic
 /// Type, `Sizes`) and the look (`Look`: colours, typeface, text size, line spacing), applied in
@@ -135,7 +133,6 @@ enum ReadingStyle {
                          column-gap: calc(var(--caption) * \(Int(Spacing.s)) / \(Int(TypeStyle.caption.size))); }
         .reader-detail span { min-width: 0; overflow-wrap: anywhere; }
         .reader-detail span:first-child { color: var(--secondary); }
-        .reader-top { margin: 0 0 \(Int(Spacing.l))px; }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
         html.reader-paged [data-reader-index] { transition: none; }

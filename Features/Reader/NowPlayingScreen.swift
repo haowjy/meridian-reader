@@ -1,14 +1,13 @@
 import SwiftUI
 
 /// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). The Reader's page in
-/// the same reading theme and type, under a title card: the spoken paragraph highlighted in full
+/// the same reading theme and type: the spoken paragraph highlighted in full
 /// ink like the rest, on the highlight. Presented over everything by the shell (in place under the
 /// bottom chrome on compact width, a sheet on regular width); it holds no article of its
 /// own: it shows `speech.nowPlaying` and the playing page's content, looked up in the library by
 /// its key. On compact width the chrome draws its player card (`ChromeCard`), the same card as the
 /// Reader's.
 ///
-/// - The title card (artwork, title, the site and time left) scrolls with the text.
 /// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
 ///   there (each new paragraph, a long paragraph's sentence leaving the screen); the spoken
 ///   paragraph is highlighted (every paragraph in full ink), its sentence underlined. A drag stops
@@ -23,7 +22,7 @@ import SwiftUI
 ///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `ArticleActions`, as
 ///   in the Reader. Voice (`VoiceChromeButton`) sits to the right of the title in the bottom band
 ///   and opens the same Voice picker as ⋯ › Voice.
-/// - At the end it stays: the text stays, all in full ink, the title card says "● Finished" (the ring, full)
+/// - At the end it stays: the text stays, all in full ink, the player card says "● Finished" (the ring, full)
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
 /// - A tap in the middle of the text reads full screen, as in the Reader (`ReadingPage`,
 ///   `ReadingChrome`): the text still follows the audio, a page turn by a tap stops following as a drag does, and a link
@@ -262,9 +261,7 @@ struct NowPlayingScreen: View {
     private func text(_ now: NowPlaying, readerArticle: ReaderArticle?) -> some View {
         if let html = readingHTML(now, readerArticle: readerArticle) {
             SpokenText(speech: speech, html: html,
-                       card: TitleCardContent(title: readerArticle?.title ?? now.title, source: now.source,
-                                              address: now.canonicalURL, letter: now.artworkLetter,
-                                              artwork: now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))),
+                       title: readerArticle?.title ?? now.title,
                        finished: now.isFinished, isChapter: now.isChapter, scrubMap: scrubMap,
                        scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
@@ -338,19 +335,6 @@ private struct NowPlayingContent {
     let readerArticle: ReaderArticle?
 }
 
-/// What the title card shows that doesn't move with the playhead.
-private struct TitleCardContent {
-    /// nil: the page has none.
-    let title: String?
-    /// "example.com".
-    let source: String
-    /// The page's address, for line one of a page with neither title nor site.
-    let address: String?
-    /// On the artwork tile when there is no artwork.
-    let letter: String
-    let artwork: Image?
-}
-
 extension SpeechController {
     /// The paragraph Now Playing's text shows as spoken (on the highlight, all in full ink): the one a
     /// scrub is over while it is dragged, else the playhead; none once the page has finished, so
@@ -361,14 +345,15 @@ extension SpeechController {
     }
 }
 
-/// The text under its title card, the spoken paragraph in full ink and its sentence underlined.
-/// Its own view because the sentence (and the card's time left) follows the live offset, which
+/// The text, the spoken paragraph in full ink and its sentence underlined.
+/// Its own view because the sentence follows the live offset, which
 /// moves several times a second: only this leaf (and the web view's bridge, which sends only
 /// changes) redraws for it.
 private struct SpokenText: View {
     let speech: SpeechController
     let html: String
-    let card: TitleCardContent
+    /// nil: the page has none.
+    let title: String?
     let finished: Bool
     let isChapter: Bool
     let scrubMap: ReaderScrubMap?
@@ -383,14 +368,11 @@ private struct SpokenText: View {
     let onOpenLink: (URL) -> Void
     var onPlaySelection: ((Int, Int) -> Void)?
 
-    @Environment(\.readingPalette) private var reading
-
     var body: some View {
         let paragraph = speech.currentParagraphIndex
         HTMLReadingView(
             html: html,
-            heading: ReaderHeading(title: card.title, detail: [], titleHidden: true),
-            topView: nil,
+            heading: ReaderHeading(title: title, detail: [], titleHidden: true),
             activeParagraphIndex: speech.spokenParagraph(scrubPreview: scrubPreview),
             sentence: finished || scrubPreview != nil ? nil : sentence(paragraph),
             spokenWord: finished || scrubPreview != nil ? nil : spokenWord(paragraph),
@@ -406,27 +388,6 @@ private struct SpokenText: View {
             },
             onPlaySelection: onPlaySelection,
             onTapParagraph: onTap
-        )
-    }
-
-    /// The title card: the site and time left (or the full ring and Finished). Replaced in the page only when its
-    /// text changes, so once a minute at most while playing.
-    private var titleCard: ReadingTopView {
-        let doc = speech.document
-        let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: speech.spokenUTF16Offset,
-                                             rate: speech.rateMultiplier)
-        // As the bar: line one is `lineOne`, line two starts with `lineTwoSource`.
-        let lineOne = ArticleRowTitle.lineOne(title: card.title, source: card.source, address: card.address)
-        let detail: [DetailPart] = finished ? [.finished]
-            : [ArticleRowTitle.lineTwoSource(title: card.title, source: card.source),
-               doc.isEmpty ? nil : ListeningTime.leftLabel(minutes: left)]
-                .compactMap { $0 }.map { DetailPart($0) }
-        let palette = reading ?? .app
-        return ReadingTopView(
-            id: [lineOne, detail.map(\.text).joined(separator: "\n"), card.letter, card.artwork == nil ? "" : "artwork",
-                 palette.theme.rawValue, AppAppearance.shared.accent.rawValue],
-            view: AnyView(TitleCard(title: lineOne, detail: detail, artwork: card.artwork, artworkLetter: card.letter,
-                                    palette: palette))
         )
     }
 

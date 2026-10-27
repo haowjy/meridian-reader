@@ -180,7 +180,7 @@ struct ReadingPalette: Equatable {
     let colorScheme: ColorScheme?
     /// The sheet and the page.
     let background: Color
-    /// Field capsules and cards on it: the top bar's pill, the title card, the scrub capsule, the
+    /// Field capsules and cards on it: the top bar's pill, the player card, the scrub capsule, the
     /// ⋯ panel.
     let card: Color
     let ink: Color

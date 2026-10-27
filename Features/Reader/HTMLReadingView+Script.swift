@@ -241,9 +241,9 @@ extension HTMLReadingWebView {
           };
           // Pages mode: the page's lines as [top, bottom, top, bottom, …] in document y, sorted and
           // merged where they overlap. A text line is its line box (the glyphs' rect grown to the
-          // line height around its middle, so lines in a paragraph touch); images, embeds, the
-          // title card's slot and the heading are single boxes.
-          var ATOMIC = 'img, svg, video, canvas, iframe, object, embed, .reader-top, .reader-heading';
+          // line height around its middle, so lines in a paragraph touch); images, embeds and the
+          // heading are single boxes.
+          var ATOMIC = 'img, svg, video, canvas, iframe, object, embed, .reader-heading';
           window.__readerLines = function() {
             var origin = document.documentElement.getBoundingClientRect().top, boxes = [];
             document.querySelectorAll(ATOMIC).forEach(function(el) {
@@ -318,22 +318,19 @@ extension HTMLReadingWebView {
           });
           // The article's own leading heading already says the title, which shows once: in the
           // Reader the heading takes the title's look and the source line moves under it; under
-          // Now Playing's title card it is hidden. Either way it stays a listen block, so the
+          // the player card (which shows the title) it is hidden. Either way it stays a listen block, so the
           // numbering doesn't change (the header isn't one wherever it sits).
           (function() {
             var first = blocks()[0];
             if (!first || !/^H[1-3]$/.test(first.tagName)) return;
             var norm = function(t) { return (t || '').replace(/\\s+/g, ' ').trim().toLowerCase(); };
             var title = document.querySelector('.reader-title');
-            var top = document.querySelector('.reader-top');
             if (title && title.dataset.hidden && norm(first.textContent) === norm(title.textContent)) {
               first.style.display = 'none';
             } else if (title && norm(first.textContent) === norm(title.textContent)) {
               title.style.display = 'none';
               first.classList.add('reader-title');
               first.parentNode.insertBefore(title.parentNode, first.nextSibling);
-            } else if (top && top.dataset.title && norm(first.textContent) === norm(top.dataset.title)) {
-              first.style.display = 'none';
             }
           })();
         })();
@@ -342,28 +339,13 @@ extension HTMLReadingWebView {
 }
 
 extension HTMLReadingWebView.Coordinator {
-    /// The one reading page (the Reader and Now Playing alike): the text in `look`, with
-    /// the title and source line on top, or a slot `top` points tall for the native top view
-    /// (which shows `heading`'s title itself).
+    /// The one reading page (the Reader, Now Playing and the in-place readers alike): the text in
+    /// `look`, with the title and source line on top.
     /// The article text is wrapped (`.reader-text`) so where it starts can be measured. The
     /// spoken paragraph's tint pads with a box-shadow, so it never reflows.
-    static func wrap(_ html: String, heading: ReaderHeading?, top: CGFloat?, sizes: ReadingStyle.Sizes,
+    static func wrap(_ html: String, heading: ReaderHeading?, sizes: ReadingStyle.Sizes,
                      look: ReadingStyle.Look) -> String {
-        let header: String
-        if let top {
-            let title = heading?.title.map { " data-title=\"\(escape($0))\"" } ?? ""
-            header = "<div class=\"reader-top\" aria-hidden=\"true\"\(title) style=\"height: \(Int(top))px\"></div>"
-        } else {
-            header = heading.map {
-                "<header class=\"reader-heading\">"
-                    + ($0.title.map { [hidden = $0.titleHidden] t in
-                        hidden ? "<div class=\"reader-title\" data-hidden=\"1\" style=\"display:none\">\(escape(t))</div>"
-                            : "<div class=\"reader-title\">\(escape(t))</div>" } ?? "")
-                    + "<div class=\"reader-detail\">"
-                    + $0.detail.filter { !$0.isEmpty }.map { "<span>\(escape($0))</span>" }.joined()
-                    + "</div></header>"
-            } ?? ""
-        }
+        let header = heading.map(headerHTML) ?? ""
         return """
         <!DOCTYPE html>
         <html>
@@ -387,5 +369,18 @@ extension HTMLReadingWebView.Coordinator {
     private static func escape(_ s: String) -> String {
         s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
+    }
+
+    /// The title (hidden when the player card shows it) and the source line.
+    private static func headerHTML(_ heading: ReaderHeading) -> String {
+        var html = "<header class=\"reader-heading\">"
+        if let title = heading.title {
+            html += heading.titleHidden
+                ? "<div class=\"reader-title\" data-hidden=\"1\" style=\"display:none\">\(escape(title))</div>"
+                : "<div class=\"reader-title\">\(escape(title))</div>"
+        }
+        html += "<div class=\"reader-detail\">"
+        html += heading.detail.filter { !$0.isEmpty }.map { "<span>\(escape($0))</span>" }.joined()
+        return html + "</div></header>"
     }
 }

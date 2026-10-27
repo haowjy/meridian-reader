@@ -73,14 +73,12 @@ struct PreviewState<Content: View>: View {
     }
 }
 /// Stand-in reading text for the sheets' previews: paragraphs in the reading page's colours
-/// (`readingPalette`, the app's when unset), under a heading or, with `card`, Now Playing's title
-/// card. With `spoken` the second paragraph is spoken: on the highlight in full ink, its sentence
+/// (`readingPalette`, the app's when unset), under a heading. With `spoken` the second paragraph is spoken: on the highlight in full ink, its sentence
 /// underlined, the others dimmed.
 struct SampleReading: View {
     let title: String
     let detail: [String]
     var spoken = false
-    var card = false
 
     @Environment(\.readingPalette) private var reading
 
@@ -88,13 +86,7 @@ struct SampleReading: View {
         let palette = reading ?? .app
         let other = palette.ink
         VStack(alignment: .leading, spacing: Spacing.m) {
-            if card {
-                TitleCard(title: title, detail: detail.map { DetailPart($0) }, artworkLetter: title, palette: palette)
-                    .padding(.horizontal, Spacing.m - Spacing.pageMargin)
-                    .padding(.bottom, Spacing.l - Spacing.m)
-            } else {
-                ReadingHeading(title: title, detail: detail)
-            }
+            ReadingHeading(title: title, detail: detail)
             Text("Tides rise and fall twice a day along most coasts, pulled by the moon and, more weakly, the sun.")
                 .foregroundStyle(other)
             (Text("Where a bay narrows, the water piles up.").underline(spoken, color: palette.underline)

@@ -218,7 +218,7 @@ struct NowPlayingSheetGallery: View {
         } banner: {
             EmptyView()
         } text: {
-            SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true, card: true)
+            SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true)
         } band: {
             VStack(spacing: Spacing.xs) {
                 HStack(spacing: Spacing.s) {

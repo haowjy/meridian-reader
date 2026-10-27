@@ -2,8 +2,8 @@ import CoreGraphics
 
 /// The reading page broken into pages of whole lines (Pages mode, `HTMLReadingView+Pages.swift`).
 ///
-/// The page's script measures its lines: the text's line boxes, with images, the title card's
-/// slot and the heading as single boxes, merged where they overlap and sorted top to bottom
+/// The page's script measures its lines: the text's line boxes, with images and the heading
+/// as single boxes, merged where they overlap and sorted top to bottom
 /// (document y). Pages are filled greedily: the first starts at the content's top, each later one
 /// at a line's top; a line that doesn't fit wholly starts the next page; a box taller than a page
 /// shows in page-tall slices, from the top of the page it lands on while that one is still empty

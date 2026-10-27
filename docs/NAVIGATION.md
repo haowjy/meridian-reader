@@ -918,15 +918,13 @@ synthesis").
   hear (replacing what plays) and turns the Reader into Now Playing in place, where the Reader was
   (decision D2):
   - **At the Reader's top** (its first line of text not yet scrolled above the top of the reading
-    area, so the title may be part way up), Now Playing opens at its top, the title card in full.
-  - **Scrolled into the text**, the same line stays at the same place on screen, though Now
-    Playing's title card is not the Reader's heading; the card is then partly or wholly above the reading area.
+    area, so the title may be part way up), Now Playing opens at its top.
+  - **Scrolled into the text**, the same line stays at the same place on screen.
   - **When that place can't be reached** (past either end of Now Playing's article), the article goes
-    as far as it can that way, so the line stays in view as near its place as possible. Keeping
-    the line in view wins over showing the card in full.
+    as far as it can that way, so the line stays in view as near its place as possible.
 
   Now Playing sets that position once its article is laid out and holds it while the layout
-  settles (the title card measured, the header, a text size change: each keeps the same line).
+  settles (the header, a text size change: each keeps the same line).
   It drops it if you drag, scrub, Jump to Audio, the audio moves on or the article reloads first. ☝︎ in the top bar, then a tap on a paragraph, listens from that
   paragraph (a hint banner with Cancel sits under the top bar meanwhile, at the article margin, as part
   of the header: the text's first line at the top starts below it). While ☝︎ is on, each
@@ -1178,7 +1176,7 @@ time; Follow's chapter preview always scrolls.
   paragraph's start when none), saved article or not. A tap that clears a selection doesn't turn a
   article or toggle the bars.
 - **The line being read stays** through a new layout (Aa's typeface, size or spacing, Dynamic
-  Type, a picture arriving, the title card's height) and through switching Scroll ↔ Pages: the
+  Type, a picture arriving) and through switching Scroll ↔ Pages: the
   article holding it shows.
 
 ### Reading appearance (Aa, Settings › Reading)

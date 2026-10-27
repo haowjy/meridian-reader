@@ -198,8 +198,7 @@ final class ScrollTextLayout: ReadingTextLayout {
     var isSettling: Bool { settling != nil }
 
     /// Puts the text at `target` once the page's layout can hold it, and keeps it there while the
-    /// layout settles: the title card measured, the header growing, what is above the text
-    /// changing size (see `ReadingScrollRestore`).
+    /// layout settles: the header growing, what is above the text changing size (see `ReadingScrollRestore`).
     private func settle(at target: Target) {
         let now = CACurrentMediaTime()
         settling = (target, host.loadGeneration, now)
