@@ -24,14 +24,14 @@ struct ChromePiece: Equatable {
 /// high whose bottom edge is just above the home indicator. Pure: the same state always gives the
 /// same frames, so the widths in the mockups' `width-table.md` are checkable without a screen. It
 /// is the mockups' `rectsFor`. A scroll down (`state.capsule`) shrinks every piece toward the
-/// capsule, which grows where they were going; the keyboard's form (`state.fold`) is its own one row.
+/// capsule, which grows where they were going; the keyboard's form (`state.keyboard`) is its own one row.
 ///
 /// ```
 /// expanded    [‹][›][ address / search                  ]        row 1; the Reader's is its card
 ///             [ Listen | Library | Browser ][▶][⋯]               row 2 (Listen: no ▶, the card has one)
 /// folded                     [ example.com ]                     the capsule: both rows gone; never on Listen, whose card stays
 /// reader mode [‹][›][ address                       ][🎧]     the Browser's page as the Reader draws it: Listen ends row 1
-///             [‹][ Aa | ▶ Listen · 9 min               ]         the Library's Read: the capsule is the field
+///             [‹][ Aa | ▶ Listen · 9 min               ]         the Library's Read: the Listen field is the field
 /// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
 /// keyboard    [ 🔍 field                      ⊗ 🎤 ][Cancel]    margin to margin on every phone: the field, one gap, Cancel (no icon, ▶ or ⋯)
 /// full screen (nothing)
@@ -39,7 +39,7 @@ struct ChromePiece: Equatable {
 ///
 /// ▶ and ⋯ keep one place in every expanded form.
 struct ChromeLayout: Equatable {
-    /// The pill: the keyboard's form hides it (its rect folds into where the screen icon was).
+    /// The pill: the keyboard's form hides it (the field and Cancel take its row).
     var pill: ChromePiece
     /// The address, search or title field; the Reader's card while expanded.
     var field: ChromePiece
@@ -55,7 +55,7 @@ struct ChromeLayout: Equatable {
     var editBar: ChromePiece
     /// The Browser's reader mode: the round control that listens to the page, at the end of row 1.
     var listen: ChromePiece
-    /// What a scroll down folds the rows into: a name for the page, centred on the bottom row. The
+    /// What a scroll down folds the rows into: a name for the page, bottom-aligned with row 2. The
     /// rect is the capsule itself (28 pt tall); its hit area is `ChromeMetrics.capsuleHitOutset` more each side.
     var capsule: ChromePiece
     /// The pill's width while expanded: its segments are laid out in it.
@@ -83,7 +83,7 @@ struct ChromeLayout: Equatable {
         func navWidth(_ arrows: CGFloat) -> CGFloat { arrows >= 2 ? K.navPairWidth : arrows * K.navSingleWidth }
         let row2 = !s.editing && hold
 
-        // Typing: only the field and Cancel (no screen icon, ▶ or ⋯: nothing there needs to stay put), so the
+        // Typing: only the field and Cancel (no pill, ▶ or ⋯: nothing there needs to stay put), so the
         // row is not the fixed block: the field runs from the left margin to Cancel, which ends at the right
         // margin, on every phone.
         let typing = s.keyboard && !s.editing && hold
@@ -91,8 +91,8 @@ struct ChromeLayout: Equatable {
         let moreRect = typing ? CGRect(x: w - margin - K.cancelWidth, y: rowY, width: K.cancelWidth, height: bar)
                               : CGRect(x: rowRight - bar, y: rowY, width: bar, height: bar)
         let playRect = CGRect(x: rowRight - bar - rowGap - bar, y: rowY, width: bar, height: bar)
-        let iconX = rowRight - bar - rowGap - bar - played * (bar + rowGap)
-        let rightEdge = typing ? moreRect.minX - rowGap : iconX - rowGap
+        // The field's right end when the keyboard is up during Edit (no Cancel then): left of ▶'s slot.
+        let rightEdge = typing ? moreRect.minX - rowGap : rowRight - bar - rowGap - bar - played * (bar + rowGap) - rowGap
         let leftEdge = typing ? margin : rowX
 
         more = ChromePiece(rect: moreRect, isShown: row2)
@@ -112,12 +112,12 @@ struct ChromeLayout: Equatable {
         let pair = isBrowse && (s.canGoBack || s.canGoForward)
         let back: CGFloat = pair || (s.readerMode && s.canGoBack) ? 1 : 0
         let forward: CGFloat = pair ? 1 : 0
-        navShowsBack = s.fold < 0.5 && back > 0
-        navShowsForward = s.fold < 0.5 && forward > 0
+        navShowsBack = !s.keyboard && back > 0
+        navShowsForward = !s.keyboard && forward > 0
         let navExpanded = ChromePiece(rect: CGRect(x: margin, y: row1Y, width: navWidth(back + forward), height: bar),
                                       isShown: back + forward > 0 && hold)
-        let navTyping = ChromePiece(rect: navExpanded.rect, isShown: false)
-        let navMixed = ChromePiece.mix(navExpanded, navTyping, s.fold)
+        // The keyboard's form has no arrows.
+        let navForm = ChromePiece(rect: navExpanded.rect, isShown: navExpanded.isShown && !s.keyboard)
 
         let fieldTyping = ChromePiece(rect: CGRect(x: leftEdge, y: rowY, width: max(0, rightEdge - leftEdge), height: bar),
                                       isShown: hold)
@@ -129,10 +129,10 @@ struct ChromeLayout: Equatable {
             let right = w - margin - (listens ? bar + rowGap : 0)
             fieldExpanded = ChromePiece(rect: CGRect(x: x, y: row1Y, width: right - x, height: bar), isShown: hold)
         }
-        let fieldMixed = ChromePiece.mix(fieldExpanded, fieldTyping, s.fold)
+        let fieldForm = s.keyboard ? fieldTyping : fieldExpanded
         // Where it ends row 1 it stays through the keyboard's move (its rect doesn't move; it only goes).
         let listenRect = CGRect(x: w - margin - bar, y: row1Y, width: bar, height: bar)
-        let listenMixed = ChromePiece.mix(ChromePiece(rect: listenRect, isShown: listens && hold), ChromePiece(rect: listenRect, isShown: false), s.fold)
+        let listenForm = ChromePiece(rect: listenRect, isShown: listens && hold && !s.keyboard)
 
         // The fold: every piece scales down about the capsule's centre over the first 60% of it while the
         // capsule grows from there over the last 60%, so the two overlap and the glass blends one into
@@ -153,8 +153,8 @@ struct ChromeLayout: Equatable {
         pill = receding(pill)
         play = receding(play)
         more = receding(more)
-        nav = receding(navMixed)
-        field = receding(fieldMixed)
-        listen = receding(listenMixed)
+        nav = receding(navForm)
+        field = receding(fieldForm)
+        listen = receding(listenForm)
     }
 }

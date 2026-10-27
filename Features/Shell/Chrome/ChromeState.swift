@@ -39,10 +39,6 @@ struct ChromeState: Equatable {
     /// How far the two rows have folded into the capsule: not while the keyboard is up (its own one-row form).
     var capsule: CGFloat { keyboard ? 0 : collapse }
 
-    /// 1 while the keyboard's one-row form is up (a search is editing), else 0: the pill, ▶ and ⋯ give
-    /// their places to the field and Cancel.
-    var fold: CGFloat { keyboard ? 1 : 0 }
-
     /// Everything but the capsule fold, which animates by itself: what the host animates a step at a time.
     var discrete: ChromeState {
         var state = self

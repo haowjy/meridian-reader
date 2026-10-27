@@ -350,9 +350,9 @@ struct BrowseStartView: View {
 
     /// What the folded chrome's capsule names: the page's domain (no `www.`, no path), or in reader mode its source.
     private var capsuleTitle: String {
-        if let article = shell.pageReader { return article.sourceLabel }
-        let host = webStore.currentURL?.host() ?? ""
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        let host = shell.pageReader?.sourceLabel ?? webStore.currentURL?.host() ?? ""
+        let name = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        return name.isEmpty ? String(localized: "Browser") : name
     }
 
     // MARK: - ‹ ›

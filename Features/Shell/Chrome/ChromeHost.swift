@@ -68,10 +68,10 @@ struct ChromeHost: View {
         (destination == .browse && shell.pageReader != nil) || (destination == .library && shell.libraryReader != nil)
     }
     /// The chrome stays expanded whatever the text does: Listen's card, a reader in Pages mode (it
-    /// turns pages by tap, not by scroll), the start page (it has no page to name) and VoiceOver (the
+    /// turns pages by tap, not by scroll), the start page (it has no page to name), Library Edit (its bar is row 2) and VoiceOver (the
     /// rows are what it reads).
     private var pinned: Bool {
-        destination == .reader || voiceOver || (readerMode && readingAppearance.layout == .pages)
+        destination == .reader || voiceOver || screen.editBar != nil || (readerMode && readingAppearance.layout == .pages)
             || (destination == .browse && !readerMode && !shell.web.hasPage)
     }
 

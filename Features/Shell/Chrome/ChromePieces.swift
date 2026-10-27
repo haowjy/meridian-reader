@@ -26,7 +26,7 @@ struct ChromePieces: View, Animatable {
     }
 
     private typealias K = ChromeMetrics
-    /// The largest text the field, the card and the title chip draw: they sit in pieces of a fixed
+    /// The largest text the field, and the card draw: they sit in pieces of a fixed
     /// height, where larger text clips or overlaps. Every glyph still offers the large content viewer.
     private static let largestText = DynamicTypeSize.xxxLarge
 
