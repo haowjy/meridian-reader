@@ -6,9 +6,9 @@ import QuartzCore
 /// Library, the Browser and the Reader alike. Scroll views report their offset; this keeps a
 /// continuous `progress` (0 expanded, 1 collapsed) that follows the finger on the way down only:
 /// `progress += dy / travel` for a scroll down, and a scroll up never gives a row back (decided:
-/// the second row is too big to pop out on every reverse flick). The chrome comes back by the
-/// screen icon's tap, a swipe up on the bar (both pin it expanded: scrolling down does not fold it
-/// again until the top, a new screen or page), or the very top of the text (0 at the top). Once the
+/// the rows are too big to pop out on every reverse flick, and a button is what brings them
+/// back). The chrome comes back by a tap on the capsule it folded into (it pins it expanded:
+/// scrolling down does not fold it again until the top, a new screen or page), or the very top of the text (0 at the top). Once the
 /// finger has been still for `settleDelay` a half-folded chrome finishes folding. It is the
 /// mockups' `bindScroll` without its reverse follow, and
 /// `displayed` is its per-frame smoothing: an exponential filter with a `smoothing` time constant,
@@ -20,23 +20,23 @@ import QuartzCore
 @MainActor
 @Observable
 final class ChromeScroll {
-    /// 0 expanded, 1 collapsed, anywhere between while a finger is on the scroll view.
+    /// 0 expanded, 1 folded into the capsule, anywhere between while a finger is on the scroll view.
     private(set) var progress: CGFloat = 0
     /// `progress` as drawn: it chases `progress` a frame at a time (`smoothing`).
     private(set) var displayed: CGFloat = 0
-    /// Past half: the chrome is a row. Its own property so a screen that only needs to know (the
+    /// Past half: the chrome is a capsule. Its own property so a screen that only needs to know (the
     /// reading page's floating controls) is not redrawn by every step of `progress`.
     private(set) var isCollapsed = false
     /// The Reader's full screen: the chrome is removed.
     private(set) var fullScreen = false
     /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
     var isLocked = false
-    /// The destination keeps its chrome expanded whatever the scroll (Listen): scroll reports move
-    /// nothing, and turning it on expands.
-    /// The user expanded it by hand (the icon's tap, a swipe up on the row): scrolling down does not
+    /// The user expanded it by hand (the capsule's tap): scrolling down does not
     /// fold it again, for that scroll or any later one, until the text is back at its top, a new screen
     /// or page is up, or the screen is left. The pin is what makes the tap win over the scroll.
     private(set) var isPinnedExpanded = false
+    /// The destination keeps its chrome expanded whatever the scroll (Listen, a reader in Pages mode):
+    /// scroll reports move nothing, and turning it on expands.
     var holdsExpanded = false {
         didSet { if holdsExpanded { expand() } }
     }
@@ -52,7 +52,7 @@ final class ChromeScroll {
     /// scroll-to-top), not a finger, and moves nothing.
     private static let jump: CGFloat = 400
 
-    /// A swipe up on the collapsed row expands it: a drag past `swipeStart` that travels
+    /// A swipe up on the keyboard's row lowers the keyboard: a drag past `swipeStart` that travels
     /// `swipeDistance` up, more up than across.
     nonisolated static let swipeStart: CGFloat = 16
     nonisolated static let swipeDistance: CGFloat = 24
@@ -108,7 +108,7 @@ final class ChromeScroll {
         set(0)
     }
 
-    /// Back to two rows by the user's hand (the icon's tap, a swipe up on the collapsed row): it stays,
+    /// Back to two rows by the user's hand (the capsule's tap): it stays,
     /// whatever the scroll does next (`isPinnedExpanded`). A momentum scroll already under way cannot
     /// fold it either.
     func expandByHand() {

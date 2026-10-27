@@ -5,9 +5,10 @@ import CoreGraphics
 /// reads from here: `ChromeLayout` places the pieces with them, and no other file holds a bar size.
 ///
 /// One shape language and one height: every floating piece is a Capsule or a Circle `barHeight`
-/// high (the pill, the search and address fields, ‹ ›, ▶, ⋯, ✕, the screen icon, the collapsed
-/// row), so its corner radius is half that. Collapsing changes the row count, never a piece's size.
-/// Changing `barHeight` changes every piece and every footprint.
+/// high (the pill, the search and address fields, ‹ ›, ▶, ⋯, ✕, the keyboard's row), so its corner
+/// radius is half that. Scrolling down folds both rows into one small capsule (`capsuleHeight`)
+/// that names the page; a tap on it brings the rows back. Changing `barHeight` changes every piece
+/// and every footprint.
 ///
 /// The pill's lit segment is a capsule inset by `litInset` on all four sides, so it is
 /// `barHeight - 2 * litInset` tall and its radius is the pill's minus the inset (concentric).
@@ -44,8 +45,6 @@ enum ChromeMetrics {
     static let navSingleWidth: CGFloat = barHeight
     static let navPairWidth: CGFloat = 2 * barHeight
 
-    /// The narrowest address or search field before the arrows give way to it.
-    static let minimumField: CGFloat = 112
     /// The pill's lit segment is inset from the pill's edge and from its neighbours by this much.
     static let litInset = unit
 
@@ -61,6 +60,29 @@ enum ChromeMetrics {
     static let ringWidth: CGFloat = 2.5
     static let ringInset: CGFloat = 4
 
+    // MARK: - The capsule (the folded chrome)
+
+    /// The capsule that stands for both rows once a scroll down has folded them: it names the page (a
+    /// domain, a title) and a tap on it brings the rows back. Centred at the bottom row's height.
+    static let capsuleHeight: CGFloat = 7 * unit
+    /// Fixed like every glyph and label here: it never grows with text size (a long press shows it large).
+    static let capsuleFontSize: CGFloat = 12
+    /// Between the capsule's edge and its text, each side.
+    static let capsuleSidePadding: CGFloat = 10
+    /// What the folded chrome reserves at the bottom of the web page: padding, the capsule and the bottom padding.
+    static let capsuleFootprint: CGFloat = topPadding + capsuleHeight + bottomPadding
+    /// The longest it grows; a longer title is cut with an ellipsis.
+    static let capsuleMaxWidth: CGFloat = 240
+    /// How far the hit area reaches past the capsule on every side: `minTapTarget` tall, wider than
+    /// the capsule by the same amount each side.
+    static let capsuleHitOutset: CGFloat = (minTapTarget - capsuleHeight) / 2
+
+    /// The capsule's width for text `textWidth` wide: the text and its side padding, at least a
+    /// circle and at most `capsuleMaxWidth`.
+    static func capsuleWidth(forTextWidth textWidth: CGFloat) -> CGFloat {
+        min(capsuleMaxWidth, max(capsuleHeight, textWidth + 2 * capsuleSidePadding))
+    }
+
     /// How far above the top piece the fade behind the chrome starts.
     static let fadeRise: CGFloat = 50
 
@@ -70,7 +92,7 @@ enum ChromeMetrics {
     /// What the chrome reserves at the bottom of a scrolling screen, above the safe area: two
     /// rows, the same on every destination, so a screen never resizes when the chrome collapses.
     static let footprint: CGFloat = topPadding + barHeight + gap + barHeight + bottomPadding
-    /// One row high: the collapsed chrome and the keyboard's.
+    /// One row high: the keyboard's form (a search is editing).
     static let collapsedFootprint: CGFloat = topPadding + barHeight + bottomPadding
     /// What the Reader's text keeps clear: the card, a gap and row 2.
     static let readerFootprint: CGFloat = topPadding + card + gap + barHeight + bottomPadding

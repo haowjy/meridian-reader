@@ -22,10 +22,10 @@ final class ObscuredWebView: WKWebView {
         let bottom = obscuredBottom > 0 ? obscuredBottom + home : 0
         let insets = UIEdgeInsets(top: 0, left: 0, bottom: bottom, right: 0)
         if obscuredContentInsets != insets { obscuredContentInsets = insets }
-        // What `lvh` (the large viewport) and `svh` (the small one) measure: the folded chrome's footprint and the
+        // What `lvh` (the large viewport) and `svh` (the small one) measure: the capsule's footprint and the
         // expanded one's, as in Safari with its bar folded and unfolded (`dvh` follows the obscured inset). Both
         // zero where nothing covers the page. (`100vh` itself stays the whole frame: WebKit ties it to neither.)
-        let folded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: ChromeMetrics.collapsedFootprint + home, right: 0) : .zero
+        let folded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: ChromeMetrics.capsuleFootprint + home, right: 0) : .zero
         let expanded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: ChromeMetrics.footprint + home, right: 0) : .zero
         if minimumViewportInset != folded || maximumViewportInset != expanded {
             setMinimumViewportInset(folded, maximumViewportInset: expanded)

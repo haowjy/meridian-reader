@@ -41,6 +41,13 @@ struct LibraryChrome {
         return menu
     }
 
+    /// What the folded chrome's capsule names: the article being read in place, else the folder on top, else the
+    /// home's tab (Library, Favorites, Recent).
+    var capsuleTitle: String {
+        if let article = shell.libraryReader { return article.title ?? article.sourceLabel }
+        return screenMenu.topFolder?.name ?? shell.homeTab.title
+    }
+
     /// The Library as the chrome host draws it: the search field, ⋯, Edit's bar.
     func chromeScreen() -> ChromeScreen {
         let search = search
@@ -62,6 +69,7 @@ struct LibraryChrome {
             },
             more: AnyView(MoreMenuButton(id: "libraryMore", chrome: true) { compactMenu }
                 .turnOffPrepareQuestion(turningOff)),
+            capsuleTitle: capsuleTitle,
             editBar: screen.isEditing ? AnyView(LibraryEditBar()) : nil
         )
     }

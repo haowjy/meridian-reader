@@ -40,11 +40,12 @@ struct BrowseStartView: View {
 
     private var hasPage: Bool { webStore.hasPage }
 
-    /// What the chrome covers at the bottom of the page: two rows, one once it has folded (or while a search
-    /// is open: the field's row), nothing at regular width, where the chrome has its own bar below the page.
+    /// What the chrome covers at the bottom of the page: two rows, the capsule once it has folded, one row
+    /// while a search is open (the field's), nothing at regular width, where the chrome has its own bar below the page.
     private var obscuredBottom: CGFloat {
         guard !isRegular else { return 0 }
-        return search.isActive || shell.chromeScroll.isCollapsed ? ChromeMetrics.collapsedFootprint : ChromeMetrics.footprint
+        if search.isActive { return ChromeMetrics.collapsedFootprint }
+        return shell.chromeScroll.isCollapsed ? ChromeMetrics.capsuleFootprint : ChromeMetrics.footprint
     }
 
     /// Create the browse WKWebView only after the first non-start navigation; keep it thereafter.
@@ -342,8 +343,16 @@ struct BrowseStartView: View {
                                            onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
             },
             more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) }),
-            listen: shell.pageReader.map { AnyView(ReaderListenButton(article: $0)) }
+            listen: shell.pageReader.map { AnyView(ReaderListenButton(article: $0)) },
+            capsuleTitle: capsuleTitle
         )
+    }
+
+    /// What the folded chrome's capsule names: the page's domain (no `www.`, no path), or in reader mode its source.
+    private var capsuleTitle: String {
+        if let article = shell.pageReader { return article.sourceLabel }
+        let host = webStore.currentURL?.host() ?? ""
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
     // MARK: - ‹ ›

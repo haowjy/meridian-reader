@@ -28,26 +28,18 @@ extension ChromeDestination {
     var segment: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
-/// `[ Listen | Library | Browser ]`, and the screen icon it folds into: one capsule whose rect the
-/// layout animates between the full pill and the icon's circle. Folding is the lit segment's glyph
-/// sliding to the middle while the other segments, their labels and the lit wash fade, so the
-/// lit segment is the icon. Every segment has the same icon and label size and weight; lit differs
-/// by the glyph's tint and the wash only (labels stay ink, which holds 4.5:1 on the wash in every
-/// accent). The Listen segment (`.reader`, the destination's internal name) is the headphones whether or not anything
-/// plays (▶ and the lit segment say what plays); it is dimmed when there is nothing to open and it is not lit.
-///
-/// Expanded, each segment is a button; folded (past half), the whole circle is one: a tap on the icon
-/// is a swipe up.
+/// `[ Listen | Library | Browser ]`: one capsule, each segment a button. Every segment has the same
+/// icon and label size and weight; lit differs by the glyph's tint and the wash only (labels stay
+/// ink, which holds 4.5:1 on the wash in every accent). The Listen segment (`.reader`, the
+/// destination's internal name) is the headphones whether or not anything plays (▶ and the lit
+/// segment say what plays); it is dimmed when there is nothing to open and it is not lit.
 struct ChromePill: View {
     let lit: ChromeDestination
     /// Something is playing or was played: the Reader segment has a page to open.
     let hasReader: Bool
-    /// How far the pill has folded into the icon (`ChromeLayout.fold`).
-    let fold: CGFloat
     /// The pill's width while expanded: the segments are laid out in it.
     let expandedWidth: CGFloat
     let onSelect: (ChromeDestination) -> Void
-    let onExpand: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -65,18 +57,14 @@ struct ChromePill: View {
                     .fill(Palette.lit)
                     .frame(width: slot - 2 * K.litInset, height: size.height - 2 * K.litInset)
                     .offset(x: slot * CGFloat(lit.segment) + K.litInset, y: K.litInset)
-                    .opacity(1 - ChromeMetrics.ramp(fold, 0...0.5))
                     .animation(reduceMotion ? nil : Motion.snappy, value: lit)
                 ForEach(ChromeDestination.allCases, id: \.self) { destination in
                     let isLit = destination == lit
                     let center = (CGFloat(destination.segment) + 0.5) * slot
                     segment(destination, lit: isLit)
-                        .position(x: isLit ? center + (size.width / 2 - center) * fold : center, y: top + K.segmentGlyphHeight / 2
-                                  + (size.height / 2 - top - K.segmentGlyphHeight / 2) * (isLit ? fold : 0))
-                        .opacity(isLit ? 1 : 1 - ChromeMetrics.ramp(fold, 0...0.5))
+                        .position(x: center, y: top + K.segmentGlyphHeight / 2)
                     label(destination)
                         .position(x: center, y: top + K.segmentGlyphHeight + K.segmentGap + K.labelSize / 2)
-                        .opacity(1 - ChromeMetrics.ramp(fold, 0...0.4))
                 }
                 controls(slot: slot, size: size)
             }
@@ -109,36 +97,24 @@ struct ChromePill: View {
         destination == .reader && !hasReader && destination != lit
     }
 
-    /// The touch layer: three segments while expanded, the icon once folded.
-    @ViewBuilder
+    /// The touch layer: one button per segment.
     private func controls(slot: CGFloat, size: CGSize) -> some View {
-        if fold > 0.5 {
-            Button(action: onExpand) { Color.clear.contentShape(Circle()) }
+        ForEach(ChromeDestination.allCases, id: \.self) { destination in
+            Button { onSelect(destination) } label: { Color.clear.contentShape(Rectangle()) }
                 .buttonStyle(.plain)
-                .frame(width: size.width, height: size.height)
-                .accessibilityLabel(lit.label)
-                .accessibilityHint(String(localized: "Shows the bar"))
-                .accessibilityIdentifier("chromeScreenIcon")
-                .chromeLargeContent(lit.label, symbol: lit.symbol)
-        } else {
-            ForEach(ChromeDestination.allCases, id: \.self) { destination in
-                Button { onSelect(destination) } label: { Color.clear.contentShape(Rectangle()) }
-                    .buttonStyle(.plain)
-                    .frame(width: slot, height: size.height)
-                    .offset(x: slot * CGFloat(destination.segment))
-                    .accessibilityLabel(destination.label)
-                    .accessibilityIdentifier(destination.identifier)
-                    .accessibilityAddTraits(destination == lit ? .isSelected : [])
-                    .chromeLargeContent(destination.label, symbol: destination.symbol)
-            }
+                .frame(width: slot, height: size.height)
+                .offset(x: slot * CGFloat(destination.segment))
+                .accessibilityLabel(destination.label)
+                .accessibilityIdentifier(destination.identifier)
+                .accessibilityAddTraits(destination == lit ? .isSelected : [])
+                .chromeLargeContent(destination.label, symbol: destination.symbol)
         }
     }
 }
 
 /// ‹ and ›: one capsule of one circle per button, in the frame the host gives it. The frame
 /// animates between one and two circles' width, so › fades as it narrows. A button that can't act
-/// stays, dimmed and out of the taps' way; one that isn't `shown` has no circle (the folded row keeps
-/// only the arrows that work).
+/// stays, dimmed and out of the taps' way; one that isn't `shown` has no circle.
 struct ChromeNavigation: View {
     let showsBack: Bool
     let showsForward: Bool

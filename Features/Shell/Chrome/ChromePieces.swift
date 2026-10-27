@@ -2,9 +2,9 @@ import SwiftUI
 
 /// Draws the compact chrome's pieces where `ChromeLayout` puts them. Animatable in the fold
 /// (`ChromeState.progress`): while a finger scrolls, the host feeds it the smoothed progress
-/// (`ChromeScroll.displayed`) and this body runs every frame, so every piece is the mockups' `mix(expanded, collapsed, progress)` and the
-/// pill's lit segment travels into the screen icon. Anything else that changes (the keyboard, the
-/// arrows, ▶) is a discrete step the host animates as the frames move.
+/// (`ChromeScroll.displayed`) and this body runs every frame, so the pieces shrink into the capsule
+/// as the finger moves. Anything else that changes (the keyboard, the arrows, ▶) is a discrete
+/// step the host animates as the frames move.
 ///
 /// A piece is in the tree only while `ChromePiece.isShown`.
 struct ChromePieces: View, Animatable {
@@ -41,14 +41,14 @@ struct ChromePieces: View, Animatable {
             fieldPiece(layout)
             piece(layout.play) { play }
             piece(layout.pill) {
-                ChromePill(lit: state.destination, hasReader: hasReader, fold: layout.fold,
-                           expandedWidth: layout.expandedPillWidth, onSelect: onSelect, onExpand: onExpand)
+                ChromePill(lit: state.destination, hasReader: hasReader, expandedWidth: layout.expandedPillWidth, onSelect: onSelect)
             }
             piece(layout.editBar) {
                 screen.editBar.frame(maxHeight: .infinity).chromeSurface(Capsule())
             }
             piece(layout.listen) { screen.listen }
             piece(layout.more) { more }
+            capsulePiece(layout.capsule)
         }
         .chromeGlassContainer()
         .frame(width: width, height: K.readerFootprint, alignment: .topLeading)
@@ -80,6 +80,38 @@ struct ChromePieces: View, Animatable {
                 .frame(width: piece.rect.width, height: piece.rect.height)
                 .offset(x: piece.rect.minX, y: piece.rect.minY)
                 .transition(.opacity)
+        }
+    }
+
+    /// The folded chrome: the page's name in a small capsule whose tap brings both rows back. Its
+    /// hit area is `minTapTarget` tall, `capsuleHitOutset` past the capsule on every side, down to
+    /// the safe area's edge.
+    @ViewBuilder
+    private func capsulePiece(_ piece: ChromePiece) -> some View {
+        if piece.isShown {
+            let outset = K.capsuleHitOutset, title = screen.capsuleTitle
+            Button(action: onExpand) {
+                Text(title)
+                    .font(.system(size: K.capsuleFontSize, weight: .semibold))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, K.capsuleSidePadding)
+                    .opacity(K.ramp(piece.rect.height, K.capsuleHeight * 0.7...K.capsuleHeight))
+                    .frame(width: piece.rect.width, height: piece.rect.height)
+                    .background(Palette.capsuleFill, in: Capsule())
+                    .chromeSurface(Capsule())
+                    .padding(outset)
+                    .contentShape(Rectangle())
+                    .chromeLargeContent(title, symbol: state.destination.symbol)
+            }
+            .buttonStyle(.plain)
+            .frame(width: piece.rect.width + 2 * outset, height: piece.rect.height + 2 * outset)
+            .offset(x: piece.rect.minX - outset, y: piece.rect.minY - outset)
+            .accessibilityLabel(title)
+            .accessibilityHint(String(localized: "Shows the bar"))
+            .accessibilityIdentifier("chromeCapsule")
+            .transition(.opacity)
         }
     }
 

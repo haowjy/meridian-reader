@@ -23,13 +23,13 @@ struct ChromePiece: Equatable {
 /// Where each piece of the chrome sits, in a box `width` wide and `ChromeMetrics.readerFootprint`
 /// high whose bottom edge is just above the home indicator. Pure: the same state always gives the
 /// same frames, so the widths in the mockups' `width-table.md` are checkable without a screen. It
-/// is the mockups' `rectsFor`: every piece is `mix(expanded, collapsed, progress)`, and the
-/// keyboard's form is the collapsed one without arrows.
+/// is the mockups' `rectsFor`. A scroll down (`state.capsule`) shrinks every piece toward the
+/// capsule, which grows where they were going; the keyboard's form (`state.fold`) is its own one row.
 ///
 /// ```
 /// expanded    [‹][›][ address / search                  ]        row 1; the Reader's is its card
 ///             [ Listen | Library | Browser ][▶][⋯]               row 2 (Listen: no ▶, the card has one)
-/// collapsed   [‹][›][ address ↻][icon][▶][⋯]                     one row (the arrows that work); never on Listen, whose card stays
+/// folded                     [ example.com ]                     the capsule: both rows gone; never on Listen, whose card stays
 /// reader mode [‹][›][ address                       ][🎧]     the Browser's page as the Reader draws it: Listen ends row 1
 ///             [‹][ Aa | ▶ Listen · 9 min               ]         the Library's Read: the capsule is the field
 /// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
@@ -37,10 +37,9 @@ struct ChromePiece: Equatable {
 /// full screen (nothing)
 /// ```
 ///
-/// ▶ and ⋯ keep one place in every form; the pill's rect folds into the icon's.
+/// ▶ and ⋯ keep one place in every expanded form.
 struct ChromeLayout: Equatable {
-    /// The pill, or the screen icon once folded: its rect mixes between the two, and
-    /// `ChromePill` draws the lit segment into the icon.
+    /// The pill: the keyboard's form hides it (its rect folds into where the screen icon was).
     var pill: ChromePiece
     /// The address, search or title field; the Reader's card while expanded.
     var field: ChromePiece
@@ -56,14 +55,15 @@ struct ChromeLayout: Equatable {
     var editBar: ChromePiece
     /// The Browser's reader mode: the round control that listens to the page, at the end of row 1.
     var listen: ChromePiece
-    /// How far the pill has folded (`ChromeState.fold`).
-    var fold: CGFloat
+    /// What a scroll down folds the rows into: a name for the page, centred on the bottom row. The
+    /// rect is the capsule itself (28 pt tall); its hit area is `ChromeMetrics.capsuleHitOutset` more each side.
+    var capsule: ChromePiece
     /// The pill's width while expanded: its segments are laid out in it.
     var expandedPillWidth: CGFloat
 
     /// The top edge of the highest piece, nil when nothing shows (full screen).
     var top: CGFloat? {
-        [pill, field, nav, play, more, editBar, listen].filter(\.isShown).map(\.rect.minY).min()
+        [pill, field, nav, play, more, editBar, listen, capsule].filter(\.isShown).map(\.rect.minY).min()
     }
 
     init(width w: CGFloat, state s: ChromeState) {
@@ -102,38 +102,24 @@ struct ChromeLayout: Equatable {
         // Row 2 is [pill][▶ slot][⋯] on every destination and state: the pill is one fixed width (`K.pillWidth`), ▶'s slot is
         // reserved (empty before anything has played and on Listen), so tabs never move or resize it.
         expandedPillWidth = K.pillWidth
-        fold = s.fold
 
-        let pillExpanded = ChromePiece(rect: CGRect(x: rowX, y: rowY, width: expandedPillWidth, height: bar), isShown: row2)
-        let pillFolded = ChromePiece(rect: CGRect(x: iconX, y: rowY, width: bar, height: bar), isShown: row2)
-        var pillMixed = ChromePiece.mix(pillExpanded, pillFolded, s.fold)
-        if typing { pillMixed.isShown = false }
-        pill = pillMixed
+        pill = ChromePiece(rect: CGRect(x: rowX, y: rowY, width: expandedPillWidth, height: bar), isShown: row2 && !typing)
 
-        // ‹ ›. Expanded in the Browser: the pair whenever either way is open, the one that isn't dimmed
-        // (so › never hides behind a lone ‹ after going back to the first page). Folded: only the
-        // arrows that work, and they give way to a field that would be narrower than `minimumField`
-        // (› first), never while the keyboard is up. Elsewhere (a Library page read in place): ‹ alone.
+        // ‹ ›. In the Browser: the pair whenever either way is open, the one that isn't dimmed (so ›
+        // never hides behind a lone ‹ after going back to the first page). Elsewhere (a Library page
+        // read in place): ‹ alone. The keyboard's form has neither.
         let listens = isBrowse && s.readerMode
         let pair = isBrowse && (s.canGoBack || s.canGoForward)
         let back: CGFloat = pair || (s.readerMode && s.canGoBack) ? 1 : 0
         let forward: CGFloat = pair ? 1 : 0
-        var foldedBack: CGFloat = s.keyboard || !s.canGoBack ? 0 : back
-        var foldedForward: CGFloat = s.keyboard || !s.canGoForward ? 0 : forward
-        func foldedFieldX() -> CGFloat { leftEdge + navWidth(foldedBack + foldedForward) + (foldedBack + foldedForward > 0 ? rowGap : 0) }
-        while rightEdge - foldedFieldX() < K.minimumField, foldedBack + foldedForward > 0 {
-            if foldedForward > 0 { foldedForward = 0 } else { foldedBack = 0 }
-        }
-        // Which circles the capsule draws: the expanded form's up to halfway through the fold, then the folded one's.
-        navShowsBack = s.fold < 0.5 ? back > 0 : foldedBack > 0
-        navShowsForward = s.fold < 0.5 ? forward > 0 : foldedForward > 0
+        navShowsBack = s.fold < 0.5 && back > 0
+        navShowsForward = s.fold < 0.5 && forward > 0
         let navExpanded = ChromePiece(rect: CGRect(x: margin, y: row1Y, width: navWidth(back + forward), height: bar),
                                       isShown: back + forward > 0 && hold)
-        let navFolded = ChromePiece(rect: CGRect(x: rowX, y: rowY, width: navWidth(foldedBack + foldedForward), height: bar),
-                                    isShown: foldedBack + foldedForward > 0 && hold)
-        nav = .mix(navExpanded, navFolded, s.fold)
+        let navTyping = ChromePiece(rect: navExpanded.rect, isShown: false)
+        let navMixed = ChromePiece.mix(navExpanded, navTyping, s.fold)
 
-        let fieldFolded = ChromePiece(rect: CGRect(x: foldedFieldX(), y: rowY, width: max(0, rightEdge - foldedFieldX()), height: bar),
+        let fieldTyping = ChromePiece(rect: CGRect(x: leftEdge, y: rowY, width: max(0, rightEdge - leftEdge), height: bar),
                                       isShown: hold)
         let fieldExpanded: ChromePiece
         if isReader {
@@ -143,9 +129,32 @@ struct ChromeLayout: Equatable {
             let right = w - margin - (listens ? bar + rowGap : 0)
             fieldExpanded = ChromePiece(rect: CGRect(x: x, y: row1Y, width: right - x, height: bar), isShown: hold)
         }
-        field = .mix(fieldExpanded, fieldFolded, s.fold)
+        let fieldMixed = ChromePiece.mix(fieldExpanded, fieldTyping, s.fold)
         // Where it ends row 1 it stays through the keyboard's move (its rect doesn't move; it only goes).
         let listenRect = CGRect(x: w - margin - bar, y: row1Y, width: bar, height: bar)
-        listen = .mix(ChromePiece(rect: listenRect, isShown: listens && hold), ChromePiece(rect: listenRect, isShown: false), s.fold)
+        let listenMixed = ChromePiece.mix(ChromePiece(rect: listenRect, isShown: listens && hold), ChromePiece(rect: listenRect, isShown: false), s.fold)
+
+        // The fold: every piece scales down about the capsule's centre over the first 60% of it while the
+        // capsule grows from there over the last 60%, so the two overlap and the glass blends one into
+        // the other. A piece or the capsule at zero size leaves the tree, which nobody sees.
+        let c = s.capsule
+        let centre = CGPoint(x: w / 2, y: K.readerFootprint - K.bottomPadding - K.capsuleHeight / 2)
+        let away = 1 - K.ramp(c, 0...0.6), grown = K.ramp(c, 0.4...1)
+        func scaled(_ p: ChromePiece, _ f: CGFloat) -> CGRect {
+            CGRect(x: centre.x + (p.rect.minX - centre.x) * f, y: centre.y + (p.rect.minY - centre.y) * f,
+                   width: p.rect.width * f, height: p.rect.height * f)
+        }
+        func receding(_ p: ChromePiece) -> ChromePiece {
+            c > 0 ? ChromePiece(rect: scaled(p, away), isShown: p.isShown && away > 0) : p
+        }
+        let capsuleFull = CGRect(x: centre.x - s.capsuleWidth / 2, y: centre.y - K.capsuleHeight / 2,
+                                 width: s.capsuleWidth, height: K.capsuleHeight)
+        capsule = ChromePiece(rect: scaled(ChromePiece(rect: capsuleFull, isShown: true), grown), isShown: hold && grown > 0)
+        pill = receding(pill)
+        play = receding(play)
+        more = receding(more)
+        nav = receding(navMixed)
+        field = receding(fieldMixed)
+        listen = receding(listenMixed)
     }
 }

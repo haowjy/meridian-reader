@@ -474,20 +474,21 @@ final class ShellState {
     /// How the Reader or Now Playing shows: a sheet on regular width, else in place under the chrome.
     /// What a reading page shown in place needs from the compact chrome: its scroll feeds the one
     /// scroll controller (the same rule as the Library's and the Browser's), its full screen removes
-    /// the chrome, and the text keeps the card's room whether the chrome is expanded or folded.
+    /// the chrome, and the text keeps the card's room.
     func readingShowing(regular: Bool, close: SheetClosePill.Kind, onClose: @escaping () -> Void) -> ReadingShowing {
         regular ? .sheet(close: close, onClose: onClose) : .inPlace(readingInPlace)
     }
 
     private var readingInPlace: ReadingInPlace {
-        readingInPlace(bottomClearance: ChromeMetrics.readerFootprint,
-                       overTextClearance: chromeScroll.isCollapsed ? ChromeMetrics.collapsedFootprint : ChromeMetrics.readerFootprint)
+        readingInPlace(bottomClearance: ChromeMetrics.readerFootprint, overTextClearance: ChromeMetrics.readerFootprint)
     }
 
-    /// The Library's Read and the Browser's reader mode in place: the chrome there never folds and has
-    /// no card, so the text keeps clear of its two rows and what floats over it sits above them.
+    /// The Library's Read and the Browser's reader mode in place: the chrome there has no card, so the
+    /// text keeps clear of its two rows (it scrolls under the capsule just the same once folded) and
+    /// what floats over it sits above them, or above the capsule once the rows have folded.
     var pageReadingInPlace: ReadingInPlace {
-        readingInPlace(bottomClearance: ChromeMetrics.footprint, overTextClearance: ChromeMetrics.footprint)
+        readingInPlace(bottomClearance: ChromeMetrics.footprint,
+                       overTextClearance: chromeScroll.isCollapsed ? ChromeMetrics.capsuleFootprint : ChromeMetrics.footprint)
     }
 
     private func readingInPlace(bottomClearance: CGFloat, overTextClearance: CGFloat) -> ReadingInPlace {
