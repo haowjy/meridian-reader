@@ -55,8 +55,11 @@ struct NowPlayingScreen: View {
             // Only the playing page's content: never the page before's, for a frame, on advance.
             let readerArticle = content?.key == now.articleKey ? content?.readerArticle : nil
             ArticleLookup(key: now.articleKey, canonicalURL: readerArticle?.origin.canonicalURL) { article in
-                player(now, ArticleActions(article: article, readerArticle: readerArticle, library: library, shell: shell, speech: speech,
-                                        preparedAudio: preparedAudio, follow: follow))
+                let actions = ArticleActions(article: article, readerArticle: readerArticle, library: library, shell: shell, speech: speech,
+                                             preparedAudio: preparedAudio, follow: follow)
+                player(now, actions)
+                    // ‹'s fallback when nothing launched this listening: the page's own place.
+                    .onChange(of: actions.listenOrigin, initial: true) { _, origin in shell.listenPageOrigin = origin }
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
             .onChange(of: now.articleKey, initial: true) { _, key in load(key) }

@@ -120,4 +120,37 @@ final class ListenBackTests: XCTestCase {
         let launch = ListenLaunch(place: .browser(url: URL(string: "https://example.com/")!, reading: nil))
         XCTAssertEqual(launch.origin.label(title: "Tides"), "Open Tides in Browser", "the title block shares the launch record")
     }
+
+    func testNoRecordFallsBackToThePagesOwnPlace() {
+        let shell = ShellState()
+        shell.openLibrary()
+        shell.showNowPlaying()
+        XCTAssertNil(shell.listenBackOrigin, "no record and no page place: ‹ hides")
+        let folder = LibraryRoute.folder(UUID())
+        shell.listenPageOrigin = .library(path: [folder])
+        XCTAssertEqual(shell.listenBackOrigin, .library(path: [folder]), "the page's folder")
+        shell.backFromListen()
+        XCTAssertEqual(shell.chromeDestination, .library)
+        XCTAssertEqual(shell.libraryPath, [folder])
+        XCTAssertNil(shell.listenBackOrigin, "off Listen there is no ‹")
+    }
+
+    func testTheLaunchRecordWinsOverThePagesPlace() {
+        let shell = browserShell()
+        shell.noteLaunch()
+        shell.showNowPlaying()
+        shell.listenPageOrigin = .library(path: [])
+        XCTAssertEqual(shell.listenBackOrigin, .browser(URL(string: "https://example.com/story")!))
+    }
+
+    func testADeletedLaunchFolderFallsBackToItsSurvivingParent() {
+        let shell = ShellState()
+        let parent = UUID(), gone = UUID()
+        shell.showLibrary(at: [.folder(parent), .folder(gone)])
+        shell.noteLaunch()
+        shell.showNowPlaying()
+        shell.backFromListen(folderExists: { $0 == parent })
+        XCTAssertEqual(shell.libraryPath, [.folder(parent)])
+        XCTAssertEqual(ShellState.surviving([.folder(gone), .folder(parent)], exists: { $0 == parent }), [], "the Library's home")
+    }
 }

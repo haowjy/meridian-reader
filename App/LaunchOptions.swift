@@ -88,6 +88,10 @@ struct LaunchOptions: Equatable {
     /// `-playTestEPUB`: at launch, import the synthetic EPUB into the Library's top level (no
     /// sheet), then play it from its place, as a book's Play does.
     var playsTestEPUB = false
+    /// `-listenDemo`: once launched, Listen to the newest saved page from the surface on screen (a
+    /// launch, so Listen's ‹ goes back there) and raise Listen. `-listenBackAfter N`: N seconds later, ‹.
+    var listensDemo = false
+    var listenBackAfter: Double?
     /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
     /// library save fails, so a probe sees the edits that can't be saved.
     var failsLibrarySaves = false
@@ -145,6 +149,8 @@ struct LaunchOptions: Equatable {
         restoresSurfaceInUITests = flags.contains("-restoreSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
+        listensDemo = flags.contains("-listenDemo")
+        listenBackAfter = value(after: "-listenBackAfter").flatMap(Double.init)
         failsLibrarySaves = flags.contains("-failLibrarySaves")
         showsWhatsNew = flags.contains("-showWhatsNew")
         usesTestVoice = flags.contains("-testVoice")

@@ -39,7 +39,7 @@ enum AppLaunch {
         await resumeAfterCrash(library: library, speech: speech, shell: shell)
 
         #if DEBUG
-        await LaunchHooks.runAfterLaunch(.current, library: library, speech: speech)
+        await LaunchHooks.runAfterLaunch(.current, library: library, speech: speech, shell: shell)
         #endif
     }
 

@@ -183,20 +183,33 @@ struct ChromeRoundLabel: View {
     }
 }
 
-/// Listen's ‹: a round glass button floating at the top left, the Library's ‹ face (a 48 pt circle).
-/// It returns to where Listen was entered from; the title block's tap is separate and never seeks.
+/// Listen's ‹: a glass capsule floating at the top left, ‹ and the place it goes back to ("‹ reddit.com"),
+/// the Library ‹'s height (48 pt). The name truncates so it never reaches the middle of the screen.
 struct ListenBackButton: View {
+    let place: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            ChromeRoundLabel(symbol: Icons.back, label: Verbs.back)
-                .frame(width: ChromeMetrics.barHeight, height: ChromeMetrics.barHeight)
+            HStack(spacing: ChromeMetrics.unit) {
+                Image(systemName: Icons.back).font(BottomChrome.chromeGlyph)
+                Text(place).font(BottomChrome.originLabel).lineLimit(1).truncationMode(.tail)
+            }
+            .foregroundStyle(Palette.ink)
+            .padding(.leading, Spacing.s)
+            .padding(.trailing, Spacing.s + ChromeMetrics.unit)
+            .frame(height: ChromeMetrics.barHeight)
+            .frame(maxWidth: ChromeMetrics.listenBackMaxWidth, alignment: .leading)
+            .fixedSize(horizontal: true, vertical: false)
+            .contentShape(Capsule())
+            .chromeSurface(Capsule())
+            .chromeLargeContent(Verbs.back, symbol: Icons.back)
         }
         .buttonStyle(.plain)
         .padding(.leading, ChromeMetrics.margin)
         .padding(.top, ChromeMetrics.unit)
         .accessibilityLabel(Verbs.back)
+        .accessibilityValue(place)
         .accessibilityIdentifier("listenBack")
     }
 }

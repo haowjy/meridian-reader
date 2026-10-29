@@ -103,8 +103,10 @@ enum LaunchHooks {
     /// `-failLibrarySaves`' refusal.
     private struct InjectedSaveFailure: Error {}
 
-    /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`.
-    static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController) async {
+    /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`, `-listenDemo`.
+    static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
+                               shell: ShellState) async {
+        if options.listensDemo { await listenDemo(after: options.listenBackAfter, library: library, speech: speech, shell: shell) }
         if options.playsTestEPUB {
             await importTestEPUB(in: library)
             await playTestEPUB(library: library, speech: speech)
@@ -317,6 +319,20 @@ enum LaunchHooks {
         for (address, title) in visits {
             if let url = URL(string: address) { library.recordVisit(url: url, title: title, faviconData: nil) }
         }
+    }
+
+    /// `-listenDemo` / `-listenBackAfter`: the newest saved page plays from the surface on screen and
+    /// Listen rises; then, optionally, Listen's ‹.
+    static func listenDemo(after back: Double?, library: LibraryStore, speech: SpeechController, shell: ShellState) async {
+        try? await Task.sleep(for: .seconds(1))
+        var newest = LibraryQueries.savedInLibrary
+        newest.fetchLimit = 1
+        guard let saved = try? library.context.fetch(newest).first else { return }
+        speech.listen(to: ReaderArticle(article: saved))
+        shell.showNowPlaying()
+        guard let back else { return }
+        try? await Task.sleep(for: .seconds(back))
+        shell.backFromListen(folderExists: { library.folder(id: $0) != nil })
     }
 
     /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article in the Reader

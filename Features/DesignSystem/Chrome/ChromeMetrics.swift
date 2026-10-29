@@ -39,6 +39,8 @@ enum ChromeMetrics {
 
     /// The one height of every piece, in every row and state.
     static let barHeight: CGFloat = 12 * unit
+    /// Listen's ‹ capsule at its widest: a long place name truncates before the middle of a phone.
+    static let listenBackMaxWidth: CGFloat = 50 * unit
     /// Hit areas never go below this, whatever they look like.
     static let minTapTarget: CGFloat = 44
     /// ‹ alone is a circle; with › it is a capsule of two circles' width.

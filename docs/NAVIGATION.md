@@ -70,7 +70,7 @@ Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular 
 expanded    [‹ ›][ address / Search Library          ]        row 1: the screen's own (Listen's: its player card)
             [ Listen | Library | Browser ][▶][  ⋯  ]         row 2: where you are, play, menu (Listen: the ▶ slot stays empty)
 folded                         [ example.com ]                scrolled down: both rows are one small capsule that names the page
-Listen      never folds on scroll                             ‹ floats top left; a middle tap = full screen: nothing, a ▶ / ⏸ floats for 3 s
+Listen      never folds on scroll                             ‹ place floats top left; a middle tap = full screen: nothing, a ▶ / ⏸ floats for 3 s
 searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no pill, ▶ or ⋯, no capsule
 ```
 
@@ -185,12 +185,12 @@ gets wider on a wider phone.
   row of the Reader's ⋯, the page's status note (preparing, voice and language notes) takes the card's
   second line. The text's bottom inset is the expanded footprint (card and row 2, 208 pt), so the
   text never resizes. There is no Close pill, grabber or pull-down: Library and Browser in the pill
-  leave it and never stop audio. A round 48 pt glass **‹** floats top left and goes back to the place that
+  leave it and never stop audio. A 48 pt glass capsule **‹ place** floats top left, naming where it goes (the Library folder's name or "Library", or the page's site without "www.", truncated at 200 pt), and goes back to the place that
   **launched** the listening (`ShellState.listenLaunch`): the Library (its folder or book page, tab and Read state) or the Browser
   page (and its in-place Reader if it was reading) where Listen / Play / Save-and-play was pressed. The record is set by
   `SpeechController.start`, the one way a page starts playing, so a new launch replaces it; switching tabs never
   overwrites it (Library → Browser → Listen by the pill still goes ‹ to the Library), and ‹ does not clear it, so repeated
-  visits work. Listen opened by the tab with nothing new launched keeps the last record; with none (a crash resume), ‹ is hidden. It
+  visits work. Listen opened by the tab with nothing new launched keeps the last record. With none (after a relaunch or a crash resume), ‹ goes to the playing page's own place instead (`ShellState.listenPageOrigin`, which Now Playing keeps current: its Library folder, or its web page), so Listen always has a way back when the page has a place; it hides only when the page has neither. A deleted folder falls back to its nearest surviving parent, at worst the Library's home (`ShellState.surviving`); a Browser page that is no longer loaded reloads at its address (its scroll is then the page's own, not restored). It
   hides in full screen. The card's title block uses the same record (so it goes where ‹ goes), without highlighting the row (no
   row-highlight mechanism yet). The Library's scroll offset is view state: it returns only while the Library stayed mounted. **Full screen** is a tap in the middle of the text, in and out, and
   nothing else: it removes the whole chrome (no rows, no card, no fade, no status bar); scrolling

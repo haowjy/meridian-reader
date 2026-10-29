@@ -270,6 +270,26 @@ final class ShellState {
     /// Whether Listen's floating ‹ shows: on Listen, with a launch record.
     var listenBackTarget: ListenLaunch? { chromeDestination == .reader ? listenLaunch : nil }
 
+    /// The playing page's own place (`ArticleActions.listenOrigin`: its Library folder, or its web page),
+    /// kept current by Now Playing. ‹'s fallback when nothing launched the listening this run (Listen by
+    /// the tab after a relaunch, crash resume), so Listen always has a way back when the page has a place.
+    var listenPageOrigin: ListenOrigin?
+
+    /// Where Listen's ‹ goes, nil when it hides: the launch record's place, else (Now Playing only)
+    /// the page's own place.
+    var listenBackOrigin: ListenOrigin? {
+        guard chromeDestination == .reader else { return nil }
+        return listenLaunch?.origin ?? (isNowPlayingPresented ? listenPageOrigin : nil)
+    }
+
+    /// `path` up to its first folder that no longer exists: a deleted origin falls back to its
+    /// nearest surviving parent, at worst the Library's home.
+    static func surviving(_ path: [LibraryRoute], exists: (UUID) -> Bool) -> [LibraryRoute] {
+        Array(path.prefix { route in
+            switch route { case .folder(let id): exists(id) }
+        })
+    }
+
     /// A direct Listen / Play action starts or switches the audio (`SpeechController.onLaunch`): records the
     /// place it was pressed in. Not from Listen itself (a chapter picked there stays launched from the
     /// place before).
@@ -286,17 +306,29 @@ final class ShellState {
     /// Listen's ‹ and the card's title block: takes Listen down and goes to the launching place, its state
     /// as it was left (the Library's path, tab and Read in place; the Browser's page, in reader mode if it
     /// was reading). The record stays.
-    func backFromListen() {
-        guard let launch = listenBackTarget else { return }
+    /// With no record it opens the page's own place (`listenPageOrigin`). A deleted folder falls back
+    /// to its nearest surviving parent (`folderExists`); a Browser page that is no longer loaded reloads.
+    func backFromListen(folderExists: (UUID) -> Bool = { _ in true }) {
+        guard let launch = listenBackTarget else {
+            if let origin = listenBackOrigin {
+                if case .library(let path) = origin {
+                    openOrigin(.library(path: Self.surviving(path, exists: folderExists)), article: nil)
+                } else {
+                    openOrigin(origin, article: nil)
+                }
+            }
+            return
+        }
         endAddressSearch()
         reader = nil
         hideNowPlaying()
         switch launch.place {
         case .library(let path, let tab, let reading):
+            let kept = Self.surviving(path, exists: folderExists)
             openLibrary()
-            libraryPath = path
+            libraryPath = kept
             homeTab = tab
-            if let reading { openLibraryReader(reading) } else { closeLibraryReader() }
+            if let reading, kept == path { openLibraryReader(reading) } else { closeLibraryReader() }
         case .browser(let url, let reading):
             if let current = web.currentURL, current.isSamePage(as: url) {
                 showBrowser()
@@ -532,11 +564,8 @@ final class ShellState {
 
     /// The Library's path up to the first folder that no longer exists (it was deleted).
     func pruneLibraryPath(keeping folderExists: (UUID) -> Bool) {
-        guard let gone = libraryPath.firstIndex(where: { route in
-            if case .folder(let id) = route { return !folderExists(id) }
-            return false
-        }) else { return }
-        libraryPath = Array(libraryPath[..<gone])
+        let kept = Self.surviving(libraryPath, exists: folderExists)
+        if kept != libraryPath { libraryPath = kept }
     }
 
     /// A place in the Library (*Go to* a folder or the Library, a favorite folder's tile, an

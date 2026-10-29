@@ -277,11 +277,13 @@ struct BrowseStartView: View {
                                                                               libraryReader: shell.libraryReader != nil))
         .onChange(of: isRegular, initial: true) { _, regular in shell.readsInPlace = !regular }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Listen's ‹ (compact): back to where Listen was entered from. Not in full screen, and not when
-        // there is nowhere to go back to (a cold launch straight to Listen).
+        // Listen's ‹ (compact): back to where the listening was launched from, else the page's own
+        // place, named ("‹ reddit.com", "‹ Tides"). Not in full screen, and not when there is nowhere to go.
         .overlay(alignment: .topLeading) {
-            if !isRegular, shell.listenBackTarget != nil, !shell.chromeScroll.fullScreen {
-                ListenBackButton(action: shell.backFromListen)
+            if !isRegular, let origin = shell.listenBackOrigin, !shell.chromeScroll.fullScreen {
+                ListenBackButton(place: placeName(origin)) {
+                    shell.backFromListen(folderExists: { library.folder(id: $0) != nil })
+                }
                     .transition(.opacity)
             }
         }
@@ -293,6 +295,20 @@ struct BrowseStartView: View {
             if !isRegular {
                 compactChrome(card)
             }
+        }
+    }
+
+    /// ‹'s short name for a place: the Library folder's name (its nearest surviving one, else
+    /// "Library"), or the page's site without "www.".
+    private func placeName(_ origin: ListenOrigin) -> String {
+        switch origin {
+        case .library(let path):
+            let kept = ShellState.surviving(path, exists: { library.folder(id: $0) != nil })
+            if case .folder(let id)? = kept.last, let name = library.folder(id: id)?.name, !name.isEmpty { return name }
+            return Verbs.library
+        case .browser(let url):
+            let host = url.host() ?? url.absoluteString
+            return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
         }
     }
 
