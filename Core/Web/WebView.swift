@@ -186,6 +186,12 @@ struct WebView: UIViewRepresentable {
             Task { @MainActor in
                 store.isLoading = false
                 store.syncNavigationState()
+                if let y = store.takePendingScroll() {
+                    let scroll = webView.scrollView
+                    let top = -scroll.adjustedContentInset.top
+                    let bottom = max(top, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+                    scroll.setContentOffset(CGPoint(x: 0, y: min(max(top + y, top), bottom)), animated: false)
+                }
                 checkReaderable(webView)
                 // Late-rendered articles (client-side apps): look once more.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self, weak webView] in

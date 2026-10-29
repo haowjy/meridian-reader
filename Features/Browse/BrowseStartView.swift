@@ -277,12 +277,13 @@ struct BrowseStartView: View {
                                                                               libraryReader: shell.libraryReader != nil))
         .onChange(of: isRegular, initial: true) { _, regular in shell.readsInPlace = !regular }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Listen's ‹ (compact): back to where the listening was launched from, else the page's own
-        // place, named ("‹ reddit.com", "‹ Tides"). Not in full screen, and not when there is nowhere to go.
+        // Listen's ‹ (compact): back to where the listening was launched from (kept across relaunches),
+        // named ("‹ reddit.com", "‹ Tides"). Not in full screen, and not when there is nowhere to go.
         .overlay(alignment: .topLeading) {
             if !isRegular, let origin = shell.listenBackOrigin, !shell.chromeScroll.fullScreen {
                 ListenBackButton(place: placeName(origin)) {
-                    shell.backFromListen(folderExists: { library.folder(id: $0) != nil })
+                    shell.backFromListen(folderExists: { library.folder(id: $0) != nil },
+                                         article: { library.article(key: $0).map(ReaderArticle.init(article:)) })
                 }
                     .transition(.opacity)
             }

@@ -106,12 +106,81 @@ final class ListenBackTests: XCTestCase {
         XCTAssertEqual(shell.chromeDestination, .reader, "nothing to go back to")
     }
 
-    func testAColdLaunchStraightToListenHasNoBack() {
+    func testACrashResumeKeepsTheSavedRecord() {
         let shell = browserShell()
         shell.noteLaunch()
         shell.resumeNowPlayingAtLaunch()
         XCTAssertEqual(shell.chromeDestination, .reader)
+        XCTAssertNotNil(shell.listenBackTarget, "a resume keeps where it was launched from")
+    }
+
+    func testALaunchWithNoPageLoadedKeepsTheSavedRecord() {
+        let shell = ShellState()
+        let folder = LibraryRoute.folder(UUID())
+        shell.showLibrary(at: [folder])
+        shell.noteLaunch()
+        shell.showBrowser()
+        shell.noteLaunch()
+        XCTAssertEqual(shell.listenLaunch?.origin, .library(path: [folder]),
+                       "a browser with nothing loaded names no place, so the saved one stays")
+    }
+
+    func testNothingEverLaunchedHasNoBack() {
+        let shell = browserShell()
+        shell.resumeNowPlayingAtLaunch()
         XCTAssertNil(shell.listenBackTarget)
+    }
+
+    func testTheStoredRecordRoundTripsThroughJSON() throws {
+        let folder = UUID(), reading = UUID()
+        var library = ListenLaunch(place: .library(path: [.folder(folder)], tab: .favorites, reading: nil))
+        library.readingKey = reading
+        var browser = ListenLaunch(place: .browser(url: URL(string: "https://www.reddit.com/r/x")!, reading: nil), scrollY: 1234)
+        browser.wasReading = true
+        for launch in [library, browser] {
+            let data = try JSONEncoder().encode(launch.stored)
+            let back = try JSONDecoder().decode(ListenLaunch.Stored.self, from: data)
+            XCTAssertEqual(back, launch.stored)
+            XCTAssertEqual(ListenLaunch(stored: back)?.stored, launch.stored)
+        }
+        XCTAssertEqual(ListenLaunch(stored: library.stored)?.origin, .library(path: [.folder(folder)]))
+        XCTAssertEqual(ListenLaunch(stored: browser.stored)?.scrollY, 1234)
+    }
+
+    func testTheRecordSurvivesARelaunch() {
+        let defaults = UserDefaults(suiteName: "ListenBackTests.\(UUID())")!
+        let store = SurfaceMemoryStore(defaults: defaults)
+        store.save(SurfaceMemory(base: .browse, libraryPath: [], browserURL: "https://example.com/story"))
+        let before = ShellState(memory: store, restores: true)
+        before.noteLaunch()
+        before.showNowPlaying()
+
+        // A relaunch: a new shell from the same defaults, now on the Library.
+        store.save(SurfaceMemory(base: .library, libraryPath: [], browserURL: nil))
+        let after = ShellState(memory: store, restores: true)
+        after.showNowPlaying()
+        XCTAssertEqual(after.listenBackOrigin, .browser(URL(string: "https://example.com/story")!))
+        after.backFromListen()
+        XCTAssertEqual(after.chromeDestination, .browse)
+        XCTAssertEqual(after.web.currentURL, URL(string: "https://example.com/story"))
+    }
+
+    func testALibraryRecordSurvivesARelaunchWithItsFolderTabAndRead() {
+        let defaults = UserDefaults(suiteName: "ListenBackTests.\(UUID())")!
+        let store = SurfaceMemoryStore(defaults: defaults)
+        let folder = LibraryRoute.folder(UUID())
+        let before = ShellState(memory: store, restores: true)
+        before.showLibrary(at: [folder])
+        before.homeTab = .favorites
+        before.noteLaunch()
+
+        let after = ShellState(memory: store, restores: true)
+        after.showBrowser()
+        after.showNowPlaying()
+        after.backFromListen()
+        XCTAssertEqual(after.chromeDestination, .library)
+        XCTAssertEqual(after.libraryPath, [folder])
+        XCTAssertEqual(after.homeTab, .favorites)
     }
 
     func testTheOriginLabelNamesTheTitleAndThePlace() {
@@ -119,28 +188,6 @@ final class ListenBackTests: XCTestCase {
         XCTAssertEqual(ListenOrigin.browser(URL(string: "https://example.com/")!).label(title: "Tides"), "Open Tides in Browser")
         let launch = ListenLaunch(place: .browser(url: URL(string: "https://example.com/")!, reading: nil))
         XCTAssertEqual(launch.origin.label(title: "Tides"), "Open Tides in Browser", "the title block shares the launch record")
-    }
-
-    func testNoRecordFallsBackToThePagesOwnPlace() {
-        let shell = ShellState()
-        shell.openLibrary()
-        shell.showNowPlaying()
-        XCTAssertNil(shell.listenBackOrigin, "no record and no page place: ‹ hides")
-        let folder = LibraryRoute.folder(UUID())
-        shell.listenPageOrigin = .library(path: [folder])
-        XCTAssertEqual(shell.listenBackOrigin, .library(path: [folder]), "the page's folder")
-        shell.backFromListen()
-        XCTAssertEqual(shell.chromeDestination, .library)
-        XCTAssertEqual(shell.libraryPath, [folder])
-        XCTAssertNil(shell.listenBackOrigin, "off Listen there is no ‹")
-    }
-
-    func testTheLaunchRecordWinsOverThePagesPlace() {
-        let shell = browserShell()
-        shell.noteLaunch()
-        shell.showNowPlaying()
-        shell.listenPageOrigin = .library(path: [])
-        XCTAssertEqual(shell.listenBackOrigin, .browser(URL(string: "https://example.com/story")!))
     }
 
     func testADeletedLaunchFolderFallsBackToItsSurvivingParent() {

@@ -114,7 +114,11 @@ enum AppLaunch {
         if autoPlay {
             // The engine loads first, so the resume doesn't start on Apple.
             await tts.waitForEngineLoad(timeout: .seconds(20))
+            // A resume is not a launch: Listen's ‹ keeps the saved place it was launched from.
+            let onLaunch = speech.onLaunch
+            speech.onLaunch = nil
             speech.start(session, at: ListenSpot(paragraph: p))
+            speech.onLaunch = onLaunch
         } else {
             speech.prepare(session, at: ListenSpot(paragraph: p, utf16Offset: article.positionUTF16))
         }

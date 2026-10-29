@@ -200,11 +200,14 @@ extension ArticleActions {
     }
 
     /// The card's title block: goes where ‹ goes, the place that launched the listening (it shares
-    /// `ShellState.listenLaunch`), and never seeks. With no launch record (a cold launch straight to
-    /// Listen) it opens the page's own place (`listenOrigin`); nil when there is none.
+    /// `ShellState.listenLaunch`, kept across relaunches), and never seeks. With no launch record (nothing was
+    /// ever launched) it opens the page's own place (`listenOrigin`); nil when there is none.
     func cardOrigin(title: String) -> CardOrigin? {
         if let launch = shell.listenBackTarget {
-            return CardOrigin(label: launch.origin.label(title: title)) { [shell] in shell.backFromListen() }
+            return CardOrigin(label: launch.origin.label(title: title)) { [shell, library] in
+                shell.backFromListen(folderExists: { library.folder(id: $0) != nil },
+                                     article: { library.article(key: $0).map(ReaderArticle.init(article:)) })
+            }
         }
         guard let origin = listenOrigin else { return nil }
         return CardOrigin(label: origin.label(title: title)) { [shell, readerArticle] in

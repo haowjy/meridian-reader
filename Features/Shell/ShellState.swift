@@ -230,6 +230,7 @@ final class ShellState {
         self.memory = memory
         guard restores, let memory else { return }
         homeTab = memory.loadHomeTab()
+        listenLaunch = memory.loadListenLaunch()
         if let last = memory.load() {
             surface = last.base == .library ? .library : .browse
             libraryPath = last.libraryPath
@@ -264,23 +265,17 @@ final class ShellState {
     /// reading). Set when a direct Listen / Play action starts or switches the audio (`noteLaunch`; a new
     /// launch replaces it) and never by switching destinations: Library → Browser → Listen still goes ‹ back to
     /// the Library. ‹ and the card's title block both go to it and leave it, so repeated visits work.
-    /// Nil on a cold launch straight to Listen (crash resume): no ‹.
-    private(set) var listenLaunch: ListenLaunch?
+    /// Saved with the surface (`SurfaceMemoryStore.saveListenLaunch`) and read back at launch, so ‹ survives a
+    /// relaunch and a crash resume. Nil only before anything was ever launched: no ‹.
+    private(set) var listenLaunch: ListenLaunch? {
+        didSet { memory?.saveListenLaunch(listenLaunch) }
+    }
 
     /// Whether Listen's floating ‹ shows: on Listen, with a launch record.
     var listenBackTarget: ListenLaunch? { chromeDestination == .reader ? listenLaunch : nil }
 
-    /// The playing page's own place (`ArticleActions.listenOrigin`: its Library folder, or its web page),
-    /// kept current by Now Playing. ‹'s fallback when nothing launched the listening this run (Listen by
-    /// the tab after a relaunch, crash resume), so Listen always has a way back when the page has a place.
-    var listenPageOrigin: ListenOrigin?
-
-    /// Where Listen's ‹ goes, nil when it hides: the launch record's place, else (Now Playing only)
-    /// the page's own place.
-    var listenBackOrigin: ListenOrigin? {
-        guard chromeDestination == .reader else { return nil }
-        return listenLaunch?.origin ?? (isNowPlayingPresented ? listenPageOrigin : nil)
-    }
+    /// Where Listen's ‹ goes, nil when it hides: the launch record's place.
+    var listenBackOrigin: ListenOrigin? { listenBackTarget?.origin }
 
     /// `path` up to its first folder that no longer exists: a deleted origin falls back to its
     /// nearest surviving parent, at worst the Library's home.
@@ -299,26 +294,20 @@ final class ShellState {
             listenLaunch = ListenLaunch(place: .library(path: libraryPath, tab: homeTab, reading: libraryReader))
         } else {
             let url = web.currentURL ?? pendingBrowserURL
-            listenLaunch = url.map { ListenLaunch(place: .browser(url: $0, reading: pageReader)) }
+            let scrollY = web.webView.map { Double($0.scrollView.contentOffset.y + $0.scrollView.adjustedContentInset.top) }
+            // No page to name (nothing loaded yet): keep the saved place rather than lose ‹.
+            guard let url else { return }
+            listenLaunch = ListenLaunch(place: .browser(url: url, reading: pageReader), scrollY: scrollY)
         }
     }
 
     /// Listen's ‹ and the card's title block: takes Listen down and goes to the launching place, its state
     /// as it was left (the Library's path, tab and Read in place; the Browser's page, in reader mode if it
-    /// was reading). The record stays.
-    /// With no record it opens the page's own place (`listenPageOrigin`). A deleted folder falls back
-    /// to its nearest surviving parent (`folderExists`); a Browser page that is no longer loaded reloads.
-    func backFromListen(folderExists: (UUID) -> Bool = { _ in true }) {
-        guard let launch = listenBackTarget else {
-            if let origin = listenBackOrigin {
-                if case .library(let path) = origin {
-                    openOrigin(.library(path: Self.surviving(path, exists: folderExists)), article: nil)
-                } else {
-                    openOrigin(origin, article: nil)
-                }
-            }
-            return
-        }
+    /// was reading). The record stays. After a relaunch the Read article comes back by key (`article`).
+    /// A deleted folder falls back to its nearest surviving parent (`folderExists`); a Browser page that is
+    /// no longer loaded (a relaunch, another page since) reloads at its address and saved scroll.
+    func backFromListen(folderExists: (UUID) -> Bool = { _ in true }, article: (UUID) -> ReaderArticle? = { _ in nil }) {
+        guard let launch = listenBackTarget else { return }
         endAddressSearch()
         reader = nil
         hideNowPlaying()
@@ -328,15 +317,20 @@ final class ShellState {
             openLibrary()
             libraryPath = kept
             homeTab = tab
-            if let reading, kept == path { openLibraryReader(reading) } else { closeLibraryReader() }
+            if kept == path, let reading = reading ?? launch.readingKey.flatMap(article) {
+                openLibraryReader(reading)
+            } else {
+                closeLibraryReader()
+            }
         case .browser(let url, let reading):
             if let current = web.currentURL, current.isSamePage(as: url) {
                 showBrowser()
                 if let reading, readsInPlace { openPageReader(reading, requestedAt: pageReaderEpoch) } else if reading == nil { closePageReader() }
             } else {
                 navigate(to: url)
+                web.restoreScroll(to: launch.wasReading ? nil : launch.scrollY)
                 readerLeftByBack = nil
-                readerToReenter = reading == nil ? nil : url
+                readerToReenter = launch.wasReading ? url : nil
             }
         }
     }
@@ -462,9 +456,8 @@ final class ShellState {
         presentNowPlayingOnTop()
     }
 
-    /// Crash resume: Listen straight at launch, with nowhere to go back to (no ‹).
+    /// Crash resume: Listen straight at launch; ‹ goes where the saved launch record says.
     func resumeNowPlayingAtLaunch() {
-        listenLaunch = nil
         presentNowPlayingOnTop()
     }
 

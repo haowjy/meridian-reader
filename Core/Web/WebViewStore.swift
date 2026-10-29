@@ -53,6 +53,17 @@ final class WebViewStore {
         self.staysOnPage = staysOnPage
     }
 
+    /// A scroll to put the next finished load at (Listen's ‹ back to a page that reloads).
+    @ObservationIgnored private(set) var pendingScrollY: Double?
+
+    func restoreScroll(to y: Double?) { pendingScrollY = y }
+
+    /// The finished load's saved scroll, once.
+    func takePendingScroll() -> Double? {
+        defer { pendingScrollY = nil }
+        return pendingScrollY
+    }
+
     func load(_ url: URL) {
         currentURL = url
         isLoading = true
