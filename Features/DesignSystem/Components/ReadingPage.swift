@@ -15,7 +15,7 @@ struct ReadingInPlace {
     /// The room the chrome keeps at the bottom, folded or not: the text keeps clear of it.
     var bottomClearance: CGFloat
     /// How far above the bottom what floats over the text sits: above the card while the chrome is
-    /// expanded, above its one row once folded.
+    /// expanded, above the capsule once folded.
     var overTextClearance: CGFloat
     /// The text, scrolled by a finger, to this offset from its top.
     var scrolled: (CGFloat) -> Void
@@ -24,6 +24,9 @@ struct ReadingInPlace {
     /// Full screen, owned by the compact chrome: the reading page reads and toggles it here, and the
     /// whole chrome goes or comes back with it.
     var fullScreen: Binding<Bool>
+    /// Something else is on screen over this page: it leaves the status bar and the chrome's fold
+    /// to what is showing.
+    var covered = false
 }
 
 /// A reading page: the text between a top bar and a bottom band, in the reading theme. The Reader
@@ -112,6 +115,6 @@ private struct InPlaceFrame<Header: View, Content: View, OverText: View>: View {
             .background(palette.background.ignoresSafeArea())
             .readingSurface(palette)
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }
-            .systemBars(lightStatusBar: palette.isDark, hidden: chrome.hidden)
+            .systemBars(lightStatusBar: palette.isDark && !place.covered, hidden: chrome.hidden && !place.covered)
     }
 }

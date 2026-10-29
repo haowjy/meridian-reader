@@ -217,7 +217,7 @@ struct PlayingBars: View {
 
 extension EnvironmentValues {
     /// Whether `PlayingBars` move while something plays (off: they stay still, as under Reduce
-    /// Motion). UI tests turn it off: an animation that never ends keeps the app from going idle.
+    /// Motion). `-uiTesting` turns it off: an animation that never ends keeps the app from going idle.
     @Entry var playingBarsMove = true
 }
 

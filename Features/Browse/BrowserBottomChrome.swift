@@ -213,6 +213,12 @@ struct BrowseAddressField: View {
         return web.isLoading ? .stop : .reload
     }
 
+    /// Aa while the compact chrome shows the page's reader view and no search is open.
+    private var appearanceBinding: Binding<Bool>? {
+        guard compact, !search.isActive, shell.pageReader != nil else { return nil }
+        return Bindable(shell).readerAppearanceOpen
+    }
+
     private typealias Field = AddressField<TextFieldBox, AddressAccessories>
 
     private var readerButton: Field.ReaderButton {
@@ -224,7 +230,7 @@ struct BrowseAddressField: View {
 
     var body: some View {
         @Bindable var search = search
-        Field(reader: readerButton, listen: listenState, reload: reloadButton, onOpenReader: onOpenReader,
+        Field(reader: readerButton, listen: listenState, reload: reloadButton, appearance: appearanceBinding, onOpenReader: onOpenReader,
               onListen: onListen, onReload: onReload) {
             TextFieldBox(text: $search.text, isDictating: isDictating, focus: focus, onSubmit: onSubmit)
         } accessory: {
@@ -237,5 +243,7 @@ struct BrowseAddressField: View {
             }
         }
         .animation(Motion.snappy, value: listenState)
+        // Aa goes while a search is open: its panel closes with it, and stays closed when Aa returns.
+        .onChange(of: search.isActive) { _, active in if active { shell.readerAppearanceOpen = false } }
     }
 }

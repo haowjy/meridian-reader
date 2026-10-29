@@ -2,9 +2,9 @@ import SwiftUI
 
 /// Draws the compact chrome's pieces where `ChromeLayout` puts them. Animatable in the fold
 /// (`ChromeState.progress`): while a finger scrolls, the host feeds it the smoothed progress
-/// (`ChromeScroll.displayed`) and this body runs every frame, so every piece is the mockups' `mix(expanded, collapsed, progress)` and the
-/// pill's lit segment travels into the screen icon. Anything else that changes (the keyboard, the
-/// arrows, ▶) is a discrete step the host animates as the frames move.
+/// (`ChromeScroll.displayed`) and this body runs every frame, so the pieces shrink into the capsule
+/// as the finger moves. Anything else that changes (the keyboard, the arrows, ▶) is a discrete
+/// step the host animates as the frames move.
 ///
 /// A piece is in the tree only while `ChromePiece.isShown`.
 struct ChromePieces: View, Animatable {
@@ -26,7 +26,7 @@ struct ChromePieces: View, Animatable {
     }
 
     private typealias K = ChromeMetrics
-    /// The largest text the field, the card and the title chip draw: they sit in pieces of a fixed
+    /// The largest text the field, and the card draw: they sit in pieces of a fixed
     /// height, where larger text clips or overlaps. Every glyph still offers the large content viewer.
     private static let largestText = DynamicTypeSize.xxxLarge
 
@@ -41,13 +41,14 @@ struct ChromePieces: View, Animatable {
             fieldPiece(layout)
             piece(layout.play) { play }
             piece(layout.pill) {
-                ChromePill(lit: state.destination, hasReader: hasReader, fold: layout.fold,
-                           expandedWidth: layout.expandedPillWidth, onSelect: onSelect, onExpand: onExpand)
+                ChromePill(lit: state.destination, hasReader: hasReader, expandedWidth: layout.expandedPillWidth, onSelect: onSelect)
             }
             piece(layout.editBar) {
                 screen.editBar.frame(maxHeight: .infinity).chromeSurface(Capsule())
             }
+            piece(layout.listen) { screen.listen }
             piece(layout.more) { more }
+            capsulePiece(layout.capsule)
         }
         .chromeGlassContainer()
         .frame(width: width, height: K.readerFootprint, alignment: .topLeading)
@@ -76,9 +77,49 @@ struct ChromePieces: View, Animatable {
     private func piece(_ piece: ChromePiece, @ViewBuilder _ content: () -> some View) -> some View {
         if piece.isShown {
             content()
-                .frame(width: piece.rect.width, height: piece.rect.height)
+                .frame(width: piece.fullWidth, height: piece.fullHeight)
+                .scaleEffect(piece.scale, anchor: .topLeading)
+                // Labels and glyphs go early, so what is left to converge on the capsule is bare glass.
+                .opacity(K.ramp(piece.scale, 0.5...0.9))
+                .frame(width: piece.rect.width, height: piece.rect.height, alignment: .topLeading)
                 .offset(x: piece.rect.minX, y: piece.rect.minY)
                 .transition(.opacity)
+        }
+    }
+
+    /// The folded chrome: the page's name in a small capsule whose tap brings both rows back. Its
+    /// hit area is `minTapTarget` tall, `capsuleHitOutset` past the capsule on every side, down to
+    /// the safe area's edge.
+    @ViewBuilder
+    private func capsulePiece(_ piece: ChromePiece) -> some View {
+        if piece.isShown {
+            let outset = K.capsuleHitOutset, title = screen.capsuleTitle
+            Button(action: onExpand) {
+                // The title is laid out at the capsule's final width and clipped by the growing glass, so it
+                // never reflows through "p…", "pa…" on its way.
+                Text(title)
+                    .font(.system(size: K.capsuleFontSize, weight: .semibold))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, K.capsuleSidePadding)
+                    .frame(width: state.capsuleWidth)
+                    .opacity(K.ramp(piece.rect.height, K.capsuleHeight * 0.7...K.capsuleHeight))
+                    .frame(width: piece.rect.width, height: piece.rect.height)
+                    .clipped()
+                    .background(Palette.capsuleFill, in: Capsule())
+                    .chromeSurface(Capsule())
+                    .padding(outset)
+                    .contentShape(Rectangle())
+                    .chromeLargeContent(title, symbol: state.destination.symbol)
+            }
+            .buttonStyle(.plain)
+            .frame(width: piece.rect.width + 2 * outset, height: piece.rect.height + 2 * outset)
+            .offset(x: piece.rect.minX - outset, y: piece.rect.minY - outset)
+            .accessibilityLabel(title)
+            .accessibilityHint(String(localized: "Shows the bar"))
+            .accessibilityIdentifier("chromeCapsule")
+            .transition(.opacity)
         }
     }
 
@@ -91,10 +132,10 @@ struct ChromePieces: View, Animatable {
                 ZStack(alignment: .topLeading) {
                     if let card {
                         card.content
-                            .frame(width: field.rect.width, height: K.card, alignment: .top)
+                            .frame(width: field.fullWidth, height: K.card, alignment: .top)
                     }
                 }
-                .frame(width: field.rect.width, height: field.rect.height, alignment: .topLeading)
+                .frame(width: field.fullWidth, height: field.fullHeight, alignment: .topLeading)
                 .dynamicTypeSize(...Self.largestText)
                 .clipShape(RoundedRectangle(cornerRadius: field.radius, style: .continuous))
                 .chromeSurface(RoundedRectangle(cornerRadius: field.radius, style: .continuous), interactive: false)
@@ -106,7 +147,7 @@ struct ChromePieces: View, Animatable {
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("bandField")
                     .environment(\.isChromeField, true)
-                    .environment(\.chromeFieldWidth, field.rect.width)
+                    .environment(\.chromeFieldWidth, field.fullWidth)
                     .overlay {
                         if state.destination == .browse {
                             LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())

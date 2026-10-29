@@ -22,7 +22,7 @@ struct NowPlaying: Equatable {
     var articleKey: UUID
     /// Web pages: what 🎧 compares against.
     var canonicalURL: String?
-    /// nil: the page has none (`ArticleRowTitle`); the bar's and the title card's line one is then its
+    /// nil: the page has none (`ArticleRowTitle`); the bar's and the player card's line one is then its
     /// site (`lineOne`).
     var title: String?
     /// The book or series for a chapter ("Pride and Prejudice"), else the site

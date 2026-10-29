@@ -46,7 +46,7 @@ private struct SystemBarsAnchor: UIViewRepresentable {
 /// Shows the system bars window while it is in a window, until it is released. Then the window
 /// stays, with the app's look, until the bars have faded back (`lingers`): a window that goes away
 /// takes its look with it at once, so the status bar would pop back. Only that long: kept for a
-/// reading page's life, the window made the UI tests run about 35 s longer.
+/// reading page's life, the window made automated runs about 35 s longer.
 final class SystemBarsAnchorView: UIView {
     var look: SystemBarsLook {
         didSet { if look != oldValue { statusWindow?.controller.look = look } }

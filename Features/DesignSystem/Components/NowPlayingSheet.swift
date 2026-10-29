@@ -97,7 +97,7 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
 /// the card's edge (`Spacing.s`); how far above the card is `ReadingBars`'s over-text clearance (the
 /// same as the floating play / pause's, which never shows at the same time), so it keeps its 12 pt
 /// from the card, or the folded row, as the chrome folds.
-private struct JumpToAudioButton: View {
+struct JumpToAudioButton: View {
     let chrome: ReadingChrome
     let awayFromAudio: Bool
     let direction: JumpDirection
@@ -218,7 +218,7 @@ struct NowPlayingSheetGallery: View {
         } banner: {
             EmptyView()
         } text: {
-            SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true, card: true)
+            SampleReading(title: "Chapter 12", detail: ["Pride and Prejudice", "9 min left"], spoken: true)
         } band: {
             VStack(spacing: Spacing.xs) {
                 HStack(spacing: Spacing.s) {

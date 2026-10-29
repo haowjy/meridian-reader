@@ -19,7 +19,7 @@ enum GoogleSuggestClient {
     }()
 
     /// What to ask Google for text typed in the address field, or nil: suggestions are off
-    /// (`enabled` false, e.g. UI tests), nothing is typed, or Submit would load the text as an
+    /// (`enabled` false, e.g. `-uiTesting`), nothing is typed, or Submit would load the text as an
     /// address (`BrowseURLParser`).
     static func query(forTyped text: String, enabled: Bool) -> String? {
         let q = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -75,9 +75,9 @@ struct SearchSuggestionProvider: Sendable {
 
     /// Google's suggest endpoint.
     static let live = SearchSuggestionProvider { await GoogleSuggestClient.suggestions(for: $0) }
-    /// UI tests: fixed rows, so a test never reaches the network (`-stubSuggestions`).
+    /// Probes: fixed rows, so a run never reaches the network (`-stubSuggestions`).
     static let stub = SearchSuggestionProvider { ["\($0) meaning", "\($0) near me", "\($0) news"] }
-    /// Nothing (UI tests that don't ask for suggestions).
+    /// Nothing (an `-uiTesting` launch that doesn't ask for suggestions).
     static let none = SearchSuggestionProvider { _ in [] }
 }
 

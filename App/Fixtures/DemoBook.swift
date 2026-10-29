@@ -5,7 +5,7 @@ import Foundation
 /// playback across chapter boundaries before the Library screens exist. A title page that
 /// playback skips, three chapters of six paragraphs (about a minute and a half each with Kokoro at 1×),
 /// and one page in no folder. The chapters are also offline test pages
-/// (`reader-test://articles/book-N`), so a UI test can open one in the Reader from the browser.
+/// (`reader-test://articles/book-N`), so a probe can open one in the Reader from the browser.
 enum DemoBook {
     struct Chapter {
         var title: String

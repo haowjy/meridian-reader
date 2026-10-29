@@ -1,8 +1,8 @@
 #if DEBUG
 import Foundation
 
-/// Launch arguments, parsed once (Debug builds only). Probes of the running app, the UI tests
-/// and diagnostics drive the app through these; a normal launch has none of them.
+/// Launch arguments, parsed once (Debug builds only). Probes of the running app, screenshot
+/// runs and diagnostics drive the app through these (state seeding, fixtures, accessibility markers; no test target depends on them); a normal launch has none of them.
 struct LaunchOptions: Equatable {
     /// `-seedDemoArticle`: one deterministic demo article.
     struct DemoArticle: Equatable {
@@ -79,17 +79,21 @@ struct LaunchOptions: Equatable {
     /// `-seedBigFolder N`: add "Big Folder" with N saved pages (the menu and row timing probe, C98).
     var bigFolderArticles = 0
     /// `-restoreSurface` (with `-uiTesting`): reopen on the remembered surface, as a normal launch
-    /// does (decision D10). Without it a UI-test launch starts on the browser, whatever an earlier
-    /// test left, and `-browseTestPages` loads page one.
+    /// does (decision D10). Without it an `-uiTesting` launch starts on the browser, whatever an earlier
+    /// run left, and `-browseTestPages` loads page one.
     var restoresSurfaceInUITests = false
     /// `-importTestEPUB`: *Import Book…* imports the synthetic EPUB (`TestEPUB`) instead of
-    /// opening the Files picker, which a UI test can't drive.
+    /// opening the Files picker, which a probe can't drive.
     var importsTestEPUB = false
     /// `-playTestEPUB`: at launch, import the synthetic EPUB into the Library's top level (no
     /// sheet), then play it from its place, as a book's Play does.
     var playsTestEPUB = false
+    /// `-listenDemo`: once launched, Listen to the newest saved page from the surface on screen (a
+    /// launch, so Listen's ‹ goes back there) and raise Listen. `-listenBackAfter N`: N seconds later, ‹.
+    var listensDemo = false
+    var listenBackAfter: Double?
     /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
-    /// library save fails, so UI tests see the edits that can't be saved.
+    /// library save fails, so a probe sees the edits that can't be saved.
     var failsLibrarySaves = false
     /// `-testVoice`: register an offline on-device test voice (`TestVoiceProvider`, "Test Voice"
     /// with voices One and Two); `-selectEngine test.voice` picks it. Downloads render with it.
@@ -145,6 +149,8 @@ struct LaunchOptions: Equatable {
         restoresSurfaceInUITests = flags.contains("-restoreSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
+        listensDemo = flags.contains("-listenDemo")
+        listenBackAfter = value(after: "-listenBackAfter").flatMap(Double.init)
         failsLibrarySaves = flags.contains("-failLibrarySaves")
         showsWhatsNew = flags.contains("-showWhatsNew")
         usesTestVoice = flags.contains("-testVoice")

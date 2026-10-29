@@ -312,7 +312,6 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         offsetObservation = nil
         guardView?.removeFromSuperview()
         guardView = nil
-        host.topViewY = 0
         guard let webView = host.webView else { return }
         let sv = webView.scrollView
         webView.clipsToBounds = true
@@ -400,7 +399,6 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         let boxHeight = Int(max(height - bottom, top + 100))
         let topValue = Int(top.rounded())
         model.cardHeight = CGFloat(boxHeight) + Spacing.m
-        host.topViewY = top
         webView.evaluateJavaScript("window.__readerPaged(true, \(topValue), \(boxHeight));") { [weak self] _, _ in
             self?.measure()
         }

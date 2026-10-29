@@ -54,7 +54,7 @@ enum ReadabilityRunner {
         """
 
         let webView = OffscreenWebView.make()
-        // Only web base URLs load; other schemes (e.g. the UI tests' `reader-test://` pages) never
+        // Only web base URLs load; other schemes (e.g. the Debug `reader-test://` pages) never
         // finish, so parse those against a neutral https base.
         let webBase = baseURL.isWeb ? baseURL : placeholderBase
         try await OffscreenWebView.load(webView, html: html, baseURL: webBase)

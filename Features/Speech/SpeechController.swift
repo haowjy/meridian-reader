@@ -421,7 +421,7 @@ final class SpeechController {
             "\($0.identifier)-\(Locale.current.region?.identifier ?? "US")"
         } ?? "en-US"
         self.selectedLanguageCode = storedLanguage ?? Locale.preferredLanguages.first ?? fallback
-        // `double(forKey:)` also parses a launch-argument string ("-reader.rateMultiplier 2", UI tests).
+        // `double(forKey:)` also parses a launch-argument string ("-reader.rateMultiplier 2", a probe).
         let storedRate = defaults.object(forKey: Self.rateDefaultsKey) != nil
             ? defaults.double(forKey: Self.rateDefaultsKey) : 1.0
         self.rateMultiplier = storedRate > 0 ? ListenRate.nearest(to: storedRate) : 1.0

@@ -75,10 +75,10 @@ changing the shell code.
   (a layout loop at 100% CPU). The glass grows by frame and corner radius, never by scale.
 - **Compact width: one chrome host** (`Chrome/ChromeHost.swift`; `docs/NAVIGATION.md` "Bottom
   chrome"). Three destinations (Reader, Library, Browser), at most two rows expanded and one
-  collapsed, one play/pause button, one screen icon, glass inside one `GlassEffectContainer` on
+  small capsule folded, one play/pause button, glass inside one `GlassEffectContainer` on
   iOS 26 with a blur and glass tint as the fallback. Its translucent fade takes the colour of what is under it: a
   web page's `underPageBackgroundColor` (`WebViewStore.pageBackground`, KVO), paper, or the reading
-  theme. The in-place reader (`BrowsePageReader`) covers a web view that takes no touches, so it
+  theme. The in-place reader (`ReaderSurface`) covers a web view that takes no touches, so it
   carries its own left-edge swipe for ‹. The rest of design 5e (PR2 to PR4) is under "Planned"
   there. Regular width is untouched.
 - **Regular width: the browser and the Library share the field band** (`SurfaceBand`: the field and its ✕),

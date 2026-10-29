@@ -2,21 +2,24 @@ import SwiftUI
 import UIKit
 
 /// The compact bottom chrome, one view above every destination (Reader, Library, Browser): two
-/// rows expanded, one collapsed, none in the Reader's full screen. `ChromeState` says what is
+/// rows expanded, a small capsule folded, none in the Reader's full screen. `ChromeState` says what is
 /// drawn, `ChromeLayout` where, `ChromePieces` draws it; this view only wires them to the app.
 ///
 /// ```
 /// expanded    [‹][›][ address / Search Library          ]        row 1; Listen's is its player card
 ///             [ Listen | Library | Browser ][▶][  ⋯  ]          row 2: where you are, play, menu (Listen: no ▶)
-/// collapsed   [‹][›][ address ][icon][▶][⋯]                      scrolled down: one row (never on Listen)
+/// folded                     [ example.com ]                     scrolled down: both rows are a capsule naming the page (never on Listen)
 /// keyboard    [ 🔍 field                      ⊗ 🎤 ][Cancel]    the keyboard is up (or its session open): margin to margin
 /// full screen (nothing)                                         the Reader's middle tap
 /// ```
 ///
-/// Scrolling down folds it by degrees (not on Listen: its chrome always stays expanded), scrolling up never unfolds it (`ChromeScroll`); the icon's tap, a swipe up on
-/// the row and the top of the text expand it (while searching, they lower the keyboard). The host
-/// never changes the size of what is under it: screens reserve `ChromeMetrics.footprint` (the
-/// Reader `readerFootprint`) at the bottom and scroll under it. Reduce Motion: no travel, every
+/// Scrolling down folds it by degrees (never on Listen, in a reader's Pages mode, on the Browser's
+/// start page, or with VoiceOver on: those stay expanded). Scrolling up never unfolds it
+/// (`ChromeScroll`): a tap on the capsule does, and so does the top of the text, a new page and
+/// opening the search (while searching, a swipe up on the row lowers the keyboard). The host
+/// never changes the size of what is under it, but for the Browser's page, which keeps clear of the capsule's
+/// `capsuleFootprint` once folded: screens reserve `ChromeMetrics.footprint` (the Reader
+/// `readerFootprint`) at the bottom and scroll under it. Reduce Motion: no travel, every
 /// change of form (the fold, the keyboard, full screen) is a cross-fade.
 ///
 /// It owns the field's focus (kept in sync with the session), the play / pause button's state and
@@ -32,6 +35,7 @@ struct ChromeHost: View {
     @Environment(\.speechController) private var speech
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.readingAppearance) private var readingAppearance
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     private let playback = ChromePlayback()
     @FocusState private var focused: Bool
     /// Reduce Motion: the form drawn. A change of `live` is not drawn at once: the chrome fades out
@@ -59,13 +63,32 @@ struct ChromeHost: View {
     private var session: SearchSession? { screen.session }
     private var isSearching: Bool { session?.isActive == true }
 
+    /// The Browser or the Library shows a page as the Reader draws it, in place.
+    private var readerMode: Bool {
+        (destination == .browse && shell.pageReader != nil) || (destination == .library && shell.libraryReader != nil)
+    }
+    /// The chrome stays expanded whatever the text does: Listen's card, a reader in Pages mode (it
+    /// turns pages by tap, not by scroll), the start page (it has no page to name), Library Edit (its bar is row 2) and VoiceOver (the
+    /// rows are what it reads).
+    private var pinned: Bool {
+        destination == .reader || voiceOver || screen.editBar != nil || (readerMode && readingAppearance.layout == .pages)
+            || (destination == .browse && !readerMode && !shell.web.hasPage)
+    }
+
+    /// The capsule's width: its title at the fixed size, or its maximum.
+    private var capsuleWidth: CGFloat {
+        let font = UIFont.systemFont(ofSize: ChromeMetrics.capsuleFontSize, weight: .semibold)
+        let text = (screen.capsuleTitle as NSString).size(withAttributes: [.font: font]).width
+        return ChromeMetrics.capsuleWidth(forTextWidth: ceil(text))
+    }
+
     /// What the app says the chrome is now. Its `progress` is the fold's end under Reduce Motion
     /// (one end or the other, never between) and 0 otherwise: the fold between is drawn by
     /// `ChromeFold`, so a scroll report redraws the pieces and not this view.
     private var live: ChromeState {
         ChromeState(destination: destination, progress: reduceMotion ? (scroll.isCollapsed ? 1 : 0) : 0, fullScreen: scroll.fullScreen, played: playback.isAvailable,
                     canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, keyboard: isSearching,
-                    readerMode: (destination == .browse && shell.pageReader != nil) || (destination == .library && shell.libraryReader != nil), editing: screen.editBar != nil)
+                    readerMode: readerMode, editing: screen.editBar != nil, capsuleWidth: capsuleWidth)
     }
 
     private var state: ChromeState { reduceMotion ? shown ?? live : live }
@@ -115,9 +138,20 @@ struct ChromeHost: View {
         }
         .onChange(of: isSearching || shell.menu != nil, initial: true) { _, locked in scroll.isLocked = locked }
         .onChange(of: destination, initial: true) { _, new in
-            scroll.holdsExpanded = new == .reader
+            scroll.holdsExpanded = pinned
             scroll.reset()
             focused = session?.isFocused == true
+        }
+        // A reader opening or closing in place is a different text driving the chrome (and ends its full screen).
+        .onChange(of: readerMode) { _, _ in
+            scroll.holdsExpanded = pinned
+            scroll.reset()
+        }
+        // Pages mode, VoiceOver and the start page's page arriving hold or release the rows without a new screen.
+        .onChange(of: pinned) { _, held in scroll.holdsExpanded = held }
+        // Opening the search shows the field, so it brings the rows back first.
+        .onChange(of: isSearching) { _, searching in
+            if searching { scroll.expand() }
         }
         .onChange(of: focused) { _, isFocused in
             guard let session else { return }
@@ -129,26 +163,20 @@ struct ChromeHost: View {
         .onChange(of: session?.isFocused == true) { _, wanted in
             if focused != wanted { focused = wanted }
         }
-        .gesture(swipeUp, including: scroll.isCollapsed || isSearching ? .all : .subviews)
+        .gesture(swipeUp, including: isSearching ? .all : .subviews)
     }
 
     // MARK: - Actions
 
-    /// The icon, the title chip and a swipe up on the row: back to two rows. While searching the
-    /// row stays one, so it lowers the keyboard.
-    private func expandTapped() {
-        if let session, session.isActive {
-            session.lowerKeyboard()
-        } else {
-            scroll.expandByHand()
-        }
-    }
+    /// The capsule's tap, the only way back to two rows by hand: it pins them until the top of the text or a new page.
+    private func expandTapped() { scroll.expandByHand() }
 
+    /// While searching the row is the keyboard's: a swipe up on it lowers the keyboard.
     private var swipeUp: some Gesture {
         DragGesture(minimumDistance: ChromeScroll.swipeStart)
             .onEnded { value in
-                guard scroll.isCollapsed || isSearching, ChromeScroll.isSwipeUp(value.translation) else { return }
-                expandTapped()
+                guard let session, session.isActive, ChromeScroll.isSwipeUp(value.translation) else { return }
+                session.lowerKeyboard()
             }
     }
 

@@ -40,11 +40,12 @@ struct BrowseStartView: View {
 
     private var hasPage: Bool { webStore.hasPage }
 
-    /// What the chrome covers at the bottom of the page: two rows, one once it has folded (or while a search
-    /// is open: the field's row), nothing at regular width, where the chrome has its own bar below the page.
+    /// What the chrome covers at the bottom of the page: two rows, the capsule once it has folded, one row
+    /// while a search is open (the field's), nothing at regular width, where the chrome has its own bar below the page.
     private var obscuredBottom: CGFloat {
         guard !isRegular else { return 0 }
-        return search.isActive || shell.chromeScroll.isCollapsed ? ChromeMetrics.collapsedFootprint : ChromeMetrics.footprint
+        if search.isActive { return ChromeMetrics.collapsedFootprint }
+        return shell.chromeScroll.isDrawnCollapsed ? ChromeMetrics.capsuleFootprint : ChromeMetrics.footprint
     }
 
     /// Create the browse WKWebView only after the first non-start navigation; keep it thereafter.
@@ -127,8 +128,9 @@ struct BrowseStartView: View {
                     }
 
                     if let article = shell.pageReader, !isRegular {
-                        BrowsePageReader(article: article, speech: speech,
-                                         onEdgeSwipeBack: webStore.canGoBack ? goBack : nil)
+                        ReaderSurface(article: article, speech: speech, covered: isCovered,
+                                      onEdgeSwipeBack: webStore.canGoBack ? goBack : nil)
+                            .id(article.id)
                     }
                 }
                 .ignoresSafeArea(.container, edges: isRegular ? [] : .bottom)
@@ -179,7 +181,7 @@ struct BrowseStartView: View {
         )
     }
 
-    /// The page the browser shows, for 🔖 and ⋯: a web page (or a UI test's page); the start page
+    /// The page the browser shows, for 🔖 and ⋯: a web page (or a Debug `reader-test://` page); the start page
     /// is none.
     private var webPage: URL? { webStore.currentURL.flatMap { $0.isWebOrTestPage ? $0 : nil } }
 
@@ -250,7 +252,10 @@ struct BrowseStartView: View {
                     .transition(.opacity)
                 // Library Read: the page's text in place of the Library, which stays under it as it was.
                 if let article = shell.libraryReader, !isRegular {
-                    BrowsePageReader(article: article, speech: speech, onEdgeSwipeBack: shell.closeLibraryReader)
+                    ReaderSurface(article: article, speech: speech,
+                                  covered: shell.reader != nil || shell.isNowPlayingPresented,
+                                  onEdgeSwipeBack: shell.closeLibraryReader)
+                        .id(article.id)
                         .covered(shell.reader != nil || shell.isNowPlayingPresented)
                         .transition(.opacity)
                 }
@@ -272,11 +277,13 @@ struct BrowseStartView: View {
                                                                               libraryReader: shell.libraryReader != nil))
         .onChange(of: isRegular, initial: true) { _, regular in shell.readsInPlace = !regular }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Listen's ‹ (compact): back to where Listen was entered from. Not in full screen, and not when
-        // there is nowhere to go back to (a cold launch straight to Listen).
+        // Listen's ‹ (compact): back to where the listening was launched from, else the page's own
+        // place, named ("‹ reddit.com", "‹ Tides"). Not in full screen, and not when there is nowhere to go.
         .overlay(alignment: .topLeading) {
-            if !isRegular, shell.listenBackTarget != nil, !shell.chromeScroll.fullScreen {
-                ListenBackButton(action: shell.backFromListen)
+            if !isRegular, let origin = shell.listenBackOrigin, !shell.chromeScroll.fullScreen {
+                ListenBackButton(place: placeName(origin)) {
+                    shell.backFromListen(folderExists: { library.folder(id: $0) != nil })
+                }
                     .transition(.opacity)
             }
         }
@@ -288,6 +295,20 @@ struct BrowseStartView: View {
             if !isRegular {
                 compactChrome(card)
             }
+        }
+    }
+
+    /// ‹'s short name for a place: the Library folder's name (its nearest surviving one, else
+    /// "Library"), or the page's site without "www.".
+    private func placeName(_ origin: ListenOrigin) -> String {
+        switch origin {
+        case .library(let path):
+            let kept = ShellState.surviving(path, exists: { library.folder(id: $0) != nil })
+            if case .folder(let id)? = kept.last, let name = library.folder(id: id)?.name, !name.isEmpty { return name }
+            return Verbs.library
+        case .browser(let url):
+            let host = url.host() ?? url.absoluteString
+            return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
         }
     }
 
@@ -337,8 +358,17 @@ struct BrowseStartView: View {
                                            onReload: reloadOrStop,
                                            onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
             },
-            more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) })
+            more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) }),
+            listen: shell.pageReader.map { AnyView(ReaderListenButton(article: $0)) },
+            capsuleTitle: capsuleTitle
         )
+    }
+
+    /// What the folded chrome's capsule names: the page's domain (no `www.`, no path), or in reader mode its source.
+    private var capsuleTitle: String {
+        let host = shell.pageReader?.sourceLabel ?? webStore.currentURL?.host() ?? ""
+        let name = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        return name.isEmpty ? String(localized: "Browser") : name
     }
 
     // MARK: - ‹ ›
@@ -408,11 +438,13 @@ struct BrowseStartView: View {
     }
 
     /// The browser's ⋯: the page's menu (`ArticleMenu`) while a page is up, then *New Search*,
-    /// *Follow…*, *Reload*, *Prepared audio*, *Settings*, then `[Favorites][History][Reader]`.
+    /// *Text Appearance* (in reader mode), *Follow…*, *Reload*, *Prepared audio*, *Settings*, then
+    /// `[Favorites][History][Reader]`.
     private func menu(_ actions: ArticleActions) -> MenuContext {
         var facts = MenuRegistry.Facts()
         facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
         facts.hasWebPage = hasPage
+        facts.inReaderMode = shell.pageReader != nil
         // No *New Search*: a tap on the address field starts one (C98).
         let screen = MenuContext.screenRows(at: .browser, facts: facts, shell: shell) { option in
             switch option {
@@ -420,6 +452,10 @@ struct BrowseStartView: View {
                 return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) {
                     guard let url = webStore.currentURL else { return }
                     shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
+                }
+            case .textAppearance:
+                return MenuRow(id: "moreTextAppearance", title: Verbs.textAppearance, icon: Icons.textAppearance) {
+                    shell.readerAppearanceOpen = true
                 }
             case .reload:
                 return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: reload)
@@ -432,7 +468,7 @@ struct BrowseStartView: View {
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
         return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
-                           tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader))
+                           tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader), isOnReadingPage: showing)
     }
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }

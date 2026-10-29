@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Artwork: a site icon, a book's cover, or a letter tile when there is no image. The only letter
-/// tile in the app: rows, the Now Playing bar and title card, Favorites, search suggestions and a
+/// tile in the app: rows, the Now Playing bar, Favorites, search suggestions and a
 /// folder header all draw this one. Corners scale with the size (an icon's proportions; a cover's
 /// are squarer), so tiles look alike at any size.
 struct ArtworkTile: View {

@@ -1,10 +1,10 @@
 #if DEBUG
 import Foundation
 
-/// An on-device "voice" for UI tests (`-testVoice`, Debug builds only): it renders a soft tone
+/// An on-device "voice" for probes (`-testVoice`, Debug builds only): it renders a soft tone
 /// the length speech would be, a little slowly, through the whole render path (the queue, the
 /// cache, bake marks, downloads), with nothing to download and no model. Two voices, so a voice
-/// change can be tested. The Simulator has no Kokoro model, and UI tests stay offline.
+/// change can be tested. The Simulator has no Kokoro model, and probes stay offline.
 @MainActor
 final class TestVoiceProvider: SpeechEngineProvider {
     static let id = SpeechEngineID("test.voice")

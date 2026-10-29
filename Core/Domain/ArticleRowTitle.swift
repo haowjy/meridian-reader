@@ -6,7 +6,7 @@ import Foundation
 /// name. In the domain and the views a title is `String?` (nil: none); the library stores none
 /// as "" (`Article.title`, `RecentVisit.title`).
 ///
-/// The Reader's heading and Now Playing's title card show a title only when there is one. What
+/// The Reader's heading and the player card show a title only when there is one. What
 /// must name a page in one line (a row, a Favorites tile, the Now Playing bar, the lock screen, a
 /// prepare, a toast) uses `lineOne`, and only that.
 enum ArticleRowTitle {

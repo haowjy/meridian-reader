@@ -51,7 +51,6 @@ Features/
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a library over its own files
-UITests/    the smoke flow and the in-place Reader chrome flow (MeridianReaderUITests)
 ```
 
 ## Architecture
@@ -76,9 +75,10 @@ UITests/    the smoke flow and the in-place Reader chrome flow (MeridianReaderUI
 - **Compact bottom chrome** (`Features/Shell/Chrome/` with its tokens in `Features/DesignSystem/Chrome/`;
   one rule set, no screen-specific cases). `ChromeState` is a pure value: destination, collapse
   `progress` (continuous, 0 to 1), the Reader's `fullScreen`, played, back / forward, keyboard,
-  reader mode, editing. `ChromeLayout` is the one pure layout function from (width, state) to every
-  piece's rect and opacity (the mockups' `rectsFor`: each piece is `mix(expanded, collapsed,
-  progress)`, the keyboard's form is the collapsed one without arrows); it is sized by `ChromeMetrics`
+  reader mode, editing, the capsule's width. `ChromeLayout` is the one pure layout function from (width, state) to every
+  piece's rect and opacity (the mockups' `rectsFor`: each piece shrinks about the
+  capsule's centre as `progress` goes to 1 while the capsule grows from there; the keyboard's form is one row
+  with Cancel); it is sized by `ChromeMetrics`
   (every size a multiple of a base unit of 4, one `barHeight` 48, names and values those of the
   mockups' `SZ`, checked by `tools/check-tokens.js`). `ChromeScroll` (`ShellState.chromeScroll`) owns
   the progress and `fullScreen` and is the one scroll controller the Library, the Browser and the
@@ -95,7 +95,7 @@ UITests/    the smoke flow and the in-place Reader chrome flow (MeridianReaderUI
   `ChromeControls` (pill, navigation, play button), `ChromeSkin` (glass, or blur and tint before iOS
   26). The Reader's and Now Playing's player card (`ReaderPlayerCard`, a design-system view of plain
   values) is built by the screens and handed up as a preference (`ChromeCard`); the host draws it on
-  the field piece's glass, so one surface folds into the title chip.
+  the field piece's glass; Listen never folds.
 - **Reading pages.** The Reader and Now Playing are one `ReadingPage` (`ReaderSheet` and
   `NowPlayingSheet` supply their bands): `ReadingBars` lays out the text between the top bar and
   the band; compact width draws it in place under the chrome, regular width inside a `Sheet`
@@ -573,8 +573,9 @@ The button is a round 44 pt glass circle at the right edge, 12 pt above the play
 ## Tests (C133)
 
 Critical-only: crash guard and recovery policy, prepare cache integrity, no data loss on a
-failed save, no text dropped by the chunker, one smoke UI test, and (at the owner's request) the
-compact chrome: unit tests of its state, layout and scroll controller and one UI test. About 13 s to run. The audit
+failed save, no text dropped by the chunker, and (at the owner's request) the compact chrome: unit tests of its
+state, layout and scroll controller. About 5 s to run. There are no UI tests: they were dropped at
+the owner's request, and the flows they covered are checked by hand on the running app. The audit
 table is in the decision log (C133).
 
 ## Retention and Prepared Audio (C134, C135, C136)

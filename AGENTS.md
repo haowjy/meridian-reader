@@ -21,25 +21,32 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   -collect-test-diagnostics never
 ```
 
+The scheme runs the unit tests only; there are no UI tests (see Tests below).
+
 - **A change is verified by probing the real app and an AI review.** Run it on the Simulator or
   the phone, drive the flows the change touches, look at the result (screenshots, the unified log,
   `ListenTiming`), then have the diff reviewed. Tests passing is not the evidence.
 - **All automated tests together run in under 60 seconds** of sequential time on the Simulator
-  (unit and UI, `test-without-building` wall clock: about 5 s and 35 s; without
-  `-collect-test-diagnostics never`, xcodebuild can sit minutes in `simctl diagnose` after the
-  UI tests). **Test policy (C133): critical tests only**, guarding costly regressions: the
+  (unit tests only, `test-without-building` wall clock: about 5 s). **Test policy (C133): critical
+  tests only**, guarding costly regressions: the
   engine crash guard and C129 recovery (`EngineCrashGuardTests`), cache integrity (audio in the
   wrong voice never counts as prepared, `PrepareOverviewTests`), a failed save never losing
-  an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), one
-  smoke UI test (`CoreFlowsUITests.testSaveAndPlayABrowsedArticle`), and, at the owner's request,
-  the compact chrome: unit tests of its state, layout and scroll controller (`ChromeTests`) and one
-  UI test (`testInPlaceReaderFoldsOnScrollAndFullScreenIsAMiddleTap`). Add a test only for data
-  loss, crashes, store migration or cache integrity; verify everything else on the running app.
+  an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), and, at the
+  owner's request, the compact chrome's state, layout and scroll controller (`ChromeTests`). Add a
+  test only for data loss, crashes, store migration or cache integrity; verify everything else on
+  the running app.
+- **No UI tests (dropped at the owner's request).** The `MeridianReaderUITests` target, `UITests/`
+  and the smoke and compact chrome UI flows are gone. What they covered is now checked by hand on
+  the running app (Simulator, one device; the phone for anything that needs real hardware): save
+  and play a browsed article (open a page, save it, play, pause, stop); the compact chrome (scroll
+  down folds the bottom chrome into its capsule on Browse web, Browse reader, Library Read and
+  Library home; scrolling up never restores it, only a tap on the capsule does; Listen and Pages
+  mode never fold; Library Edit stays expanded; the floating pause pauses in full screen), with a
+  recorded video and frames for the motion. Launch with the arguments below.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
-- One scheme, `MeridianReader`, with two test targets: `MeridianReaderTests` (unit, `Tests/`) and
-  `MeridianReaderUITests` (`UITests/`).
+- One scheme, `MeridianReader`, with one test target, `MeridianReaderTests` (unit, `Tests/`).
 - **The machine is memory-starved.** Use one Simulator, and run builds and tests under `gtimeout`.
-- Probes and the UI tests drive the app with launch arguments (`App/LaunchOptions.swift`, Debug
+- Probes and manual checks drive the app with launch arguments (`App/LaunchOptions.swift`, Debug
   builds only), on the Simulator as `xcrun simctl launch <device> com.jimmyyao.Reader <args>`, on
   the phone after `--` (`xcrun devicectl device process launch … com.jimmyyao.Reader -- <args>`).
   `-uiTesting` (test markers on, still playing bars, Google suggestions off), `-resetLibrary` (an
@@ -70,7 +77,7 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
 | `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `PDF` (PDFKit text extract into pages), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import for EPUB/PDF), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
 | `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock; the three-destination chrome is being built here), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
-| `Tests/`, `UITests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) and UI flows |
+| `Tests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
 | `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); models download at runtime |
 | `Resources/` | Readability scripts, voice previews, assets |
@@ -121,11 +128,11 @@ xcodebuild test -project MeridianReader.xcodeproj -scheme MeridianReader \
   Reduce Motion transitions, not ad-hoc springs.
 - **Bottom chrome**: compact width draws one floating chrome host
   (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Listen, Library, Browser; Listen is `ChromeDestination.reader` in code), two rows
-  expanded and one collapsed, no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; PR2 to PR4 of the
+  expanded and a small capsule folded, no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; PR2 to PR4 of the
   redesign are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
-  or circle (radius = height / 2; one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, footprints 116 and 60, hit areas 44), every control glyph
-  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, scroll down only: scrolling up never gives a row back; the icon, a swipe up on the bar or the top of the text, offset <= 4, expand it), Listen is a destination under the same chrome with a glass player card above row 2 (no sheet, Close pill or pull-down; full screen is a middle tap that removes the chrome), and the compact address pill ends
-  in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
+  or circle (radius = height / 2; one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, footprints 116, 40 (the capsule) and 60 (the keyboard), hit areas 44), every control glyph
+  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, scroll down only: scrolling up never gives a row back; the capsule's tap or the top of the text, offset <= 4, expands it), Listen is a destination under the same chrome with a glass player card above row 2 (no sheet, Close pill or pull-down; full screen is a middle tap that removes the chrome), and the compact address pill ends
+  in reload, not 🎧 (iPad keeps 🎧; the Browser's reader mode adds a 🎧 Listen control after the pill). Change the chrome host, never one screen; on regular width change
   `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
   (`BottomToolbarLayout`) so sizing, Dynamic Type and 44 pt taps stay
