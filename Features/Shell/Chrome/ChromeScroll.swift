@@ -14,7 +14,7 @@ import QuartzCore
 /// mockups' `bindScroll` with a reveal in place of its reverse follow, and
 /// `displayed` is its per-frame smoothing: an exponential filter with a `smoothing` time constant,
 /// stepped by a display link while it still has ground to cover. What is drawn follows `displayed`;
-/// rules (`isCollapsed`, the swipe) read `progress`.
+/// rules (the swipe) read `progress`.
 ///
 /// Full screen is not scroll's: it is set only by the reading page's middle tap
 /// (`ReadingInPlace.fullScreen`), and scrolling never touches it.
@@ -25,12 +25,6 @@ final class ChromeScroll {
     private(set) var progress: CGFloat = 0
     /// `progress` as drawn: it chases `progress` a frame at a time (`smoothing`).
     private(set) var displayed: CGFloat = 0
-    /// Past the first step: row 2 is gone (one row or the bubble). Its own property so a screen that only needs to know (the
-    /// reading page's floating controls) is not redrawn by every step of `progress`.
-    private(set) var isCollapsed = false
-    /// `isCollapsed` as drawn: past half in `displayed`, so what keeps clear of the chrome (the web
-    /// view's inset, the reading page's floating controls) moves with the chrome and not ahead of it.
-    private(set) var isDrawnCollapsed = false
     /// The Reader's full screen: the chrome is removed.
     private(set) var fullScreen = false
     /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
@@ -187,7 +181,6 @@ final class ChromeScroll {
         let value = Self.forcedFold.map { holdsExpanded ? 0 : $0 } ?? value
         #endif
         if progress != value { progress = value }
-        if isCollapsed != (value >= 0.5) { isCollapsed = value >= 0.5 }
         if displayed != value, ticker == nil { startSmoothing() }
     }
 
@@ -203,17 +196,16 @@ final class ChromeScroll {
         let next = displayed + (progress - displayed) * CGFloat(1 - exp(-dt / Self.smoothing))
         if abs(progress - next) < 0.0005 {
             displayed = progress
-            drawnCollapsed(progress)
+            draw(progress)
             ticker?.stop()
             ticker = nil
         } else {
             displayed = next
-            drawnCollapsed(next)
+            draw(next)
         }
     }
 
-    private func drawnCollapsed(_ value: CGFloat) {
-        if isDrawnCollapsed != (value >= 0.5) { isDrawnCollapsed = value >= 0.5 }
+    private func draw(_ value: CGFloat) {
         let step = Self.step(value)
         if drawnStep != step { drawnStep = step }
     }

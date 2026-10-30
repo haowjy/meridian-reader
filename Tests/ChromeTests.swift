@@ -343,7 +343,6 @@ final class ChromeTests: XCTestCase {
         chrome.anchor(at: 10)
         scroll(chrome, to: [70])
         XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "60 pt: one row")
-        XCTAssertTrue(chrome.isCollapsed)
         scroll(chrome, to: [200])
         XCTAssertEqual(chrome.progress, 1, "clamped: the bubble")
         scroll(chrome, to: [180])
@@ -352,7 +351,6 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(chrome.progress, 0, "24 pt up brings both rows back")
         scroll(chrome, to: [195, 190, 200])
         XCTAssertEqual(chrome.progress, 30 / ChromeScroll.travel, accuracy: 0.001, "5 pt up between two scrolls down reveals nothing")
-        XCTAssertFalse(chrome.isCollapsed)
     }
 
     @MainActor
@@ -407,7 +405,7 @@ final class ChromeTests: XCTestCase {
             clear(chrome)
             XCTAssertEqual(chrome.grace, 0)
             scroll(chrome, to: [70, 130, 190])
-            XCTAssertTrue(chrome.isCollapsed)
+            XCTAssertEqual(chrome.progress, 1)
         }
     }
 
@@ -416,17 +414,16 @@ final class ChromeTests: XCTestCase {
         let chrome = ChromeScroll()
         chrome.anchor(at: 10)
         scroll(chrome, to: [130])
-        XCTAssertTrue(chrome.isCollapsed, "a Library scrolled down")
+        XCTAssertEqual(chrome.progress, 1, "a Library scrolled down")
         chrome.holdsExpanded = true
-        XCTAssertFalse(chrome.isCollapsed, "coming to a held screen (Pages mode, Edit) from a folded Library: expanded")
+        XCTAssertEqual(chrome.progress, 0, "coming to a held screen (Pages mode, Edit) from a folded Library: expanded")
         chrome.anchor(at: 10)
         scroll(chrome, to: [60, 120, 200, 300])
         XCTAssertEqual(chrome.progress, 0)
-        XCTAssertFalse(chrome.isCollapsed)
         chrome.holdsExpanded = false
         chrome.reset()
         scroll(chrome, to: [130])
-        XCTAssertTrue(chrome.isCollapsed, "other destinations fold again")
+        XCTAssertEqual(chrome.progress, 1, "other destinations fold again")
     }
 
     @MainActor

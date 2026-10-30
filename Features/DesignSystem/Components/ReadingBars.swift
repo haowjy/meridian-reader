@@ -10,9 +10,8 @@ import SwiftUI
 /// `Sheet` (regular width) and `ReadingInPlace` (compact width) both draw this; they differ in what
 /// surrounds it. `bottomClearance` is the room under the band that something else occupies (the
 /// compact chrome, whose card is the band there): the text keeps clear of it, folded or not.
-/// `overTextClearance` is how far above the bottom what floats over the text (Jump to Audio with the
-/// bars up, the play button in full screen) sits while the bars show: above the card, or above the
-/// folded row.
+/// What floats over the text (Jump to Audio with the bars up, the play button in full screen) sits
+/// above the band and that room while the bars show.
 struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: View, OverText: View>: View {
     let chrome: ReadingChrome
     /// The header's shape and colour (a sheet's rounded top, or a plain rectangle).
@@ -21,7 +20,6 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
     /// its own height when it hides.
     let headerSlide: CGFloat
     var bottomClearance: CGFloat = 0
-    var overTextClearance: CGFloat?
     let header: Header
     let content: Content
     let band: Band
@@ -48,7 +46,7 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
             if appearance.layout != .pages || !hidden {
                 overText
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, (hidden ? chrome.pageFooter : overTextClearance ?? bandHeight + bottomClearance) + Spacing.s)
+                    .padding(.bottom, (hidden ? chrome.pageFooter : bandHeight + bottomClearance) + Spacing.s)
                     // A keyboard left up elsewhere (Browse's field) must not lift it: the floating ⏸
                     // in full screen rode up by the keyboard height.
                     .ignoresSafeArea(.keyboard)
@@ -74,7 +72,6 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
                 .accessibilityHidden(hidden)
         }
         .animation(reduceMotion ? (hidden ? Motion.fadeOut : Motion.fadeIn) : Motion.standard, value: hidden)
-        .animation(reduceMotion ? nil : Motion.standard, value: overTextClearance)
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
         .onChange(of: bandHeight + bottomInset + bottomClearance, initial: true) { _, bottom in chrome.insets.bottom = bottom }
         .onChange(of: bottomInset, initial: true) { _, inset in chrome.homeIndicator = inset }

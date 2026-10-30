@@ -452,12 +452,11 @@ final class ShellState {
     }
 
     /// The Library's Read and the Browser's reader mode in place: the text keeps clear of the chrome's
-    /// two rows (it scrolls under them just the same as they fold), what floats over it sits above
-    /// them, a step lower as each row folds away, and its scroll and full screen are the chrome's.
+    /// two rows (it scrolls under them just the same as they fold), and its scroll and full screen
+    /// are the chrome's.
     var pageReadingInPlace: ReadingInPlace {
         ReadingInPlace(
             bottomClearance: ChromeHome.above(ChromeMetrics.footprint),
-            overTextClearance: ChromeHome.above(ChromeMetrics.footprint(step: chromeScroll.drawnStep)),
             scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0) },
             anchored: { [chromeScroll] in chromeScroll.anchor(at: $0) },
             fullScreen: Binding(get: { [chromeScroll] in chromeScroll.fullScreen }, set: { [chromeScroll] in chromeScroll.setFullScreen($0) }))
