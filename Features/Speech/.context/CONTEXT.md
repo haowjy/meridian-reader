@@ -64,6 +64,8 @@ provider owns its host, model store, voice catalog and chunk limits.
   (brand new: the Settings default, locked then). It is passed explicitly to playback
   (`ListenRoute`, `ListenPlayRequest.selection`, `QueueUnitSource`) and the render queue reads
   `renderTarget(for: key)`, which is non-nil only when the article's own engine is the loaded one.
+  Playback reads rendered audio by the selection's cache voice, loaded or not: never gate a cache
+  read on `renderTarget` (cached audio must play while the model loads).
   Never read `engineVoices`, `activeLocalEngineID` or `defaultSelection` to decide what an
   existing article plays or renders. The queue never writes Apple audio into the cache; the C129
   gap fill and D9 `.appleStandIn` are the only Apple audio in an on-device article's listen, both
@@ -78,7 +80,10 @@ provider owns its host, model store, voice catalog and chunk limits.
   (`TextChunker.Limits.phonon`: target 1200, hardMax 1600, whole paragraphs) belong to
   `PhononProvider`; `PhononSpokenText` may change case and drop redundant punctuation, never words
   (chunks must still map to the normalized paragraph, see the chunk-plans rule below). Its model
-  zip goes through `LargeModelDownloadConsent`, as does Kokoro's ONNX. Don't add a shared
+  bundle ships in the app and is copied out once per process before the first load
+  (`PhononModelStore`); its cache voice keys carry the bundle's `built` stamp
+  (`OnDeviceTraits.cacheRevision`), so shipping another bundle means changing
+  `PhononModelStore.bundleBuilt`, and all Phonon audio renders again. Don't add a shared
   speakable-text pass: engines own normalization (`docs/TTS_ENGINES.md` → "Text prep for speech").
 - **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
   (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again.

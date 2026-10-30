@@ -19,11 +19,14 @@ struct NowPlayingControls: View {
     }
 
     static let bufferingLabel = String(localized: "Preparing next…")
+    static let preparingVoiceLabel = String(localized: "Preparing the voice")
 
-    /// The status line when there is one: preparing the next paragraphs, the render note, or the
-    /// language note; none once the page has finished. The compact card shows it under the title.
+    /// The status line when there is one: preparing the voice or the next paragraphs, the render
+    /// note, or the language note; none once the page has finished. The compact card shows it
+    /// under the title.
     static func note(of speech: SpeechController, detectedLanguage: String?) -> String? {
         guard speech.nowPlaying?.isFinished != true else { return nil }
+        if speech.isPreparingVoice { return preparingVoiceLabel }
         if speech.isBufferingNext { return bufferingLabel }
         return speech.renderNote ?? speech.languageResolution(detected: detectedLanguage).note
     }
@@ -64,7 +67,7 @@ struct NowPlayingControls: View {
             HStack(spacing: Spacing.xs) {
                 ProgressView()
                     .controlSize(.small)
-                Text(Self.bufferingLabel)
+                Text(speech.isPreparingVoice ? Self.preparingVoiceLabel : Self.bufferingLabel)
                     .accessibilityIdentifier("listenBufferingLabel")
                 Spacer(minLength: 0)
             }

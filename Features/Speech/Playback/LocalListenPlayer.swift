@@ -70,6 +70,11 @@ final class LocalListenPlayer {
         var errorDescription: String? { "Rendering fell behind playback" }
     }
 
+    /// The play (its epoch) waiting for the engine's model to load before its first audio.
+    private var waitingForVoice: Int?
+    /// The current play waits for the model to load: nothing at its start is rendered yet.
+    var isWaitingForVoice: Bool { waitingForVoice != nil && waitingForVoice == epoch }
+
     /// Article whose audio is playing right now (nil when paused / stopped).
     var playingArticleID: UUID? { state == .playing ? source?.articleID : nil }
 
@@ -168,17 +173,33 @@ final class LocalListenPlayer {
     var debugStarveEventCount: Int { player.starveEventCount }
 
     /// Play `source` from synth chunk `chunk` of paragraph `index`, `fractionInChunk` (0…1) into
-    /// it (scrubbed to a sentence). Unrendered: that chunk is rendered first. Returns without
-    /// starting when another `play` or a `stop` arrives while the model loads: that call owns
-    /// the player now.
+    /// it (scrubbed to a sentence). Rendered there: it plays at once, and the model loads behind
+    /// it for what isn't rendered. Unrendered: the model loads (`isWaitingForVoice`), then that
+    /// chunk is rendered first. Returns without starting when another `play` or a `stop` arrives
+    /// while the model loads: that call owns the player now.
     func play(_ source: ListenUnitSource, from index: Int, chunk: Int, fractionInChunk: Double) async throws {
         stop()
         let request = epoch
-        try await source.prepare()
-        guard request == epoch else { return }
-        self.source = source
         let paragraphs = source.paragraphs
         let start = max(0, min(index, max(paragraphs.count - 1, 0)))
+        if source.renderedParagraph(start) != nil {
+            Task {
+                do { try await source.prepare() } catch {
+                    ListenDebugLog.shared.append("model load behind rendered audio failed: \(error.localizedDescription)")
+                }
+            }
+        } else {
+            waitingForVoice = request
+            let t0 = ListenTimingLog.now()
+            defer {
+                if waitingForVoice == request { waitingForVoice = nil }
+                ListenTimingLog.log("voice_wait", ["key": ListenTimingLog.shortKey(source.articleID),
+                                                   "ms": ListenTimingLog.ms(since: t0), "current": request == epoch])
+            }
+            try await source.prepare()
+            guard request == epoch else { return }
+        }
+        self.source = source
         nextProduceIndex = start
         state = .playing
         nextProduceChunk = max(0, chunk)
@@ -344,12 +365,17 @@ final class LocalListenPlayer {
                     nextProduceIndex = index + 1
                     continue
                 }
-                // Rendered paragraph (all chunks stitched) → play the whole CAF.
-                if nextProduceChunk == 0, let rendered = source.renderedParagraph(index) {
+                // Rendered paragraph (all chunks stitched) → play the CAF, from chunk
+                // `nextProduceChunk`'s boundary. Needs no model.
+                if let rendered = source.renderedParagraph(index) {
+                    let k = nextProduceChunk
                     nextProduceIndex = index + 1
-                    let start = consumeStartTime(fileDuration: rendered.duration, chunk: 0, fileStartTime: 0,
+                    nextProduceChunk = 0
+                    let fileStart = rendered.chunkDurations?.prefix(k).reduce(0, +) ?? 0
+                    let start = consumeStartTime(fileDuration: rendered.duration, chunk: k, fileStartTime: fileStart,
                                                  wholeParagraph: true, chunkDurations: rendered.chunkDurations)
-                    player.enqueue(.init(paragraphIndex: index, fileURL: rendered.url, source: .baked,
+                    player.enqueue(.init(paragraphIndex: index, fileURL: rendered.url,
+                                         source: k == 0 ? .baked : .stitched(fromChunk: k),
                                          duration: rendered.duration, startTime: start,
                                          chunkDurations: rendered.chunkDurations))
                     continue

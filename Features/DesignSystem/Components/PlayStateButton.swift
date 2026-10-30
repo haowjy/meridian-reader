@@ -10,14 +10,20 @@ enum PlayState: CaseIterable {
     case playing
     /// What you hear, paused. Tapping continues it.
     case paused
+    /// What you hear, waiting for the on-device voice to load before its first audio; it starts
+    /// by itself once loaded. Tapping holds it (pause).
+    case preparingVoice
 
     /// Whether this is what you hear.
-    var isCurrent: Bool { self == .playing || self == .paused }
+    var isCurrent: Bool { self == .playing || self == .paused || self == .preparingVoice }
+    /// Drawn as a spinner.
+    var isPreparing: Bool { self == .preparing || self == .preparingVoice }
 
     var accessibilityLabel: String {
         switch self {
         case .idle: Verbs.play
         case .preparing: String(localized: "Preparing")
+        case .preparingVoice: String(localized: "Preparing the voice")
         case .playing: Verbs.pause
         case .paused: Verbs.continue
         }
@@ -27,7 +33,7 @@ enum PlayState: CaseIterable {
 /// The one play button, drawn from a `PlayState`: 🎧 in the address field, Listen in the Reader,
 /// a book's Continue, a row's trailing ▶, the Now Playing bar's ⏸.
 ///
-/// | Look | idle | preparing | playing | paused |
+/// | Look | idle | preparing, preparingVoice | playing | paused |
 /// |---|---|---|---|---|
 /// | `glyph` (rows, the bar) | ▶ | spinner | ⏸ accent | ▶ accent |
 /// | `badge` (🎧) | grey symbol | spinner | accent disc, moving bars | accent disc, still bars |
@@ -86,7 +92,7 @@ struct PlayStateButton: View {
     private var glyph: some View {
         Button(action: action) {
             Group {
-                if state == .preparing {
+                if state.isPreparing {
                     ProgressView().tint(reading?.accent ?? Palette.accent)
                 } else {
                     Image(systemName: state == .playing ? Icons.pause : Icons.play)
@@ -109,7 +115,7 @@ struct PlayStateButton: View {
                 case .idle:
                     Image(systemName: idleSymbol)
                         .foregroundStyle(reading?.secondaryInk ?? Palette.secondaryInk)
-                case .preparing:
+                case .preparing, .preparingVoice:
                     ProgressView().controlSize(.small)
                 case .playing, .paused:
                     Circle().fill(reading?.accent ?? Palette.accent)
@@ -132,6 +138,9 @@ struct PlayStateButton: View {
                 PillSymbol(name: Icons.play)
             case .preparing:
                 ProgressView().controlSize(.small).tint(reading?.onAccent ?? Palette.onAccent)
+            case .preparingVoice:
+                // On the tinted pill (what you hear).
+                ProgressView().controlSize(.small).tint(reading?.accent ?? Palette.accent)
             case .playing, .paused:
                 PlayingBars(animating: state == .playing)
                     .frame(width: Glyph.mark, height: Glyph.mark)
@@ -158,7 +167,7 @@ private struct PlayStateDisc: View {
         Button(action: action) {
             ZStack {
                 Circle().fill(reading?.accent ?? Palette.accent)
-                if state == .preparing {
+                if state.isPreparing {
                     ProgressView().tint(glyph)
                 } else {
                     Image(systemName: state == .playing ? Icons.pause : Icons.play)

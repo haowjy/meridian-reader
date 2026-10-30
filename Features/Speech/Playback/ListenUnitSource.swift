@@ -13,7 +13,8 @@ protocol ListenUnitSource: AnyObject {
     /// The engine keeps rendering while the app is in the background (Kokoro ONNX CPU route).
     var rendersInBackground: Bool { get }
 
-    /// Load the engine's model if needed. Throws when it can't load.
+    /// Load the engine's model if needed. Throws when it can't load. Rendered audio plays
+    /// without it (`renderedParagraph`).
     func prepare() async throws
     /// The whole paragraph's audio when it is rendered (in this voice, or in the previous voice
     /// until it is re-rendered).
@@ -56,10 +57,12 @@ enum RenderWorkerStatus: Equatable {
 final class QueueUnitSource: ListenUnitSource {
     private(set) var articleID: UUID
     let paragraphs: [String]
-    /// C138a: the article's engine and voice. Every file this play reads or asks for is in it;
-    /// nil target: its engine isn't loaded (yet), and nothing plays but the C129 gap fill.
+    /// C138a: the article's engine and voice. Every file this play reads or asks for is in it.
+    /// Audio already rendered in it plays whether its engine is loaded or not; only audio still
+    /// to render waits for the engine.
     let selection: VoiceSelection
-    private var target: RenderTarget? { coordinator.target(for: selection) }
+    /// The cache voice key of `selection` (nil: Apple, which renders nothing ahead).
+    private let cacheVoice: String?
     /// Apple voice for fallback renders: the one the render queue falls back to for this article.
     private let appleVoiceID: String?
     private let coordinator: LocalTTSCoordinator
@@ -71,6 +74,7 @@ final class QueueUnitSource: ListenUnitSource {
         self.articleID = articleID
         self.paragraphs = paragraphs
         self.selection = selection
+        self.cacheVoice = coordinator.cacheVoice(of: selection)
         self.appleVoiceID = coordinator.appleFallbackVoice(for: paragraphs)
     }
 
@@ -86,9 +90,9 @@ final class QueueUnitSource: ListenUnitSource {
     }
 
     func renderedParagraph(_ paragraph: Int) -> RenderedParagraph? {
-        guard let target,
+        guard let cacheVoice,
               let url = cache.playableAudioURL(articleID: articleID, paragraphIndex: paragraph,
-                                               engineID: target.engineID, voiceID: target.cacheVoice),
+                                               engineID: selection.engine.rawValue, voiceID: cacheVoice),
               cache.isUsableAudioFile(url) else { return nil }
         let entry = cache.entry(articleID: articleID, paragraphIndex: paragraph)
         return RenderedParagraph(url: url, duration: entry?.duration ?? 0, chunkDurations: entry?.chunkDurations)
@@ -96,9 +100,9 @@ final class QueueUnitSource: ListenUnitSource {
 
     /// Rendered in this play's voice (not an older voice's file awaiting re-render).
     func isRenderedInThisVoice(paragraph: Int) -> Bool {
-        guard let target else { return false }
+        guard let cacheVoice else { return false }
         return cache.audioURL(articleID: articleID, paragraphIndex: paragraph,
-                              engineID: target.engineID, voiceID: target.cacheVoice) != nil
+                              engineID: selection.engine.rawValue, voiceID: cacheVoice) != nil
     }
 
     func chunks(paragraph: Int) -> [String] {

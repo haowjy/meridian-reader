@@ -168,8 +168,11 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
   for an article in an Apple voice, `.local(VoiceSelection)` for one in an on-device voice, and
   `.appleStandIn`, D9's explicit unsaved exception) and binds it. Pause, resume, the play icon,
   "Preparing next…" and stop go to the bound engine until stop or the next `speak`. An on-device
-  engine that isn't loaded loads for the article (`loadEngineIfNeeded`; one is loaded at a time);
-  the player waits for it (`awaitEngine`) and fills any gap with temporary Apple audio (C129).
+  engine that isn't loaded loads for the article (`loadEngineIfNeeded`; one is loaded at a time).
+  Audio already rendered in the article's voice plays without it: the player looks the cache up by
+  the article's selection, loaded or not (`QueueUnitSource`), starts at once when the start is
+  rendered and loads the model behind it. Only audio still to render waits for the model
+  (`awaitEngine`), and any gap is filled with temporary Apple audio (C129).
 - Nothing moves a live utterance to another engine or voice: engine state changes don't
   re-route (`EngineHandover` is gone). Changing an article's voice stops its playback
   (`ArticleVoiceChange`).
@@ -185,7 +188,13 @@ Reader never scrolls by itself once open (it opens at a saved spot's sentence); 
 follows the spoken sentence until you scroll (`NAVIGATION.md`).
 
 While the phase is playing but nothing is audible and more units remain (`isBufferingNext`), the
-listen bar shows a spinner and "Preparing next…". That is not paused.
+listen bar shows a spinner and "Preparing next…". That is not paused. When that wait is the model
+loading for a play whose start isn't rendered (`isPreparingVoice`: on a fresh launch the default
+voice takes about 10 s to load), its play buttons show `PlayState.preparingVoice` (a spinner;
+VoiceOver "Preparing the voice") and Listen's status line and the Now Playing bar say "Preparing
+the voice". It starts by itself once the model is loaded. Pause holds it (it starts paused), another
+play replaces it, and a load that fails speaks it with Apple (`noteSpeakFailed`). Extracting or
+fetching a page stays `.preparing`, and playback of rendered audio never shows it.
 
 The listening position is saved from the session, whatever is on screen, by
 `ListeningProgressRecorder` (built at the composition root, over `LibraryStore`):

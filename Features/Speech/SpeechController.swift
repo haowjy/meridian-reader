@@ -51,10 +51,12 @@ final class SpeechController {
     /// What the listen bar shows from the engine. Engine state isn't observable, so
     /// `sampleListenStatus` takes this on every playback change and every engine
     /// `statusChanged`, and bumps `listenStatusRevision` only when it differs: views that show it
-    /// (`playState(of:)`, `isBufferingNext`, `renderNote`) redraw exactly when it changes.
+    /// (`playState(of:)`, `isBufferingNext`, `isPreparingVoice`, `renderNote`) redraw exactly when
+    /// it changes.
     private struct ListenStatus: Equatable {
         var showsPause = false
         var bufferingNext = false
+        var preparingVoice = false
         var renderNote: String?
     }
     @ObservationIgnored private var listenStatus = ListenStatus()
@@ -183,7 +185,7 @@ final class SpeechController {
 
     private func sampleListenStatus() {
         let status = ListenStatus(showsPause: activeSessionShowsPause(), bufferingNext: engineIsBufferingNext(),
-                                  renderNote: currentRenderNote())
+                                  preparingVoice: engineIsPreparingVoice(), renderNote: currentRenderNote())
         guard status != listenStatus else { return }
         listenStatus = status
         listenStatusRevision &+= 1
@@ -218,8 +220,21 @@ final class SpeechController {
     func playState(of target: ListenTarget) -> PlayState {
         if preparation?.target == target { return .preparing }
         guard isCurrent(target) else { return .idle }
-        _ = listenStatusRevision
+        if isPreparingVoice { return .preparingVoice }
         return activeSessionShowsPause() ? .playing : .paused
+    }
+
+    /// What you hear waits for its on-device voice to load: playing, and nothing at its start is
+    /// rendered yet (audio already rendered plays without the model). It starts by itself once
+    /// the model is loaded; Pause holds it, another play replaces it, and a load that fails
+    /// speaks it with Apple (`noteSpeakFailed`).
+    var isPreparingVoice: Bool {
+        _ = listenStatusRevision
+        return engineIsPreparingVoice()
+    }
+
+    private func engineIsPreparingVoice() -> Bool {
+        playback.phase == .playing && binding?.engine === localEngine && localEngine.isWaitingForVoice
     }
 
     /// Whether `target` is what you hear (bound, in any phase).
@@ -240,7 +255,7 @@ final class SpeechController {
     /// Never navigates.
     func press(_ target: ListenTarget, start: () -> Void) {
         switch playState(of: target) {
-        case .playing:
+        case .playing, .preparingVoice:
             userPerform(.pause)
         case .paused:
             userPerform(.resume)

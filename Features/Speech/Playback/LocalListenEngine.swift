@@ -39,6 +39,7 @@ final class LocalListenEngine: ListenEngine {
 
     private struct Status: Equatable {
         var waiting: Bool
+        var waitingForVoice: Bool
         var note: String?
         var snapshot: PlaybackEngineSnapshot
     }
@@ -180,6 +181,10 @@ final class LocalListenEngine: ListenEngine {
         return player.awaitingMore || player.isProducing || player.bufferedUnitCount == 0
     }
 
+    /// Playing (not held), and the first audio waits for the model to load: nothing at the start
+    /// is rendered (`LocalListenPlayer.isWaitingForVoice`).
+    var isWaitingForVoice: Bool { !holdsAtStart && player.isWaitingForVoice }
+
     var sourceNote: String? {
         player.currentAppleFallbackReason?.localizedNote(engine: name)
     }
@@ -271,7 +276,8 @@ final class LocalListenEngine: ListenEngine {
 
     private func tick() {
         reportPosition(force: false)
-        let status = Status(waiting: isWaitingForAudio, note: sourceNote, snapshot: snapshot)
+        let status = Status(waiting: isWaitingForAudio, waitingForVoice: isWaitingForVoice, note: sourceNote,
+                            snapshot: snapshot)
         if status != lastStatus {
             lastStatus = status
             onEvent?(.statusChanged)

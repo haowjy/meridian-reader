@@ -51,7 +51,7 @@ private struct BarProgress: View {
             detail: now.isFinished ? [.finished]
                 // Line two names its folder when it is in one, as Recent's rows do (C130), else its source.
                 : [articles.first?.folder?.name ?? ArticleRowTitle.lineTwoSource(title: now.title, source: now.source),
-                   ListeningTime.leftLabel(minutes: left)]
+                   speech.isPreparingVoice ? NowPlayingControls.preparingVoiceLabel : ListeningTime.leftLabel(minutes: left)]
                     .compactMap { $0 }.map { DetailPart($0) },
             artwork: cover.image(for: now.articleKey, data: now.artwork),
             artworkLetter: now.artworkLetter,
