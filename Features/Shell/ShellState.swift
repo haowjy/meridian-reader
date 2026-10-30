@@ -468,6 +468,8 @@ final class ShellState {
     /// `[]` for the home), on Everything, where every place shows.
     func showLibrary(at path: [LibraryRoute]) {
         openLibrary()
+        // A place in the Library asked for by name: a page read in place would cover it.
+        closeLibraryReader()
         libraryPath = path
         homeTab = .everything
     }
@@ -475,6 +477,7 @@ final class ShellState {
     /// ⋯ → Favorites, the start page's *Show All*: the Library home on its Favorites tab.
     func showFavorites() {
         openLibrary()
+        closeLibraryReader()
         libraryPath = []
         homeTab = .favorites
     }

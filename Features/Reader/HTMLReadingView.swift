@@ -277,8 +277,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
         c.setLayout(pages: pages, footer: pageFooter)
         c.setTextInsets(textInsets)
         (c.layout as? PagesTextLayout)?.setOverview(!fullScreen)
-        if c.lastHTML != html || c.lastHeading != heading {
+        if c.lastHTML != html {
             c.load(html: html, heading: heading)
+        } else if c.lastHeading != heading {
+            c.setHeading(heading)
         }
         c.setSizes(sizes)
         c.setLook(look)

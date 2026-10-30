@@ -373,6 +373,21 @@ extension HTMLReadingWebView.Coordinator {
         """
     }
 
+    /// A new heading over the same text (its length line changing as it is listened to): swapped in the
+    /// page as it stands, so the reading place stays. Pages mode lays its pages out from the heading's
+    /// height, and a page not yet loaded has nothing to swap into: those load again.
+    func setHeading(_ heading: ReaderHeading?) {
+        guard let heading, let lastHeading, let webView, loaded, !(layout is PagesTextLayout),
+              heading.title == lastHeading.title, heading.titleHidden == lastHeading.titleHidden,
+              let data = try? JSONSerialization.data(withJSONObject: [Self.headerHTML(heading)]),
+              let json = String(data: data, encoding: .utf8)
+        else { return load(html: lastHTML, heading: heading) }
+        self.lastHeading = heading
+        webView.evaluateJavaScript(
+            "(function(){var h=document.querySelector('header.reader-heading');if(h){h.outerHTML=\(json)[0];}})();",
+            completionHandler: nil)
+    }
+
     private static func escape(_ s: String) -> String {
         s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")

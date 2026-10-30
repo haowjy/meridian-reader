@@ -103,7 +103,6 @@ struct JumpToAudioButton: View {
     let direction: JumpDirection
     let action: () -> Void
 
-    @Environment(\.readingPalette) private var reading
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The circle: a bar's height. Its tap area is `minTapTarget`.
@@ -114,12 +113,9 @@ struct JumpToAudioButton: View {
         ZStack {
             if shows {
                 Button(action: action) {
-                    Image(systemName: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown)
-                        .font(BottomChrome.chromeGlyph)
-                        .foregroundStyle(reading?.ink ?? Palette.ink)
+                    ChromeCircleFace(symbol: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown, label: Verbs.jumpToAudio)
                         .frame(width: Self.size, height: Self.size)
                         .tapTarget(Self.size)
-                        .chromeSurface(Circle(), fill: BottomChrome.fieldFill(reading))
                         .environment(\.chromeSkin, ChromeSkin.current)
                 }
                 .buttonStyle(.plain)
@@ -128,7 +124,6 @@ struct JumpToAudioButton: View {
                     ? String(localized: "Scrolls up to the sentence being read.")
                     : String(localized: "Scrolls down to the sentence being read."))
                 .accessibilityIdentifier("nowPlayingJumpToAudio")
-                .chromeLargeContent(Verbs.jumpToAudio, symbol: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown)
                 .transition(.opacity)
             }
         }
