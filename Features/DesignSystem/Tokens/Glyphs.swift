@@ -44,8 +44,9 @@ enum RowHeight {
     /// row, so an item's rows read alike in the panel and in its long press, and the longest
     /// panel (a folder's screen) fits an iPhone 17 Pro at the default text size.
     static let menu: CGFloat = BottomChrome.minTapTarget
-    /// A row on a Settings card: the inset-grouped proportions of the system's Settings.
-    static let setting: CGFloat = 48
+    /// The least a row on a card list is (`cardListStyle`): the inset-grouped proportions of the
+    /// system's Settings.
+    static let card: CGFloat = 48
 }
 
 /// The floating panels: the ⋯ panel and Aa.

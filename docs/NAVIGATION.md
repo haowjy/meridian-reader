@@ -1292,8 +1292,12 @@ control for control.
 ## Settings
 
 **⋯ › Settings** (`SettingsView`; the last row of every ⋯ panel, and the sidebar's bottom row on
-iPad; titled *Settings*, *Done* closes it) is a `NavigationStack` of cards on paper (the Library's
-list style). Its rows are 48 pt at the default text size (`RowHeight.setting`) and none leads with
+iPad; titled *Settings*, *Done* closes it) is a `NavigationStack` of cards on paper. Every list of cards in the app (the Library and its
+folders, History, Settings and its pages, a Voice picker, Follow, Following, the Move tree, Folder
+Details, Book Import, Prepared Audio) has the same rows: at least 48 pt at the default text size
+(`RowHeight.card`, the system Settings' proportions; a two-line row grows to its content), 16 pt
+in from the card's sides with no List inset above or below, sections 16 pt apart, and a card's
+note 8 pt under it (`cardListStyle`, `listCard`, `listFooter`). None of Settings' rows leads with
 a symbol. Top to bottom:
 
 - **Listening** (first; the audio settings):

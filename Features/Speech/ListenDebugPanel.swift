@@ -93,11 +93,12 @@ struct ListenDebugPanel: View {
                     if ListenDebugLog.shared.lines.isEmpty {
                         Text("Empty").foregroundStyle(Palette.secondaryInk)
                     } else {
-                        ForEach(Array(ListenDebugLog.shared.lines.enumerated().reversed()), id: \.offset) { _, line in
-                            Text(line)
-                                .font(.system(.caption2, design: .monospaced))
-                                .textSelection(.enabled)
-                        }
+                        // One row, newest line first: a row per line would take the card's
+                        // minimum row height each.
+                        Text(ListenDebugLog.shared.lines.reversed().joined(separator: "\n"))
+                            .font(.system(.caption2, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding(.vertical, Spacing.xs)
                     }
                 } header: {
                     SectionHeader(title: "Log", count: ListenDebugLog.shared.lines.count).listHeader()

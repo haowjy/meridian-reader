@@ -58,18 +58,18 @@ struct LibraryHomeView: View {
             Section {
                 EmptyView()
             } header: {
-                TitleLine(title: Verbs.library) { LibraryTitleMenu() }
-                    .accessibilityIdentifier("libraryTitle")
-                    .listHeader()
-            }
-            Section {
-                Picker("Library view", selection: $shell.homeTab) {
-                    ForEach(LibraryHomeTab.allCases, id: \.self) { Text($0.title).tag($0) }
+                // The tabs sit under the title in its header, not as a row: a row would take the
+                // card list's minimum row height.
+                VStack(spacing: Spacing.s) {
+                    TitleLine(title: Verbs.library) { LibraryTitleMenu() }
+                        .accessibilityIdentifier("libraryTitle")
+                    Picker("Library view", selection: $shell.homeTab) {
+                        ForEach(LibraryHomeTab.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("libraryTabs")
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("libraryTabs")
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
+                .listHeader()
             }
             Section {
                 ForEach(folders, id: \.id) { folder in

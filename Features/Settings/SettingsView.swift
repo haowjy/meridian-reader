@@ -125,8 +125,7 @@ struct SettingsView: View {
                 .listRowBackground(Color.clear)
             }
         }
-        .cardListStyle(rowHeight: RowHeight.setting)
-        .listSectionSpacing(Spacing.m)
+        .cardListStyle()
         .accessibilityIdentifier("settingsList")
     }
 
@@ -171,7 +170,7 @@ struct SettingsView: View {
                                     accessibilityID: "settingsReading", route: .reading)
                 }
             }
-            .settingsCard()
+            .listCard()
         }
     }
 
@@ -230,7 +229,7 @@ private struct AboutSettingsSection: View {
             } header: {
                 SectionHeader(title: Self.group.title, size: .settings).listHeader()
             }
-            .settingsCard()
+            .listCard()
         }
     }
 
@@ -322,9 +321,9 @@ private struct BrowsingSettingsSection: View {
                     Text("Blocks ads and trackers on pages loaded after you change this.")
                     Text("Search Suggestions sends what you type in the address field to Google to suggest searches.")
                 }
-                .listFooter(gap: Spacing.xs)
+                .listFooter()
             }
-            .settingsCard()
+            .listCard()
         }
     }
 }
@@ -375,9 +374,9 @@ private struct StorageSettingsSection<VersionRow: View>: View {
             SectionHeader(title: group.title, size: .settings).listHeader()
         } footer: {
             Text("Prepared stays until you delete it. Listening audio clears when it leaves History.")
-                .listFooter(gap: Spacing.xs)
+                .listFooter()
         }
-        .settingsCard()
+        .listCard()
         .task {
             let cache = speech.localTTS.audioCache
             let held = Set(preparedAudio.heldArticleKeys)
@@ -452,8 +451,8 @@ private struct DeveloperSettingsSection: View {
             SectionHeader(title: Self.group.title, size: .settings).listHeader()
         } footer: {
             Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes every extraction fail (Reader, Save, Follow, Prepared Audio) until the app quits.")
-                .listFooter(gap: Spacing.xs)
+                .listFooter()
         }
-        .settingsCard()
+        .listCard()
     }
 }

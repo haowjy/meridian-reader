@@ -102,16 +102,6 @@ struct SettingsToggleRow: View {
     }
 }
 
-extension View {
-    /// A section of the Settings list's rows on the card. The List adds no vertical inset of its
-    /// own: a `SymbolRow` already holds the tap height, and the List's inset on top of it would
-    /// double it. The list's minimum row height (`RowHeight.setting`) sets the rest.
-    func settingsCard() -> some View {
-        listCard()
-            .listRowInsets(EdgeInsets(top: 0, leading: Spacing.m, bottom: 0, trailing: Spacing.m))
-    }
-}
-
 /// A control that takes a whole card row (swatches, a segmented choice), under a small caption
 /// naming it.
 struct SettingsControlRow<Control: View>: View {
@@ -125,7 +115,8 @@ struct SettingsControlRow<Control: View>: View {
                 .foregroundStyle(Palette.secondaryInk)
             control()
         }
-        .padding(.vertical, Spacing.xxs)
+        // The card adds no inset above or below a row (`listCard`).
+        .padding(.vertical, Spacing.s)
     }
 }
 

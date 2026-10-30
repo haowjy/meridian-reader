@@ -36,10 +36,10 @@ struct ListeningSettingsSection: View {
                 SectionHeader(title: Self.group.title, size: .settings).listHeader()
             } footer: {
                 if let notice = localTTS.engineCrashNotice {
-                    Text(notice).foregroundStyle(Palette.destructive).listFooter(gap: Spacing.xs)
+                    Text(notice).foregroundStyle(Palette.destructive).listFooter()
                 }
             }
-            .settingsCard()
+            .listCard()
         }
     }
 

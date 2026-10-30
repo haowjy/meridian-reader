@@ -59,7 +59,9 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
                 Spacer(minLength: 0)
                 trailing
             }
-            .padding(.vertical, Spacing.xxs)
+            // Clear of the separators when two lines outgrow the minimum: a card adds no inset
+            // of its own (`listCard`).
+            .padding(.vertical, Spacing.xs)
             // The separator under the row starts at the title, as in every list.
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         }
