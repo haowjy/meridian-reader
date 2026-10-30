@@ -140,7 +140,7 @@ final class ChromeTests: XCTestCase {
     }
 
     func testPlayStaysAtTheWidthTablesX() {
-        for (width, x) in [(375.0, 257.0), (393, 266), (430, 284.5)] {  // the centred 351 pt row: ▶ at width − (width − 351) / 2 − 106
+        for (width, x) in [(375.0, 257.0), (393, 275), (430, 312)] {  // margin to margin: ▶ at width − 12 − 106
             XCTAssertEqual(layout(.library, width: CGFloat(width), played: true).play.rect.minX, x, "▶ at \(width)")
         }
     }
@@ -148,7 +148,7 @@ final class ChromeTests: XCTestCase {
     func testTheRowIsAPillAndTwoDiscsWithOneEvenGap() {
         for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
             let l = layout(.library, width: width, played: true)
-            XCTAssertEqual(l.pill.rect.maxX + M.rowGap, l.play.rect.minX, "pill, gap, ▶ at \(width)")
+            XCTAssertGreaterThanOrEqual(l.play.rect.minX - l.pill.rect.maxX, M.rowGap, "pill, gap, ▶ at \(width)")
             XCTAssertEqual(l.play.rect.maxX + M.rowGap, l.more.rect.minX, "▶, gap, ⋯ at \(width)")
             XCTAssertEqual(l.play.rect.width, M.barHeight)
             XCTAssertEqual(l.more.rect.width, M.barHeight)
@@ -162,9 +162,9 @@ final class ChromeTests: XCTestCase {
         for width in [375.0, 393, 430].map({ CGFloat($0) }) {
             for destination in ChromeDestination.allCases where destination != .reader {
                 let expanded = layout(destination, width: width, played: true)
-                XCTAssertEqual(expanded.pill.rect.maxX + M.rowGap, expanded.play.rect.minX, "[pill][▶]")
+                XCTAssertGreaterThanOrEqual(expanded.play.rect.minX - expanded.pill.rect.maxX, M.rowGap, "[pill][▶]")
                 XCTAssertEqual(expanded.play.rect.maxX + M.rowGap, expanded.more.rect.minX, "[▶][⋯]")
-                XCTAssertEqual(expanded.more.rect.maxX, width - max(M.margin, (width - M.bottomRowWidth) / 2), "⋯ ends the centred row")
+                XCTAssertEqual(expanded.more.rect.maxX, width - M.margin, "⋯ ends the row at the margin")
             }
         }
         XCTAssertFalse(layout(.library).play.isShown, "no ▶ before anything has played")
@@ -179,7 +179,7 @@ final class ChromeTests: XCTestCase {
                 XCTAssertFalse(l.capsule.isShown, "Listen never folds")
                 XCTAssertEqual(l.pill.rect, library.pill.rect, "the pill is the Library's, not wider, at \(width)")
                 XCTAssertEqual(l.more.rect, library.more.rect)
-                XCTAssertEqual(l.pill.rect.maxX + M.rowGap, library.play.rect.minX, "▶'s slot stays empty between the pill and ⋯")
+                XCTAssertGreaterThanOrEqual(library.play.rect.minX - l.pill.rect.maxX, M.rowGap, "▶'s slot stays empty between the pill and ⋯")
                 XCTAssertEqual(library.play.rect.maxX + M.rowGap, l.more.rect.minX)
                 XCTAssertEqual(l.field.rect.height, M.card, "the card stays")
             }
@@ -206,33 +206,25 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(layout(.library, width: 375).expandedPillWidth, 235)
     }
 
-    /// The bottom row is a fixed 351 pt block, the SE's: the same size on every phone, centred with equal space
-    /// either side on a wider one, never stretched, and its pill identical across 375 / 393 / 402 / 430.
-    func testTheBottomRowIsOneFixedSizeCentredOnWiderPhones() {
+    /// Both rows share the margins as their edges on every width (Jimmy: "the 2 bars should be the same
+    /// length"): the pill is one fixed width at the left, ▶ and ⋯ end the row, the gap after the pill grows.
+    func testBothRowsShareTheSameEdgesOnEveryWidth() {
         XCTAssertEqual(M.pillWidth, 235)
         XCTAssertEqual(M.bottomRowWidth, 351)
         XCTAssertEqual(M.margin, 12, "the SE's 375 − 351 = 24: margin 12 each side")
-        let widths: [CGFloat] = [375, 393, 402, 430]
-        for played in [false, true] {
-            for destination in ChromeDestination.allCases {
-                let se = layout(destination, width: 375, played: played)
-                for width in widths {
+        for width in [375.0, 393, 402, 430, 440, 744, 1024].map({ CGFloat($0) }) {
+            for played in [false, true] {
+                for destination in ChromeDestination.allCases where destination != .reader {
                     let l = layout(destination, width: width, played: played)
-                    let inset = (width - 351) / 2
-                    XCTAssertEqual(l.pill.rect.width, se.pill.rect.width, "same pill width at \(width)")
-                    XCTAssertEqual(l.pill.rect.minX, inset, "the row starts at an equal inset at \(width)")
-                    XCTAssertEqual(width - l.more.rect.maxX, inset, "and ends at the same inset at \(width)")
-                    XCTAssertEqual(l.more.rect.width, M.barHeight)
-                    XCTAssertEqual(l.more.rect.minX - l.pill.rect.maxX, 2 * M.rowGap + M.barHeight, "[pill][▶ slot][⋯] at \(width)")
-                    XCTAssertEqual(l.pill.rect.minY, se.pill.rect.minY)
-                    XCTAssertEqual(l.more.rect.minY, se.more.rect.minY)
+                    let tag = "\(destination) played \(played) at \(width)"
+                    XCTAssertEqual(l.pill.rect.minX, M.margin, tag)
+                    XCTAssertEqual(l.more.rect.maxX, width - M.margin, tag)
+                    XCTAssertEqual(l.field.rect.minX, l.pill.rect.minX, "row 1 starts where row 2 does, \(tag)")
+                    XCTAssertEqual(l.field.rect.maxX, l.more.rect.maxX, "row 1 ends where row 2 does, \(tag)")
+                    XCTAssertEqual(l.pill.rect.width, M.pillWidth, tag)
+                    XCTAssertEqual(l.more.rect.minX - l.pill.rect.maxX, width - 2 * M.margin - M.pillWidth - M.barHeight, tag)
                 }
             }
-        }
-        // The pill's x is the one centring offset from the SE: a phone's pill is the SE's, moved right.
-        for width in widths {
-            let l = layout(.library, width: width)
-            XCTAssertEqual(l.pill.rect.minX - layout(.library, width: 375).pill.rect.minX, (width - 375) / 2)
         }
     }
 

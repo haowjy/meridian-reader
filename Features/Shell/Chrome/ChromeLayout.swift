@@ -76,10 +76,11 @@ struct ChromeLayout: Equatable {
         typealias K = ChromeMetrics
         let bar = K.barHeight, gap = K.gap, rowGap = K.rowGap, margin = K.margin
         let rowY = K.readerFootprint - K.bottomPadding - bar
-        // The bottom row is one fixed-size block (`bottomRowWidth`, the SE's), centred on a wider phone: its left
-        // and right edges are the margins on the SE and equal insets on anything wider. Never stretched.
-        let rowX = max(margin, (w - K.bottomRowWidth) / 2)
-        let rowRight = w - rowX
+        // Both rows share one pair of edges, the margins, on every width (Jimmy: "the 2 bars should be the
+        // same length"). The pill keeps its fixed width at the left; ▶ and ⋯ end the row at the right, and a
+        // wider screen only widens the gap between the pill and ▶ (exactly `rowGap` on the SE).
+        let rowX = margin
+        let rowRight = w - margin
         let row1Y = rowY - gap - bar
         let isBrowse = s.destination == .browse, isReader = s.destination == .reader
         // Listen's card has the play button, so ▶ isn't drawn there: its slot stays empty (the pill never widens).

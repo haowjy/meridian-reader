@@ -27,8 +27,8 @@ enum ChromeMetrics {
     /// The three-segment pill's width: one constant on every iPhone, never derived from the screen. It is
     /// the iPhone SE's: with the gaps, ▶ and ⋯ it fills the SE's 375 pt exactly (`bottomRowWidth`, margin 12 each side).
     static let pillWidth: CGFloat = 235
-    /// The bottom row's whole width: [pill] [▶ slot] [⋯] with one `rowGap` between. Fixed (351). On a wider
-    /// phone the row keeps this size and is centred, so the space either side is equal; it is never stretched.
+    /// The bottom row's narrowest width: [pill] [▶ slot] [⋯] with one `rowGap` between (351, the SE's 375 less
+    /// the margins). The row runs margin to margin like the top row; on a wider screen the gap after the pill grows.
     static let bottomRowWidth: CGFloat = pillWidth + 2 * (rowGap + barHeight)
     /// Cancel's width while a search is editing: a word, not a circle. The keyboard's row is
     /// [field][Cancel] from margin to margin on every phone, the field taking what Cancel leaves.
