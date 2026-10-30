@@ -54,7 +54,7 @@ profile is needed as a secret — Xcode Cloud–style signing handles it.
 
 Before the first submission:
 
-1. **App record**: create the app for bundle ID `com.jimmyyao.Reader`, team JMYU8K3WZN.
+1. **App record**: create the app for bundle ID `com.jimmyyao.Reader`, team D4K9ZT557F (App Group `group.com.jimmyyao.MeridianReader`).
 2. **Price**: Free.
 3. **App Privacy**: "Data Not Collected" (the app has no analytics, no network to our servers,
    no tracking). Answer the privacy questions accordingly.
