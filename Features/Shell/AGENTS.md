@@ -4,20 +4,24 @@ Navigation state (`ShellState`), the ⋯ menu's content, the Now Playing bar, an
 clustered dock. Working notes and contracts: [`.context/CONTEXT.md`](.context/CONTEXT.md). What the
 user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
 
-- **Compact width draws one chrome host** (`Chrome/ChromeHost.swift`) with three destinations (Listen,
-  Library, Browser; Listen is `ChromeDestination.reader`, `chromeListen`, headphones): `docs/NAVIGATION.md`, "Bottom chrome". Each destination hands the host a
-  `ChromeScreen` (field, arrows, ⋯); the Reader and Now Playing hand it their player card
-  (`ChromeCard`). One state (`ChromeState`), one pure layout (`ChromeLayout`, from `ChromeMetrics`:
-  `barHeight` 48, footprints 116 and 60, ▶ in one slot left of ⋯) and one scroll controller
-  (`ChromeScroll`, a continuous progress, scroll down only: scrolling up never expands it, the folded capsule's tap or the top of the text do; only a direct Listen / Play ends in Listen, Library Read and Browse reader mode open in place via `ReaderSurface`); the host
-  draws translucent glass (`ChromeSkin`; App sets `ChromeSkin.forcesMaterial` for `-chromeFallback`)
-  with only a gradient fade behind. Screens reserve `ChromeMetrics.footprint` at the bottom (the Reader
-  `readerFootprint`) (`CompactChromeInsets`) and report their scroll with `CompactChromeScroll`.
-  `SurfaceBand` remains for regular width. Every piece is a capsule or circle one 48 pt high; the Reader
-  is a destination under the chrome (no sheet, Close pill or pull-down); full screen is a middle tap;
-  the compact address pill ends in reload (iPad's field keeps 🎧). Change the host, never one screen.
+- **Compact width draws one chrome host** (`Chrome/ChromeHost.swift`) over two destinations (Library,
+  Browser: `docs/NAVIGATION.md`, "Bottom chrome"). Row 1 is the screen's field and the Listen button
+  (`ChromeListenButton`), row 2 the pill and ⋯; there is no ▶ in the chrome. Each destination hands the
+  host a `ChromeScreen` (field, arrows, ⋯). One state (`ChromeState`), one pure layout (`ChromeLayout`, from
+  `ChromeMetrics`: `barHeight` 36, footprint 98) and one scroll controller (`ChromeScroll`, scroll down only:
+  scrolling up never expands it, the strip's tap or the top of the text do); Library Read and Browse reader
+  mode open in place via `ReaderSurface` and feed it. The host draws translucent glass (`ChromeSkin`; App
+  sets `ChromeSkin.forcesMaterial` for `-chromeFallback`) with only a gradient fade behind. Screens reserve
+  `ChromeMetrics.footprint` at the bottom (`CompactChromeInsets`) and report their scroll with
+  `CompactChromeScroll`. The round buttons share `ChromeCircleFace`. Change the host, never one screen.
+- **Listen is not under the chrome.** `isNowPlayingPresented` draws `NowPlayingScreen` above the chrome
+  in `BrowseStartView.layers`, as a `Sheet` that covers the screen (`ReadingShowing.cover`), below the ⋯
+  menu overlay and the sheet presenters so Voice, Save to Folder, ⋯ and the debug panel open over it.
+  Its full screen is its own `ReadingChrome`; never wire it to `chromeScroll`. Closing it must leave
+  whatever was under it (surface, reader, search, fold) untouched: that is the only "back".
+  Idle Listen binds the page played last paused (`SpeechController.prepare`), never a second "current
+  article".
 - **Two size classes.** iPad layout is gated on `horizontalSizeClass == .regular` and compact (iPhone,
   iPad in a compact window) draws the chrome host; regular width keeps `SurfaceBand` and the dock. When you touch shell chrome, check both.
 - **Sizes are tokens** in `../DesignSystem/Tokens/RegularLayout.swift`; don't hard-code a width in a view.
-- **Listen's ‹ is always the launch place**: `listenLaunch` is set only by a launch (`noteLaunch`), persisted (`SurfaceMemoryStore.saveListenLaunch`) and restored at launch; never fall back to the playing page's own place, and never let a resume or a launch with no place clear it (docs/NAVIGATION.md).
 - Add a screen as a case in `ShellState`, not a presentation flag in a view.

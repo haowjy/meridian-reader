@@ -90,16 +90,16 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   binary and every change of form (fold, keyboard, full screen) is a cross-fade of the whole host. The
   reading page in place reads and toggles full screen through `ReadingInPlace`, so
   `ReadingChrome.hidden` has no copy. `ShellState` owns the chrome's destination and the pill's
-  selection (`chromeDestination`, `select`). `ChromeHost` only wires those to the app: `ChromePlayback`
-  (the play button and the resume query), `ChromeFade` (the translucent gradient under the pieces),
-  `ChromeControls` (pill, navigation, play button), `ChromeSkin` (glass, or blur and tint before iOS
-  26). The Reader's and Now Playing's player card (`ReaderPlayerCard`, a design-system view of plain
-  values) is built by the screens and handed up as a preference (`ChromeCard`); the host draws it on
-  the field piece's glass; Listen never folds.
+  selection (`chromeDestination`, `select`). `ChromeHost` only wires those to the app: `ChromeListenButton`
+  (Listen, which opens what plays or the page played last), `ChromeFade` (the translucent gradient under
+  the pieces), `ChromeControls` (pill, navigation), `ChromeSkin` (glass, or blur and tint before iOS
+  26, and the round buttons' `ChromeCircleFace`). Listen is not under the chrome: it is a `Sheet` that
+  covers the screen (`ReadingShowing.cover`), its player card (`ReaderPlayerCard`) at its foot.
 - **Reading pages.** The Reader and Now Playing are one `ReadingPage` (`ReaderSheet` and
   `NowPlayingSheet` supply their bands): `ReadingBars` lays out the text between the top bar and
-  the band; compact width draws it in place under the chrome, regular width inside a `Sheet`
-  (`ReadingShowing`). `Sheet` and `SheetPullHandoff` remain for regular width and Follow's chapter preview.
+  the band (`ReadingShowing`): regular width inside a `Sheet`, compact Listen inside a `Sheet` that covers
+  the screen (its full screen its own), compact in-place readers under the chrome (their scroll and full
+  screen the chrome's). `Sheet` and `SheetPullHandoff` also serve Follow's chapter preview.
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
   and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. A reading

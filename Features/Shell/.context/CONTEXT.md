@@ -16,8 +16,8 @@ changing the shell code.
   presents it, so nothing else hosts a sheet of its own. It never stores what
   you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing article
   opens Now Playing.
-- **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system
-  sheets. The toast (`ShellToastLayer`) floats over whichever bottom chrome
+- **Layers** (`BrowseStartView.layers`): surface (and its in-place reader) → Reader sheet (regular) →
+  compact chrome → Now Playing (Listen) → ⋯ menu → system sheets. The toast (`ShellToastLayer`) floats over whichever bottom chrome
   is up (the browser's, the Library's, the Reader's `floating` slot, Now
   Playing's controls; the Move tree and the import sheet have no chrome, so it floats a toolbar
   row above the sheet's bottom, `sheetToastLayer()`: what shows of a medium-detent sheet ends
@@ -74,8 +74,8 @@ changing the shell code.
   nudges the measurement each pass, and without the threshold the panel re-places itself forever
   (a layout loop at 100% CPU). The glass grows by frame and corner radius, never by scale.
 - **Compact width: one chrome host** (`Chrome/ChromeHost.swift`; `docs/NAVIGATION.md` "Bottom
-  chrome"). Three destinations (Reader, Library, Browser), at most two rows expanded and one
-  small capsule folded, one play/pause button, glass inside one `GlassEffectContainer` on
+  chrome"). Two destinations (Library, Browser), at most two rows expanded and a text strip
+  folded, the Listen button ending row 1 (no play/pause in the chrome; Listen is a cover above it), glass inside one `GlassEffectContainer` on
   iOS 26 with a blur and glass tint as the fallback. Its translucent fade takes the colour of what is under it: a
   web page's `underPageBackgroundColor` (`WebViewStore.pageBackground`, KVO), paper, or the reading
   theme. The in-place reader (`ReaderSurface`) covers a web view that takes no touches, so it

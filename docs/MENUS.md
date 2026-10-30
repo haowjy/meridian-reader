@@ -24,7 +24,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 - **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB/PDF file picker), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127). Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; shown in every folder including imported EPUBs and followed stories (C149). Follow… and Save from Website… are not here; users do those from the browser.
 - **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
-- **Reader / Now Playing ⋯**: on compact width the chrome's ⋯ (`ReadingPageMoreButton`), at regular width the transport's: the article's options, then Prepared Audio, then [Settings][Saved][Listen], with [History] before Listen on compact width (regular width has 🕘). Listen is disabled (already there). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
+- **Reader / Now Playing ⋯**: on compact width Listen's top right ⋯ (`ReadingPageMoreButton`), at regular width the transport's: the article's options, then Prepared Audio, then [Settings][Saved][Listen], with [History] before Listen on compact width (regular width has 🕘). Listen is disabled (already there). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
 - **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, then [Settings][Saved][Reader], with [History] before Reader on compact width (regular width has 🕘). Reader opens the current page in the Reader (greyed when the page isn't readable). No New Search: a tap on the address field starts one.
 - **Prepare on a page out of the Library** (C104): enabled; it saves the page to the Library's top level first. Grey only on a browser page not yet loaded as a page.
 - **Prepared Audio row** (one article, C110): Prepare Again (that article), Remove Prepared Audio (that article). Pause All in the section header; a folder's prepare is turned off on its screen.
@@ -263,13 +263,13 @@ The names for the chrome that runs along the bottom of every screen.
 
 | Name | Kind | What it is |
 |---|---|---|
-| `ChromeHost` | view | Compact width only: the one chrome above the Library, the browser and the Reader: two rows expanded, one collapsed, over `ChromeScreen`s from each destination. |
+| `ChromeHost` | view | Compact width only: the one chrome above the Library and the browser (and their in-place readers): two rows expanded, one collapsed, over `ChromeScreen`s from each destination. |
+| `ChromeListenButton` | view | Listen at the end of row 1: headphones or the playing bars; opens Listen on what plays or the page played last. |
 | `ChromeScreen` | struct | What a destination hands the host: its field, ‹ › callbacks and ids, ⋯ and edit bar. |
-| `ChromeState` | struct | What the chrome shows: destination, collapse progress, `fullScreen`, played, history, keyboard, reader mode. |
+| `ChromeState` | struct | What the chrome shows: destination, collapse progress, `fullScreen`, history, keyboard, reader mode. |
 | `ChromeScroll` | class | The one scroll controller: a continuous progress from scroll reports (90 pt a travel, snap at rest); `expand()` is the icon tap and a new page. |
 | `ChromeLayout` | struct | The rect and opacity of every piece for a width and a `ChromeState` (the mockups' `rectsFor` and width table), sized by `ChromeMetrics`. |
 | `ChromePieces` | view | Draws the pieces from a `ChromeLayout`; animatable in the progress. |
-| `ChromeCard` | struct, preference | The Reader's or Now Playing's player card and ⋯ rows, handed to the host. |
 | `ChromeSkin` | enum | `.system` (everything else), `.glass` (iOS 26), `.material` (earlier iOS, and `-chromeFallback`). |
 | `SurfaceBand` | view | The regular-width address / search field with its ✕ while searching. |
 | `ChromeMetrics` | enum (constants) | The compact chrome's one token set (`DesignSystem/Chrome`): heights, gaps, margins, the lit inset. |

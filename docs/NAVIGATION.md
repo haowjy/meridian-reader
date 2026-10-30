@@ -3,8 +3,8 @@
 **If a screen shows ‹, you can swipe back from the left edge. If it shows ✕ (or is a sheet with a
 grabber), you can pull it down.** Either gesture must do exactly what tapping the button does.
 
-Listen (what was the Reader destination) is not a sheet: on compact width it is a destination in the bottom chrome's pill, so it has
-no ✕, back pill, grabber or pull-down; Library and Browser in the pill leave it ("Bottom chrome", below).
+Listen on compact width slides up over everything (the chrome too) and follows the sheet rule: a
+grabber, ⌄ at the top left, and a pull down that does what ⌄ does ("Bottom chrome", below).
 Regular width keeps the Reader and Now Playing sheets ("iPad and regular width").
 
 | Button | Presentation | Gesture | Provided by |
@@ -62,17 +62,17 @@ Regular width keeps the Reader and Now Playing sheets ("iPad and regular width")
 ## Bottom chrome (compact width)
 
 On iPhone (any compact width) one floating chrome host (`Features/Shell/Chrome/ChromeHost.swift`)
-sits over every destination: the Browser, the Library, and Listen (the Reader and Now Playing,
-in place, not sheets). There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
+sits over both destinations, the Browser and the Library (and their in-place readers). Listen is
+not a destination: it slides up over the chrome. There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
 Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular width", below).
 
 ```
-expanded    [‹ ›][ address / Search Library          ]        row 1: the screen's own (Listen's: its player card)
-            [ 🎧 | ▤ | 🌐 ]            [▶][⋯]         row 2: where you are (icons only), play, menu (Listen: the ▶ slot stays empty)
-one row     [‹ ›][ address / Search Library          ]        first step of a scroll down: row 2 gone, row 1 in its place
-folded                       example.com                      second step: a text strip that names the page; a tap brings both rows back
-Listen      never folds on scroll                             ‹ place floats top left; a middle tap = full screen: nothing, a ▶ / ⏸ floats for 3 s
-searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no pill, ▶ or ⋯, no strip
+expanded    [‹ ›][ address / Search Library     ][🎧]     row 1: the screen's own, Listen at its end
+            [ ▤ | 🌐 ]                       [⋯]     row 2: where you are (icons only), menu
+one row     [‹ ›][ address / Search Library     ][🎧]     first step of a scroll down: row 2 gone, row 1 in its place
+folded                       example.com                  second step: a text strip that names the page; a tap brings both rows back
+searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no pill, Listen or ⋯, no strip
+Listen      slides up over everything                     ⌄ or a pull down closes it, back to what was under it
 ```
 
 Every piece is a pure function of one layout (`ChromeLayout`, the mockups' `rectsFor`) and a progress. The fold
@@ -85,7 +85,7 @@ margin, ⋯ ends at the right one, and the gap after the pill grows on a wider p
 **Placement is measured from the screen's edge.** The bottom row's bottom sits 14 pt above the screen's edge
 (`ChromeMetrics.edgeClearance`), into the home-indicator strip, on every phone (a Home button phone too). Every
 footprint is from the edge: 98 expanded (4 + 36 + 8 + 36 + 14), 54 one row (and the keyboard's row), 38 the strip
-(4 + 20 + 14), 202 Listen (card and row 2). Consumers that inset from the safe area convert with
+(4 + 20 + 14). Consumers that inset from the safe area convert with
 `ChromeHome.above(x)` = max(0, x - home indicator inset); the web view uses max(footprint, home inset).
 
 - **The strip** (`ChromeLayout.strip`, `ChromePieces.stripPiece`, id `chromeStrip`): what the second fold step
@@ -98,22 +98,24 @@ footprint is from the edge: 98 expanded (4 + 36 + 8 + 36 + 14), 54 one row (and 
   the source in the Browser's reader mode (`ChromeScreen.stripTitle`). Audio keeps playing while folded; the
   strip's tap is the way back to both rows. Settings and sheets have no strip.
 
-- **The pill** `[Listen | Library | Browser]`: three equal segments, **icons only** (each keeps its
-  accessibility label: Listen, Library, Browser), the lit one the screen you are on (an inset capsule, 4 pt on all
-  four sides, 28 tall, its glyph accent). The Listen
-  segment is the `headphones` glyph, playing or not; ▶ and the lit state say what plays. With nothing
-  playing and nothing played it is dimmed (never while lit). It opens what plays (Now Playing),
-  else the page played last, else a toast. Only a direct Listen / Play action ends in Listen: Library
-  Read and the Browser's reader mode open in place and never switch destination.
-- **One shape system.** Every piece is a capsule or a circle (radius = height / 2), except Listen's card
-  (`cardRadius` 24, unchanged). One height, **36 pt** (`ChromeMetrics.barHeight`), for every piece in every row
-  and state (pill, fields, ‹ ›, ▶, ⋯, Cancel, the floating ▶ / ⏸, jump-to-audio and ‹ place), on every screen.
+- **The pill** `[Library | Browser]`: two equal segments of 78 pt (`segmentWidth`), **icons only** (each keeps its
+  accessibility label: Library, Browser), the lit one the screen you are on (an inset capsule, 4 pt on all
+  four sides, 28 tall, its glyph accent).
+- **Listen** (`ChromeListenButton`, id `chromeListen`, VoiceOver *Listen*, value *Playing* while it plays): a
+  36 pt glass circle ending row 1 on every screen, Library Read and the Browser's reader mode included. It shows
+  the headphones, or the app's playing bars in the accent while something plays (still under Reduce Motion).
+  A tap slides Listen up: on what is bound to playback; else the page played last (`LibraryQueries.lastPlayed`),
+  bound paused at its saved place so ▶ resumes it there; else the toast *Nothing to listen to yet*. It is not
+  drawn while typing or in Library Edit (row 1 is then the field alone).
+- **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **36 pt**
+  (`ChromeMetrics.barHeight`), for every piece in every row and state (pill, fields, ‹ ›, Listen, ⋯, Cancel,
+  the floating ▶ / ⏸, Jump to Audio, Listen's ⌄ and ⋯), on every screen. The round buttons share one face
+  (`ChromeCircleFace`).
   **Concentric:** a 36 pt end radius holds a 24 pt glyph slot inset 6 (`endGlyphSlot`, `endInset`), so the slot's
   radius is the pill's less the inset. **Every hit area is 44 pt** (`minTapTarget`): the glass draws 36 and the
-  control's hit shape extends `hitOutset` (4) round it (`contentShape(Rectangle().inset(by: -hitOutset))`,
-  `tapTarget(size)`). The 8 pt gap between the rows is exactly two outsets, so the rows' hit areas meet and never
-  overlap; the 10 pt `rowGap` keeps neighbours on a row apart. ‹ 36, ‹ › 72. Names and values are the mockups'
-  `SZ` (`tools/check-tokens.js` compares them). Every control glyph is 20 pt medium (`segmentGlyphHeight`).
+  control's hit shape extends `hitOutset` (4) round it (`ChromeHitShape`, `tapTarget(size)`). The 8 pt gap
+  between the rows is exactly two outsets, so the rows' hit areas meet and never overlap; the 10 pt `rowGap`
+  keeps neighbours on a row apart. ‹ 36, ‹ › 72. Every control glyph is 20 pt medium (`segmentGlyphHeight`).
 - **Look.** Translucent glass, nothing opaque behind it: Liquid Glass inside one
   `GlassEffectContainer` on iOS 26, every piece answering a press; earlier iOS (and a Debug launch
   with `-chromeFallback`) a blur with white at 58% over it (dark: 44, 44, 48 at 55%), an inner 0.5 pt
@@ -126,28 +128,26 @@ footprint is from the edge: 98 expanded (4 + 36 + 8 + 36 + 14), 54 one row (and 
   container) does fade glass, which is how Reduce Motion cross-fades.
 - **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (the pair shows whenever either way is
   open, the half that cannot move dimmed to 35% and disabled but in place; nothing on a new page), on the
-  Library its search field, on the Reader the player card. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerToReenter`).
+  Library its search field, in Library Read `[Aa  site]`; Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerToReenter`).
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a whole
   44 x 44 control (`BottomChrome.minTapTarget`), its glyph in the chrome ink at the chrome glyph weight
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
-  about 150 pt (`ChromeMetrics.readerIconWidth`). There is no 🎧 in it on compact width: play and
-  pause live in the chrome's own button. While the page shows as its reader view the field is
+  about 150 pt (`ChromeMetrics.readerIconWidth`). There is no 🎧 in it on compact width: Listen
+  is the round button after the field. While the page shows as its reader view the field is
   `[reader icon][URL][Aa][↻]`: Aa (`readerAppearance`, VoiceOver *Text Appearance*) is the same 44 x 44
   control as ↻ and sits before it, so the URL truncates first. Aa is not drawn on the web page or while
   the search field is open (opening search closes its panel).
-- **Row 2** is the pill (235 pt, `pillWidth`), a 36 pt round play / pause with a thin progress ring (not drawn
-  before anything has played, and **not on Listen**, whose card has the ▶), and ⋯. The pill and ⋯ never move or
-  resize across destinations and states: the pill at the left margin, ⋯ ending at the right, ▶ one `rowGap`
-  before ⋯. The ▶ slot is always reserved, and where ▶ is absent (before anything has played, on Listen) it
-  stays empty space with nothing drawn and no hit target. With nothing loaded ▶ resumes the page played last.
+- **Row 2** is the pill (156 pt, `pillWidth`) at the left margin and ⋯ ending at the right one; they never move
+  or resize across destinations and states. There is no play / pause in the chrome: Listen, the row's tap in
+  the Library and the readers' ▶ Listen start and control playback.
 - **Collapse follows the finger, down only, in steps.** One progress value (`ChromeScroll`), 0 two rows, 0.5
   one row, 1 the strip: `progress += dy / 120` for a scroll down only (60 pt a step), ignored while the keyboard
   or the ⋯ panel is up, and 150 ms after the finger stops a part-way step settles forward to its end
   (`ChromeScroll.stepEnd`: 0, 0.5 or 1). **Scrolling up never gives a row back, on any screen.** The rows come
   back by a tap on the strip, by reaching the top of the content (offset <= 4, which resets progress to 0)
   (invariant 12), and by what is not a scroll: a new page or screen loading, opening the address or search
-  field, VoiceOver being on. The Library and the Browser feed it; **Listen does not** (it never folds on
-  scroll), the Browser's start page does not fold, and an in-place reader folds only in Scroll mode.
+  field, VoiceOver being on. The Library, the Browser and the in-place readers feed it; **Listen does not**
+  (it has no chrome), the Browser's start page does not fold, and an in-place reader folds only in Scroll mode.
   **The strip's tap does not pin.** `ChromeScroll.expandByHand` brings both rows back and grants a short grace:
   scroll reports within 0.35 s (`tapQuiet`, a fling already under way) move nothing, then the next 24 pt of
   scrolling down (`refoldGrace`) folds nothing, and past it the fold follows the finger again. The tap-swallow
@@ -157,7 +157,7 @@ footprint is from the edge: 98 expanded (4 + 36 + 8 + 36 + 14), 54 one row (and 
   the field (🔍 left, the text, a round ⊗ inside at the right while there is text, 🎤 at its end) and a **Cancel**
   text button (accent, 72 pt) at the right margin. It is not the fixed 351 pt block (the one exception to it): the
   field runs from the left margin (12) to Cancel, one 10 pt gap between, so it is 375 − 24 − 10 − 72 = 269 pt on the
-  SE and 296 pt on a 402 pt phone (`testTypingIsTheFieldAndCancelMarginToMargin`). The pill, ▶, ⋯, the strip and any globe
+  SE and 296 pt on a 402 pt phone (`testTypingIsTheFieldAndCancelMarginToMargin`). The pill, Listen, ⋯, the strip and any globe
   are not drawn while typing. Above the field the search layer is **opaque paper from under the safe area down to the
   keyboard**, and at its top, 12 pt under the safe area and 12 pt from each side, one **rounded card** of rows
   (`SearchSessionOverlay`): untouched (or empty), *Recent Searches* (header + Clear All, a 🔍 row each); typing, first
@@ -178,67 +178,56 @@ footprint is from the edge: 98 expanded (4 + 36 + 8 + 36 + 14), 54 one row (and 
   under the chrome (as in Safari with its bar up); iOS before 26 keeps the constant content inset only (no obscured
   inset); the in-place Reader is SwiftUI, not a web view, and has its own bottom inset; iPad regular layout is
   untouched. Fixture: `reader-test://pages/popup`, `testAFixedBottomPopupSitsAboveTheChrome`.
-- **Listen is a destination, not a sheet**: it shows in place under the same chrome with
-  Listen lit, row 2 as everywhere (`[pill]  [empty ▶ slot]  [⋯]`, the three parted by one `rowGap`, 10 pt; every
-  piece 36 pt tall), and a glass player card above row 2, one gap
-  up, 140 pt: artwork, title, site and time left (two parts set apart by a 12 pt gap, no "·" or other separator; the site truncates first, the time left never does), Voice and Save at the right, the full-width scrubber (no
-  times under it; the title block opens the article's origin and never seeks, only the track does), and the transport Aa, ⏮, ▶, ⏭, speed. Listen never folds on
-  scroll. The page hands the card to the chrome (`ChromeCard`, a preference) because it
-  holds the article and the playhead; the chrome holds the geometry. ☝︎ Play from a paragraph is a
-  row of the Reader's ⋯, the page's status note (preparing, voice and language notes) takes the card's
-  second line. The text's bottom inset is the expanded footprint (card and row 2, 202 pt from the screen's edge), so the
-  text never resizes. There is no Close pill, grabber or pull-down: Library and Browser in the pill
-  leave it and never stop audio. A 36 pt glass capsule (44 pt hit area) **‹ place** floats top left, naming where it goes (the Library folder's name or "Library", or the page's site without "www.", truncated at 200 pt), and goes back to the place that
-  **launched** the listening (`ShellState.listenLaunch`): the Library (its folder or book page, tab and Read state) or the Browser
-  page (and its in-place Reader if it was reading) where Listen / Play / Save-and-play was pressed. The record is set by
-  `SpeechController.start`, the one way a page starts playing, so a new launch replaces it; switching tabs never
-  overwrites it (Library → Browser → Listen by the pill still goes ‹ to the Library), and ‹ does not clear it, so repeated
-  visits work. Listen opened by the tab with nothing new launched keeps the last record. The record is saved with the surface (`SurfaceMemoryStore`, key `shell.listenLaunch`, as `ListenLaunch.Stored`) and read back at launch, so ‹ survives a relaunch and a crash resume (the resume is not a launch, and a launch from a Browser with no page loaded keeps the saved record). It keeps the Library's path, tab and the Read article's key, or the Browser page's address, its scroll and whether it was in reader mode. There is no fallback to the playing page's own place: ‹ always goes where the listening was launched, and hides only when nothing was ever launched. A deleted folder falls back to its nearest surviving parent, at worst the Library's home (`ShellState.surviving`); a Browser page that is no longer loaded (a relaunch, a closed or replaced page) reloads at its saved address and is scrolled back to its saved offset once it finishes loading (`WebViewStore.restoreScroll`), in reader mode if it was reading. It
-  hides in full screen. The card's title block uses the same record (so it goes where ‹ goes), without highlighting the row (no
-  row-highlight mechanism yet). The Library's scroll offset is view state: it returns only while the Library stayed mounted. **Full screen** is a tap in the middle of the text, in and out, and
-  nothing else: it removes the whole chrome (no rows, no card, no fade, no status bar); scrolling
-  and pulling do nothing to it, a ▶ / ⏸ floats for 3 s. Leaving full screen returns to what the chrome
-  was (folded stays folded).
+- **Listen slides up over everything** (`NowPlayingScreen`, `ReadingShowing.cover`, a `Sheet` that covers):
+  from the bottom, edge to edge and under the status bar, over the chrome, with nothing behind it. A grabber,
+  ⌄ at the top left (`listenClose`, VoiceOver *Close Listen*) and ⋯ at the top right (`listenMore`: the
+  page's menu, first *Play from a Paragraph*), both 36 pt glass circles. A pull down on the top bar, or on
+  the text when it is at its top, follows the finger and closes it when let go far enough or flung, and
+  springs back otherwise; ⌄ closes it the same way. Closing shows exactly what was under it: the surface,
+  its scroll, a reader in place and its fold or full screen, a search (its keyboard lowered when Listen
+  opened). Audio keeps playing. At the foot a glass player card, 140 pt tall at the chrome's margins
+  (`cardRadius` 24), over a fade into the page: artwork, title, site and time left (two parts set apart by
+  a 12 pt gap; the site truncates first), Voice and Save at the right, the full-width scrubber (the title
+  block opens the article's own place in the Library or its page, and never seeks; only the track does),
+  and the transport Aa, ⏮, ▶, ⏭, speed. The page's status note (preparing, voice and language notes) takes
+  the card's second line. **Full screen** is a tap in the middle of the text, in and out: the top bar and
+  the card slide off and the status bar hides; a ▶ / ⏸ floats for 3 s. It is Listen's own: the chrome
+  underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
   `ReaderSurface`): the chrome folds on scroll in Scroll mode like a page (to a strip naming the source) and stays expanded in Pages mode, the address keeps the
   URL (narrower by one round control), the reader icon sits in a lit capsule and toggles back. The
   text is a reading page like the Reader's (`ReadingPage`, in place): Pages or Scroll as the
   Appearance setting says, the footer, a tap in the middle for full screen, *Play from Here* on a
   selection, and it opens at the page's saved listening spot, underlined. The reader's theme runs up
-  under the status bar. Listen is a round headphones control (`readerListen`) at the end of the
-  address row, a different glyph from the chrome's ▶ / ⏸ ring; it tints with the accent while this
-  page is what you hear. It plays the page and opens Now Playing (the Listen destination); a page
-  you hear shows the playhead and Jump to Audio in its text and the floating ▶ / ⏸, and opening its
-  reader never switches destination (the floating ⏸ there pauses; it does not leave the reader). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor, no following. Aa is in the address field beside ↻ (`readerAppearance`), and ⋯ → *Text Appearance* opens the same panel, a popover pointing at Aa either way. The web page
+  under the status bar. Under the title the source line reads "site  length  ▶ Listen": ▶ Listen is a
+  small text button in the accent (a `<button>` in the page's heading, so it scrolls with the text and is
+  never read aloud). It plays the page from its saved spot and slides Listen up; for the page you hear
+  it only slides Listen up. A page you hear shows the playhead and Jump to Audio in its text and the
+  floating ▶ / ⏸ (which pauses; it does not leave the reader). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor, no following. Aa is in the address field beside ↻ (`readerAppearance`), and ⋯ → *Text Appearance* opens the same panel, a popover pointing at Aa either way. The web page
   under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
   what ‹ does (back, which closes the reader).
 - **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
   a row's ⋯ → Read shows the article's text over the Library, which stays the lit segment and under it
   with its scroll; the chrome folds to a strip naming the article on a scroll down in Scroll mode and stays expanded in Pages mode (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
-  or a left-edge swipe closes it, and there is no player card. The search field's place holds one
-  field, `[Aa] [▶ Listen · N min]` (`readerListen`; *Continue · N min left* part-way, *Listen Again* once the
-  article has finished): Aa opens the text appearance panel, Listen plays and goes to Listen.
-  Nothing plays until Listen; for the page you hear the field reads *Now Playing* and goes to Listen. At regular width Read keeps opening the sheet.
+  or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][Aa  site][Listen]`, as the
+  Browser's reader mode: Aa opens the text appearance panel. The heading's ▶ Listen starts it, as in the
+  Browser's reader mode. Nothing plays until then. Opening a saved page anywhere else on compact width
+  (Prepared Audio's rows) opens it here too. At regular width Read keeps opening the sheet.
   A search in the Library ends when Read opens, so the chrome shows the reader's row and not the keyboard form.
 - **⋯** opens the screen's ⋯ panel ("Menus", below). The compact chrome has no 🕘 or ＋ buttons:
   *History* is a tile of every compact ⋯ (Browser, Library, Reader, Now Playing), and the Library's
   ⋯ adds *New Folder…*, *Import from…* and *Paste Text…*. On the Browser the page's *Save to
   Folder…* is in ⋯ too; the Reader tile reads *Show Web Page* while the in-place reader shows.
-- The field's and the card's text grows with Dynamic Type up to *xxxLarge* inside
-  the fixed 36 pt pieces (larger clips or overlaps); every glyph offers the large content viewer. Every tap target is at least 44 pt.
+- The field's and Listen's card's text grows with Dynamic Type up to *xxxLarge* inside
+  the fixed pieces (larger clips or overlaps); every glyph offers the large content viewer. Every tap target is at least 44 pt.
 - **Overlays, never rows:** prepare progress and toasts, on the top piece's edge.
 
 ## Planned: the rest of the three-destination chrome (approved design 5e, PR2 to PR4, not shipped)
 
-PR1 shipped the host above. Still to come, from the approved design (mockups and build plan in the
+The host above and Listen sliding up over it have shipped. Still to come, from the approved design (mockups and build plan in the
 project context, `work/bottom-chrome/`, outside this repo; the decision
 `three-destination-bottom-chrome` in the project KB):
 
-- **Reader as the primary reader:** what reads aloud, else the page played last, else an empty
-  state, merging Now Playing into the Reader destination. The temporary-reader sheet (a Library
-  row opening a sheet; at most three open, one plays; *Listen* making it the primary) is not part
-  of the design any more: the Reader has no sheet, Close pill or pull-down, so what a Library tap on
-  an article that is not playing does is undecided (Jimmy's call, PR3).
 - **⋯ sectioned** (Settings first and most prominent, Prepared Audio, then the screen's own rows),
   its panel growing out of the glass.
 - **Widths:** below 360 pt or at large text, ‹ › move into ⋯.
@@ -389,7 +378,7 @@ the same spot. ⋯ is never replaced.
   reading ◉ Finished, and ▶ plays the article again. Tap or swipe up → Now Playing; long-press →
   the article's menu ("Menus", below; its *Remove from Library* stops the article you hear, as
   anywhere else), then *Stop Listening* (unloads the article). It hides on Now Playing, under other
-  sheets and once nothing is loaded. Elsewhere the compact chrome's ▶ and Reader segment do its job,
+  sheets and once nothing is loaded. Elsewhere on compact width the chrome's Listen does its job,
   and on regular width the clustered dock does.
 
 **Start page** (no page loaded), Safari-style:
@@ -887,8 +876,8 @@ tree in the selected tab, each with its location.
 ## The Reader and Now Playing (what you see, what you hear)
 
 What you **see** and what you **hear** are separate, in three layers: the surface (the browser or
-the Library), the **Reader** for reading any article (a destination in the pill on compact width, a
-sheet on regular width), and **Now Playing** for what you hear. On compact width the chrome's ▶ is the
+the Library), the **Reader** for reading any article (in place on compact width, a sheet on regular
+width), and **Now Playing** (Listen) for what you hear. On compact width the chrome's Listen is the
 one bridge between them; on regular width the Now Playing bar is: tapping it opens Now Playing. Navigating never changes what you hear, and a play button never navigates. The Reader
 never shows the article you hear: opening the Reader of that article (📄, a Favorites tile, a Library
 row) opens Now Playing instead.
@@ -1330,8 +1319,8 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it holding the chapter's article, pulled down to close (from its top) |
 | Following (`FollowingSheet`): a story's status line | Done | `.sheet`, medium and large |
-| Reader (`ReaderSheetScreen`): 📄, ⋯ → Reader, a Favorites tile, a Library row or card | compact: Library or Browser in the pill; regular: *‹ Browser* / *‹ Library* pill, top left | compact: in place under the chrome; regular: `Sheet` over the surface, pull the header down |
-| Now Playing (`NowPlayingScreen`): ▶ or the bar, the Reader of the playing article, Listen, crash resume | compact: Library or Browser in the pill; regular: *⌄ <playing from>* pill, top left | compact: in place under the chrome; regular: `Sheet` over everything, pull the header down |
+| Reader (`ReaderSheetScreen`), regular width: 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface, pull the header down (compact width reads in place: `ReaderSurface`) |
+| Listen / Now Playing (`NowPlayingScreen`): the chrome's Listen, a reader's ▶ Listen, a Library row, the bar, the Reader of the playing article, crash resume | compact: ⌄, top left; regular: *⌄ <playing from>* pill, top left | compact: a `Sheet` that covers the screen and the chrome, pull down to close; regular: `Sheet` over everything, pull the header down |
 | Listen debug panel | Done | `.sheet` (over Settings when opened from it) |
 | Speed picker | — | popover |
 

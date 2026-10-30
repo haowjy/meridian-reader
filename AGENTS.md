@@ -40,8 +40,9 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   the running app (Simulator, one device; the phone for anything that needs real hardware): save
   and play a browsed article (open a page, save it, play, pause, stop); the compact chrome (scroll
   down folds the bottom chrome into its capsule on Browse web, Browse reader, Library Read and
-  Library home; scrolling up never restores it, only a tap on the capsule does; Listen and Pages
-  mode never fold; Library Edit stays expanded; the floating pause pauses in full screen), with a
+  Library home; scrolling up never restores it, only a tap on the strip does; Pages mode never
+  folds; Library Edit stays expanded; Listen slides up over the chrome and closes back to where you were;
+  the floating pause pauses in full screen), with a
   recorded video and frames for the motion. Launch with the arguments below.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
 - One scheme, `MeridianReader`, with one test target, `MeridianReaderTests` (unit, `Tests/`).
@@ -57,7 +58,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
   pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
-  `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openDemoInBrowseReader`, `-restoreSurface` (a relaunch reopens where
+  `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openDemoInBrowseReader` (the Browser's reader mode on the demo article), `-tapListen` (what a tap on the chrome's Listen does; `-closeListenAfter N` closes Listen N s later), `-restoreSurface` (a relaunch reopens where
   the last launch left), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
   on-device test voice for prepared audio; `-selectEngine test.voice`). Keep probes and tests offline;
   use the test pages, not live sites. `LaunchOptions` parses every launch argument, the
@@ -127,12 +128,13 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
 - **Bottom chrome**: compact width draws one floating chrome host
-  (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Listen, Library, Browser; Listen is `ChromeDestination.reader` in code), two rows
-  expanded and a small capsule folded, no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; PR2 to PR4 of the
-  redesign are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
-  or circle (radius = height / 2; one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, footprints 116, 40 (the capsule) and 60 (the keyboard), hit areas 44), every control glyph
-  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, scroll down only: scrolling up never gives a row back; the capsule's tap or the top of the text, offset <= 4, expands it), Listen is a destination under the same chrome with a glass player card above row 2 (no sheet, Close pill or pull-down; full screen is a middle tap that removes the chrome), and the compact address pill ends
-  in reload, not 🎧 (iPad keeps 🎧; the Browser's reader mode adds a 🎧 Listen control after the pill). Change the chrome host, never one screen; on regular width change
+  (`Features/Shell/Chrome/ChromeHost.swift`) over two destinations (Library, Browser): row 1 the screen's
+  field ending in the round Listen button, row 2 the `[Library | Browser]` pill and ⋯, no ▶; two rows
+  expanded, one, then a text strip folded; no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; later
+  redesign PRs are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
+  or circle (radius = height / 2; one 36 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, footprints 98, 54 (one row and the keyboard) and 38 (the strip), hit areas 44), every control glyph
+  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, scroll down only: scrolling up never gives a row back; the strip's tap or the top of the text, offset <= 4, expands it). Listen is not a destination: it slides up over everything, chrome included, as a `Sheet` that covers the screen (⌄ or a pull down closes it, back to what was under it), its player card at its foot; the in-place readers start it from "▶ Listen" in their heading. The compact address pill ends
+  in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
   `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
   (`BottomToolbarLayout`) so sizing, Dynamic Type and 44 pt taps stay
