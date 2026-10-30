@@ -187,8 +187,9 @@ fallback when no on-device engine can speak. iOS 18+.
 |---|---|
 | Engine id | `local.phonon` |
 | Host | `PhononHost`: Core ML on Phonon's default compute unit, the Neural Engine (`computeUnit` is `nil`; routing label `phonon-31m ane`). `PhononHost` can take `computeUnit: .cpu` (label `phonon-31m cpu`), but nothing in the app passes it: CPU-only rendering made the phone laggy. |
-| Models | `phonon-31m-en-coreml.zip` (~131 MB), downloaded on first use into Application Support, SHA-256 checked, unzipped, then `PhononModels.install` → `PhononTTS/models`. On cellular or Low Data Mode the download asks first (below). |
-| Voices | The full English set in the zip (`PhononVoiceCatalog`): eight curated at the top of the picker (Zoey default), the rest under *More voices*. Voices live in the bundle, so once it is installed every one is present. |
+| Models | Built into the app: the ptts v0.4.0 release bundle (`Resources/PhononBundle`, ~170 MB, every voice), put there at build time by `tools/fetch-phonon-bundle.sh`. Nothing downloads. Core ML compiles a model beside its package, so the first load of a process copies the bundle to `PhononTTS/models` unless that copy already holds the same export (`bundle.json`'s `built`); the copy is staged and swapped in whole, before any Phonon model loads. Builds that downloaded the model left the zip and an unzipped `bundle/`; a launch step removes them (`PhononDownloadLeftovers`). |
+| Voices | The full English set in the bundle (`PhononVoiceCatalog`): eight curated at the top of the picker (Zoey default), the rest under *More voices*. Every one is always installed. |
+| Cache revision | Cache voice keys carry the bundle's `built` stamp (`phonon@1792483937.Zoey`, `OnDeviceTraits.cacheRevision`), so audio a different model rendered never plays or counts as prepared. Keys from before the revision (`phonon.Zoey`) were all rendered by this release and were renamed once at launch (`PhononCacheRevision`). |
 | Chunking | `TextChunker.Limits.phonon`: target 1200, `hardMax` 1600, whole-paragraph calls (no short first clip). |
 | Background | No (`rendersInBackground` false): the Core ML path renders only with the app in front. |
 | Probe | `-engineProbe -probeOnly Phonon,Kokoro` (the short names; the log line `compute units=` shows the routing label). |
@@ -201,12 +202,12 @@ Files: `Features/Speech/Engines/Phonon/` (`PhononProvider`, `PhononHost`, `Phono
 
 ### Large model downloads
 
-`LargeModelDownloadConsent` guards the Phonon zip (~131 MB) and Kokoro's ONNX model (~163 MB).
+`LargeModelDownloadConsent` guards Kokoro's ONNX model (~163 MB).
 On Wi-Fi (or Ethernet) with Low Data Mode off a download starts without a prompt. On cellular or
 with Low Data Mode on, an alert from `RootView` asks "Download on Cellular?" ("<engine> needs about
 <size>. You're not on Wi-Fi.") with *Download* or *Wait for Wi-Fi* (which cancels the download
-for now). Offline never prompts, so the download's own error shows. A verified Phonon zip already
-on disk skips the prompt. Apple voices never go through it.
+for now). Offline never prompts, so the download's own error shows. Apple voices never go
+through it.
 
 ## Text prep for speech
 
@@ -246,7 +247,7 @@ SpeechEngineProvider (one per library)      EngineDescriptor (per engine)
   makeHost(for:voice:) → LocalSynthHost        voices + default, voice defaults key
   isInstalled / deleteModels                   hardware gate, languages
   recover(from:playing:)                       onDevice: OnDeviceTraits? (nil for Apple)
-  launchMigrations / debugSections(speech:)      cache voice prefix, chunk limits, crash notice
+  launchMigrations / debugSections(speech:)      cache voice prefix and revision, chunk limits, crash notice
 LocalSynthHost (thin: load + ONE call)
   → LocalChunkRenderer (shared: normalize, gate, crash guard, re-split on inputTooLong, log, CAF)
 ```
@@ -261,8 +262,10 @@ including its crash policy, its launch steps and its debug-panel sections. The p
 and the registry sit beside them (`Features/Speech/Engines/SpeechEngineProvider.swift`): their
 hooks hand out launch steps and SwiftUI sections, which Core can't name.
 
-Persisted values never change: engine ids (`apple`, `local.kokoro`), cache voice keys
-(`kokoro.<voice>`), `reader.tts.engineID`, `reader.tts.kokoroVoice`.
+Persisted values never change without a migration: engine ids (`apple`, `local.kokoro`), cache
+voice keys (`kokoro.<voice>`, `phonon@<revision>.<voice>`), `reader.tts.engineID`,
+`reader.tts.kokoroVoice`. A cache revision is the one planned change of a key: audio of another
+revision stops counting and re-renders.
 
 **Retired engines.** A provider lists engines it no longer ships in `retiredEngines` (id, display
 name, done flag, replacement, file deleter). A stored selection of one maps to the replacement when
@@ -283,7 +286,8 @@ engine that also owns index files written without an engine id.
    `LocalSynthError.inputTooLong` so the shared renderer re-splits), `setVoice`, `unload` (for good:
    close the load first, so a load in flight can't set the models again).
 3. **Descriptor.** A new, never-changing `id` (e.g. `local.<engine>`), `hardware`, and
-   `OnDeviceTraits`: `cacheVoicePrefix: "<short>"` (cache voice keys `<short>.<voice>`), chunk
+   `OnDeviceTraits`: `cacheVoicePrefix: "<short>"` (cache voice keys `<short>.<voice>`; with a
+   `cacheRevision` when the model can change under the same voices, `<short>@<revision>.<voice>`), chunk
    `limits` sized from the per-call cap (measure chars or phonemes per second of audio on a
    device), and a `crashNotice` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,

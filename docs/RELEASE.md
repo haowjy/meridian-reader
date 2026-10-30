@@ -10,6 +10,21 @@ Single-lane: one feature branch at a time off main → push → PR (body from th
 The PR body is the technical changelog (Added/Changed/Fixed/Removed lines). A release's
 user-facing text lives in `release-notes/<version>.md`.
 
+## The Phonon model bundle
+
+The app ships Phonon's model bundle (the ptts v0.4.0 release, ~170 MB, every voice) at
+`Resources/PhononBundle/`. It is git-ignored (the repo has no LFS), so every checkout fetches it
+once, and the build fails without it:
+
+```sh
+tools/fetch-phonon-bundle.sh          # download, check size and SHA-256, extract
+tools/fetch-phonon-bundle.sh <zip>    # the same from a zip already on disk
+```
+
+The release workflow runs it before archiving. A new Phonon release changes the URL, size and
+SHA-256 in the script, and `PhononModelStore.bundleBuilt` to the new `bundle.json`'s `built`: that
+stamp is the cache revision, so every article's Phonon audio renders again in the new model.
+
 ## Cutting a release
 
 ### TestFlight
@@ -74,9 +89,9 @@ Before the first submission:
 |---------|---------|-------|
 | Kokoro (via FluidAudio) | Apache-2.0 | The ONNX model is downloaded at runtime into Application Support from Hugging Face (`KokoroONNXModelStore`), never bundled in the app. |
 | FluidAudio | Apache-2.0 | Vendored with local patches (`Vendor/FluidAudio/VENDORED.md`). |
-| Phonon / Gradium (ptts) | Apache-2.0 / MIT | Phonon 31m English Core ML; zip downloaded at runtime (~131 MB). |
+| Phonon / Gradium (ptts) | Apache-2.0 / MIT | Phonon 31m English Core ML; the release's model bundle ships in the app (~170 MB, `tools/fetch-phonon-bundle.sh`). |
 | ONNX Runtime | MIT | Swift package, CPU inference only. |
-| ZIPFoundation | MIT | EPUB and Phonon model unzip. |
+| ZIPFoundation | MIT | EPUB unzip. |
 | Mozilla Readability | Apache-2.0 | Bundled JS under `Resources/Readability/`. |
 
 All licenses are permissive (Apache-2.0, MIT) and compatible with App Store distribution.

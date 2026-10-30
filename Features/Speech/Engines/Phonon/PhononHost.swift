@@ -43,15 +43,10 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
         let tag = unitTag
         try await load.run {
             let t0 = ListenTimingLog.now()
-            let onDisk = PhononModelStore.filesLookInstalled
-            ListenTimingLog.log("phonon_init_start", [
-                "voice": voice, "unit": tag, "models_on_disk": onDisk,
-            ])
+            ListenTimingLog.log("phonon_init_start", ["voice": voice, "unit": tag])
             do {
                 progress?(0.02)
-                try await PhononModelStore.shared.ensureInstalled { f in
-                    progress?(0.02 + 0.75 * f)
-                }
+                try await PhononModelStore.ensureInstalled()
                 try Task.checkCancellation()
                 progress?(0.80)
                 await SynthRenderGate.shared.acquire()

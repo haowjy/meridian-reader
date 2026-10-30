@@ -9,11 +9,12 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 - iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`), iOS 18+, portrait. The iPad has a regular-width
   layout (below); compact width keeps the phone's chrome. Native Swift and SwiftUI only.
 - No backend, accounts or sync. Article text and audio stay on the device.
-- Offline first: saved articles read and play with no network (Apple voices, or Phonon or Kokoro
-  once their models are downloaded).
+- Offline first: saved articles read and play with no network (Apple voices, Phonon, whose model
+  is built into the app, or Kokoro once its model is downloaded).
 - On-device Phonon (voice Zoey) is the default voice on a supported device and Kokoro (Heart) the
-  second default; Apple TTS is the fallback when neither can speak. Phonon and Kokoro models are
-  large downloads, so on cellular or Low Data Mode the app asks first (`LargeModelDownloadConsent`).
+  second default; Apple TTS is the fallback when neither can speak. Phonon's model ships in the app
+  (~170 MB); Kokoro's is a large download, so on cellular or Low Data Mode the app asks first
+  (`LargeModelDownloadConsent`).
 - Extraction sits behind a protocol, so the engine can be swapped.
 
 ## Stack
@@ -512,7 +513,7 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 |---------|---------|
 | Library, search, delete | Yes |
 | Reading a saved article | Yes (`cleanedHTML`) |
-| Listening | Yes: Apple voices; Phonon or Kokoro once its model is downloaded |
+| Listening | Yes: Apple voices, Phonon; Kokoro once its model is downloaded |
 | Loading pages, Save of a new page | No |
 | Search suggestions, favicons | No (they quietly don't show) |
 
@@ -520,8 +521,8 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 
 All of it is user-initiated or for the article in view: article loads, Google search and the unofficial
 Google suggest endpoint (`suggestqueries.google.com`, while typing in the address field and only while Settings › Browsing › Search Suggestions is on: an ephemeral `URLSession`, no cookies, cache, credentials or referrer, nothing logged, one request per typing pause, in-flight request cancelled), favicons
-of visited and bookmarked sites, and the one-time voice model downloads: Phonon's zip (GitHub release of `gradium-ai/xn-ptts`) and Kokoro's model and voice packs (Hugging
-Face), asked first on cellular or Low Data Mode. No analytics.
+of visited and bookmarked sites, and Kokoro's one-time model and voice pack downloads (Hugging
+Face), asked first on cellular or Low Data Mode. Phonon's model is built into the app. No analytics.
 
 Extracted HTML is shown as Readability returns it; there is no separate sanitizer. Readability
 drops `<script>` elements but keeps inline handlers (`onerror`, `onclick`) and `javascript:`

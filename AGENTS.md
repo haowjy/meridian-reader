@@ -12,7 +12,12 @@ The Xcode project is generated: edit `project.yml`, never `MeridianReader.xcodep
 adding, moving or deleting a Swift file, run `xcodegen generate` and commit the regenerated project
 with the change.
 
+Phonon's model bundle ships in the app but is git-ignored (~170 MB): run
+`tools/fetch-phonon-bundle.sh` once per checkout (it puts it at `Resources/PhononBundle/`); the
+build fails without it (`docs/RELEASE.md`, "The Phonon model bundle").
+
 ```sh
+tools/fetch-phonon-bundle.sh   # once per checkout
 xcodegen generate
 xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -configuration Release \
   -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath <dd>
@@ -81,7 +86,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 | `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock, the compact chrome host), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
-| `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); models download at runtime |
+| `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); its model bundle ships in the app (`Resources/PhononBundle/`, fetched by `tools/fetch-phonon-bundle.sh`) |
 | `Resources/` | Readability scripts, voice previews, assets |
 | `docs/` | How the app behaves and why (below) |
 

@@ -95,7 +95,19 @@ struct EngineDescriptor: Sendable, Identifiable {
     /// Cache voice key of this engine's audio in `engineVoice` (nil: its default voice); nil for
     /// an engine that renders nothing ahead.
     func cacheVoiceID(engineVoice: String?) -> String? {
-        onDevice.map { "\($0.cacheVoicePrefix).\(engineVoice ?? defaultVoiceID ?? "default")" }
+        onDevice.map { "\($0.cacheVoiceNamespace).\(engineVoice ?? defaultVoiceID ?? "default")" }
+    }
+
+    /// The engine voice a cache voice key of this engine names, in any revision ("kokoro.af_heart"
+    /// → "af_heart", "phonon@1792483937.Zoey" → "Zoey"); nil for another engine's key.
+    func engineVoice(fromCacheVoice key: String) -> String? {
+        guard let prefix = onDevice?.cacheVoicePrefix, key.hasPrefix(prefix) else { return nil }
+        let rest = key.dropFirst(prefix.count)
+        switch rest.first {
+        case ".": return String(rest.dropFirst())
+        case "@": return rest.firstIndex(of: ".").map { String(rest[rest.index(after: $0)...]) }
+        default: return nil
+        }
     }
 }
 
@@ -104,12 +116,20 @@ struct OnDeviceTraits: Sendable {
     /// The voice half of the engine's `ArticleAudioCache` keys: "<prefix>.<engine voice id>",
     /// e.g. "kokoro.af_heart". Must stay stable per engine or existing caches stop matching.
     let cacheVoicePrefix: String
+    /// Which model renders the audio, for an engine whose model can change under the same voices:
+    /// part of every cache voice key ("phonon@1792483937.Zoey"), so audio another model rendered
+    /// never plays or counts as prepared for this one. Known without loading the model. nil: the
+    /// keys carry none ("kokoro.af_heart"). Changing it re-renders every article's audio.
+    var cacheRevision: String? = nil
     /// Per-call chunk sizing used by `TextChunker` (units = chars, digits ×3).
     let limits: TextChunker.Limits
     /// The engine can die uncatchably inside a model call: every call is wrapped in
     /// `EngineCrashGuard`, and this cause goes in the notice after a crash ("Kokoro stopped
     /// unexpectedly"). nil: not guarded.
     var crashNotice: String? = nil
+
+    /// A cache voice key up to its voice: the prefix, with the revision when there is one.
+    var cacheVoiceNamespace: String { cacheRevision.map { "\(cacheVoicePrefix)@\($0)" } ?? cacheVoicePrefix }
 }
 
 /// An engine a provider has removed. At launch (once, idempotent) the

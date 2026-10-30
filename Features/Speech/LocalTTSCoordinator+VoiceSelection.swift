@@ -51,11 +51,12 @@ extension LocalTTSCoordinator {
         engines.descriptor(selection.engine)?.cacheVoiceID(engineVoice: selection.voice)
     }
 
-    /// "kokoro.af_heart" → local.kokoro/af_heart; nil when no installed engine wrote it.
+    /// "kokoro.af_heart" → local.kokoro/af_heart (any revision of the engine's model); nil when no
+    /// installed engine wrote it.
     func selection(fromCacheVoice voice: String) -> VoiceSelection? {
         for d in engines.localDescriptors {
-            guard let prefix = d.onDevice?.cacheVoicePrefix, voice.hasPrefix(prefix + ".") else { continue }
-            return VoiceSelection(engine: d.id, voice: String(voice.dropFirst(prefix.count + 1)))
+            guard let engineVoice = d.engineVoice(fromCacheVoice: voice) else { continue }
+            return VoiceSelection(engine: d.id, voice: engineVoice)
         }
         return nil
     }

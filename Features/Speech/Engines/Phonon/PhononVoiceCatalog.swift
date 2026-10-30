@@ -1,6 +1,6 @@
 import Foundation
 
-/// Phonon 31m English voices shipped in `phonon-31m-en-coreml.zip` (Gradium release v0.4.0).
+/// Phonon 31m English voices in the shipped model bundle (Gradium release v0.4.0, `PhononModelStore`).
 /// Ids match the `.safetensors` file names (no extension). THE place to trim the Settings list.
 /// `curated` is the top of the picker (natural long-form reading voices, Zoey first and default);
 /// `more` is everything else in the bundle, shown under *More voices*.

@@ -23,7 +23,8 @@ packages:
     url: https://github.com/weichsel/ZIPFoundation
     exactVersion: 0.9.20
   ptts:
-    # Phonon 31m English on-device TTS (Core ML). Models download at runtime (~131 MB zip).
+    # Phonon 31m English on-device TTS (Core ML). Its model bundle ships in the app
+    # (Resources/PhononBundle, below).
     url: https://github.com/gradium-ai/xn-ptts.git
     exactVersion: 0.4.0
 targets:
@@ -45,6 +46,13 @@ targets:
         excludes:
           - Assets.xcassets
           - Brand/**
+          - PhononBundle
+          - PhononBundle/**
+      # Phonon's model bundle, copied as one folder (its .mlpackage files must not be compiled by
+      # Xcode). Git-ignored, ~170 MB: tools/fetch-phonon-bundle.sh puts it there; the build fails without it.
+      - path: Resources/PhononBundle
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: FluidAudio
         product: FluidAudio

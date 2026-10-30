@@ -26,7 +26,7 @@ final class PhononProvider: SpeechEngineProvider {
         id: .phonon,
         displayName: "Phonon (on-device)",
         shortName: "Phonon",
-        subtitle: "Recommended, ~131 MB download",
+        subtitle: "Recommended, built in",
         isRecommended: true,
         sortOrder: 10,
         voices: PhononVoiceCatalog.curated,
@@ -41,6 +41,7 @@ final class PhononProvider: SpeechEngineProvider {
         supportedLanguages: ["en"],
         onDevice: OnDeviceTraits(
             cacheVoicePrefix: "phonon",
+            cacheRevision: String(PhononModelStore.bundleBuilt),
             limits: .phonon,
             crashNotice: "Phonon stopped unexpectedly")
     )
@@ -54,20 +55,20 @@ final class PhononProvider: SpeechEngineProvider {
         return PhononHost(voice: voice ?? PhononVoiceCatalog.defaultVoice)
     }
 
-    func isInstalled(_ id: SpeechEngineID) -> Bool {
-        id == .phonon && PhononModelStore.filesLookInstalled
-    }
+    /// The model bundle ships in the app (`PhononModelStore`): always installed.
+    func isInstalled(_ id: SpeechEngineID) -> Bool { id == .phonon }
 
     func deleteModels(_ id: SpeechEngineID) throws {
         guard id == .phonon else { return }
-        PhononModelStore.shared.delete()
+        PhononModelStore.delete()
     }
 
-    /// Voices live inside the model bundle; once the bundle is installed every curated voice is present.
+    /// Every catalog voice is in the shipped bundle.
     func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
-        id == .phonon && PhononModelStore.filesLookInstalled
-            && PhononVoiceCatalog.all.contains(where: { $0.id == voice })
+        id == .phonon && PhononVoiceCatalog.all.contains(where: { $0.id == voice })
     }
+
+    var launchMigrations: [LaunchMigration] { [PhononDownloadLeftovers(), PhononCacheRevision()] }
 
     func debugSections(speech: SpeechController) -> AnyView {
         AnyView(EmptyView())

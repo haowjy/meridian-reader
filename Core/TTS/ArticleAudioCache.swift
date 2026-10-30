@@ -676,6 +676,32 @@ extension ArticleAudioCache {
         return report
     }
 
+    /// Rewrite cache voice keys in every index, for a voice library whose key format changed
+    /// (`rename`: the new key, nil to keep it). Only the indexes change; the files stay. Launch-time
+    /// only, like `purgeEngine`. `complete`: every index that needed it was written.
+    func renameVoices(_ rename: (String) -> String?) -> (articles: Int, complete: Bool) {
+        var articles = 0
+        var complete = true
+        for articleID in cachedArticleKeys() {
+            guard var index = readIndexFile(for: articleID) else { continue }
+            let before = index
+            index.voiceID = rename(index.voiceID) ?? index.voiceID
+            for i in index.paragraphs.indices {
+                if let voice = index.paragraphs[i].voiceID { index.paragraphs[i].voiceID = rename(voice) ?? voice }
+            }
+            guard index != before else { continue }
+            do {
+                try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
+                articles += 1
+            } catch {
+                complete = false
+            }
+            dropIndex(for: articleID)
+        }
+        if articles > 0 { bumpContentRevision() }
+        return (articles, complete)
+    }
+
     /// `index.json` as written (unverified), tolerating pre-engine-key files (no `engineID` →
     /// `legacyEngineID`).
     private func loadIndexLenient(for articleID: UUID) -> IndexFile? {

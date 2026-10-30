@@ -87,4 +87,46 @@ final class PrepareOverviewTests: XCTestCase {
         XCTAssertEqual(target, .article(key))
         XCTAssertEqual(String(decoding: try JSONEncoder().encode(target), as: UTF8.self), String(decoding: json, as: UTF8.self))
     }
+
+    /// Phonon's cache voice keys carry its model revision: audio another model rendered never
+    /// plays or counts as prepared, and the launch migration gives audio from before the revision
+    /// (the one model ever shipped) the current one, and no other.
+    @MainActor
+    func testAudioOfAnotherModelRevisionNeverCountsAsPrepared() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appending(path: "revision-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: root) }
+        let cache = ArticleAudioCache(root: root)
+        let paragraphs = ["One sentence.", "Another sentence."]
+        let engine = SpeechEngineID.phonon.rawValue
+        let current = try XCTUnwrap(PhononProvider.descriptor.cacheVoiceID(engineVoice: "Zoey"))
+        let plans = ChunkPlans { _ in .phonon }
+        func render(_ voice: String) throws -> UUID {
+            let key = UUID()
+            try fm.createDirectory(at: cache.directory(for: key), withIntermediateDirectories: true)
+            for i in paragraphs.indices {
+                try Data(count: 1024).write(to: cache.paragraphFileURL(articleID: key, paragraphIndex: i))
+                try cache.recordParagraph(articleID: key, paragraphIndex: i, duration: 1, engineID: engine, voiceID: voice,
+                                          textHash: ArticleIdentity.paragraphHash(paragraphs[i]), chunkDurations: nil)
+            }
+            return key
+        }
+        func missing(_ key: UUID) -> [Int] {
+            cache.missingParagraphs(articleID: key, paragraphs: paragraphs, engineID: engine, voiceID: current, plans: plans)
+        }
+
+        XCTAssertTrue(current.hasPrefix("phonon@\(PhononModelStore.bundleBuilt)."), current)
+        let rendered = try render(current)
+        let otherModel = try render("phonon@1.Zoey")
+        let beforeRevisions = try render("phonon.Zoey")
+        XCTAssertEqual(missing(rendered), [])
+        XCTAssertEqual(missing(otherModel), [0, 1], "another model's audio")
+        XCTAssertNil(cache.playableAudioURL(articleID: otherModel, paragraphIndex: 0, engineID: engine, voiceID: current))
+        XCTAssertEqual(missing(beforeRevisions), [0, 1], "no revision is not this one")
+
+        XCTAssertEqual(cache.renameVoices(PhononCacheRevision.renamed).articles, 1)
+        XCTAssertEqual(missing(beforeRevisions), [], "the one shipped model's audio, migrated")
+        XCTAssertEqual(missing(otherModel), [0, 1], "the migration never adopts another revision")
+        XCTAssertEqual(missing(rendered), [])
+    }
 }

@@ -157,8 +157,7 @@ final class EngineRegistry {
     /// Apple voice ("Apple").
     func voiceLabel(forCacheVoice voiceID: String) -> String {
         for d in descriptors {
-            guard let p = d.onDevice?.cacheVoicePrefix, voiceID.hasPrefix(p + ".") else { continue }
-            let voice = String(voiceID.dropFirst(p.count + 1))
+            guard let voice = d.engineVoice(fromCacheVoice: voiceID) else { continue }
             guard let label = d.allVoices.first(where: { $0.id == voice })?.label else { return d.shortName }
             return "\(d.shortName) \(label)"
         }
@@ -169,8 +168,7 @@ final class EngineRegistry {
     /// article's *Voice* row and the Prepared Audio list show).
     func voiceName(forCacheVoice voiceID: String) -> String {
         for d in descriptors {
-            guard let p = d.onDevice?.cacheVoicePrefix, voiceID.hasPrefix(p + ".") else { continue }
-            let voice = String(voiceID.dropFirst(p.count + 1))
+            guard let voice = d.engineVoice(fromCacheVoice: voiceID) else { continue }
             return d.allVoices.first(where: { $0.id == voice })?.label ?? d.shortName
         }
         return descriptor(.apple)?.shortName ?? "Apple"

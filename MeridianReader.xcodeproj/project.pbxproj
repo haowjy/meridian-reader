@@ -137,6 +137,7 @@
 		5B4B6AAE80EF251F38A44934 /* ListenAudioSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5CF58207C8EDEED6ACADF2 /* ListenAudioSession.swift */; };
 		5C76BE82C9E71DE64EE80863 /* SynthQueueContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D89382699C18C70046328D8 /* SynthQueueContext.swift */; };
 		5D4612CE44EA57E83BFFB880 /* OffscreenWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75797A66B0F3D2FC59A6183B /* OffscreenWebView.swift */; };
+		5DCD159A34408098BFF1BE8B /* PhononBundle in Resources */ = {isa = PBXBuildFile; fileRef = 16A0A1AF3F6CF7C446E33915 /* PhononBundle */; };
 		5EB7A1FEAA9D6B46960DA39C /* ListenSpot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232291C9F2DA50BB62574C3D /* ListenSpot.swift */; };
 		5F3B677B629286607FD58275 /* RecentSearches.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A9D247A3510D69F167D705 /* RecentSearches.swift */; };
 		6024E9155DAA66133BCE4CC4 /* LibraryStore+AudioWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = B769C9D5C2FB01507CB9C1BE /* LibraryStore+AudioWork.swift */; };
@@ -323,6 +324,7 @@
 		CFC74CD2A02A4732B761E082 /* LibraryStore+NowPlaying.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2337B62F2BA1B1410E8F0307 /* LibraryStore+NowPlaying.swift */; };
 		D014BC47D437556899BCFB9F /* LibraryStore+Favorites.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99B7BB54FA0495DB16287174 /* LibraryStore+Favorites.swift */; };
 		D02A6C5BBA2B17216ECCEF3C /* PrepareOverview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 613F6F5CF83C5F8C6256B00C /* PrepareOverview.swift */; };
+		D05CE006D3731645A9B34319 /* PhononLaunchMigrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25BFB93CCBFFE24300BC3301 /* PhononLaunchMigrations.swift */; };
 		D0D43834347B25BB8D1F317D /* ListenDebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34FCDBCEFBE4304029D2B80 /* ListenDebugSnapshot.swift */; };
 		D104CF1F6DA3BF37A8C52D9E /* voice-preview-kokoro-bm_fable.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E106CE193D53C1C3A4B78ED5 /* voice-preview-kokoro-bm_fable.m4a */; };
 		D231F317762F5A06976D553E /* ListenHTMLBlocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1D77F56B390F31EF269EC2 /* ListenHTMLBlocks.swift */; };
@@ -466,6 +468,7 @@
 		162528BA71A327798C08FDFB /* ArticleAudioCache+Split.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ArticleAudioCache+Split.swift"; sourceTree = "<group>"; };
 		163EED39DB94FCE35429022B /* URLPageFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLPageFetcher.swift; sourceTree = "<group>"; };
 		165855906CA15DD60E60E04F /* LocalEngineState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalEngineState.swift; sourceTree = "<group>"; };
+		16A0A1AF3F6CF7C446E33915 /* PhononBundle */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PhononBundle; path = Resources/PhononBundle; sourceTree = SOURCE_ROOT; };
 		16EDF90343AC029677F05346 /* PDFBookReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFBookReader.swift; sourceTree = "<group>"; };
 		18A177990C084F66F6156AA9 /* ArticleAudioCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleAudioCache.swift; sourceTree = "<group>"; };
 		18F8BB62E8A584A0007101F2 /* ChromeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeState.swift; sourceTree = "<group>"; };
@@ -493,6 +496,7 @@
 		2337B62F2BA1B1410E8F0307 /* LibraryStore+NowPlaying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryStore+NowPlaying.swift"; sourceTree = "<group>"; };
 		23CF110552C144E7CB55C458 /* NavigationWait.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationWait.swift; sourceTree = "<group>"; };
 		250C5787F3F0712067BB6853 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
+		25BFB93CCBFFE24300BC3301 /* PhononLaunchMigrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhononLaunchMigrations.swift; sourceTree = "<group>"; };
 		267C96DD0D0B292B96A431AF /* PhononHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhononHost.swift; sourceTree = "<group>"; };
 		279F986800E3EBE0B038BBB0 /* FollowPreviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowPreviewSheet.swift; sourceTree = "<group>"; };
 		27E4B75EEF75D37CA6E2894A /* ShellToastLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellToastLayer.swift; sourceTree = "<group>"; };
@@ -1443,6 +1447,7 @@
 			isa = PBXGroup;
 			children = (
 				267C96DD0D0B292B96A431AF /* PhononHost.swift */,
+				25BFB93CCBFFE24300BC3301 /* PhononLaunchMigrations.swift */,
 				9E8B73537492457896C6BAB9 /* PhononModelStore.swift */,
 				B586C0BF4290A714731191A0 /* PhononProvider.swift */,
 				1CD075ED48EFEE79D6126BF4 /* PhononSpokenText.swift */,
@@ -1674,6 +1679,7 @@
 			children = (
 				2FF508ED7473AE80BB2A261D /* Assets.xcassets */,
 				C29CB09F87A80051A2AF2A37 /* KokoroHeteronyms.json */,
+				16A0A1AF3F6CF7C446E33915 /* PhononBundle */,
 				0192CD856C23B05D5DAC8758 /* PrivacyInfo.xcprivacy */,
 				E448BC1C87B367F2AEF205BC /* WhatsNew.json */,
 				59AC1D40EF0A3B42B8353977 /* ContentBlocking */,
@@ -1813,6 +1819,7 @@
 				A01D110F7524B4B9674EDFEC /* Assets.xcassets in Resources */,
 				E08404B5414CC6B7AB8BF26D /* BlockAds.json in Resources */,
 				60AEE009B7A32911B3F3DCB3 /* KokoroHeteronyms.json in Resources */,
+				5DCD159A34408098BFF1BE8B /* PhononBundle in Resources */,
 				2C2A1A82D51B2F030A844B68 /* PrivacyInfo.xcprivacy in Resources */,
 				6E79063C5E33144C1F4B29F7 /* Readability-readerable.js in Resources */,
 				37651EE37D5549276D9A9B7F /* Readability.js in Resources */,
@@ -2081,6 +2088,7 @@
 				9B184CAA1E1BCA267B8028AC /* PendingBakeJobStore.swift in Sources */,
 				4DE0FAD488200F622837C4AA /* PersistentModel+Live.swift in Sources */,
 				75E2B3F04378DA6EDF33B3B2 /* PhononHost.swift in Sources */,
+				D05CE006D3731645A9B34319 /* PhononLaunchMigrations.swift in Sources */,
 				D9F32BC84B8B1401C69C5EC0 /* PhononModelStore.swift in Sources */,
 				E48F9E040CF45C8BC11FC233 /* PhononProvider.swift in Sources */,
 				C25F09D9044803E8A506F105 /* PhononSpokenText.swift in Sources */,
