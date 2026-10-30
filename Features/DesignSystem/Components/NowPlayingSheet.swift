@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// What you hear, opened up (`ReadingPage`): on regular width a `Sheet` over everything that
-/// shrinks back into the Now Playing bar, on compact width in place under the bottom chrome. In the
+/// shrinks back into the Now Playing bar, on compact width a cover over everything, chrome too. In the
 /// Reader's colours and type (the reading theme, `palette`): the spoken paragraph highlighted in
 /// full ink, the others dimmed.
 ///
@@ -88,8 +88,7 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     }
 }
 
-/// Jump to Audio: a round glass button a bar high (36 pt, tapped in 44), the app's round-button face (`chromeSurface`, the
-/// reading card's fill before iOS 26), an arrow that points to the spoken sentence. Its own view so
+/// Jump to Audio: a round glass button a bar high, on the chrome's shared circle face (`ChromeCircleFace`), an arrow that points to the spoken sentence. Its own view so
 /// it reads `chrome.hidden` in its own body: this page builds its overText before the compact chrome
 /// attaches (`ReadingChrome.attach`), so a read made by the page's body would only watch the
 /// sheet's own copy of full screen and miss the compact chrome's. It leaves with a fast fade the

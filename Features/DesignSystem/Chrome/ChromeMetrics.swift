@@ -5,12 +5,12 @@ import CoreGraphics
 /// reads from here: `ChromeLayout` places the pieces with them, and no other file holds a bar size.
 ///
 /// One shape language and one height: every floating piece is a Capsule or a Circle `barHeight`
-/// (36 pt) high (the pill, the search and address fields, ‹ ›, Listen, ⋯, ✕, the keyboard's row), so its
-/// corner radius is half that, and every one is tapped in `minTapTarget` (`hitOutset` past its edge).
-/// The rows sit low: the bottom row ends `edgeClearance` above the screen's edge, in the home
-/// indicator's strip. Scrolling down folds in steps: row 2 goes (the field drops to its place), then
+/// (48 pt, Safari's) high (the pill, the search and address fields, ‹ ›, Listen, ⋯, ✕, the keyboard's row), so its
+/// corner radius is half that, and every one is at least `minTapTarget` to tap.
+/// The bottom row ends `edgeClearance` above the screen's edge, on the home indicator's strip as
+/// Safari's does. Scrolling down folds in steps: row 2 goes (the field drops to its place), then
 /// the field goes into the domain strip (`stripHeight`), a line of text above the home indicator; a
-/// tap on it brings both rows back. Changing `barHeight` changes every piece and every footprint.
+/// tap on it, or a scroll up, brings both rows back. Changing `barHeight` changes every piece and every footprint.
 ///
 /// Footprints are measured from the screen's bottom edge (the home indicator's strip included);
 /// `aboveSafeArea` turns one into what a view laid out above the safe area keeps clear.
@@ -94,11 +94,11 @@ enum ChromeMetrics {
     static let cardRadius: CGFloat = 6 * unit
 
     /// What the chrome covers at the bottom of a scrolling screen, from the screen's edge: two rows,
-    /// the same on every destination, so a screen never resizes when the chrome folds (98 pt).
+    /// the same on every destination, so a screen never resizes when the chrome folds (142 pt).
     static let footprint: CGFloat = topPadding + barHeight + gap + barHeight + edgeClearance
-    /// One row: the keyboard's form, and the fold's first step (54 pt).
+    /// One row: the keyboard's form, and the fold's first step (86 pt).
     static let collapsedFootprint: CGFloat = topPadding + barHeight + edgeClearance
-    /// The fold's end: the strip (38 pt).
+    /// The fold's end: the strip (58 pt).
     static let stripFootprint: CGFloat = topPadding + stripHeight + edgeClearance
     /// What the chrome covers at a fold step (`ChromeScroll.drawnStep`): 0 two rows, 1 one row, 2 the strip.
     static func footprint(step: Int) -> CGFloat {
