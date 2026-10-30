@@ -29,14 +29,14 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   in UIKit. An article's *Remove from Library* takes the tint too: its row goes once the remove is stored, and a
   save that fails keeps it (a toast says so); with the role, the List would have taken the row
   out first and aborted on the update. `CoreFlowsUITests` swipe-removes a playing article, which stops.
-- **The home's lists are `LibraryQueries`' too**: the starred folders (`favoriteFolders`), the
+- **The home's lists are `LibraryQueries`' too**: the
   top level's folders (`topLevel`, a filter after the fetch: no predicate on `parent`), and the
   search (`searchPages`, `searchFolders`). The home picks the descriptors in its `init` from the
   tab and the search text; it filters nothing itself but `isLive`.
 - **Which lists an article is in is `LibraryQueries`' alone** (in the Library, played without saving,
   or removed: in none, nor the bar's resume, `lastPlayed`). *Remove* is one `LibraryStore.remove`
   from every path (rows, Edit, the Now Playing bar, and `PageActions`' 🔖 and ⋯ through
-  `LibraryActions.remove`); it never clears the star or deletes. Once it is saved, the article you
+  `LibraryActions.remove`); it never deletes. Once it is saved, the article you
   hear stops through the store's one playback hook (`stopPlaybackIfPlaying`, as a delete), and so
   does a session a waiting merge would move onto it (`keysWaitingToMerge`), so nothing shows a
   removed article playing. It stamps `removedAt`, so a played article doesn't come back
@@ -48,16 +48,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   loaded traps in SwiftData. Check `isLive` (`isDeleted` reads false again once the delete is
   saved): rows draw `DeletedRow`, a folder's screen `FolderGoneView`, and the home, folder
   screens and search keep only live models.
-- **One ☆ for pages: `FavoriteFlow`** (the browser's, the Reader's and Now Playing's ⋯ by
-  address, a row's menu by article): the same toasts, failure text and icon fetch everywhere, and
-  every label reads `Article.isFavorite`, the one flag Favorites lists (`LibraryQueries.favoritePages`,
-  in the Library or not). A row offers ☆ when the article is in the Library, has a web address, or is
-  starred already (`LibraryStore.canFavorite(_:)`), so a chapter can be starred and unstarred.
 - **Edit and the dialogs live in `LibraryScreenState`**, on the Library surface, shared through
   the environment: the bottom bar acts on the selection, and
-  `libraryDialogs` shows delete / rename / new folder once. The start page's Favorites tiles
-  hold one of their own (`BrowseStartView.favoritesScreen`), so a folder tile's *Rename…* and
-  *Delete Folder…* ask there. The delete question is
+  `libraryDialogs` shows delete / rename / new folder once. The delete question is
   `FolderDeletePrompt` (unit-tested): one destructive choice, deleting with contents (no keep-contents choice, D18).
 - **One ⋯ for the Library surface.** `LibraryScreenMenu` builds the panel's `MenuContext` for the
   screen on top: on a folder's screen the folder's own menu first (`FolderMenu.rows`), then the
@@ -97,7 +90,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   (`ListRow.trailingColumnPadding`).
 - **One menu definition per item kind** (decision C4): `PageMenu` and `FolderMenu` are each one
   ordered `[MenuRow]` (`rows`), and every way to that item's menu renders it: as a view
-  (`MenuRows`) in a row's ⋯ and `.contextMenu`, the folder header's *More*, a Favorites tile, a
+  (`MenuRows`) in a row's ⋯ and `.contextMenu`, the folder header's *More*, a
   History visit, the Now Playing bar; as the item block of the ⋯ panel (the folder's screen, the
   Reader, Now Playing, the browser). A place passes a `PageMenu.Place`, which only hides or dims
   rows; its own rows go in a block after. Add a row in the definition, never at an entry point.
@@ -146,10 +139,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   the mark it is given (dimmed tile and ↓ while preparing, ✓ badge once prepared).
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`PageProgress.of`); counts come from relationships, not fetches.
-- **D20 home:** `LibraryHomeView` renders the Everything / Favorites / Recent tab
+- **D20 home:** `LibraryHomeView` renders the Everything / Recent tab (shown as Library / History)
   (`ShellState.homeTab`, a `LibraryHomeTab`) over one folder/article collection, filtered by the
   band's search within that tab (`ShellState.librarySearch`, D22; `LibraryQueries.searchPages(_:in:)`).
-  Star flags never change location. Filtered (Favorites, Recent or a search), the list sets
+  Filtered (Recent or a search), the list sets
   `LibraryScreenKey.filtered(under: nil)` and the rows read it: none lifts or takes a drop, a row
   in a folder shows the folder's path (`place(of:)`), and a folder row pushes
   `LibraryStore.path(to:)`, so ‹ goes to its parent as from anywhere else. A search begun on a
@@ -161,5 +154,4 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a
   stack that can wrap; give every button a symbol. An article row is its title on one line and one
   status line, the second its site everywhere except in a book or series (`kind.isBookOrSeries`), whose header names the source; a folder you made mixes sites, so its rows keep theirs. Imported pages are standard page rows; folder sort remains
-  the source chapter order until the user changes it. The old Favorites folder is converted by
-  `LibraryStore.migrateFavoritesFolder` before the first screen.
+  the source chapter order until the user changes it.

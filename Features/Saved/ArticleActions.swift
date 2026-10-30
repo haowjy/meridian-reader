@@ -1,11 +1,11 @@
 import SwiftData
 import SwiftUI
 
-/// "This page", wherever it shows: a Library row, a Favorites tile, a History visit, the Now
-/// Playing bar, the Reader, Now Playing and the browser. What it is (saved, a favorite, its
-/// prepare) and what its menu (`ArticleMenu`), 🔖, ☆ and the Move tree do with it are decided here
-/// once. The places keep only what differs: the browser extracts its page before it saves it and
-/// stars it with the web view's title and icon (`loaded`), and Now Playing adds *Go to*.
+/// "This page", wherever it shows: a Library row, a History visit, the Now Playing bar, the
+/// Reader, Now Playing and the browser. What it is (saved, its prepare) and what its menu
+/// (`ArticleMenu`), 🔖 and the Move tree do with it are decided here once. The places keep only
+/// what differs: the browser extracts its page before it saves it (`loaded`), and Now Playing
+/// adds *Go to*.
 ///
 /// `article` is the page's Library page by the one rule, address first, then key
 /// (`LibraryStore.article(key:canonicalURL:)`; on screen, live, `ArticleLookup`). *Remove from Library*
@@ -27,14 +27,12 @@ struct ArticleActions {
     let preparedAudio: PrepareCenter
     let follow: FollowCenter
 
-    /// The browser's page before it is extracted: Save extracts it first, and ☆ takes the web
-    /// view's title and icon.
+    /// The browser's page before it is extracted: Save extracts it first.
     struct LoadedPage {
         /// It can be extracted now (a page is up and nothing else is extracting it).
         var canSave: Bool
         /// Extracts the page and saves it into the folder (nil: the top level).
         var save: (Folder?) -> Void
-        var toggleFavorite: () -> Void
     }
 
     /// `url` nil: the article's address, else the page's.
@@ -60,9 +58,6 @@ struct ArticleActions {
     /// In the Library (saved, or a link there such as a story's chapter): its menu offers
     /// *Remove from Library*, *Move to…* and *Prepare*.
     var isInLibrary: Bool { article?.isInLibrary == true }
-    var isFavorite: Bool { article?.isFavorite == true }
-    /// ☆ as the Library offers it: a web page, or a page in the Library (a chapter too).
-    var canFavorite: Bool { url.map(LibraryStore.canFavorite) == true || article.map(LibraryStore.canFavorite) == true }
     var shareURL: URL? { url.flatMap { $0.isWeb ? $0 : nil } }
     /// The article's own page, for ⋯ → Website (any loadable page URL, not just http(s)).
     var websiteURL: URL? {
@@ -111,7 +106,7 @@ struct ArticleActions {
     }
 
     /// *Remove from Library* / *Remove from Recent* (🔖 on a saved page, menus): the Library's one
-    /// remove (`LibraryActions.remove`). Its star, audio and spot stay; if it is the page you
+    /// remove (`LibraryActions.remove`). Its audio and spot stay; if it is the page you
     /// hear, playback stops, and Now Playing closes.
     func remove() {
         guard let article else { return }
@@ -130,20 +125,6 @@ struct ArticleActions {
         shell.present(.moveTo(MoveRequest(title: Verbs.title(Verbs.saveToFolder), current: nil) { [self] folder in
             save(.folder(folder))
         }))
-    }
-
-    /// ☆: in or out of Favorites (`FavoriteFlow`). A web page by its address, so a new favorite
-    /// keeps the article's icon; a chapter (no address) as the Library row's ☆ does.
-    func toggleFavorite() {
-        if let loaded { return loaded.toggleFavorite() }
-        let flow = FavoriteFlow(library: library, shell: shell)
-        if let url, LibraryStore.canFavorite(url) {
-            flow.toggle(url: url, title: readerArticle?.title ?? article?.givenTitle, artwork: readerArticle?.artwork ?? article?.artworkData) {
-                await FaviconFetcher.best(for: url, webView: nil)
-            }
-        } else if let article {
-            flow.toggle(article)
-        }
     }
 
     /// *Prepare* / *Remove Prepare*: *Remove Prepare* takes the page out of every prepare and
@@ -215,7 +196,7 @@ extension LibraryStore {
 
 /// The Library page a screen's page is, live: its address first, then its key, the rule
 /// `LibraryStore.article(key:canonicalURL:)` follows. Two one-row queries, so the screen follows a
-/// save, a remove or a ☆ made anywhere, and reads nothing else.
+/// save or a remove made anywhere, and reads nothing else.
 struct ArticleLookup<Content: View>: View {
     @Query private var byAddress: [Article]
     @Query private var byKey: [Article]

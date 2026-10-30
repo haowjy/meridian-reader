@@ -6,9 +6,9 @@ changing the shell code.
 - **`ShellState` is the navigation model** (what you see). Surface (browser, library, or Settings on
   compact width, with its pushed pages `settingsPath` and Search Settings `settingsSearch`) and the
   Library's path (`libraryPath`, bound to the Library's `NavigationStack`), the home's tab
-  (`homeTab`: `showFavorites` selects Favorites, `showLibrary(at:)` Everything, `openLibrary`
-  keeps it; stored under `library.homeTab`, the two-tab Bool key read once and removed; both close a page
-  open in Library Read, since a place asked for by name must show), the Reader sheet and
+  (`homeTab`: `showLibrary(at:)` selects Everything, `openLibrary` keeps it; stored under
+  `library.homeTab`, where an older build's `"favorites"` reads as Everything; `showLibrary(at:)`
+  closes a page open in Library Read, since a place asked for by name must show), the Reader sheet and
   its `ReaderOrigin` (derived from the surface), Now Playing, the one other sheet and the toast.
   Add a screen by adding a case here, not a presentation flag in a view. The surface,
   path and tab are written to `SurfaceMemoryStore` on every change and restored at launch (D10); a UI-test

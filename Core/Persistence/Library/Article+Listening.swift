@@ -19,7 +19,7 @@ extension Article {
         finishedAt == nil ? ListenSpot(paragraph: positionParagraph, utf16Offset: positionUTF16) : .top
     }
 
-    /// Saved in the Library: what the reader's 🔖 and ⋯ → Save show as saved. A link (a favorite
+    /// Saved in the Library: what the reader's 🔖 and ⋯ → Save show as saved. A link (an address
     /// only) or a page played without saving isn't.
     var isSavedToLibrary: Bool { isSaved && isInLibrary }
 }

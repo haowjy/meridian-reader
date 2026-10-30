@@ -1,7 +1,7 @@
 import Foundation
 
 /// A site bookmark as `bookmarks.json` stores it (URL, title, icon). **Frozen:** the library
-/// migration copied the file into Favorites (link pages) and nothing writes it again, so a
+/// migration copied the file into the Library (link pages) and nothing writes it again, so a
 /// rollback to an older build finds its bookmarks as it left them.
 struct SiteBookmark: Codable, Identifiable, Equatable {
     var id: UUID = UUID()

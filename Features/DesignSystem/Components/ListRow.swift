@@ -47,7 +47,7 @@ struct ListRow: View {
         case article(artwork: Image? = nil, letter: String)
         /// A chapter in a book's preview: its title alone, after an empty mark's width.
         case chapter
-        /// A page that is only an address so far (a link ☆ made, a chapter not fetched).
+        /// A page that is only an address so far (a saved address, a chapter not fetched).
         case link
     }
 
@@ -77,7 +77,6 @@ struct ListRow: View {
     var insertionEdge: VerticalEdge?
     /// Where its prepare stands: the dimmed thumbnail while preparing, the ↓ badge once done.
     var prepare: PrepareState = .notPrepared
-    var isFavorite = false
     var folderHasDetails = false
     /// The rows of its ⋯ menu, the same as its long press (nil: no ⋯, as in Edit).
     var menu: AnyView?
@@ -114,19 +113,11 @@ struct ListRow: View {
                 prepareLeading
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: Spacing.xs) {
-                        Text(title)
-                            .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
-                            .foregroundStyle(titleColor)
-                            .lineLimit(1)
-                            .accessibilityValue(accessibilityStatus)
-                        if isFavorite {
-                            Image(systemName: Icons.favorited)
-                                .font(.caption)
-                                .foregroundStyle(Palette.accent)
-                                .accessibilityHidden(true)
-                        }
-                    }
+                    Text(title)
+                        .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
+                        .foregroundStyle(titleColor)
+                        .lineLimit(1)
+                        .accessibilityValue(accessibilityStatus)
                     secondLine
                         .accessibilityHidden(true)
                 }
@@ -429,7 +420,7 @@ struct ListRowGallery: View {
         PreviewGallery {
             PreviewState("folder") {
                 ListRow(kind: .folder(count: ["4 pages"]), title: "Bonds", menu: menu)
-                ListRow(kind: .folder(symbol: Icons.favorited, count: ["12 pages"]), title: "Favorites", menu: menu)
+                ListRow(kind: .folder(symbol: Icons.folder, count: ["12 pages"]), title: "Reading list", menu: menu)
                 ListRow(kind: .folder(count: ["Empty"], cover: Image(systemName: Icons.photo)), title: "A book with a cover",
                         menu: menu)
             }

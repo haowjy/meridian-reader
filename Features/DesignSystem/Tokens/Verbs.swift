@@ -23,7 +23,6 @@ import Foundation
 /// | Prepare / Remove Prepare (a page, its menu and its prepare in the list) | `Icons.prepare` / `Icons.removePrepare` |
 /// | Prepare / Turn Off Prepare (a folder) | `Icons.prepare` / `Icons.turnOffPrepare` |
 /// | Remove Prepared audio (a folder, its menu and its prepare in the list) | `Icons.removePrepare` |
-/// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
 /// | Move to… / Save to Folder… | `Icons.move` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
 /// | Mark All Above as Finished | `Icons.markAllAboveFinished` |
@@ -68,8 +67,6 @@ enum Verbs {
     /// reads before a prepared row's line two.
     static let prepared = String(localized: "Prepared")
     static let turnOffPrepare = String(localized: "Turn Off Prepare Audio")
-    static let addToFavorites = String(localized: "Add to Favorites")
-    static let removeFromFavorites = String(localized: "Remove from Favorites")
     static let moveTo = String(localized: "Move to…")
     /// The Move tree when it saves a page into the folder picked (🔖 held, a menu's row).
     static let saveToFolder = String(localized: "Save to Folder…")
@@ -84,8 +81,7 @@ enum Verbs {
     static let select = String(localized: "Select")
     static let saveToLibrary = String(localized: "Save to Library")
     static let removeFromLibrary = String(localized: "Remove from Library")
-    /// A page out of the Library: the same remove as *Remove from Library* (in no list after,
-    /// the star kept).
+    /// A page out of the Library: the same remove as *Remove from Library* (in no list after).
     static let removeFromRecent = String(localized: "Remove from History")
     static let stopListening = String(localized: "Stop Listening")
     /// Edit's bar: the selected pages removed from the Library, the selected folders deleted
@@ -139,13 +135,14 @@ enum Verbs {
     /// The ⋯ panel's last rows and the screens they open.
     static let preparedAudio = String(localized: "Prepared Audio")
     static let settings = String(localized: "Settings")
-    static let favorites = String(localized: "Favorites")
     /// The browser's: pages visited.
     /// The visits sheet's button and title: *Recent*, as the Library's tab (C100).
     static let history = String(localized: "History")
     static let removeFromHistory = String(localized: "Remove from History")
     /// The start page's and the search layer's section of searches made, and its action.
     static let recentSearches = String(localized: "Recent Searches")
+    /// The start page's sites with the most pages in History.
+    static let frequentlyVisited = String(localized: "Frequently Visited")
     static let clearAll = String(localized: "Clear All")
     /// The two surfaces, as the swap, the back pill and the ⋯'s big button name them; *Library*
     /// is also the home's title and Now Playing's *Go to*.

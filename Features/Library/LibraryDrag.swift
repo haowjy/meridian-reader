@@ -14,7 +14,7 @@ import UniformTypeIdentifiers
 ///   middle, into it). An accent line marks the place (`ListRow.insertionEdge`). Placing a page
 ///   makes its folder's sort *Manual*, numbered first as the screen showed it, so it lands where
 ///   it was let go (`LibraryStore.arrange`).
-/// - What doesn't drag: the home's Favorites tab and search results (`LibraryScreenKey.filtered`:
+/// - What doesn't drag: the home's History tab and search results (`LibraryScreenKey.filtered`:
 ///   their rows come from across the tree, so a place beside one isn't a place in it), a page
 ///   played without saving (not in the Library), any row in Edit (which has its own drag
 ///   handles). A book's or series' chapters drag as any page.
@@ -47,7 +47,7 @@ extension LibraryItemID {
 enum LibraryScreenKey: Hashable {
     case home
     case route(LibraryRoute)
-    /// The home filtered, on its Favorites tab or by a search (`under` nil), or a folder's search
+    /// The home filtered, on its History tab or by a search (`under` nil), or a folder's search
     /// (`under` its id): rows from anywhere in the tree or below the folder, each showing where it
     /// is (`place(of:)`). None lifts or takes a drop (the zone looks for `.home`), and a folder row
     /// opens under its parents (`LibraryStore.path(to:)`).

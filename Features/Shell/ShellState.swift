@@ -109,7 +109,7 @@ struct MoveRequest: Identifiable, Equatable {
     static func == (a: MoveRequest, b: MoveRequest) -> Bool { a.id == b.id }
 }
 
-/// A short message over the bottom chrome ("Added to Favorites"), with an optional action button.
+/// A short message over the bottom chrome ("Nothing to listen to on this page"), with an optional action button.
 struct ShellToast: Identifiable, Equatable {
     let id = UUID()
     var message: String
@@ -165,8 +165,7 @@ final class ShellState {
     /// the home, which searches its tab). It ends once that folder leaves the path.
     private(set) var librarySearchFolder: UUID?
     /// The Library home's tab (`LibraryHomeTab`). Its picker sets it; going to a place in the
-    /// Library shows Everything (`showLibrary(at:)`), ⋯ → Favorites shows Favorites
-    /// (`showFavorites`), and 📚 keeps it. Remembered with the surface.
+    /// Library shows Everything (`showLibrary(at:)`), and 📚 keeps it. Remembered with the surface.
     var homeTab = LibraryHomeTab.everything {
         didSet { memory?.saveHomeTab(homeTab) }
     }
@@ -505,23 +504,15 @@ final class ShellState {
         if kept != libraryPath { libraryPath = kept }
     }
 
-    /// A place in the Library (*Go to* a folder or the Library, a favorite folder's tile, an
-    /// imported book): the Library at `path` (a folder pushed under the folders above it, or
-    /// `[]` for the home), on Everything, where every place shows.
+    /// A place in the Library (*Go to* a folder or the Library, an imported book): the Library at
+    /// `path` (a folder pushed under the folders above it, or `[]` for the home), on Everything,
+    /// where every place shows.
     func showLibrary(at path: [LibraryRoute]) {
         openLibrary()
         // A place in the Library asked for by name: a page read in place would cover it.
         closeLibraryReader()
         libraryPath = path
         homeTab = .everything
-    }
-
-    /// ⋯ → Favorites, the start page's *Show All*: the Library home on its Favorites tab.
-    func showFavorites() {
-        openLibrary()
-        closeLibraryReader()
-        libraryPath = []
-        homeTab = .favorites
     }
 
     // MARK: - Surfaces
@@ -727,7 +718,7 @@ final class ShellState {
 
     // MARK: - Library pages
 
-    /// A library page in the Reader (a row, a favorite): shown as soon as
+    /// A library page in the Reader (a row): shown as soon as
     /// the page is read; older pages build their listen blocks afterwards.
     func openSaved(_ id: UUID, in library: LibraryStore, inPlace: Bool = false) {
         Task {

@@ -86,7 +86,7 @@ struct SectionHeaderGallery: View {
         PreviewGallery {
             PreviewState("title only") { SectionHeader(title: "Chapters") }
             PreviewState("page size, the start page") {
-                SectionHeader(title: "Favorites", size: .page, actionTitle: "Show All", actionNavigates: true)
+                SectionHeader(title: "Frequently Visited", size: .page, actionTitle: "Show All", actionNavigates: true)
             }
             PreviewState("with Show All") {
                 SectionHeader(title: "Pages", count: 48, actionTitle: "Show All", actionNavigates: true)

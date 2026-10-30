@@ -82,15 +82,13 @@ enum LaunchHooks {
         if let funds = save("Money Market Funds", slug: "funds", in: finance) { try? library.setFinished([funds], true) }
         _ = save("Index Funds", slug: "index", in: finance)
         yield?.lastPlayedAt = .now.addingTimeInterval(-3600)
-        try? library.toggleFavorite(finance)
         library.commit("demo folders seed")
     }
 
-    /// After the migrations, before crash resume: bake, bookmarks, and where the app starts.
+    /// After the migrations, before crash resume: bake, History, and where the app starts.
     static func runAfterMigrations(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
                                    shell: ShellState) {
         if let prefix = options.bakeArticlePrefix { bakeArticle(prefix: prefix, in: library, speech: speech) }
-        if options.seedsBookmarks { seedBookmarks(in: library) }
         if options.seedsHistory { seedHistory(in: library) }
         if options.servesTestPages, !options.restoresSurface, let url = URL(string: "reader-test://pages/one") {
             shell.navigate(to: url)
@@ -326,29 +324,15 @@ enum LaunchHooks {
         speech.localTTS.startBakeIfNeeded(articleID: article.listenKey, paragraphs: paragraphs)
     }
 
-    /// `-seedBookmarks`: five starred links on `example.com` hosts. They count as this launch's
-    /// icon fetch already tried (`LibraryStore.iconTried`), so their icons stay letter tiles and
-    /// nothing goes to the network for them.
-    static func seedBookmarks(in library: LibraryStore) {
-        let seeds = [
-            ("https://books.example.com/", "Public Domain Books"),
-            ("https://wiki.example.com/Speech_synthesis", "Speech synthesis"),
-            ("https://news.example.com/", "News Front Page"),
-            ("https://tech.example.com/", "Tech Review"),
-            ("https://example.com/", "Example"),
-        ]
-        for (address, title) in seeds {
-            guard let url = URL(string: address), let article = try? library.addFavorite(url: url, title: title, artwork: nil),
-                  let key = article.key else { continue }
-            library.iconTried.insert(key)
-        }
-    }
-
-    /// `-seedHistory`: three visits on `example.com` hosts, newest last, the last one untitled.
+    /// `-seedHistory`: six visits on three `example.com` hosts (three pages on one, two on
+    /// another, one on the third), newest last, the last one untitled.
     static func seedHistory(in library: LibraryStore) {
         let visits: [(String, String?)] = [
             ("https://wiki.example.com/Speech_synthesis", "Speech synthesis"),
+            ("https://news.example.com/2026/10/18/harbour", "Harbour Works Begin"),
+            ("https://wiki.example.com/Phoneme", "Phoneme"),
             ("https://example.com/", "Example"),
+            ("https://wiki.example.com/Prosody", "Prosody"),
             ("https://news.example.com/2026/10/19/tides", nil),
         ]
         for (address, title) in visits {

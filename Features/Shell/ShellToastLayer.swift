@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// The shell's toast (`ShellState.toast`), floating just above the bottom chrome it is attached
-/// to (`.overlay(alignment: .top)` on a band): the browser's, the Library's, the Favorites
-/// sheet's, the Reader's and Now Playing's (their `floating` slot). The Move tree and the import
-/// sheet have none, so their toast floats a toolbar row above the sheet's bottom
+/// to (`.overlay(alignment: .top)` on a band): the browser's, the Library's, the Reader's and Now
+/// Playing's (their `floating` slot). The Move tree and the import sheet have none, so their
+/// toast floats a toolbar row above the sheet's bottom
 /// (`sheetToastLayer()`). It goes by itself after `Toast.duration` (longer when it has an
 /// action); a layer that disappears meanwhile doesn't take it with it (`ShellState.expireToast`).
 struct ShellToastLayer: View {

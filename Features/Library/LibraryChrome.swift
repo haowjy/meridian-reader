@@ -35,14 +35,12 @@ struct LibraryChrome {
     /// of it (*New Folder…*, *Import from…*, *Paste Text…*).
     var compactMenu: MenuContext {
         var menu = screenMenu.menu(compact: true)
-        // Favorites only lists starred items; nothing is created there (C150).
-        let creates = !(shell.libraryPath.isEmpty && shell.homeTab == .favorites)
-        menu.screen = (creates ? screenMenu.createRows : []) + menu.screen
+        menu.screen = screenMenu.createRows + menu.screen
         return menu
     }
 
     /// What the folded chrome's bubble names: the article being read in place, else the folder on top, else the
-    /// home's tab (Library, Favorites, Recent).
+    /// home's tab (Library, History).
     var bubbleTitle: String {
         let name: String?
         if let article = shell.libraryReader { name = article.title ?? article.sourceLabel } else { name = screenMenu.topFolder?.name }

@@ -15,7 +15,7 @@ import SwiftUI
 /// prepared. Swipe left removes it from the Library, and from every list it shows in
 /// (`LibraryQueries`). A page in the Library lifts into a drag from the long press, to be filed in
 /// a folder or placed between rows (`LibraryDrag`), a chapter as any page (decision D19); not on
-/// the home's Favorites tab or in search results (`LibraryScreenKey.filtered`), where a page in a
+/// the home's History tab or in search results (`LibraryScreenKey.filtered`), where a page in a
 /// folder shows the folder's path instead of its site. While its screen is in Edit the List's
 /// selection takes the tap, and the row has no ⋯.
 struct LibraryArticleRow: View {
@@ -36,8 +36,6 @@ struct LibraryArticleRow: View {
         guard !screenKey.isFiltered, !isEditing, article.isInLibrary else { return nil }
         return .article(article.listenKey)
     }
-    /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         RenderTiming.measure(.articleRow) { content }
@@ -81,7 +79,7 @@ struct LibraryArticleRow: View {
                 progress: article.isLink ? .unplayed(minutes: nil) : actions.progress(of: article),
                 playState: playState,
                 insertionEdge: screen.insertion?.id == .article(article.listenKey) ? screen.insertion?.edge : nil,
-                prepare: preparedAudio.state(of: article), isFavorite: marksFavorite && article.isFavorite,
+                prepare: preparedAudio.state(of: article),
                 menu: isEditing ? nil : AnyView(menu),
                 editHandle: isEditing ? AnyView(EditDragHandle(id: .article(article.listenKey), screen: screen)) : nil)
             .opensOnTap(isEditing ? nil : { actions.tap(article) })
@@ -116,7 +114,7 @@ struct LibraryArticleRow: View {
 /// and *Play from Start*), the same menu as its long press, which also lifts it into a drag; a
 /// dragged row let go on it is filed in it. Its prepare shows as a page's does: dimmed under a
 /// jade ↓ while its prepare runs, a accent filled ↓ once every page it covers is prepared; Prepare
-/// itself is in its screen's header. Swipe left asks to delete it. On the home's Favorites tab or in search results
+/// itself is in its screen's header. Swipe left asks to delete it. In search results
 /// (`LibraryScreenKey.filtered`) a nested folder shows its parents' path, opens under them, so ‹
 /// goes to its parent, and doesn't lift.
 struct LibraryFolderRow: View {
@@ -138,8 +136,6 @@ struct LibraryFolderRow: View {
     private var isFiltered: Bool { screenKey.isFiltered }
     /// Where it is on a filtered list (`LibraryScreenKey.place(of:)`; nil at the top level).
     private var location: String? { screenKey.place(of: folder.parent) }
-    /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         RenderTiming.measure(.folderRow) { content }
@@ -193,7 +189,7 @@ struct LibraryFolderRow: View {
                        playState: plays ? actions.playState(of: folder) : .idle,
                        isDropTarget: screen.dropTarget == folder.id,
                        insertionEdge: screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil,
-                       prepare: prepare, isFavorite: marksFavorite && folder.isFavorite,
+                       prepare: prepare,
                        folderHasDetails: folder.hasDetails, menu: menu,
                        menuAnchor: AnyView(Color.clear.turnOffPrepareQuestion($turningOff)),
                        editHandle: editHandle)

@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// Regular-width left column (~280 pt): Library / Browse surface swap, Favorites + folder tree,
+/// Regular-width left column (~280 pt): Library / Browse surface swap, the folder tree,
 /// Search, Settings. Compact devices never show this; they keep today's bottom band.
 struct RegularShellSidebar: View {
     @Environment(ShellState.self) private var shell
@@ -38,12 +38,6 @@ struct RegularShellSidebar: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    sidebarButton(title: Verbs.favorites, symbol: Icons.favorited,
-                                  identifier: "sidebarFavorites",
-                                  selected: shell.isInLibrary && shell.homeTab == .favorites
-                                      && shell.libraryPath.isEmpty,
-                                  action: shell.showFavorites)
-
                     ForEach(topFolders, id: \.id) { folder in
                         sidebarButton(title: folder.name, symbol: Icons.folder,
                                       identifier: "sidebarFolder-\(folder.id.uuidString)",

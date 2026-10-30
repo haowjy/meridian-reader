@@ -97,7 +97,6 @@ struct LibrarySurface: View {
                     }
                     .accessibilityLabel("Add")
                     .accessibilityIdentifier("libraryAdd")
-                    .disabled(shell.libraryPath.isEmpty && shell.homeTab == .favorites)
                 }
                 BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
                                   identifier: "libraryHistory") { shell.present(.history) }

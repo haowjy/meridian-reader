@@ -14,7 +14,7 @@ import SwiftUI
 ///   arrow then; on regular width the floating button). Scrubbing scrolls to the
 ///   paragraph under the thumb.
 /// - On regular width the close pill names where the page plays from: a page in a folder plays from that folder (a
-///   book, a series, Favorites, a folder you made), a saved page in no folder from the Library,
+///   book, a series, a folder you made), a saved page in no folder from the Library,
 ///   a page you haven't saved from its site. ⋯ → *Go to <name>* opens the Library at the folder
 ///   or the Library; for a site, ⋯ → Website opens the page in the browser.
 /// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎

@@ -3,7 +3,7 @@
 Every menu option is defined once, in `MenuRegistry` (`Features/DesignSystem/Components/MenuRegistry.swift`, decision C98). An option's spec says:
 
 - **kind**: article, folder, prepare or screen;
-- **places**: where it can ever show (`row`, `tile`, `bar`, `history`, `reader`, `nowPlaying`, `browser`, `header`, `libraryHome`, `folderScreen`, `prepared audio`);
+- **places**: where it can ever show (`row`, `bar`, `history`, `reader`, `nowPlaying`, `browser`, `header`, `libraryHome`, `folderScreen`, `prepared audio`);
 - **applies**: a fact about the item that no state change in that place undoes (an article in no folder never gets *Playback ›*; an article in the Library never gets *Remove from History* (the tab)); false hides it;
 - **enabled**: whether it can run now; false greys it out;
 - order (the spec order), block (a divider before block 1) and parent (a submenu).
@@ -16,16 +16,16 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 ## The menus (C98)
 
-- **Page** (row ⋯ and long press, Favorites tile, Now Playing bar, History, Reader, Now Playing, browser): Read (from the Library: in place, no destination switch), Prepare / Remove Prepared Audio, Voice: <name> (C138), Favorites, Move to… / Save to Folder…, Mark as Finished, Playback › (Mark All Above as Finished in a list row, Skip in Playback; a page in a folder only), Share, Save / Remove from Library (not in the Reader, Now Playing or the browser: the bookmark is there), Remove from History (the History tab; out of the Library). The bar adds Stop Listening, a browser History visit adds its own Remove from History, and Now Playing has Go to <folder> instead of Read. Listen (`nowPlaying`) keeps to Go to, Favorites, Save to Folder…, Mark as Finished, then Share in a block of its own: Voice is on its card, and Prepare, Voice, Playback and Remove from Recent are left out.
-- **Folder** row and tile (an imported EPUB or followed story is a folder too, the same menu: C100): Continue, Prepare / Turn Off Prepare / Remove Prepared Audio (one row by state), Voice: <name> (a book or series only, C138), Favorites, Move to…, Edit Details… (holds the name), Delete.
-- **Folder header More**: Play from Start, Remove Prepared Audio, Voice: <name> (a book or series), Favorites, Move to…, Edit Details…, Delete, then the create group into this folder (C126).
+- **Page** (row ⋯ and long press, Now Playing bar, History, Reader, Now Playing, browser): Read (from the Library: in place, no destination switch), Prepare / Remove Prepared Audio, Voice: <name> (C138), Move to… / Save to Folder…, Mark as Finished, Playback › (Mark All Above as Finished in a list row, Skip in Playback; a page in a folder only), Share, Save / Remove from Library (not in the Reader, Now Playing or the browser: the bookmark is there), Remove from History (the History tab; out of the Library). The bar adds Stop Listening, a browser History visit adds its own Remove from History, and Now Playing has Go to <folder> instead of Read. Listen (`nowPlaying`) keeps to Go to, Save to Folder…, Mark as Finished, then Share in a block of its own: Voice is on its card, and Prepare, Voice, Playback and Remove from Recent are left out.
+- **Folder** row (an imported EPUB or followed story is a folder too, the same menu: C100): Continue, Prepare / Turn Off Prepare / Remove Prepared Audio (one row by state), Voice: <name> (a book or series only, C138), Move to…, Edit Details… (holds the name), Delete.
+- **Folder header More**: Play from Start, Remove Prepared Audio, Voice: <name> (a book or series), Move to…, Edit Details…, Delete, then the create group into this folder (C126).
 - **Library home ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Listen]; on compact width (the title line's ⋯, a system menu) the create group first, then Sort ›, Prepared Audio, Saved, History, Listen (no Settings: the chrome's pill has it; regular width has 🕘). Listen goes to Now Playing when audio is playing, greyed otherwise. Saved opens the Library home (already there: harmless).
 - **Folder screen ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Listen]; on compact width (beside Edit in the navigation bar, and Library Read's round ⋯) as the Library home's. Listen goes to Now Playing when audio is playing, greyed otherwise.
 - **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB/PDF file picker), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127). Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; shown in every folder including imported EPUBs and followed stories (C149). Follow… and Save from Website… are not here; users do those from the browser.
 - **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
-- **Reader / Now Playing ⋯** (`ReadingPageMoreButton`, the transport's ⋯ at regular width): the article's options, then the Reader's Prepared Audio, then [Settings][Saved][Listen]. Listen is disabled (already there). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
-- **Listen ⋯** (compact width, the player card's `listenMore`): a system menu, no tiles: *Play from a Paragraph*, then the article's options at `nowPlaying` (Go to …, Favorites, Save to Folder…, Mark as Finished; Share), a section each.
+- **Reader / Now Playing ⋯** (`ReadingPageMoreButton`, the transport's ⋯ at regular width): the article's options, then the Reader's Prepared Audio, then [Settings][Saved][Listen]. Listen is disabled (already there). Website stays reachable via Share in the article's own rows.
+- **Listen ⋯** (compact width, the player card's `listenMore`): a system menu, no tiles: *Play from a Paragraph*, then the article's options at `nowPlaying` (Go to …, Save to Folder…, Mark as Finished; Share), a section each.
 - **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, then [Settings][Saved][Reader] (regular width has 🕘). Reader opens the current page in the Reader (greyed when the page isn't readable). No New Search: a tap on the address field starts one. Compact width has no ⋯: a press and hold on the field's leading glyph (the reader icon, or 🔍) opens Open in Reader (Show Web Page), Listen, then the page's options, the screen's rows, Saved and History.
 - **Settings ⋯** (compact width, its title line): Saved, History, Listen (Settings has no rows of its own).
 - **Prepare on a page out of the Library** (C104): enabled; it saves the page to the Library's top level first. Grey only on a browser page not yet loaded as a page.
@@ -42,27 +42,10 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | read | never | no page or address |
 | prepare | never | nothing to save yet (downloading saves it, C104) |
 | voice | no page (a page in the browser only) | Apple's voice is selected |
-| favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
 | playback | not in a folder | neither row inside can run |
 | playback › markAllAbove | not in a folder; outside a list row | not saved |
-| playback › skip | not in a folder | not saved and not a waiting chapter |
-| share | no web address | never |
-| save | never | nothing to save yet |
-| removeFromRecent | in the Library | not in Recent |
-
-### article at tile
-
-| Option | Hidden when | Greyed when |
-|---|---|---|
-| read | never | no page or address |
-| prepare | never | nothing to save yet (downloading saves it, C104) |
-| voice | no page (a page in the browser only) | Apple's voice is selected |
-| favorite | never | it can’t be starred |
-| move | never | nothing to save yet |
-| finished | never | not saved |
-| playback | not in a folder | neither row inside can run |
 | playback › skip | not in a folder | not saved and not a waiting chapter |
 | share | no web address | never |
 | save | never | nothing to save yet |
@@ -75,7 +58,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | read | never | no page or address |
 | prepare | never | nothing to save yet (downloading saves it, C104) |
 | voice | no page (a page in the browser only) | Apple's voice is selected |
-| favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
 | playback | not in a folder | neither row inside can run |
@@ -92,7 +74,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | read | never | no page or address |
 | prepare | never | nothing to save yet (downloading saves it, C104) |
 | voice | no page (a page in the browser only) | Apple's voice is selected |
-| favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
 | playback | not in a folder | neither row inside can run |
@@ -108,7 +89,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 |---|---|---|
 | prepare | never | nothing to save yet (downloading saves it, C104) |
 | voice | no page (a page in the browser only) | Apple's voice is selected |
-| favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
 | playback | not in a folder | neither row inside can run |
@@ -121,7 +101,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | goTo | never | nowhere to go |
-| favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
 | share | no web address | never |
@@ -132,7 +111,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 |---|---|---|
 | prepare | never | nothing to save yet (downloading saves it, C104) |
 | voice | no page (a page in the browser only) | Apple's voice is selected |
-| favorite | never | it can’t be starred |
 | move | never | nothing to save yet |
 | finished | never | not saved |
 | playback | not in a folder | neither row inside can run |
@@ -147,19 +125,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | continueFolder | never | nothing in it plays |
 | folderPrepare | never | empty, nothing downloaded, toggle off |
 | folderVoice | a plain folder (each article keeps its own voice) | Apple's voice is selected |
-| folderFavorite | never | never |
-| folderMove | never | never |
-| editDetails | never | never |
-| deleteFolder | never | never |
-
-### folder at tile
-
-| Option | Hidden when | Greyed when |
-|---|---|---|
-| continueFolder | never | nothing in it plays |
-| folderPrepare | never | empty, nothing downloaded, toggle off |
-| folderVoice | a plain folder (each article keeps its own voice) | Apple's voice is selected |
-| folderFavorite | never | never |
 | folderMove | never | never |
 | editDetails | never | never |
 | deleteFolder | never | never |
@@ -171,7 +136,6 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | playFromStart | never | nothing in it plays |
 | removePreparedAudio | never | nothing downloaded or downloading |
 | folderVoice | a plain folder (each article keeps its own voice) | Apple's voice is selected |
-| folderFavorite | never | never |
 | folderMove | never | never |
 | editDetails | never | never |
 | deleteFolder | never | never |

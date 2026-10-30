@@ -10,8 +10,6 @@ struct ArticleMenu: View {
     enum Place {
         /// A Library list's row (every tab, search, a folder's screen).
         case list
-        /// A Favorites tile on the start page.
-        case elsewhere
         /// The Now Playing bar's long press; `onStop`: *Stop Listening* (nil: nothing loaded).
         case bar(onStop: (() -> Void)?)
         /// A History visit; `onRemove`: *Remove from History*.
@@ -26,7 +24,6 @@ struct ArticleMenu: View {
         var registryPlace: MenuRegistry.Place {
             switch self {
             case .list: .row
-            case .elsewhere: .tile
             case .bar: .bar
             case .history: .history
             case .open: .reader
@@ -65,7 +62,6 @@ struct ArticleMenu: View {
         facts.canSave = actions.canSave
         facts.inFolder = article?.folder != nil
         facts.canPlay = actions.isSaved || article?.isWaitingChapter == true
-        facts.canFavorite = actions.canFavorite
         facts.hasVoices = true // C138a: every article has a voice (an Apple one too)
         facts.hasShareURL = actions.shareURL != nil
         facts.inRecent = !facts.inLibrary && article.map(LibraryQueries.isInRecent) == true
@@ -100,10 +96,6 @@ struct ArticleMenu: View {
             return MenuRow(id: "menuVoice", title: name.map(Verbs.voiceRow) ?? Verbs.voice, icon: Icons.voice) {
                 if let article { actions.shell.present(.voice(.article(article.listenKey))) }
             }
-        case .favorite:
-            let isFavorite = actions.isFavorite
-            return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,
-                           icon: isFavorite ? Icons.unfavorite : Icons.favorite, action: actions.toggleFavorite)
         case .move:
             return MenuRow(id: "menuMove", title: offersSave ? Verbs.saveToFolder : Verbs.moveTo, icon: Icons.move,
                            action: actions.saveToFolder)
@@ -133,7 +125,7 @@ struct ArticleMenu: View {
                            icon: offersSave ? Icons.save : Icons.unsave, isDestructive: !offersSave,
                            action: actions.toggleSaved)
         case .removeFromRecent:
-            // The same remove as the Library's (`LibraryStore.remove`): in no list after, the star kept.
+            // The same remove as the Library's (`LibraryStore.remove`): in no list after.
             return MenuRow(id: "menuRemoveFromRecent", title: Verbs.removeFromRecent, icon: Icons.removeFromRecent,
                            isDestructive: true, action: actions.remove)
         case .stopListening:

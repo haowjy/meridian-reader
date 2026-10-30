@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the browser does with the page it has loaded: show it in the Reader, listen to it, save
-/// it, add it to Favorites, record it in History. Extraction resolves the article's identity against the
+/// it, record it in History. Extraction resolves the article's identity against the
 /// library, so the same page gets the same key (and its cached audio) every time.
 @MainActor
 struct PageArticleService {
@@ -85,17 +85,6 @@ struct PageArticleService {
         }
         shell.attempt(String(localized: "Couldn’t save")) {
             try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
-        }
-    }
-
-    /// ⋯ → Add to Favorites / Remove from Favorites (`FavoriteFlow`): the page in or out of
-    /// Favorites, asking first when it is filed elsewhere.
-    func toggleFavorite() {
-        guard let url = web.currentURL, LibraryStore.canFavorite(url) else { return }
-        let liveTitle = web.webView?.title.flatMap { $0.isEmpty ? nil : $0 }
-        FavoriteFlow(library: library, shell: shell).toggle(url: url, title: liveTitle ?? web.pageTitle,
-                                                            artwork: recentFavicon(for: url)) {
-            await favicon(for: url)
         }
     }
 

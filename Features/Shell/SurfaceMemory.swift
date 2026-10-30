@@ -52,7 +52,8 @@ struct SurfaceMemory: Codable, Equatable {
 struct SurfaceMemoryStore {
     static let key = "shell.lastSurface"
     static let homeTabKey = "library.homeTab"
-    /// Where the tab was kept while there were two (true: Favorites); read once, then removed.
+    /// Retired: where the tab was kept while there were two (true: Favorites). Nothing reads or
+    /// writes it; it stays here so `-resetLibrary` still clears what older builds stored.
     static let favoritesTabKey = "library.favoritesTab"
     /// Retired: where a listening was launched from, for a ‹ on Listen that no longer exists. Nothing
     /// reads or writes it; it stays here so `-resetLibrary` still clears what older builds stored.
@@ -72,14 +73,10 @@ struct SurfaceMemoryStore {
         defaults.set(data, forKey: Self.key)
     }
 
-    /// The tab the Library home showed. One stored as the two-tab Bool moves to its own key.
+    /// The tab the Library home showed: the Library when none is stored, or one this version no
+    /// longer has (an older build's `"favorites"`).
     func loadHomeTab() -> LibraryHomeTab {
-        if let tab = defaults.string(forKey: Self.homeTabKey).flatMap(LibraryHomeTab.init(rawValue:)) { return tab }
-        guard defaults.object(forKey: Self.favoritesTabKey) != nil else { return .everything }
-        let tab: LibraryHomeTab = defaults.bool(forKey: Self.favoritesTabKey) ? .favorites : .everything
-        saveHomeTab(tab)
-        defaults.removeObject(forKey: Self.favoritesTabKey)
-        return tab
+        defaults.string(forKey: Self.homeTabKey).flatMap(LibraryHomeTab.init(rawValue:)) ?? .everything
     }
 
     func saveHomeTab(_ tab: LibraryHomeTab) {

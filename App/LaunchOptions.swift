@@ -54,10 +54,8 @@ struct LaunchOptions: Equatable {
     /// `-testStoryThrottles`: the offline story's chapter 6 doesn't load the first time it is
     /// asked for in a launch (a site not answering), for Follow's back-off.
     var testStoryThrottles = false
-    /// `-seedBookmarks`: a few starred `example.com` links whose icons stay letter tiles (no
-    /// fetch).
-    var seedsBookmarks = false
-    /// `-seedHistory`: a few visited `example.com` pages in the browser's History (one untitled).
+    /// `-seedHistory`: visited `example.com` pages in the browser's History (one untitled), three
+    /// sites' worth for the start page's Frequently Visited.
     var seedsHistory = false
     /// `-bakeArticle <id prefix>`: render that saved article's audio top-down without playing.
     var bakeArticlePrefix: String?
@@ -119,7 +117,7 @@ struct LaunchOptions: Equatable {
     var importsBook = false
     var listenDemoFrom: String?
     var closesListenAfter: Double?
-    /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
+    /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance), every
     /// library save fails, so a probe sees the edits that can't be saved.
     var failsLibrarySaves = false
     /// `-testVoice`: register an offline on-device test voice (`TestVoiceProvider`, "Test Voice"
@@ -165,7 +163,6 @@ struct LaunchOptions: Equatable {
         servesTestPages = flags.contains("-browseTestPages")
         testStoryChapters = value(after: "-testStoryChapters").flatMap(Int.init) ?? testStoryChapters
         testStoryThrottles = flags.contains("-testStoryThrottles")
-        seedsBookmarks = flags.contains("-seedBookmarks")
         seedsHistory = flags.contains("-seedHistory")
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")

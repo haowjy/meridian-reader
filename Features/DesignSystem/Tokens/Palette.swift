@@ -43,7 +43,7 @@ enum Palette {
     /// Text and glyphs on an `accent` fill. White can't reach 4.5:1 on a dark-mode accent light
     /// enough to read on dark paper, so it turns dark there.
     static var onAccent: Color { AppAppearance.shared.accent.onAccent }
-    /// A letter tile with no image (a page, folder or book without a cover, a favorite without an
+    /// A letter tile with no image (a page, folder or book without a cover, a site without an
     /// icon): tinted so it reads as artwork on chrome and paper alike; its letter is
     /// `placeholderInk`.
     static var placeholderTile: Color { AppAppearance.shared.accent.placeholderTile }

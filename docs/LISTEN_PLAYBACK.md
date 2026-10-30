@@ -252,7 +252,7 @@ own spot the same way. The position is then the recorder's to store, from the se
 ### Books, series and folders
 
 An article in a folder carries on through it, article to article, then stops; an article in no folder plays to
-its end and stops. Every folder (a book, a series, Favorites, a folder you made) plays in its
+its end and stops. Every folder (a book, a series, a folder you made) plays in its
 sort, which is the order its screen shows (decisions D15, D19); a book's starts as the book's
 order.
 `SpeechSession.folder` (`PlaybackFolder`: id, name, whether it is a book or series) says which
@@ -265,7 +265,7 @@ and flagged): after an article, the next one that isn't skipped: an article with
 story's chapter still waiting for its text (a link, `Article.isWaitingChapter`) ends playback there,
 so a story is never heard out of order (Follow fetches the chapter after the article playing ahead
 of the others, `FollowCenter`, and ▶ on a waiting chapter fetches it, then plays it). A link article
-anywhere else (a favorite) is skipped. Continue on a folder (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
+anywhere else (a saved address) is skipped. Continue on a folder (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
 place (the article that last played, which the recorder keeps), at the saved spot while
 unfinished, else at the next page; with no place yet, at the first page's own saved spot; a
 finished folder starts again from its first article. Catch-up baking at the end of an article, and the

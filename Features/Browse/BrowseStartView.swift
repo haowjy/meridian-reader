@@ -456,19 +456,17 @@ struct BrowseStartView: View {
     // MARK: - ⋯ menu
 
     /// The page the browser shows, as every menu sees a page (`ArticleActions`): saved by extracting
-    /// it first (⋯ spins), starred with the web view's title and icon.
+    /// it first (⋯ spins).
     private func pageActions(_ libraryPage: Article?) -> ArticleActions {
-        let service = page
         let loaded = ArticleActions.LoadedPage(canSave: hasPage && shell.busy == nil,
-                                            save: { folder in run { try await $0.save(in: folder) } },
-                                            toggleFavorite: service.toggleFavorite)
+                                            save: { folder in run { try await $0.save(in: folder) } })
         return ArticleActions(article: libraryPage, url: webPage, loaded: webPage == nil ? nil : loaded, library: library,
                            shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }
 
     /// The browser's ⋯: the page's menu (`ArticleMenu`) while a page is up, then *New Search*,
-    /// *Text Appearance* (in reader mode), *Follow…*, *Reload*, *Prepared audio*, *Settings*, then
-    /// `[Favorites][History][Reader]`.
+    /// *Text Appearance* (in reader mode), *Follow…*, *Reload*, *Prepared audio*, then the
+    /// tiles (`MenuContext.tiles`), the Reader's last.
     private func menu(_ actions: ArticleActions) -> MenuContext {
         var facts = MenuRegistry.Facts()
         facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
@@ -519,25 +517,14 @@ struct BrowseStartView: View {
     // MARK: - Start page
 
     private var startPage: some View {
-        FavoritesQuery { favorites in
-            BrowseStartPage(
-                favorites: favorites,
-                recentSearches: recentSearches,
-                // Browse Favorites: open the page's own http(s) URL in the browser, not Reader.
-                onOpenFavorite: { article in
-                    if let url = article.url { shell.navigate(to: url) }
-                },
-                onShowFavorites: shell.showFavorites,
-                pageMenu: { page in
-                    AnyView(ArticleMenu(actions: ArticleActions(article: page, library: library, shell: shell, speech: speech,
-                                                          preparedAudio: preparedAudio, follow: follow),
-                                     place: .elsewhere))
-                },
-                onSearch: submit,
-                onClearSearches: { recentSearchesRaw = "" }
-            )
-            .task(id: favorites.count) { await library.backfillFavoriteIcons() }
-        }
+        BrowseStartPage(
+            sites: FrequentlyVisited.sites(from: recentVisits),
+            recentSearches: recentSearches,
+            onOpenSite: { shell.navigate(to: $0.url) },
+            onShowHistory: { shell.present(.history) },
+            onSearch: submit,
+            onClearSearches: { recentSearchesRaw = "" }
+        )
         .modifier(CompactChromeInsets(isCompact: !isRegular))
         .modifier(CompactChromeScroll(isCompact: !isRegular))
     }

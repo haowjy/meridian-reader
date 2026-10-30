@@ -17,8 +17,6 @@ enum MenuRegistry {
     enum Place: String, CaseIterable {
         /// A Library list row's ⋯ and long press (every tab, search, a folder's screen).
         case row
-        /// A Favorites tile on the start page.
-        case tile
         /// The Now Playing bar's long press.
         case bar
         /// A History visit.
@@ -46,10 +44,10 @@ enum MenuRegistry {
     /// Every option, in menu order within its kind.
     enum Option: String, CaseIterable {
         // A page
-        case read, goTo, prepare, voice, favorite, move, finished, playback, markAllAbove, skip, share, save,
+        case read, goTo, prepare, voice, move, finished, playback, markAllAbove, skip, share, save,
              removeFromRecent, stopListening, removeFromHistory
         // A folder, book or series
-        case continueFolder, playFromStart, folderPrepare, removePreparedAudio, folderVoice, folderFavorite, folderMove,
+        case continueFolder, playFromStart, folderPrepare, removePreparedAudio, folderVoice, folderMove,
              editDetails, deleteFolder
         // A prepare
         case reprepare, removePrepare
@@ -72,7 +70,6 @@ enum MenuRegistry {
         var canSave = false
         var inFolder = false
         var canPlay = false
-        var canFavorite = false
         var hasShareURL = false
         var inRecent = false
         var isLoaded = false
@@ -130,13 +127,13 @@ enum MenuRegistry {
         var block = 0
     }
 
-    private static let articlePlaces: Set<Place> = [.row, .tile, .bar, .history, .reader, .nowPlaying, .browser]
+    private static let articlePlaces: Set<Place> = [.row, .bar, .history, .reader, .nowPlaying, .browser]
     /// Listen's ⋯ keeps to where the page is and its lists: Voice is on its card, and Prepare,
     /// Playback and Remove from Recent are left out of it.
     private static let articlePlacesButListen = articlePlaces.subtracting([.nowPlaying])
     /// Where a page isn't on screen with its own bookmark: *Read* and *Save* show there.
-    private static let articleListPlaces: Set<Place> = [.row, .tile, .bar, .history]
-    private static let folderPlaces: Set<Place> = [.row, .tile, .header]
+    private static let articleListPlaces: Set<Place> = [.row, .bar, .history]
+    private static let folderPlaces: Set<Place> = [.row, .header]
     private static let panelPlaces: Set<Place> = [.libraryHome, .folderScreen, .browser, .reader]
 
     static let specs: [Spec] = [
@@ -148,7 +145,6 @@ enum MenuRegistry {
         // C138: the voice it speaks in (its book's for a chapter); picking one remakes its audio.
         Spec(option: .voice, kind: .article, places: articlePlacesButListen, applies: { $0.hasPage }, enabled: { $0.hasVoices },
              hiddenIf: "no page (a page in the browser only)", greyIf: "Apple's voice is selected"),
-        Spec(option: .favorite, kind: .article, places: articlePlaces, enabled: { $0.canFavorite }, greyIf: "it can\u{2019}t be starred"),
         Spec(option: .move, kind: .article, places: articlePlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
         Spec(option: .finished, kind: .article, places: articlePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),
         // Chapter-only and rare: one submenu, only for a page in a folder.
@@ -166,17 +162,16 @@ enum MenuRegistry {
         Spec(option: .removeFromHistory, kind: .article, places: [.history], block: 1),
 
         // A folder. Its row's tap opens it; its header has ▶ and Prepare beside *More*.
-        Spec(option: .continueFolder, kind: .folder, places: [.row, .tile], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
+        Spec(option: .continueFolder, kind: .folder, places: [.row], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
         Spec(option: .playFromStart, kind: .folder, places: [.header], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
         // One row: Prepare, Turn Off Prepare while on, Remove Prepared audio once all is prepared.
-        Spec(option: .folderPrepare, kind: .folder, places: [.row, .tile],
+        Spec(option: .folderPrepare, kind: .folder, places: [.row],
              enabled: { $0.prepareIsOn || $0.hasPreparedAudio || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
         Spec(option: .removePreparedAudio, kind: .folder, places: [.header], enabled: { $0.hasPreparedAudio }, greyIf: "nothing downloaded or downloading"),
         // Its screen's More makes a subfolder in it (C122); never in a folder that keeps its own order.
         Spec(option: .folderVoice, kind: .folder, places: folderPlaces, applies: { $0.isBookOrSeries },
              enabled: { $0.hasVoices }, hiddenIf: "a plain folder (each article keeps its own voice)",
              greyIf: "Apple's voice is selected"),
-        Spec(option: .folderFavorite, kind: .folder, places: folderPlaces),
         Spec(option: .folderMove, kind: .folder, places: folderPlaces),
         Spec(option: .editDetails, kind: .folder, places: folderPlaces),
         Spec(option: .deleteFolder, kind: .folder, places: folderPlaces),

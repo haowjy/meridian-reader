@@ -68,9 +68,6 @@ enum Icons {
     static var move: String {
         if #available(iOS 26.0, *) { "arrow.forward.folder" } else { folder }
     }
-    static let favorite = "star"
-    static let favorited = "star.fill"
-    static let unfavorite = "star.slash"
     static let rename = "pencil"
     static let editDetails = "square.and.pencil"
     static let share = "square.and.arrow.up"
@@ -140,8 +137,6 @@ enum Icons {
     /// A voice's sample: play, stop.
     static let previewPlay = "play.circle"
     static let previewStop = "stop.circle"
-    /// Developer options' listen debug: its switch and its panel.
-    static let debug = "ladybug"
 
     // MARK: Prepared audio
 
@@ -180,16 +175,6 @@ enum Icons {
     static let textAppearance = "textformat.size"
     static let textSmaller = "textformat.size.smaller"
     static let textLarger = "textformat.size.larger"
-    /// Block Ads (Settings › Browsing).
-    static let blockAds = "hand.raised"
-    /// Prepared audio and storage (Settings).
-    static let storage = "internaldrive"
-    /// Privacy Policy (Settings › About).
-    static let privacy = "doc.text"
-    /// Support (Settings › About).
-    static let support = "questionmark.circle"
-    /// Acknowledgements (Settings › About).
-    static let acknowledgements = "list.bullet.rectangle"
 
     // MARK: Notices
 

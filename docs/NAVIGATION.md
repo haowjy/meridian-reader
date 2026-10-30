@@ -229,7 +229,7 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   "Following the audio"; a tap changes nothing); scrolled away, a lit ↑ or ↓ toward the spoken sentence
   that brings it back (VoiceOver: "Jump to Audio"); once the article has finished, its place is empty.
   Compact Listen has no floating Jump to Audio. ⋯ (`listenMore`) is a system menu, a section per
-  group: *Play from a Paragraph*; *Go to <folder or Library>*, *Add to Favorites*, *Save to Folder…*,
+  group: *Play from a Paragraph*; *Go to <folder or Library>*, *Save to Folder…*,
   *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place). There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the top bar and
   the card slide off and the status bar hides; a ▶ / ⏸ floats for 3 s. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
@@ -379,12 +379,12 @@ the same spot. ⋯ is never replaced.
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
   the article's own menu (the same rows as everywhere the article's menu shows: "Menus", below), then
-  *New Search, Follow…, Reload, Prepared Audio, Settings*, then a row of big buttons **Favorites**,
+  *New Search, Follow…, Reload, Prepared Audio, Settings*, then a row of big buttons **Saved**,
   **History**, and **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). The page's
   *Save to Library* and *Save to Folder…* extract it first. *Follow…* reads the story the article
   belongs to ("Follow a story", below). On the start page there is no page, so no page rows;
   *Follow…*, *Reload* and the Reader toggle show dimmed; the Reader toggle is dimmed on pages that
-  aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, Favorites, History, the Move tree)
+  aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, History, the Move tree)
   run after the panel has closed.
 - **The ⋯ panel** (`MorphMenuOverlay`: one overlay for the browser toolbar ⋯, the library
   toolbar ⋯, the Reader's ⋯ and regular width's Now Playing ⋯; its rows come from the surface that opened it,
@@ -409,29 +409,19 @@ the same spot. ⋯ is never replaced.
   so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
   jump. The sheets' pull-down follows the same rules. Light glass on iOS 26 (thick material
   before). Debug › is a native `Menu`.
-- **☆ Add to Favorites**: one tap stars the article where it is (a flag, D20; a saved article never
-  moves). An article that is nowhere yet becomes a link in no folder; an article played without saving is
-  saved to the Library's top level (C104: Favorites lists only saved items). A starred article: ☆ then reads *Remove from Favorites*, which clears the star and leaves the article
-  where it is (a link ☆ made stays). *Remove from Library* never clears the star: a removed
-  favorite leaves every list, Favorites too, but keeps its star (it is back in Favorites once
-  saved again), and the prune keeps it;
-  unstarred, it is in no list and the prune deletes it on its schedule. A Library row's menu (an article's or a folder's) stars
-  the same way, with the same toasts. ☆ is offered for a web page or a page in the Library, a
-  book's chapter too, in the Library's rows and in the Reader's and Now Playing's ⋯ alike.
 - **One saved state**: the browser's 🔖 and ⋯, the Reader and Now Playing all read "is this page
   saved?" from the article for its address, else its key (`ArticleActions`, `ArticleLookup`), the article
   Save saves into and *Remove from Library* removes, and they follow a change made anywhere at
   once.
 - **One library**: everything is an article in a folder (or in none). An article is a *link* (an address
-  you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
+  you kept, such as an address saved from a website: no text or audio), *saved* (text and audio kept), or played
   without saving (kept while in the last 50 of History, listed in the Library's History tab, and in the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
   Edit, 🔖, the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar's long-press):
-  the article leaves its folder and every Library list it was in, History and Favorites too, and keeps its
-  star; if it is what you hear, playback stops, as for
+  the article leaves its folder and every Library list it was in, History too; if it is what you hear, playback stops, as for
   *Stop Listening*, and Now Playing closes. It is kept while it is in the last 50 of History (C134) (an article never
   played goes at the next launch) but the bar doesn't offer it, and it comes back only when you
   save it or listen to it again (🎧, the Reader's Listen). There is one article per address: saving
-  a favorite saves it in place. 🔖 = saved, ☆ = favorite.
+  a link saves it in place. 🔖 = saved.
 - **The Now Playing bar** (`NowPlayingBarView` → `NowPlayingBar`) shows what you hear in the
   Reader's band while another article plays: a flat card on the `PlayerCard` surface
   (reading-palette card fill, tile colours, radius, no shadow, progress track) with the article's
@@ -446,11 +436,13 @@ the same spot. ⋯ is never replaced.
   and on regular width the clustered dock does.
 
 **Start page** (no page loaded), Safari-style:
-1. **Favorites**: starred pages that have their own http(s) address (favicon, or the letter tile
-   every page shows when there is no usable favicon, with the title, else the site, below). No
-   folders here (Library › Favorites still lists starred folders and every starred page). 4 per
-   row, up to 8. Show All → the Library's Favorites tab. A tile opens that address in Browse; a
-   long press is the article's menu ("Menus", below).
+1. **Frequently Visited**: the sites you visit most, from the browser's History (no tracking of
+   its own): History keeps one visit per page, the last 30, so a site counts its pages there, the
+   most first, then the most recently visited. One tile per site (`www.` folded in): its icon (the
+   newest visit's that fills a tile, else the letter tile) and its host below. 4 per row, up to 8.
+   While fewer than 4 sites are in History, starter tiles fill the first row: *Wikipedia*,
+   *Standard Ebooks*, *Project Gutenberg* (letter tiles). A tile opens the site's home page in
+   Browse; it has no long-press menu. Show All opens History (`FrequentlyVisited`).
 2. **Recent Searches** (local, newest first, *Clear All*; each a 🔍 row, as in the search layer).
 
 ## The Library
@@ -458,21 +450,19 @@ the same spot. ⋯ is never replaced.
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
 back up, as does the regular-width dock's ‹ (dimmed at the home). The home's title line is *Library* with ⋯ at
-its end on compact width, then **Library / Favorites / History** tabs (C104; History is the `recent` case,
+its end on compact width, then **Library / History** tabs (C104; History is the `recent` case,
 stored as `history`, once labelled Recent); the bottom field searches the tab on screen and says so (*Search Library* on
-Library, *Search Favorites*, *Search History*). On a folder's screen it searches that folder,
+Library, *Search History*). On a folder's screen it searches that folder,
 everything under it, and says so (*Search Demo Finance*): the results stand under the folder's
 name, each row showing where it is below the folder (its site when it is in the folder itself);
 the search ends when you leave the folder. Each tab
-is one mixed list: folders and pages share a single list, with no section headings. Favorites
-are the starred items in the Library. The History tab is everything you opened or started (C104); the browser's
+is one mixed list: folders and pages share a single list, with no section headings. The History tab is everything you opened or started (C104); the browser's
 *History* (🕘 on regular width, a row of the compact menus) is its pages visited. The two share a name (the
-owner's choice, 2026-10-30). From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
+owner's choice, 2026-10-30). From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On
 History and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
-parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
-going to a place in the Library (Now Playing's ⋯ → *Go to …*, the title on Listen's card, a
-favorite folder's tile, an imported book) opens it on Library, where every place shows; Library
+parent. Going to a place in the Library (Now Playing's ⋯ → *Go to …*, the title on Listen's card,
+an imported book) opens it on Library, where every place shows; Library
 comes back to the tab you left. Either way a page open in Library Read closes first, so the place
 asked for shows. The tab is remembered with the surface. On compact width the chrome's row 1 is the search
 field and the title line's ⋯ holds the creating rows, with *History* among its last rows ("Bottom chrome", above); on regular width the
@@ -481,16 +471,16 @@ band and dock are the browser's: the search field and `[‹][›][＋][🕘][⋯
 it was; Library there comes back to the same folder. The
 ⋯ panel follows the screen on top (below): a folder's screen starts with the folder's own menu,
 then every screen has *Sort ›, New Folder…**, Import from…,
-Follow…, Prepared Audio, Settings*, and the big buttons **Favorites**, **History**, **Browser**; nothing in it acts on the page under the Library. History closes the Library first; Browser is the same
+Follow…, Prepared Audio, Settings*, and the big buttons **Saved**, **History**, **Browser**; nothing in it acts on the page under the Library. History closes the Library first; Browser is the same
 as the chrome's Browser.
 
 ```
 Library                                ⋯   ⋯ on compact width: New Folder…, Import from…, Paste Text…, Sort, …
-Library  Favorites  History
+Library  History
 ▣ Pride and Prejudice              ⋯   tap opens; its cover never changes (C102)
 ▣ Tide Tables                      ⋯
-▣ Finance ★                        ⋯   location-independent favorite
-[i] Seven-Day Yield ★              ⋯   tap plays; ◌ queued, a filling accent ↓, then a filled ↓ before its second line
+▣ Finance                          ⋯
+[i] Seven-Day Yield                ⋯   tap plays; ◌ queued, a filling accent ↓, then a filled ↓ before its second line
 ```
 
 Secondary lines (a row's second line, the bar's, a header's details) never join their parts with
@@ -504,27 +494,22 @@ commas.
 
 - **The home** (`LibraryHomeView`, C104): Library shows what is saved: top-level folders and pages in
   no folder (*New Folder…* is in the title line's ⋯ on compact width, ＋ on regular width). Preparing an article saves it to the Library first (an article played without
-  saving goes to the top level). Favorites shows only the starred folders and pages wherever
-  they live; starring an article played without saving saves it to the top level (an article that is
-  nowhere yet becomes a saved link, as before). History shows every article you started listening to
+  saving goes to the top level). History shows every article you started listening to
   ("opened" is started: `lastPlayedAt`), saved, prepared or played without saving (no folders,
   links or chapters), most recent first, in the same rows; a tap plays one. An unsaved one's ⋯ (and
   long-press) has *Save to Library*, which moves the article into the Library (it stays in History), *Save to Folder…*, and *Remove from History* (the same remove as *Remove from
-  Library*: in no list after, its star kept, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
+  Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
   isn't in History. Every empty list is the system's empty view with a symbol, a Title Case title and one
   line (`EmptyState`): an empty Library says *No Articles or Books*, "Articles you save and books you import
   show up here.", with two plain buttons stacked, *Browse the Web* (the Browser) and *Import a Book* (the
-  Files picker, as *Import from…*); Favorites *No Favorites*, "Tap the star on an article, book or folder to
-  keep it here."; History *No History*, "Articles you play without saving show up here for 7 days." (the
+  Files picker, as *Import from…*); History *No History*, "Articles you play without saving show up here for 7 days." (the
   browser's History sheet *No History Yet*, Prepared Audio *Nothing Prepared*).
   Search filters the tab on screen: on
-  Everything the Library's folders and pages across the tree, on Favorites starred ones, on
+  Everything the Library's folders and pages across the tree, on
   History its pages; folders by name, then pages by title (the newest first among equal
   titles); a result keeps its location and shows the path (one at the top level keeps its own second
-  line). Favorites' rows carry no ★, since every one is a favorite. The old Favorites folder is migrated into star
-  flags on its direct children only: its pages become loose, its subfolders move to the top level
-  starred, and what is inside them stays as it was, unstarred. Rows are the compact two-line
+  line). Rows are the compact two-line
   rows (below): an article row plays on a tap, a folder row opens, and each has only ⋯. The bar's ▶
   resumes what you last heard, and a folder row's ⋯ › *Continue* resumes its own pages without
   opening it (D14). A first-run empty Library shows *Find Something
@@ -591,7 +576,6 @@ commas.
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
   every empty list has (`EmptyState`): *This Folder Is Empty*, *Move articles here, or save them
   here from the Reader's 🔖* (the toolbar's symbol).
-  A favorite is still an ordinary article or folder and keeps the same actions and location.
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
   **Author**, a **Book** toggle under *Labels* (C149: on calls pages "chapters", off calls them
@@ -702,7 +686,7 @@ article row (a chapter too) is exactly two lines (decision D21): its title (its 
 then one short line of what it is and where it stands, with a small thumbnail as tall as the two
 lines. Its site comes first on that line everywhere (none for an article without a title, whose
 first line already is its site), except in a book or series, whose header names the source once;
-on Favorites, History and in search an article in a folder shows its folder's path there instead. The listening mark stands in a
+on History and in search an article in a folder shows its folder's path there instead. The listening mark stands in a
 fixed-width column at the row's trailing edge, just before the ⋯, so the rings line up down the list
 (C88): nothing before a start (the column kept; line two says "18 min"), a small ring part-way
 (line two "6 min left"; the only rings in the app are listening), the same ring full once finished
@@ -750,7 +734,7 @@ quarter); placing an article makes its folder's sort *Manual* (the top level's t
 ⋯ → *Sort* picks another), numbered first as it was shown. A row lands with a success tick; a refused one with an error buzz. A book or
 series takes drops as any folder, and its chapters lift as any article (decision D19). A folder
 dragged over itself or a folder inside it is refused (the drag shows ⊘); rows on the home's
-Favorites tab or in search results (gathered from across the tree), an article played without saving
+History tab or in search results (gathered from across the tree), an article played without saving
 and rows in Edit don't lift. The list doesn't scroll by itself while a row is dragged.
 
 | Row | Tap | Swipe left |
@@ -766,7 +750,7 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 
 An item has one menu wherever it shows (decision C4): an article's (`ArticleMenu`), a folder's
 (`FolderMenu`, books and series too) and a prepare's (`PrepareMenu`). The same rows, in the same
-order, with the same names and symbols, in a row's ⋯ and its long press, a Favorites tile, a
+order, with the same names and symbols, in a row's ⋯ and its long press, a
 History visit, the Now Playing bar's long press, a folder header's *More* and the top of every ⋯
 panel that is about one item (the browser's page, the Reader's, Now Playing's, a folder's screen).
 A place only hides a row that can never apply there or dims one that can't run now (DR-09); what
@@ -779,7 +763,6 @@ are red everywhere.
 | *Read* / *Go to <place>* | *Read* (the Reader; Now Playing for the page you hear; the browser for a link or an address the Library hasn't) where the page isn't open; Now Playing has *Go to* its folder or the Library in its place; neither on the Reader or the browser |
 | *Play from Here* | an article in a folder, in a Library list |
 | *Prepare Audio* / *Remove Prepared Audio* (red) | a page out of the Library is saved first (C104); dimmed only on a browser page not yet loaded as a page |
-| *Add to Favorites* / *Remove from Favorites* | |
 | *Move to…* / *Save to Folder…* | *Save to Folder…* out of the Library (the Move tree, titled *Save to Folder*, saves it there), *Move to…* in it |
 | *Mark as Finished* / *Mark as Unfinished* | dimmed until it is saved |
 | *Mark All Above as Finished* | an article in a folder, in a Library list |
@@ -794,7 +777,6 @@ are red everywhere.
 | *Continue*, *Play from Start* | dimmed while none of its pages play |
 | *Prepare Audio* / *Turn Off Prepare Audio* | its Prepare toggle; *Prepare Audio* dimmed without pages, *Turn Off Prepare Audio* asks first |
 | *Remove Prepared Audio* (red) | dimmed while nothing in it is prepared or preparing |
-| *Add to Favorites* / *Remove from Favorites* | |
 | *Move to…* | |
 | *Rename…*, *Edit Details…* | |
 | *Select* | a folder screen's rows |
@@ -898,12 +880,11 @@ article is extracted first (⋯ spins).
 
 **A change that can't be saved** (a move, *New Folder*, *Rename*, *Edit Details*, *Sort*, a drop on a folder or
 between rows, a
-mark, *Remove*, a delete, ☆, saving or unsaving with 🔖
+mark, *Remove*, a delete, saving or unsaving with 🔖
 (the browser's, the Reader's or Now Playing's), *Save to Folder…*, ⋯ → *Save to Library* / *Remove from Library*) isn't stored: the
 library reads as it did before it, and a toast says so ("Couldn’t move", "Couldn’t save") where
 a success would have shown. *Remove* of several pages is one change: all go, or none. A folder's
-screen doesn't follow a move that didn't happen, the Move tree stays up, ☆ shows no "Added to
-Favorites", and 🔖 keeps what it showed. In Edit, the selection stays when its change can't
+screen doesn't follow a move that didn't happen, the Move tree stays up, and 🔖 keeps what it showed. In Edit, the selection stays when its change can't
 be saved; Edit's *Remove* is two changes, the pages first and then, after the question, the
   folders, so a folder delete that can't be saved leaves the folders selected but doesn't bring back
   pages already removed. The toast shows over the Move tree, the import sheet
@@ -948,7 +929,7 @@ What you **see** and what you **hear** are separate, in three layers: the surfac
 the Library), the **Reader** for reading any article, and **Now Playing** (Listen) for what you hear.
 Navigating never changes what you hear, and a play button never navigates (a Library row's tap, which
 plays, slides Listen up on compact width). The Reader never shows
-the article you hear: opening the Reader of that article (📄, a Favorites tile, a Library row) opens
+the article you hear: opening the Reader of that article (📄, a Library row) opens
 Now Playing instead.
 
 The two widths present them differently:
@@ -1001,7 +982,7 @@ and an extracted title drops a trailing site name ("Speech synthesis - Wikipedia
 synthesis").
 
 - **A sheet over the surface that opened it** (`ReaderSheetScreen`, `ShellState.reader`). From the
-  browser (📄, ⋯ → Reader, a Favorites tile) the pill reads *‹ Browser*; from the Library *‹ Library*;
+  browser (📄, ⋯ → Reader) the pill reads *‹ Browser*; from the Library *‹ Library*;
   the pill, the grabber and a pull down close it to exactly where you were.
 - **The bottom band** sits flat on the page background: the artwork tile, the article
   title (one line, clipped), the time detail (*9 min*, *6 min left*, *Finished*) and 🔖 in a
@@ -1036,10 +1017,10 @@ synthesis").
   the Move tree: saved there, or moved there when already saved); it keeps the screen as it is,
   and playback too, except that unsaving the article you hear stops it.
 - **⋯** (slot 5, the browser's ⋯ spot; Now Playing's is the same): rows *Save / Remove from Library, Move to…* (dimmed until
-  the article is saved)*, Add to Favorites, Share, Prepare / Remove Prepared Audio* (dimmed until the article
+  the article is saved)*, Share, Prepare / Remove Prepared Audio* (dimmed until the article
   is saved; *Remove Prepared Audio* while it prepared audio or is prepared, as its Library row's menu
   shows)*, Prepared Audio, Settings*; big buttons
-  **Favorites / History / Website** — *Website* (the Reader off) shows the page in the browser,
+  **Saved / History / Website** — *Website* (the Reader off) shows the page in the browser,
   wherever the Reader was opened from; from the library, the library closes first. Playback
   never stops.
 - The text fills the page down to the screen's foot and runs under the header and the bottom
@@ -1138,7 +1119,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   developer-only Debug chip) sit **above** the transport row so appearing text never pushes it.
 - **⋯**: the article's menu ("Menus", above) for the article you hear, with *Go to <name>* first (when
   it plays from a folder or the Library), then *Prepared Audio, Settings*; big buttons
-  **Favorites / History / Website**.
+  **Saved / History / Website**.
 - A **prepare progress line** runs along the top edge of the bottom band while prepared audio run,
   as on the other surfaces, in the theme's accent.
 - **Scrubber** (sentence-precise; the track runs inside the band): fill = progress
@@ -1367,7 +1348,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 
 - **Sidebar** (`RegularShellSidebar`, ~280 pt, left of the main pane, hosted by `BrowseStartView`):
   the app name and *Hide sidebar*; *Library* and *Browser* (the two surfaces; what the pill's
-  Library and Browser do on a phone); *Search*; a *Folders* list (Favorites and the top-level folders; a tap opens
+  Library and Browser do on a phone); *Search*; a *Folders* list (the top-level folders; a tap opens
   that folder in the Library); and *Settings* at the bottom. *Hide sidebar* collapses it for focus
   reading and a floating *Show sidebar* button brings it back; the collapse is not remembered
   across launches.
@@ -1405,7 +1386,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it holding the chapter's article, pulled down to close (from its top) |
 | Following (`FollowingSheet`): a story's status line | Done | `.sheet`, medium and large |
-| Reader (`ReaderSheetScreen`), regular width: 📄, ⋯ → Reader, a Favorites tile, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface, pull the header down (compact width reads in place: `ReaderSurface`) |
+| Reader (`ReaderSheetScreen`), regular width: 📄, ⋯ → Reader, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface, pull the header down (compact width reads in place: `ReaderSurface`) |
 | Listen / Now Playing (`NowPlayingScreen`): the chrome's Listen, a reader's ▶ Listen, a Library row, the bar, the Reader of the playing article, crash resume | compact: none (pull down; VoiceOver: escape); regular: *⌄ <playing from>* pill, top left | compact: a `Sheet` that covers the screen and the chrome, pull down to close; regular: `Sheet` over everything, pull the header down |
 | Listen debug panel | Done | `.sheet` (over Settings when opened from it) |
 | Speed picker | — | popover |

@@ -9,7 +9,7 @@ import Foundation
 /// A page plays when it isn't skipped: a page with text, or a followed story's chapter still
 /// waiting for its text (`isWaiting`). Playback stops before a waiting chapter rather than skip
 /// it, so a story is never heard out of order; Follow fetches it first, the one after the playing
-/// page ahead of the rest (`FollowCenter`). A link anywhere else (a favorite) is skipped.
+/// page ahead of the rest (`FollowCenter`). A link anywhere else (a saved address) is skipped.
 enum ChapterAdvance {
     struct Chapter: Equatable {
         var key: UUID

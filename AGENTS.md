@@ -61,7 +61,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   empty library and the stored settings cleared, as on a fresh install), `-selectEngine apple` (or
   `test.voice`, `local.kokoro`). The seeds add to that: `-seedDemoArticle` (`-seedDemoPlainText`,
   `-seedPlayedPages N`), `-seedDemoBook` (a demo book; `-seedDemoBookPlace N` puts it part-way,
-  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedBookmarks`, `-seedHistory` (visits in the browser's History). Other options:
+  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedHistory` (visits on three sites in the browser's History, for the start page's Frequently Visited). Other options:
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
   pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
@@ -84,7 +84,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
 | `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `PDF` (PDFKit text extract into pages), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import for EPUB/PDF), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
-| `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock, the compact chrome host), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
+| `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock, the compact chrome host), `Library` (the Library's screens, rows, the Move tree), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
 | `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); its model bundle ships in the app (`Resources/PhononBundle/`, fetched by `tools/fetch-phonon-bundle.sh`) |
@@ -94,7 +94,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 ## Rules that cut across directories
 
 - **`ShellState` owns navigation** (what you see): which surface shows (browser or library) and
-  the Library's path and its home's tab (Everything, Favorites or Recent), the Reader sheet and what it
+  the Library's path and its home's tab (Library or History), the Reader sheet and what it
   sits over, whether Now Playing is up, the one other sheet (and the debug panel over it), the toast. It remembers the surface for the next launch. Views ask it;
   they don't keep their own presentation flags.
 - **`PlaybackSessionState` owns what you hear**: the playing article, its position (paragraph +

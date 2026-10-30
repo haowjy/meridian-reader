@@ -2,14 +2,12 @@ import SwiftData
 import SwiftUI
 
 /// The Library home: the title line (with ⋯ on compact width, `LibraryTitleMenu`), then the Library /
-/// Favorites / History tab (`ShellState.homeTab`; History is the `recent` case) above one mixed list
-/// of folders and pages. Library (`everything`) is the top level: its folders, then the pages in no
-/// folder in the top level's sort. Favorites is the starred folders and pages from anywhere in the
-/// tree, in the Library or not. History is the pages played without saving, most recent first (no
-/// folders). The band's search (`ShellState.librarySearch`), begun on the home,
-/// searches the selected tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'. A favorite
-/// keeps its location; filtered (a tab other than Everything, or a search) a row shows where it
-/// is (`LibraryScreenKey.filtered`).
+/// History tab (`ShellState.homeTab`; History is the `recent` case) above one mixed list of folders
+/// and pages. Library (`everything`) is the top level: its folders, then the pages in no folder in
+/// the top level's sort. History is the pages played without saving, most recent first (no
+/// folders). The band's search (`ShellState.librarySearch`), begun on the home, searches the
+/// selected tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'.
+/// Filtered (History, or a search) a row shows where it is (`LibraryScreenKey.filtered`).
 struct LibraryHomeView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
@@ -34,9 +32,6 @@ struct LibraryHomeView: View {
         case .everything:
             _queriedFolders = Query(LibraryQueries.folders)
             _queriedArticles = Query(LibraryQueries.looseArticles(sort: articleSort))
-        case .favorites:
-            _queriedFolders = Query(LibraryQueries.favoriteFolders)
-            _queriedArticles = Query(LibraryQueries.favoriteArticles)
         case .recent:
             _queriedFolders = Query(LibraryQueries.noFolders)
             _queriedArticles = Query(LibraryQueries.recent)
@@ -108,10 +103,6 @@ struct LibraryHomeView: View {
         if !searchText.isEmpty {
             ContentUnavailableView.search(text: searchText)
                 .listRowBackground(Color.clear)
-        } else if tab == .favorites {
-            EmptyState(String(localized: "No Favorites"), symbol: Icons.favorite,
-                       description: String(localized: "Tap the star on an article, book or folder to keep it here."))
-                .listRowBackground(Color.clear)
         } else if tab == .recent {
             EmptyState(String(localized: "No History"), symbol: Icons.history,
                        description: String(localized: "Articles you play without saving show up here for 7 days."))
@@ -163,7 +154,6 @@ extension LibraryHomeTab {
     var title: String {
         switch self {
         case .everything: Verbs.library
-        case .favorites: Verbs.favorites
         case .recent: Verbs.history
         }
     }
@@ -173,7 +163,7 @@ extension LibraryHomeTab {
         Self.searchPrompt(naming: self == .everything ? Verbs.library : title)
     }
 
-    /// "Search Favorites", "Search Demo Finance": the band's field names what it searches, the
+    /// "Search History", "Search Demo Finance": the band's field names what it searches, the
     /// home's tab or a folder.
     static func searchPrompt(naming place: String) -> String {
         String(localized: "Search \(place)")

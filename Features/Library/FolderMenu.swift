@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A folder's menu (a book or series as any other): the one definition its row's ⋯ and long press,
-/// its header's *More* and its Favorites tile render (decisions C4, C98). Which options show
+/// and its header's *More* render (decisions C4, C98). Which options show
 /// where, in what order and greyed or not is `MenuRegistry`'s (docs/MENUS.md); this gives each its
 /// title, symbol and action. Built only when the menu opens: a row passes this view, never its
 /// `rows`, so nothing here runs on a row's redraw.
@@ -14,11 +14,10 @@ import SwiftUI
 /// through `LibraryScreenState`'s dialogs, which the screen hosts.
 struct FolderMenu: View {
     enum Place {
-        case row, tile, header
+        case row, header
         var registryPlace: MenuRegistry.Place {
             switch self {
             case .row: .row
-            case .tile: .tile
             case .header: .header
             }
         }
@@ -101,12 +100,6 @@ struct FolderMenu: View {
             let selection = folder.voiceID.flatMap(VoiceSelection.init(stored:)) ?? tts.defaultSelection
             return MenuRow(id: "menuVoice", title: Verbs.voiceRow(tts.voiceName(of: selection)),
                            icon: Icons.voice) { shell.present(.voice(.folder(folder.id))) }
-        case .folderFavorite:
-            let isFavorite = folder.isFavorite
-            return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,
-                           icon: isFavorite ? Icons.unfavorite : Icons.favorite) {
-                FavoriteFlow(library: actions.library, shell: shell).toggle(folder)
-            }
         case .folderMove:
             return MenuRow(id: "menuMove", title: Verbs.moveTo, icon: Icons.move) {
                 actions.move([.folder(folder)], onMoved: onMoved)

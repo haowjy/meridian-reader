@@ -7,7 +7,7 @@ import Foundation
 /// as "" (`Article.title`, `RecentVisit.title`).
 ///
 /// The Reader's heading and the player card show a title only when there is one. What
-/// must name a page in one line (a row, a Favorites tile, the Now Playing bar, the lock screen, a
+/// must name a page in one line (a row, the Now Playing bar, the lock screen, a
 /// prepare, a toast) uses `lineOne`, and only that.
 enum ArticleRowTitle {
     /// The page's title, else its source (its site, or the book or series a chapter is in), else

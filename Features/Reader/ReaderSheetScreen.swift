@@ -15,7 +15,7 @@ import SwiftUI
 /// - A page part-way through opens with its saved spot's sentence in the middle, underlined;
 ///   after that the text never scrolls by itself.
 /// - 🔖 saves / removes from the Library (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
-///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Add to Favorites, Share,
+///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Share,
 ///   Prepare, Prepared Audio; then Settings / Saved / Reader, Reader disabled here, C140). Both act through
 ///   `ArticleActions`, as in Now Playing.
 /// - Aa changes how the page reads (`TextAppearanceControl`), live: left of ☝︎ in the sheet's top bar.
@@ -43,7 +43,7 @@ struct ReaderSheetScreen: View {
     private var sessionReady: Bool { !readerArticle.document.isEmpty }
 
     var body: some View {
-        // The article's library page, if it has one (saved, played, or a favorite).
+        // The article's library page, if it has one (saved, played, or a link).
         ArticleLookup(key: readerArticle.id, canonicalURL: readerArticle.origin.canonicalURL) { article in
             sheet(ArticleActions(article: article, readerArticle: readerArticle, library: library, shell: shell, speech: speech,
                               preparedAudio: preparedAudio, follow: follow))

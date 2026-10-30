@@ -28,13 +28,11 @@ enum Glyph {
     /// suggestions, Following's actions): one width for a symbol or a small site tile, so every
     /// such row's text starts at one place. It grows with the text like the row.
     static let rowLeading: CGFloat = 28
-    /// A Favorites tile on the start page: a page's icon, a folder's square.
-    static let favoriteTile: CGFloat = 60
-    /// A book's cover inside its Favorites tile.
-    static let favoriteCover: CGFloat = 30
+    /// A Frequently Visited tile on the start page: a site's icon.
+    static let siteTile: CGFloat = 60
 }
 
-/// The two minimum heights of a row at the default text size; larger text grows them up to
+/// The minimum heights of a row at the default text size; larger text grows them up to
 /// `BottomChrome.maxTextGrowth`.
 enum RowHeight {
     /// A content row: a page, folder or book with its thumbnail and two lines (`ListRow`).
@@ -46,6 +44,8 @@ enum RowHeight {
     /// row, so an item's rows read alike in the panel and in its long press, and the longest
     /// panel (a folder's screen) fits an iPhone 17 Pro at the default text size.
     static let menu: CGFloat = BottomChrome.minTapTarget
+    /// A row on a Settings card: the inset-grouped proportions of the system's Settings.
+    static let setting: CGFloat = 48
 }
 
 /// The floating panels: the ⋯ panel and Aa.
@@ -72,8 +72,8 @@ extension View {
         modifier(RowSymbol())
     }
 
-    /// A symbol standing where a tile or a thumbnail would (a folder row's 📁, a Favorites folder
-    /// tile's, a tile in the ⋯ panel, a voice's preview, Follow's checkboxes, the morph menu's glyphs): `.title3`.
+    /// A symbol standing where a tile or a thumbnail would (a folder row's 📁, a tile in the ⋯
+    /// panel, a voice's preview, Follow's checkboxes, the morph menu's glyphs): `.title3`.
     func tileSymbol() -> some View {
         font(.title3)
     }

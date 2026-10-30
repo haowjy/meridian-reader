@@ -46,9 +46,9 @@ Core/
 Features/
   Shell/    ShellState, the compact bottom chrome (`Chrome/`: `ChromeState`, `ChromeLayout`, `ChromeScroll`, `ChromeHost`, `ChromePieces`; its `ChromeMetrics` are in `DesignSystem/Chrome/`), ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
   DesignSystem/  tokens (incl. `RegularLayout`: the iPad sidebar, readable-measure and sheet widths)
-  Browse/   start page, browser chrome, page actions (PageArticleService), dictation
+  Browse/   start page (Frequently Visited), browser chrome, page actions (PageArticleService), dictation
   Reader/   the Reader, Now Playing (text that follows the audio, scrub row, controls)
-  Library/  the Library surface and screens (home, folder), rows, the Move tree, Favorites' sheet and ☆, the import sheet
+  Library/  the Library surface and screens (home, folder), rows, the Move tree, the import sheet
   Saved/    save coordinator, Now Playing's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a library over its own files
@@ -265,7 +265,7 @@ optional with `.nullify`; one article per canonical URL is kept by `LibraryStore
 dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 `LibraryQueries`. An edit someone asks for (a save, including one into a folder; a move; a
 folder made, renamed, sorted or reordered; a mark; a remove of one or several pages or a
-delete; a favorite added, renamed or removed; a book imported or replaced) is one save, made at
+delete; a book imported or replaced) is one save, made at
 once (`LibraryStore.edit`): a save SwiftData refuses is rolled back (`rollBack`, which fetches the
 models it touched again, so the screens' models read the stored values, relationships included)
 and throws `LibraryStoreError.saveFailed`. So a failed edit never shows as done, and never waits
@@ -279,8 +279,7 @@ saved while an edit is being staged: deleting the playing article stops it, and 
 stopping records waits for the delete's save instead of storing the delete half made. The screens
 run these through `ShellState.attempt`, which shows the failure as a toast (the import sheet
 shows a failed import or *Replace* as its one-line failure); what follows success (Edit's
-selection cleared, a moved folder's screen following it, the Move tree closed, "Added to
-Favorites", a saved article's audio moved under the article's key when that is an older key, and
+selection cleared, a moved folder's screen following it, the Move tree closed, a saved article's audio moved under the article's key when that is an older key, and
 baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only after it.
 
 **`Article`** (library):
@@ -290,7 +289,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `key` | Audio cache / listen key (`ARTICLE_IDENTITY.md`); copied verbatim from `SavedArticle.id` at migration, never recomputed |
 | `urlString`, `canonicalURL` | The article; one article per canonical URL |
 | `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages; `title` "" = the page has none, read as `givenTitle`, and a row names it by `lineOne`) |
-| `contentStateRaw` | `link` (a favorite, a followed story's chapter waiting for its text; any text is a cache) or `saved` |
+| `contentStateRaw` | `link` (an address saved from a website or pasted, a followed story's chapter waiting for its text; any text is a cache) or `saved` |
 | `addedAt` | When it joined the Library; nil = played without saving or removed (kept while it is in the last 50 of Recent (C134); a removed article never played, until the next launch) |
 | `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, an article is in no list, not even Recent, nor the bar's resume; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
@@ -308,10 +307,9 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 the star: in the Library (`addedAt` set: its folder or the home's top level, search, address
 suggestions); played without saving (out of the Library, played, `removedAt` nil: the home's Recent
 tab and its search); removed (out of the Library, `removedAt` set: none of
-those). A starred article is in Favorites whatever its standing, and the prune keeps it. *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
+those). *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
 row, Edit, 🔖 and the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar) takes a
-article out of its folder and every Library list it was in at once, keeps its star (and with it its
-place in Favorites) and deletes nothing (the launch prune does). Once that is saved, the article you
+article out of its folder and every Library list it was in at once and deletes nothing (the launch prune does). Once that is saved, the article you
 hear stops, and so does a session a waiting merge would move onto it (`keysWaitingToMerge`),
 through the hook a delete stops them by (`LibraryStore.stopPlaybackIfPlaying` →
 `SpeechController.stopIfPlaying`: no gap-fill render, and its queued render goes). A save puts it
@@ -338,13 +336,9 @@ series take pages and subfolders, their chapters move out and reorder, their sor
 its link chapters fetched by Follow, and playback stops before one still waiting for its text, a
 book's or story's pages show as chapters and name it as their source in the Now
 Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their audio (D7), and
-  launch dedupe merges two copies of one source. Favorites are independent flags on pages and
-  folders, independent of the Library too: Favorites lists every starred article
-  (`LibraryQueries.favoriteArticles`), starring never files an article, *Remove from Library* keeps the
-  flag (only unstarring clears it), and the prune keeps a starred article. A legacy Favorites folder an older build left in the store is migrated on launch
-  (`migrateFavoritesFolder`): its direct children are starred (its pages return to the root, its
-  subfolders move to the top level with their contents as they were, nothing deeper starred), and
-  the container is removed.
+  launch dedupe merges two copies of one source. There are no favorites: `Article.isFavorite` and
+  `Folder.isFavorite` are older builds' stars, kept in the schema and never read or written, and a
+  `favorites` folder an older build left is an ordinary folder.
 
 **Open In / Share** (`IncomingOpen`, `SharedInbox`, `MeridianReaderShare`): the host declares
 `CFBundleDocumentTypes` for PDF and EPUB and the `meridian-reader` URL scheme. A file Open In
@@ -415,8 +409,8 @@ stops right after reading, and the sheet asks, then runs again with `.replace` o
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
 row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the
 library store): saved rows become saved pages in no folder (same key, text, position, icon; the
-listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks become starred link pages in no
-folder in file order, and a bookmark for an article the library has stars that article where it is (one
+listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks become link pages in the Library in no
+folder in file order, and a bookmark for an article the library has leaves that article where it is (one
 in a folder stays there; one out of the Library joins it as a link). The paragraph layout pass then moves copied pages on older listen blocks to today's
 layout, and only then does dedupe merge duplicates, so positions and audio are compared on the
 same paragraphs. The pages and a receipt for every item copied are saved together: a failed save
@@ -498,7 +492,7 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 
 | What | Where |
 |------|-------|
-| Bookmarks before the library (frozen; copied into Favorites) | `Application Support/Bookmarks/bookmarks.json` (`LegacyBookmarks`) |
+| Bookmarks before the library (frozen; copied into the Library as links) | `Application Support/Bookmarks/bookmarks.json` (`LegacyBookmarks`) |
 | Recent searches | UserDefaults `browse.recentSearches` |
 | Last listened / finished before the library (frozen; folded into `Article`) | UserDefaults `reader.listenHistory.v1` (`ListenHistory`) |
 | Crash-resume point (key, paragraph, text fingerprint, time) | `Application Support/ListenTiming/listen_resume.json` (`ListenResumePointStore`) |
