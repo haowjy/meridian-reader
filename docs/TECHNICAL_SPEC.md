@@ -543,7 +543,7 @@ The library's item model is `Article` (it was `Page`), alongside `Folder`. Its s
 
 ## One row height in Edit and out (C123)
 
-Library rows are one component, `ListRow`, in Edit and out; Edit only drops the ⋯ (`menu: nil`). Its vertical padding is `ListRow.verticalPadding`, (56 − 44) / 2 = 6 pt, so the ⋯'s 44 pt square fills the 56 pt `RowHeight.content` exactly and a row is 56 pt either way (it was 60 with ⋯, 56 in Edit). `ListRowHeightTests` checks both heights.
+Library rows are one component, `ListRow`, in Edit and out; Edit only drops the ⋯ (`menu: nil`). Its content is at least the ⋯'s 44 pt square (`Control.tap`), with or without the ⋯, and `Spacing.xxs` above and below, so a row is 52 pt either way at the default text size, over the card list's 48 pt minimum.
 
 ## Paste Text (C127)
 

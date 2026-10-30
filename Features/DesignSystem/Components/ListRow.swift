@@ -91,9 +91,10 @@ struct ListRow: View {
     /// browser visits, the Prepared Audio list).
     var showsListening = true
 
-    /// `RowHeight.content` at the default text size; larger text grows the row through its
-    /// content, and the minimum only up to `Control.maxTextGrowth`.
-    @ScaledMetric(relativeTo: .callout) private var scaledMinHeight = RowHeight.content
+    /// The content's least height, `Control.tap` (the ⋯'s square) at the default text size, so a row
+    /// is one height in Edit and out (C123); larger text grows the row through its content, and the
+    /// minimum only up to `Control.maxTextGrowth`.
+    @ScaledMetric(relativeTo: .callout) private var scaledMinHeight = Control.tap
     /// Space between the second line's parts: `Spacing.s`, growing with the caption.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var partSpacing = Spacing.s
     /// The two text lines' heights, scaled like their text: a page's thumbnail matches them.
@@ -151,10 +152,10 @@ struct ListRow: View {
         .background { if menu == nil { menuAnchor } }
         .padding(.leading, Spacing.m)
         .padding(.trailing, (menu != nil || editHandle != nil) ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
-        // One height in Edit and out (C123): the ⋯'s 44 pt square plus this padding is the 56 pt
-        // minimum, so a row doesn't shrink when Edit takes its ⋯ away.
-        .padding(.vertical, Self.verticalPadding)
-        .frame(minHeight: Control.grown(scaledMinHeight, from: RowHeight.content))
+        // One height in Edit and out (C123): the ⋯'s square is the content's minimum, so a row
+        // doesn't shrink when Edit takes its ⋯ away; 52 pt with the padding.
+        .frame(minHeight: Control.grown(scaledMinHeight, from: Control.tap))
+        .padding(.vertical, Spacing.xxs)
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
         .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
@@ -167,9 +168,6 @@ struct ListRow: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .accessibilityElement(children: .contain)
     }
-
-    /// Above and below the content: what the 44 pt ⋯ leaves of the 56 pt row (6 pt).
-    static let verticalPadding = (RowHeight.content - Control.tap) / 2
 
     /// Trailing padding that centres the 44 pt trailing column on the toolbar's ⋯ slot, for a
     /// row `rowWidth` wide in a list at the page margin: the toolbar row is wider by the

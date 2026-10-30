@@ -224,7 +224,7 @@ private struct FollowChapterRow: View {
                     .frame(width: Glyph.slot)
                     .padding(.leading, Spacing.m)
                     .padding(.trailing, Spacing.s)
-                    .frame(minHeight: RowHeight.compact)
+                    .frame(minHeight: Control.tap)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -251,7 +251,7 @@ private struct FollowChapterRow: View {
                 }
                 .padding(.trailing, Spacing.m)
                 .padding(.vertical, Spacing.xxs)
-                .frame(minHeight: RowHeight.compact)
+                .frame(minHeight: Control.tap)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

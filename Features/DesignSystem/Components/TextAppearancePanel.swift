@@ -220,7 +220,7 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
                 // The least room a label needs beside it, so Serif, Sans Serif and Rounded stand
                 // on one line in the Aa panel; the label is centred, so a roomier row keeps more.
                 .padding(.horizontal, Spacing.xxs)
-                .frame(maxWidth: .infinity, minHeight: min(height, RowHeight.content))
+                .frame(maxWidth: .infinity, minHeight: Control.grown(height, from: 40))
                 .background {
                     if chosen {
                         Capsule().fill(reading?.background ?? Palette.paper)
@@ -295,7 +295,7 @@ struct TextSizeStepper: View {
             step(Icons.textLarger, "Larger Text", enabled: model.canGrow, id: "readingTextLarger", action: model.grow)
         }
         .padding(Spacing.xxs)
-        .frame(minHeight: min(height, RowHeight.content) + Spacing.xs)
+        .frame(minHeight: Control.grown(height, from: 40) + Spacing.xs)
         .background(ChoicePickerTrack.fill(reading), in: Capsule())
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Verbs.textSize)

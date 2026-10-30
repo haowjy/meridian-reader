@@ -60,23 +60,6 @@ enum Glyph {
     static let siteTile: CGFloat = 60
 }
 
-/// The minimum heights of a row at the default text size; larger text grows them up to
-/// `Control.maxTextGrowth`.
-enum RowHeight {
-    /// A content row: a page, folder or book with its thumbnail and two lines (`ListRow`).
-    static let content: CGFloat = 56
-    /// A compact row: a symbol and a label, a setting, an action (`SymbolRow`).
-    /// Matches the 44 pt tap floor (system Settings density); grows with Dynamic Type.
-    static let compact: CGFloat = Control.tap
-    /// A menu row in the ⋯ panel (a `SymbolRow`): the tap minimum, the height of a system menu's
-    /// row, so an item's rows read alike in the panel and in its long press, and the longest
-    /// panel (a folder's screen) fits an iPhone 17 Pro at the default text size.
-    static let menu: CGFloat = Control.tap
-    /// The least a row on a card list is (`cardListStyle`): the inset-grouped proportions of the
-    /// system's Settings.
-    static let card: CGFloat = 48
-}
-
 /// The floating panels: the ⋯ panel and Aa.
 enum Panel {
     /// One width for both, so they read as one kind of thing.

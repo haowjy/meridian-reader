@@ -121,7 +121,7 @@ struct RegularShellSidebar: View {
             .foregroundStyle(selected ? Palette.accent : Palette.ink)
             .padding(.horizontal, Spacing.s)
             .padding(.vertical, Spacing.xs)
-            .frame(maxWidth: .infinity, minHeight: RowHeight.compact, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: Control.tap, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .fill(selected ? Palette.playingTint : Color.clear)

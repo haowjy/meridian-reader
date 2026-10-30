@@ -13,20 +13,22 @@ import SwiftUI
 /// ```
 extension View {
     /// Grouped cards on paper, at the page margin, `Spacing.m` between sections, every row at
-    /// least `RowHeight.card` tall (the proportions of the system's Settings); a row taller by its
-    /// content (a two-line `ListRow`) keeps its height.
+    /// least `Control.bar` tall (the proportions of the system's Settings); a row taller by its
+    /// content (two lines, a control, large text) keeps its height. With `listCard()` this is the one
+    /// card-row policy: no row sets a height of its own.
     func cardListStyle() -> some View {
         listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
             .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
             .listSectionSpacing(Spacing.m)
-            .environment(\.defaultMinListRowHeight, RowHeight.card)
+            .environment(\.defaultMinListRowHeight, Control.bar)
     }
 
     /// A section's rows on the card's fill, `Spacing.m` in from its sides and no List inset above
-    /// or below: a row holds its own tap height (`SymbolRow`), and the List's inset on top of it
-    /// would double it. A row that pads itself (`ListRow`) sets `.listRowInsets(EdgeInsets())`
+    /// or below: the list's minimum (`cardListStyle`) gives a row its height, and a row's own
+    /// vertical padding only keeps two lines clear of the separators. A row that pads itself
+    /// horizontally (`ListRow`, which centres its ⋯ on the toolbar's) sets `.listRowInsets(EdgeInsets())`
     /// inside this, which wins.
     func listCard() -> some View {
         listRowBackground(Palette.chrome)

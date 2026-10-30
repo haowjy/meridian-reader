@@ -396,7 +396,7 @@ the same spot. ⋯ is never replaced.
   never apply to that kind of item is left out (`MenuAvailability`). A toggle is one row showing
   the face for the item's state (*Save* / *Remove from Library*, *Mark as Finished* /
   *Unfinished*). A row that deletes something is red in it as in a long-press menu. Its rows are
-  44 pt (`RowHeight.menu`, a system menu's row), so at the default text size every panel fits on
+  44 pt (`Control.tap`, a system menu's row), so at the default text size every panel fits on
   an iPhone 17 Pro, a folder's screen's too. A panel taller than the room above its ⋯ (larger
   text) stops below the status bar and its rows scroll; the big buttons stay at the bottom. It covers
   the button and the toolbar around it, so the bottom row lands under the thumb, and grows out of
@@ -532,7 +532,7 @@ commas.
            Prepare                        More
   ```
 
-  The ▶ is a 56 pt disc (C124), its glyph scaled with it; the middles of the three controls'
+  The ▶ is a 62 pt disc (`Control.prominent`, as on Listen's player card) with a 26 pt glyph, and Prepare and More 36 pt (`Control.small`); the middles of the three controls'
   symbols line up (the captions hang below), and the header's lines sit close.
   The big ▶ is the folder's *Continue* (its place, or the first page; ⏸ while one of its pages is
   what you hear: tap pauses). *More* opens the folder's own menu, the same as its row's ⋯ and
@@ -1295,7 +1295,7 @@ control for control.
 iPad; titled *Settings*, *Done* closes it) is a `NavigationStack` of cards on paper. Every list of cards in the app (the Library and its
 folders, History, Settings and its pages, a Voice picker, Follow, Following, the Move tree, Folder
 Details, Book Import, Prepared Audio) has the same rows: at least 48 pt at the default text size
-(`RowHeight.card`, the system Settings' proportions; a two-line row grows to its content), 16 pt
+(`Control.bar`, the system Settings' proportions, set once by `cardListStyle`: no row sets its own; a two-line row grows to its content), 16 pt
 in from the card's sides with no List inset above or below, sections 16 pt apart, and a card's
 note 8 pt under it (`cardListStyle`, `listCard`, `listFooter`). None of Settings' rows leads with
 a symbol. Top to bottom:
