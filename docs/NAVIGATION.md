@@ -122,7 +122,7 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   48 pt glass circle ending row 1 on every screen, Library Read and the Browser's reader mode included. It shows
   the headphones, or the app's playing bars in the accent while something plays (still under Reduce Motion).
   A tap slides Listen up: on what is bound to playback; else the page played last (`LibraryQueries.lastPlayed`),
-  bound paused at its saved place so ▶ resumes it there; else the toast *Nothing to listen to yet*. It is not
+  bound paused at its saved place so ▶ resumes it there; else Listen's empty screen, *Nothing Playing*. It is not
   drawn while typing or in Library Edit (row 1 is then the field alone).
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **48 pt**
   (`ChromeMetrics.barHeight`, Safari's address bar and buttons), for every piece in every row and state (pill,
@@ -145,7 +145,7 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   container) does fade glass, which is how Reduce Motion cross-fades.
 - **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (the pair shows whenever either way is
   open, the half that cannot move dimmed to 35% and disabled but in place; nothing on a new page), on the
-  Library its search field, in Library Read `[Aa  site]`; Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerToReenter`).
+  Library its search field, in Library Read `[Aa  site]`; Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`).
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a whole
   44 x 44 control (`BottomChrome.minTapTarget`), its glyph in the chrome ink at the chrome glyph weight
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
@@ -213,6 +213,17 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   second line. **Full screen** is a tap in the middle of the text, in and out: the top bar and
   the card slide off and the status bar hides; a ▶ / ⏸ floats for 3 s. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
+- **Listen with nothing to play** (nothing bound and nothing played before): the same cover, its grabber and
+  pull down, with *Nothing Playing* (the headphones), "Choose an article or book to listen to." and one plain
+  button, *Open Library* (`listenEmptyOpenLibrary`), which closes it on the Library's home. A pull from
+  anywhere on it closes it. Listen that loses what it showed (the page removed from the Library) closes
+  instead.
+- **Starting something new** (compact width): a Library row's tap plays the article or chapter and slides
+  Listen up (a followed story's chapter still waiting for its text plays once it is in, and Listen stays
+  down); a reader's ▶ Listen does the same; a page shared from Safari opens in the Browser straight in
+  reader view (once it has loaded and if it is readable; else the page itself), its heading's ▶ Listen
+  there; *Paste Text…* saves, then opens the new article in Library Read; *Import from…* and a shared book
+  file close the import sheet on the new book's screen.
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
   `ReaderSurface`): the chrome folds on scroll in Scroll mode like a page (to a strip naming the source) and stays expanded in Pages mode, the address keeps the
   URL (narrower by one round control), the reader icon sits in a lit capsule and toggles back. The
@@ -239,7 +250,8 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   system menu (`MenuRows`, `TitleMenuButton`), the panel's big buttons as its last section:
   - the Library home: ⋯ at the end of the title's line (`libraryMore`); a folder's screen: ⋯ beside Edit in its
     navigation bar; Library Read: a round ⋯ at the top right. The Library's menu adds *New Folder…*,
-    *Import from…* and *Paste Text…* to its screen's rows, and *History* is among its last rows.
+    *Import from…* and *Paste Text…* to its screen's rows, and *History* is among its last rows. *Paste
+    Text…*'s *Save* opens the new article in Library Read.
   - Settings: ⋯ at the end of its title's line (`settingsMore`).
   - the Browser (page, start page, reader mode): a press and hold on the field's leading glyph (the reader
     icon, or 🔍 where there is none, `addressMenu`); a tap on the reader icon still toggles reader mode.
@@ -675,7 +687,8 @@ tinted, "Playing" or "Paused" in the accent); every time at the playback speed.
 The row's only control is **⋯** at its trailing edge, centred on the toolbar's ⋯ slot as the
 bar's ⏸ is; a long press opens the same menu (the item's one menu, "Menus" below; decision
 D11), and a long press that moves lifts the row into a drag (below). **Tapping an article
-row plays it** (replacing what plays; in a folder it carries on through the folder), except the
+row plays it** (replacing what plays; in a folder it carries on through the folder) and, on compact
+width, slides Listen up over the Library, except the
 article you hear, which opens Now Playing (a stray tap never pauses), and a link that can't play,
 which opens in the browser; a skipped page plays when tapped. *Read*, the menu's first row, opens
 it (the Reader; Now Playing for the page you hear; the browser for a link). **Tapping a folder
@@ -908,7 +921,8 @@ tree in the selected tab, each with its location.
 
 What you **see** and what you **hear** are separate, in three layers: the surface (the browser or
 the Library), the **Reader** for reading any article, and **Now Playing** (Listen) for what you hear.
-Navigating never changes what you hear, and a play button never navigates. The Reader never shows
+Navigating never changes what you hear, and a play button never navigates (a Library row's tap, which
+plays, slides Listen up on compact width). The Reader never shows
 the article you hear: opening the Reader of that article (📄, a Favorites tile, a Library row) opens
 Now Playing instead.
 

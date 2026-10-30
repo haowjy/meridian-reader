@@ -104,6 +104,13 @@ struct LaunchOptions: Equatable {
     var listensDemo = false
     /// `-tapListen`: once launched, what a tap on the chrome's Listen does (with `-closeListenAfter`, then closes).
     var tapsListen = false
+    /// `-tapLibraryRow <title>`: once launched, what a tap on the Library row of the first page whose
+    /// title starts with `<title>` does (`LibraryActions.tap`), from the Library.
+    var tapsLibraryRow: String?
+    /// `-pasteText <text>`: once launched, *Paste Text…*'s *Save* of `<text>` into the top level.
+    var pastesText: String?
+    /// `-importBook`: once launched, what *Import from…* does (with `-importTestEPUB`, the test book).
+    var importsBook = false
     var listenDemoFrom: String?
     var closesListenAfter: Double?
     /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
@@ -169,6 +176,9 @@ struct LaunchOptions: Equatable {
         playsTestEPUB = flags.contains("-playTestEPUB")
         listensDemo = flags.contains("-listenDemo")
         tapsListen = flags.contains("-tapListen")
+        tapsLibraryRow = value(after: "-tapLibraryRow")
+        pastesText = value(after: "-pasteText")
+        importsBook = flags.contains("-importBook")
         listenDemoFrom = value(after: "-listenDemoFrom")
         closesListenAfter = value(after: "-closeListenAfter").flatMap(Double.init)
         failsLibrarySaves = flags.contains("-failLibrarySaves")

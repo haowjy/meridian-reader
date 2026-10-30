@@ -90,9 +90,9 @@ struct BrowseStartView: View {
             .onChange(of: webStore.isLoading) { _, loading in
                 guard !loading else { return }
                 run { await $0.recordVisit() }
-                reenterReaderIfAsked()
+                openReaderIfAsked()
             }
-            .onChange(of: webStore.isReaderable) { _, _ in reenterReaderIfAsked() }
+            .onChange(of: webStore.isReaderable) { _, _ in openReaderIfAsked() }
             .onChange(of: search.text) { _, text in
                 // Typing (or clearing) while dictating takes over from the mic.
                 if let dictation, dictation.isListening, text != dictation.transcript {
@@ -393,9 +393,10 @@ struct BrowseStartView: View {
         webStore.goForward()
     }
 
-    private func reenterReaderIfAsked() {
-        guard shell.takeReaderToReenter() else { return }
-        run { try await $0.openInReader(inPlace: true) }
+    /// The page that should open in reader view (› back to one, a shared page) has loaded.
+    private func openReaderIfAsked() {
+        guard shell.takeReaderOnLoad() else { return }
+        run { try await $0.openInReader(inPlace: shell.isCompact) }
     }
 
     // MARK: - ↻

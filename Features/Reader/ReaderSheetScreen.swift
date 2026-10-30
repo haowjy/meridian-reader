@@ -162,7 +162,7 @@ struct ReaderSheetScreen: View {
     private func text(_ start: ListenSpot, status: String?, chapter: Bool) -> some View {
         HTMLReadingView(html: readerArticle.readingHTML, heading: ReaderHeading(title: readerArticle.title, detail: detail(status), titleHidden: true),
                         activeParagraphIndex: nil, sentence: savedSentence(start), jumpMode: jumpMode,
-                        opensAtSentence: true, scrollHandle: scroll, onOpenLink: shell.navigate(to:),
+                        opensAtSentence: true, scrollHandle: scroll, onOpenLink: { shell.navigate(to: $0) },
                         pageTimeLeft: { [document = readerArticle.document, rate = speech.rateMultiplier] in
                             ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate,
                                                     chapter: chapter)

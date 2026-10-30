@@ -352,7 +352,7 @@ The Share Extension writes a web URL or a copied book file into the App Group in
 (`group.com.jimmyyao.MeridianReader` from `APP_GROUP` in project.yml, or `group.com.jimmyyao.MeridianReader.probe` when `BUNDLE_ID_SUFFIX` is set;
 both app and extension declare the groups in their entitlements) and opens
 `meridian-reader://inbox`; the host drains on that URL and whenever it becomes active
-(`IncomingOpenModifier`). http(s) shares call `ShellState.navigate` (Browse).
+(`IncomingOpenModifier`). http(s) shares call `ShellState.navigate(to:inReader: true)` (Browse; `readerOnLoad` opens the reader view once the page has loaded, following a redirect while it loads). Any navigation replaces the page a launch would reopen, so a share at a cold start is not overwritten by the restored surface.
 
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):
 0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub` or

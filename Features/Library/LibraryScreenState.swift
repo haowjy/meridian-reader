@@ -220,10 +220,9 @@ private struct LibraryDialogs: ViewModifier {
             .sheet(isPresented: Binding(get: { state.pastingText != nil }, set: { if !$0 { state.pastingText = nil } })) {
                 PasteTextSheet(state: state) {
                     guard case .some(let folder) = state.pastingText else { return }
-                    shell.attempt(String(localized: "Couldn’t save")) {
-                        try library.saveText(title: state.pastedTitle, text: state.pastedText, in: folder)
-                    }
                     state.pastingText = nil
+                    LibraryActions(library: library, speech: speech, shell: shell, follow: follow)
+                        .savePastedText(title: state.pastedTitle, text: state.pastedText, in: folder)
                 }
             }
     }
@@ -260,7 +259,7 @@ private struct LibraryDialogs: ViewModifier {
 }
 
 /// *Paste Text…* (C127): an optional title and the text, the pasteboard's when it held some.
-/// *Save* makes a new article of it in the folder on screen.
+/// *Save* makes a new article of it in the folder on screen and opens it in Library Read.
 struct PasteTextSheet: View {
     @Bindable var state: LibraryScreenState
     let save: () -> Void

@@ -4,8 +4,8 @@ import SwiftUI
 /// Reader, Now Playing when it is what you hear, the browser for a link), play a page or a book
 /// (a followed story's chapter still waiting for its text is fetched first, then plays:
 /// `FollowCenter.play`),
-/// mark and remove pages, delete folders, file things with the Move tree. Opening never plays,
-/// and playing never navigates. Each edit is one save: one that can't be saved changes nothing
+/// mark and remove pages, delete folders, file things with the Move tree. Opening never plays;
+/// a row's tap plays and slides Listen up (`tap`), and nothing else that plays navigates. Each edit is one save: one that can't be saved changes nothing
 /// and shows a toast, and what follows its success runs only after the save.
 @MainActor
 struct LibraryActions {
@@ -35,6 +35,27 @@ struct LibraryActions {
             return
         }
         shell.openSaved(article.listenKey, in: library, inPlace: true)
+    }
+
+    /// A row's tap: the page you hear opens Listen, a link that can't play opens in the browser
+    /// (`open`); anything else plays and, on compact width, Listen slides up over the Library. A
+    /// chapter waiting for its text plays once it is in, and Listen stays down meanwhile.
+    func tap(_ article: Article) {
+        if playState(of: article).isCurrent || (article.isLink && !article.isWaitingChapter) {
+            open(article)
+            return
+        }
+        play(article)
+        if shell.isCompact, playState(of: article).isCurrent { shell.showNowPlaying() }
+    }
+
+    /// *Paste Text…*'s *Save*: a new article in `folder` (nil: the top level), opened in Library
+    /// Read (`read`). One that can't be saved opens nothing; a toast says so.
+    func savePastedText(title: String, text: String, in folder: Folder?) {
+        guard let article = shell.attempt(String(localized: "Couldn’t save"), {
+            try library.saveText(title: title, text: text, in: folder)
+        }) else { return }
+        read(article)
     }
 
     func playState(of article: Article) -> PlayState {

@@ -62,16 +62,6 @@ struct LibraryArticleRow: View {
         chapterStatus.map { FollowText.rowNote($0, now: now) }
     }
 
-    /// A tap: the page you hear opens Now Playing, a link that can't play opens in the browser
-    /// (`LibraryActions.open`); anything else plays (a waiting chapter once fetched).
-    private func activate() {
-        if playState.isCurrent || (article.isLink && !article.isWaitingChapter) {
-            actions.open(article)
-        } else {
-            actions.play(article)
-        }
-    }
-
     /// Its menu, built only when it opens (C98): the row hands over this view, never its rows.
     private var menu: ArticleMenu {
         ArticleMenu(actions: articleActions, place: .list)
@@ -94,7 +84,7 @@ struct LibraryArticleRow: View {
                 prepare: preparedAudio.state(of: article), isFavorite: marksFavorite && article.isFavorite,
                 menu: isEditing ? nil : AnyView(menu),
                 editHandle: isEditing ? AnyView(EditDragHandle(id: .article(article.listenKey), screen: screen)) : nil)
-            .opensOnTap(isEditing ? nil : activate)
+            .opensOnTap(isEditing ? nil : { actions.tap(article) })
             .libraryDropRow(.article(article.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
             .contextMenu { menu }

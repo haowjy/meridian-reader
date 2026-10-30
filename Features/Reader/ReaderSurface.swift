@@ -94,7 +94,7 @@ struct ReaderSurface: View {
             savedSentence: hearing ? nil : savedSentence(start),
             follows: following && !covered, opensAtSentence: !hearing,
             onUserScroll: { following = false }, onSpotSide: { spotSide = $0 },
-            onTap: { _ in }, onOpenLink: shell.navigate(to:), onListen: listen.press,
+            onTap: { _ in }, onOpenLink: { shell.navigate(to: $0) }, onListen: listen.press,
             onPlaySelection: { playFromSelection(listen, hearing: hearing, paragraph: $0, offset: $1) })
     }
 

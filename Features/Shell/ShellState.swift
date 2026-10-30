@@ -355,32 +355,34 @@ final class ShellState {
         pageReaderEpoch += 1
     }
 
-    // MARK: - ‹ › through reader mode
+    // MARK: - Pages that open in reader view
 
     /// The page whose in-place reader view ‹ left: › to it shows the reader view again, as it was
     /// when you went back. (The reader view isn't a history entry of its own: the web view's history
     /// holds the pages, so the shell remembers the one page.)
     private(set) var readerLeftByBack: URL?
-    /// › was pressed toward `readerLeftByBack`: its reader view opens once that page has loaded.
-    private(set) var readerToReenter: URL?
+    /// The page whose reader view opens once it has loaded: `readerLeftByBack` after ›, or a page
+    /// shared from another app (`navigate(to:inReader:)`). A redirect while it loads carries it to
+    /// where the load lands.
+    private(set) var readerOnLoad: URL?
 
     /// ‹ in the Browser (the button or the reader view's edge swipe).
     func browserWillGoBack() {
         readerLeftByBack = pageReader != nil ? web.currentURL : nil
-        readerToReenter = nil
+        readerOnLoad = nil
     }
 
     /// › in the Browser.
     func browserWillGoForward() {
-        readerToReenter = readerLeftByBack
+        readerOnLoad = readerLeftByBack
         readerLeftByBack = nil
     }
 
-    /// The page `readerToReenter` names has loaded and is readable: true once, then it is spent.
+    /// The page `readerOnLoad` names has loaded and is readable: true once, then it is spent.
     /// Any other page drops the request.
-    func takeReaderToReenter() -> Bool {
-        guard let url = readerToReenter, !web.isLoading, web.isReaderable, web.currentURL == url, pageReader == nil else { return false }
-        readerToReenter = nil
+    func takeReaderOnLoad() -> Bool {
+        guard let url = readerOnLoad, !web.isLoading, web.isReaderable, web.currentURL == url, pageReader == nil else { return false }
+        readerOnLoad = nil
         return true
     }
 
@@ -477,7 +479,7 @@ final class ShellState {
 
     /// The browser's page changed: its address field, and the page to reopen on.
     func browserPageChanged() {
-        if let wanted = readerToReenter, web.currentURL != wanted { readerToReenter = nil }
+        if let wanted = readerOnLoad, web.currentURL != wanted { readerOnLoad = web.isLoading ? web.currentURL : nil }
         closePageReader()
         chromeScroll.expand()
         syncAddressField()
@@ -578,8 +580,12 @@ final class ShellState {
     // MARK: - Pages
 
     /// Shows `url` in the browser: ends the address search, leaves the reader or library, loads.
-    /// Every way of going to a page (submitted address, bookmark, history, Website) ends here.
-    func navigate(to url: URL) {
+    /// Every way of going to a page (submitted address, bookmark, history, Website, Share) ends
+    /// here. `inReader` (Share): its reader view opens once it has loaded, if it is readable.
+    func navigate(to url: URL, inReader: Bool = false) {
+        // A page asked for (a share at a cold start too) replaces the remembered one.
+        pendingBrowserURL = nil
+        readerOnLoad = inReader ? url : nil
         closePageReader()
         addressSearch.end(showing: Self.addressText(for: url))
         showBrowser()

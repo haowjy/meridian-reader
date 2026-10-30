@@ -102,10 +102,10 @@ enum LaunchHooks {
     /// `-failLibrarySaves`' refusal.
     private struct InjectedSaveFailure: Error {}
 
-    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-listenDemo`, `-playTestEPUB`,
-    /// `-chainDemoChapters`.
+    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-tapListen`, `-tapLibraryRow`,
+    /// `-pasteText`, `-importBook`, `-listenDemo`, `-playTestEPUB`, `-chainDemoChapters`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
-                               shell: ShellState) async {
+                               shell: ShellState, follow: FollowCenter?) async {
         if options.opensDemoInReader { await openNewestInReader(in: library, shell: shell) }
         if options.opensSettings { await openSettings(options, shell: shell) }
         if options.readsDemoInLibrary { await readNewestInLibrary(in: library, shell: shell) }
@@ -118,6 +118,25 @@ enum LaunchHooks {
                 try? await Task.sleep(for: .seconds(close))
                 shell.hideNowPlaying()
             }
+        }
+        if let title = options.tapsLibraryRow, let follow {
+            try? await Task.sleep(for: .seconds(1))
+            shell.openLibrary()
+            let live = (try? library.context.fetch(FetchDescriptor<Article>()))?.filter(\.isLive) ?? []
+            if let article = live.first(where: { $0.lineOne.hasPrefix(title) }) {
+                LibraryActions(library: library, speech: speech, shell: shell, follow: follow).tap(article)
+            }
+        }
+        if let text = options.pastesText, let follow {
+            try? await Task.sleep(for: .seconds(1))
+            shell.openLibrary()
+            LibraryActions(library: library, speech: speech, shell: shell, follow: follow)
+                .savePastedText(title: "", text: text, in: nil)
+        }
+        if options.importsBook {
+            try? await Task.sleep(for: .seconds(1))
+            shell.openLibrary()
+            BookImportActions(library: library, shell: shell).pickBook(into: nil)
         }
         if options.listensDemo {
             await listenDemo(from: options.listenDemoFrom, closeAfter: options.closesListenAfter,

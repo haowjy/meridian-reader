@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 /// Open In / Share entry: document URLs the system hands the app, `meridian-reader://inbox` from
 /// the Share Extension, and a drain of the App Group inbox whenever the app becomes active.
 ///
-/// - http(s) → Browse (`ShellState.navigate`)
+/// - http(s) → Browse (`ShellState.navigate`); one the Share Extension sent opens in reader view
 /// - PDF / EPUB file → same path as Library *Import from…* (`BookImportActions.importPicked`)
 /// - `meridian-reader://inbox` → drain `SharedInbox` (URLs and files the Share Extension wrote)
 @MainActor
@@ -37,7 +37,7 @@ enum IncomingOpen {
             case .webURL:
                 if let string = item.urlString, let url = URL(string: string),
                    let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
-                    shell.navigate(to: url)
+                    shell.navigate(to: url, inReader: true)
                 } else {
                     library.log("inbox: bad web URL \(item.urlString ?? "nil")")
                 }
