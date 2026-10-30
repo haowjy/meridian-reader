@@ -198,11 +198,11 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
 - **Listen slides up over everything** (`NowPlayingScreen`, `ReadingShowing.cover`, a `Sheet` that covers):
   from the bottom, edge to edge and under the status bar, over the chrome, with nothing behind it. At its
   top a grabber and nothing else; there is no close button. The article's title is the first thing in its
-  text. A pull down on the grabber, or on the text when it is at its top, follows the finger and closes it when let go far enough or
+  text. A pull down on the grabber or the player card, or on the text when it is at its top, follows the finger and closes it when let go far enough or
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
   its scroll, a reader in place and its fold or full screen, a search (its keyboard lowered when Listen
   opened). Audio keeps playing. At the foot a glass player card at the chrome's margins (`cardRadius` 24),
-  as tall as its rows, over a fade into the page (`ReaderPlayerCard`). No artwork and no divider: its
+  as tall as its rows, floating over the text, which runs on under it to the screen's foot (`ReaderPlayerCard`). No artwork and no divider: its
   groups are set apart by space alone.
 
   ```

@@ -152,9 +152,8 @@ private struct InPlaceFrame<Header: View, Content: View, OverText: View>: View {
     }
 }
 
-/// A cover's band: the player card on the chrome's glass, at the chrome's margins, over a fade from
-/// the text into the page's colour (as behind the chrome), so the text dissolves before it reaches
-/// the card and runs on under it while the card stays legible. `floating` (a toast) sits on its top.
+/// A cover's band: the player card on the chrome's glass, at the chrome's margins, floating over the
+/// text, which runs on under it to the screen's foot (no fade). `floating` (a toast) sits on its top.
 private struct CoverBand<Content: View, Floating: View>: View {
     @ViewBuilder var content: Content
     @ViewBuilder var floating: Floating
@@ -163,7 +162,6 @@ private struct CoverBand<Content: View, Floating: View>: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: ChromeMetrics.cardRadius, style: .continuous)
-        let background = (reading ?? .app).background
         content
             // The card stays compact: its text grows only so far (its glyphs offer the large content viewer).
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -172,14 +170,6 @@ private struct CoverBand<Content: View, Floating: View>: View {
             .environment(\.chromeSkin, ChromeSkin.current)
             .padding(.horizontal, ChromeMetrics.margin)
             .padding(.bottom, ChromeMetrics.gap)
-            .background(alignment: .bottom) {
-                // The card and its gap, and `fadeRise` above them.
-                LinearGradient(stops: [.init(color: background.opacity(0), location: 0), .init(color: background, location: 0.7)],
-                               startPoint: .top, endPoint: .bottom)
-                    .padding(.top, -ChromeMetrics.fadeRise)
-                    .ignoresSafeArea(edges: .bottom)
-                    .allowsHitTesting(false)
-            }
             .overlay(alignment: .top) { floating }
     }
 }

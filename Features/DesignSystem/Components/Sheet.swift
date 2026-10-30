@@ -141,7 +141,9 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         ReadingBars(chrome: chrome,
                     headerBackground: UnevenRoundedRectangle(topLeadingRadius: corner, topTrailingRadius: corner,
                                                              style: .continuous).fill(palette.background),
-                    headerSlide: statusBarHeight + gap, header: headerBlock, content: content, band: band,
+                    headerSlide: statusBarHeight + gap, header: headerBlock, content: content,
+                    // A cover's band (Listen's card) is its handle too: the grabber alone is too small to find.
+                    band: band.gesture(pullDown, including: covers ? .all : .subviews),
                     overText: overText)
             .environment(\.sheetPullHandoff, pullHandoff)
     }
