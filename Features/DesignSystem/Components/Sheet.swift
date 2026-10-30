@@ -7,8 +7,9 @@ import SwiftUI
 /// any other scroll view through `handsPullToSheet(from:)`. While pulled it looks like a system
 /// sheet (`PullDownLook`): it shrinks a little and the dim behind it lifts. Top corners
 /// `Radius.card`. Used by Follow's chapter preview and, on regular width, the Reader and Now
-/// Playing. Compact width's Listen (and its *Nothing Playing*) is the same sheet as a cover (`covers`): edge to edge, from the
-/// screen's top, no gap or corners, so nothing shows behind it until it is pulled.
+/// Playing. Compact width's Listen (and its *Nothing Playing*) is the same sheet as a cover (`covers`), over the chrome
+/// too, as Apple Music's player: the screen behind shows dimmed above it, its grabber strip is a full tap target
+/// tall, and its band (the player card) pulls it as well.
 ///
 /// It is drawn in `palette` (the reading theme's colours for the Reader and Now Playing, the same
 /// for both), which it sets on what it holds (`readingSurface`). A dark theme over a light app
@@ -108,7 +109,12 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                 .background {
                     UnevenRoundedRectangle(topLeadingRadius: corner, topTrailingRadius: corner, style: .continuous)
                         .fill(palette.background)
-                        .ignoresSafeArea(edges: covers ? .all : .bottom)
+                        .ignoresSafeArea(edges: .bottom)
+                }
+                // The web view is a square, opaque layer: without the clip it hides the rounded top.
+                .mask {
+                    UnevenRoundedRectangle(topLeadingRadius: corner, topTrailingRadius: corner, style: .continuous)
+                        .ignoresSafeArea(edges: .bottom)
                 }
                 .readingSurface(palette)
                 .padding(.top, gap)
@@ -127,25 +133,12 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         }
     }
 
-    /// The grabber and the header: pulled down, they pull the sheet. A cover has no grabber but a
-    /// ⌄ in a glass circle at its top left: a tap closes it, and it is the obvious thing to pull.
+    /// The grabber and the header: pulled down, they pull the sheet. A cover's grabber strip is a
+    /// full tap target tall, so there is something to take hold of.
     private var headerBlock: some View {
         VStack(spacing: 0) {
-            if covers {
-                Button(action: close) {
-                    ChromeCircleFace(label: Verbs.closeListen, symbol: Icons.collapse) { Image(systemName: Icons.collapse) }
-                        .frame(width: ChromeMetrics.barHeight, height: ChromeMetrics.barHeight)
-                        .environment(\.chromeSkin, ChromeSkin.current)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Verbs.closeListen)
-                .accessibilityIdentifier("sheetCollapse")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, ChromeMetrics.margin)
-                .padding(.vertical, Spacing.xxs)
-            } else {
-                SheetGrabber()
-            }
+            SheetGrabber()
+                .frame(maxWidth: .infinity, minHeight: covers ? ChromeMetrics.minTapTarget : nil, alignment: .top)
             header
         }
         .contentShape(Rectangle())
@@ -269,10 +262,10 @@ extension Sheet {
 
     private var maxDim: Double { Self.maxDim(palette) }
 
-    /// Between the status bar and the top edge: none for a cover.
-    private var gap: CGFloat { covers ? 0 : Self.topGap }
-    /// The top corners' radius: square for a cover, which meets the screen's.
-    private var corner: CGFloat { covers ? 0 : Radius.card }
+    /// Between the status bar and the top edge.
+    private var gap: CGFloat { Self.topGap }
+    /// The top corners' radius.
+    private var corner: CGFloat { Radius.card }
 }
 
 /// The bar at the top of a sheet that says it can be pulled down.
