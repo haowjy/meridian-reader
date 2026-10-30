@@ -192,11 +192,14 @@ struct ListenBackButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: ChromeMetrics.unit) {
+                // ‹ in a 30 pt slot `fieldEndInset` from the end: concentric with the capsule's end cap,
+                // where the Library's round ‹ draws it.
                 Image(systemName: Icons.back).font(BottomChrome.chromeGlyph)
+                    .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
                 Text(place).font(BottomChrome.originLabel).lineLimit(1).truncationMode(.tail)
             }
             .foregroundStyle(Palette.ink)
-            .padding(.leading, Spacing.s)
+            .padding(.leading, BottomChrome.fieldEndInset)
             .padding(.trailing, Spacing.s + ChromeMetrics.unit)
             .frame(height: ChromeMetrics.barHeight)
             .frame(maxWidth: ChromeMetrics.listenBackMaxWidth, alignment: .leading)
