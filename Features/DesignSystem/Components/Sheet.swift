@@ -7,7 +7,7 @@ import SwiftUI
 /// any other scroll view through `handsPullToSheet(from:)`. While pulled it looks like a system
 /// sheet (`PullDownLook`): it shrinks a little and the dim behind it lifts. Top corners
 /// `Radius.card`. Used by Follow's chapter preview and, on regular width, the Reader and Now
-/// Playing. Compact width's Listen is the same sheet as a cover (`covers`): edge to edge, from the
+/// Playing. Compact width's Listen (and its *Nothing Playing*) is the same sheet as a cover (`covers`): edge to edge, from the
 /// screen's top, no gap or corners, so nothing shows behind it until it is pulled.
 ///
 /// It is drawn in `palette` (the reading theme's colours for the Reader and Now Playing, the same
@@ -222,13 +222,14 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
 }
 
 extension Sheet where Band == EmptyView, OverText == EmptyView {
-    /// A sheet with its header above its content (Follow's preview): no full screen.
-    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, @ViewBuilder header: () -> Header,
-         @ViewBuilder content: () -> Content) {
+    /// A sheet with its header above its content (Follow's preview, Listen's *Nothing Playing*): no
+    /// full screen. A header that fills it pulls it from anywhere.
+    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, covers: Bool = false,
+         @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content) {
         self.onDismiss = onDismiss
         self.palette = palette
         chrome = nil
-        covers = false
+        self.covers = covers
         self.header = header()
         self.content = content()
         band = EmptyView()

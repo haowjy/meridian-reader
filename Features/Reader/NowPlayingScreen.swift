@@ -49,7 +49,19 @@ struct NowPlayingScreen: View {
     @State private var scrubPreview: Int?
     @State private var scrollRequest: ReaderScrollRequest?
 
+    /// This showing has had something bound: losing it closes Listen, where opening with nothing
+    /// shows *Nothing Playing*.
+    @State private var hadSomethingBound = false
+
     var body: some View {
+        Group { screen }
+            .onChange(of: speech.nowPlaying != nil, initial: true) { _, bound in
+                if bound { hadSomethingBound = true }
+            }
+    }
+
+    @ViewBuilder
+    private var screen: some View {
         if let now = speech.nowPlaying {
             // Only the playing page's content: never the page before's, for a frame, on advance.
             let readerArticle = content?.key == now.articleKey ? content?.readerArticle : nil
@@ -61,10 +73,34 @@ struct NowPlayingScreen: View {
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
             .onChange(of: now.articleKey, initial: true) { _, key in load(key) }
             .task(id: ScrubMapKey(key: now.articleKey, count: speech.document.count)) { await buildScrubMap() }
-        } else {
-            // Nothing is bound (the page you heard was removed from the Library or deleted, or
-            // crash resume found nothing to play): nothing to show.
+        } else if hadSomethingBound {
+            // The page you heard was removed from the Library or deleted: nothing to show.
             Color.clear.onAppear(perform: shell.hideNowPlaying)
+        } else {
+            nothingPlaying
+        }
+    }
+
+    /// Listen opened with nothing bound and nothing played before: a cover like the player's,
+    /// pulled down the same way, from anywhere on it. *Open Library* closes it on the Library's home.
+    private var nothingPlaying: some View {
+        let palette = appearance.palette(accent: AppAppearance.shared.accent)
+        let onClose = { [shell, presentation = shell.nowPlayingPresentation] in
+            if let presentation { shell.nowPlayingDidClose(presentation) }
+        }
+        return Sheet(onDismiss: onClose, palette: palette, covers: sizeClass != .regular) {
+            EmptyState(String(localized: "Nothing Playing"), symbol: Icons.listen,
+                       description: Text("Choose an article or book to listen to.")) {
+                Button(String(localized: "Open Library")) { shell.showLibrary(at: []) }
+                    .fontWeight(.semibold)
+                    .tint(palette.accent)
+                    .accessibilityIdentifier("listenEmptyOpenLibrary")
+            }
+            .frame(maxHeight: .infinity)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("listenEmpty")
+        } content: {
+            EmptyView()
         }
     }
 
@@ -273,7 +309,7 @@ struct NowPlayingScreen: View {
                        scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
                        opensAt: shell.nowPlayingOpensAt,
-                       onUserScroll: { following = false }, onSpotSide: { spotSide = $0 }, onTap: jump(to:), onOpenLink: shell.navigate(to:),
+                       onUserScroll: { following = false }, onSpotSide: { spotSide = $0 }, onTap: jump(to:), onOpenLink: { shell.navigate(to: $0) },
                        onPlaySelection: playFromSelection)
         } else {
             appearance.palette(accent: AppAppearance.shared.accent).background

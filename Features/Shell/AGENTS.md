@@ -22,7 +22,8 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   a pull down closes it (VoiceOver: escape). Closing it must leave whatever was under it (surface,
   reader, search, fold) untouched: that is the only "back".
   Idle Listen binds the page played last paused (`SpeechController.prepare`), never a second "current
-  article".
+  article"; with nothing to bind it opens on *Nothing Playing* (`NowPlayingScreen`), and a showing that
+  loses what it showed closes.
 - **Two size classes.** iPad layout is gated on `horizontalSizeClass == .regular` and compact (iPhone,
   iPad in a compact window) draws the chrome host; regular width keeps `SurfaceBand` and the dock. When you touch shell chrome, check both.
 - **Sizes are tokens** in `../DesignSystem/Tokens/RegularLayout.swift`; don't hard-code a width in a view.
