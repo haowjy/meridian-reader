@@ -19,6 +19,9 @@ enum BottomChrome {
     static let roundGlyph = Font.system(size: 18, weight: .medium)
     /// The address field's trailing 🎤 or ⊗ while searching: Safari's size and weight there.
     static let fieldAccessoryGlyph = Font.system(size: 17, weight: .regular)
+    /// How far a 30 pt field glyph slot (🔍, 🎤, ⊗) sits in from the capsule's end while
+    /// searching: equal top, bottom and end, so the slot is concentric with the end cap.
+    static let fieldEndInset: CGFloat = (ChromeMetrics.barHeight - Glyph.fieldLeading) / 2
     /// Text on a round control's face (the speed): the same weight, even-width digits.
     static let roundText = Font.system(size: 15, weight: .medium).monospacedDigit()
     /// The place name on Listen's ‹ ("‹ reddit.com"): the chrome glyph's weight, fixed like it.

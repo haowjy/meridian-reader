@@ -112,10 +112,13 @@ struct AddressField<Field: View, Accessory: View>: View {
             }
             accessory
         }
-        .bottomChromeField(leading: reader == .showing ? Spacing.s * (1 - readerReveal) : Spacing.s,
+        .bottomChromeField(leading: reader == .searching && isChromeField ? BottomChrome.fieldEndInset
+                           : reader == .showing ? Spacing.s * (1 - readerReveal) : Spacing.s,
                            // ↻ / ✕'s 44 pt square sits 2 pt in from the capsule's end: its glyph centres on the
                            // end's curve like the 📄 at the other end.
-                           trailing: reload != nil || appearance != nil ? (ChromeMetrics.barHeight - BottomChrome.minTapTarget) / 2
+                           // While searching, 🎤 / ⊗ is concentric with the end cap (`fieldEndInset`).
+                           trailing: reader == .searching && isChromeField ? BottomChrome.fieldEndInset
+                           : reload != nil || appearance != nil ? (ChromeMetrics.barHeight - BottomChrome.minTapTarget) / 2
                            : listen == nil && Accessory.self == EmptyView.self ? Spacing.s : Spacing.xxs)
     }
 
