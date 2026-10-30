@@ -138,7 +138,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     private var headerBlock: some View {
         VStack(spacing: 0) {
             SheetGrabber()
-                .frame(maxWidth: .infinity, minHeight: largePullTargets ? ChromeMetrics.minTapTarget : nil, alignment: .top)
+                .frame(maxWidth: .infinity, minHeight: largePullTargets ? Control.tap : nil, alignment: .top)
             header
         }
         .contentShape(Rectangle())

@@ -71,7 +71,7 @@ struct AddressField<Field: View, Accessory: View>: View {
     }
 
     /// The 📄 glyph's frame.
-    private static var readerSize: CGFloat { Glyph.fieldLeading }
+    private static var readerSize: CGFloat { ChromeMetrics.endGlyphSlot }
     /// The field's control glyphs: the chrome's own in the compact chrome, else body text size.
     private var controlFont: Font { isChromeField ? BottomChrome.chromeGlyph : .body }
 
@@ -92,7 +92,7 @@ struct AddressField<Field: View, Accessory: View>: View {
                     Image(systemName: Icons.textAppearance)
                         .font(controlFont)
                         .foregroundStyle(appearance.wrappedValue ? Palette.accent : Palette.ink)
-                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                        .frame(width: Control.tap, height: Control.tap)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -106,7 +106,7 @@ struct AddressField<Field: View, Accessory: View>: View {
                     Image(systemName: reload == .stop ? Icons.close : Icons.reload)
                         .font(controlFont)
                         .foregroundStyle(Palette.ink)
-                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                        .frame(width: Control.tap, height: Control.tap)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -121,13 +121,13 @@ struct AddressField<Field: View, Accessory: View>: View {
         // is concentric with the end cap; a 44 pt button (↻ / ✕, 🎧) sits 2 pt in, which centres it the same way.
         .bottomChromeField(leading: reader == .showing ? leadingInset * (1 - readerReveal) : leadingInset,
                            trailing: reload != nil || appearance != nil || listen != nil
-                               ? (ChromeMetrics.barHeight - BottomChrome.minTapTarget) / 2
+                               ? (Control.bar - Control.tap) / 2
                                : Accessory.self == EmptyView.self ? Spacing.s
-                               : isChromeField ? BottomChrome.fieldEndInset : Spacing.xxs)
+                               : isChromeField ? ChromeMetrics.endInset : Spacing.xxs)
     }
 
     /// The leading glyph slot's inset: concentric with the end cap in the chrome.
-    private var leadingInset: CGFloat { isChromeField ? BottomChrome.fieldEndInset : Spacing.s }
+    private var leadingInset: CGFloat { isChromeField ? ChromeMetrics.endInset : Spacing.s }
 
     @ViewBuilder
     private var leading: some View {
@@ -138,12 +138,12 @@ struct AddressField<Field: View, Accessory: View>: View {
             let glyph = Image(systemName: Icons.search)
                 .font(isChromeField ? BottomChrome.chromeGlyph : .caption)
                 .foregroundStyle(Palette.secondaryInk)
-                .frame(width: Glyph.fieldLeading * readerReveal, height: Glyph.fieldLeading)
+                .frame(width: ChromeMetrics.endGlyphSlot * readerReveal, height: ChromeMetrics.endGlyphSlot)
                 .opacity(readerReveal)
                 .clipped()
             if let holdMenu, reader == .hidden {
                 // Nothing to read: the glyph holds the page's menu, and a tap does nothing.
-                Menu { MenuRows(blocks: holdMenu) } label: { glyph.tapTarget(Glyph.fieldLeading) } primaryAction: {}
+                Menu { MenuRows(blocks: holdMenu) } label: { glyph.tapTarget(ChromeMetrics.endGlyphSlot) } primaryAction: {}
                     .menuStyle(.button)
                     .buttonStyle(.plain)
                     .allowsHitTesting(readerReveal > 0.5)
@@ -176,13 +176,13 @@ struct AddressField<Field: View, Accessory: View>: View {
         case .showing:
             // The reader view shows: the icon sits in a lit capsule inset from the field's edge,
             // concentric with it (the pill's lit segment, the same fill).
-            let side = ChromeMetrics.barHeight
+            let side = Control.bar
             readerControl {
                 Image(systemName: Icons.readerShowing)
                     .font(controlFont)
                     .foregroundStyle(Palette.accent)
                     .frame(width: side, height: side)
-                    .background { Circle().fill(Palette.lit).padding(ChromeMetrics.litInset) }
+                    .background { Circle().fill(Palette.lit).padding(Spacing.xxs) }
                     .contentShape(Circle())
                     .frame(width: side * readerReveal, alignment: .leading)
                     .opacity(readerReveal)

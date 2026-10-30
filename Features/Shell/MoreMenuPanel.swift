@@ -99,7 +99,7 @@ struct MoreMenuPanel: View {
         Button { close(then: tile.action) } label: {
             VStack(spacing: Spacing.xs) {
                 Image(systemName: tile.icon ?? Icons.more)
-                    .tileSymbol()
+                    .glyphSize(Glyph.regular)
                     .morphMenuFocus(focus)
                 Text(tile.title)
                     .typeStyle(.caption)

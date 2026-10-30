@@ -58,7 +58,7 @@ struct ChromePieces: View, Animatable {
             if let top = layout.top, state.fold < 0.75 {
                 Color.clear
                     .contentShape(Rectangle())
-                    .frame(height: K.footprint - top + K.topPadding)
+                    .frame(height: K.footprint - top + Spacing.xxs)
                     .ignoresSafeArea(.container, edges: .bottom)
                     .frame(height: K.footprint, alignment: .bottom)
                     .onTapGesture {}
@@ -70,7 +70,7 @@ struct ChromePieces: View, Animatable {
                     PrepareProgressEdge()
                     ShellToastLayer()
                 }
-                .offset(y: top - K.topPadding)
+                .offset(y: top - Spacing.xxs)
             }
         }
     }
@@ -95,7 +95,7 @@ struct ChromePieces: View, Animatable {
     }
 
     /// The folded chrome: a small glass capsule naming the page, the field shrunk (Safari's), whose tap
-    /// brings both rows back. Its hit area is `bubbleHitOutset` past its glass above and below, `minTapTarget` tall.
+    /// brings both rows back. Its hit area is `bubbleHitOutset` past its glass above and below, `Control.tap` tall.
     @ViewBuilder
     private func bubblePiece(_ layout: ChromeLayout) -> some View {
         let piece = layout.bubble
@@ -104,11 +104,11 @@ struct ChromePieces: View, Animatable {
             Button(action: onExpand) {
                 // The name starts where the field's text was and glides to the centre (`ChromeLayout`).
                 Text(title)
-                    .font(.system(size: K.bubbleFontSize, weight: .semibold))
+                    .font(.system(size: TypeStyle.caption.size, weight: .semibold))
                     .foregroundStyle(reading?.ink ?? Palette.ink)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .frame(maxWidth: max(0, piece.rect.width - layout.bubbleTextX - K.bubbleSidePadding), alignment: .leading)
+                    .frame(maxWidth: max(0, piece.rect.width - layout.bubbleTextX - Spacing.m), alignment: .leading)
                     .scaleEffect(layout.bubbleTextScale, anchor: .leading)
                     .opacity(piece.opacity)
                     .padding(.leading, layout.bubbleTextX)

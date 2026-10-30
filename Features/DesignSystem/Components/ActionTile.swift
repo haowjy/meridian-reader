@@ -15,8 +15,7 @@ struct ActionTile: View {
         Button(action: action) {
             VStack(spacing: Spacing.s) {
                 Image(systemName: symbol)
-                    .typeStyle(.title)
-                    .imageScale(.large)
+                    .glyphSize(Glyph.large)
                     .foregroundStyle(Palette.accent)
                 Text(title)
                     .typeStyle(.row, weight: .semibold)

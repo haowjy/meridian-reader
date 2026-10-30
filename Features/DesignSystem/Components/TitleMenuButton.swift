@@ -29,9 +29,9 @@ extension TitleMenuButton where Face == TitleMenuGlyph {
 struct TitleMenuGlyph: View {
     var body: some View {
         Image(systemName: Icons.more)
-            .font(.system(size: BottomChrome.iconSize))
+            .font(.system(size: Glyph.regular))
             .foregroundStyle(Palette.ink)
-            .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+            .frame(width: Control.tap, height: Control.tap)
             .contentShape(Rectangle())
     }
 }

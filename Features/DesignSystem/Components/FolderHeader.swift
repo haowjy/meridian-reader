@@ -46,10 +46,10 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     @ScaledMetric(relativeTo: .caption) private var scaledSideWidth: CGFloat = 76
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    /// The cover grows with the text, up to `BottomChrome.maxTextGrowth`.
-    private var coverWidth: CGFloat { BottomChrome.grown(scaledCoverWidth, from: 54) }
+    /// The cover grows with the text, up to `Control.maxTextGrowth`.
+    private var coverWidth: CGFloat { Control.grown(scaledCoverWidth, from: 54) }
     /// Each side control's column, so the ▶ stays centred.
-    private var sideWidth: CGFloat { BottomChrome.grown(scaledSideWidth, from: 76) }
+    private var sideWidth: CGFloat { Control.grown(scaledSideWidth, from: 76) }
 
     var body: some View {
         // Tight (C124): title, details and the action row sit close.
@@ -97,14 +97,14 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
             .accessibilityValue(prepareValue(actions))
             .accessibilityIdentifier("folderPrepare")
             .background { anchor(.prepare) }
-            PlayStateButton(state: actions.play, look: .headerDisc, action: actions.onPlay)
+            PlayStateButton(state: actions.play, look: .disc(size: Control.prominent, glyph: Glyph.large), action: actions.onPlay)
                 .accessibilityIdentifier("folderContinue")
             Menu { more } label: {
                 sideLabel(Verbs.more, shown: captions) {
                     Image(systemName: Icons.more)
-                        .font(.system(size: Glyph.control * 0.8, weight: .semibold))
+                        .font(.system(size: Glyph.large, weight: .semibold))
                         .foregroundStyle(Palette.secondaryInk)
-                        .frame(width: Glyph.control, height: Glyph.control)
+                        .frame(width: Control.small, height: Control.small)
                 }
             }
             .accessibilityLabel(Verbs.more)
@@ -118,7 +118,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     private func sideLabel(_ caption: String, shown: Bool, @ViewBuilder glyph: () -> some View) -> some View {
         VStack(spacing: 0) {
             glyph()
-                .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                .frame(width: Control.tap, height: Control.tap)
             if shown {
                 Text(caption)
                     .typeStyle(.caption)
@@ -166,14 +166,14 @@ private struct CentredSidesLayout: Layout {
     /// The row's centre line: the disc's middle, and the middle of each side's 44 pt glyph (its
     /// caption hangs below), so the three line up however tall the captions are (C124).
     private func centreLine(_ subviews: Subviews) -> CGFloat {
-        max(subviews[1].sizeThatFits(.unspecified).height, BottomChrome.minTapTarget) / 2
+        max(subviews[1].sizeThatFits(.unspecified).height, Control.tap) / 2
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard subviews.count == 3 else { return .zero }
         let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
         let line = centreLine(subviews)
-        let sideBottom = [sizes[0], sizes[2]].map { line - BottomChrome.minTapTarget / 2 + $0.height }.max() ?? 0
+        let sideBottom = [sizes[0], sizes[2]].map { line - Control.tap / 2 + $0.height }.max() ?? 0
         return CGSize(width: 2 * side(subviews) + sizes[1].width + 2 * spacing,
                       height: max(sizes[1].height, sideBottom))
     }
@@ -188,7 +188,7 @@ private struct CentredSidesLayout: Layout {
             if index == 1 {
                 subview.place(at: CGPoint(x: x, y: line), anchor: .center, proposal: .unspecified)
             } else {
-                subview.place(at: CGPoint(x: x, y: line - BottomChrome.minTapTarget / 2), anchor: .top, proposal: .unspecified)
+                subview.place(at: CGPoint(x: x, y: line - Control.tap / 2), anchor: .top, proposal: .unspecified)
             }
         }
     }

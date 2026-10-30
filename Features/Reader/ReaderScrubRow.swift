@@ -133,7 +133,7 @@ struct ReaderScrubRow<Trailing: View>: View {
     /// Fixed geometry, not spacing: tap-to-seek positions depend on where the track starts.
     private static var fieldLeading: CGFloat { 14 }
     /// How far the drag area reaches above and below the track: the capsule's padding plus 2 pt.
-    private static var dragOvershoot: CGFloat { BottomChrome.fieldVerticalPadding + 2 }
+    private static var dragOvershoot: CGFloat { Spacing.xxs + 2 }
     /// On the player card: how far the touch area stops short of the row's top and bottom edges.
     private static var cardTouchInset: CGFloat { 2 }
     private static var space: String { "readerScrubTrack" }
@@ -203,7 +203,7 @@ struct ReaderScrubRow<Trailing: View>: View {
             }
             .coordinateSpace(name: Self.space)
         }
-        .frame(height: BottomChrome.fieldControlSize)
+        .frame(height: Control.small)
         .anchorPreference(key: ReaderScrubBubble.Key.self, value: .bounds) { track in
             dragFraction.map { ReaderScrubBubble(map: map, target: map.target(at: $0), speed: speed,
                                                  track: track, fingerY: fingerY) }
@@ -236,7 +236,7 @@ struct ReaderScrubRow<Trailing: View>: View {
     /// (a tap 8 pt above the row still arrives, as iOS widens small touch targets), so the start is
     /// checked against the row itself.
     private func startsOnTrack(_ y: CGFloat) -> Bool {
-        isCapsule || (y >= Self.cardTouchInset && y <= BottomChrome.fieldControlSize - Self.cardTouchInset)
+        isCapsule || (y >= Self.cardTouchInset && y <= Control.small - Self.cardTouchInset)
     }
 
     private func scrub(_ v: DragGesture.Value, width w: CGFloat) {

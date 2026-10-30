@@ -41,7 +41,7 @@ struct ListenTransportView: View {
         if let view {
             view
         } else {
-            Color.clear.frame(height: BottomChrome.rowHeight)
+            Color.clear.frame(height: Control.tap)
         }
     }
 

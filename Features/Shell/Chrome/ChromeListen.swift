@@ -18,7 +18,7 @@ struct ChromeListenButton: View {
             ChromeCircleFace(label: Verbs.listen, symbol: Icons.listen) {
                 if playing {
                     PlayingBars(animating: true)
-                        .frame(height: ChromeMetrics.playingBarsHeight)
+                        .frame(height: Glyph.small)
                         .foregroundStyle(reading?.accent ?? Palette.accent)
                 } else {
                     Image(systemName: Icons.listen)

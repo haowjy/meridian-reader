@@ -99,8 +99,8 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
 - **The bubble** (`ChromeLayout.bubble`, `ChromePieces.bubblePiece`, id `chromeBubble`): what the second fold step
   ends in, on every screen that folds (the Browser's page, the Library and its folders and books, Library Read,
   the Browser's reader mode in Scroll mode, Settings and its pages). Safari's minimized address bar: a **glass
-  capsule** on the field's surface (`chromeSurface`, `BottomChrome.fieldFill`), 36 pt tall (`bubbleHeight`),
-  13 pt semibold ink (`bubbleFontSize`), 16 pt padding each side (`bubbleSidePadding`), as wide as its text and
+  capsule** on the field's surface (`chromeSurface`, `BottomChrome.fieldFill`), 36 pt tall (`Control.small`),
+  13 pt semibold ink (`TypeStyle.caption`'s size, fixed), 16 pt padding each side (`Spacing.m`), as wide as its text and
   padding, at most margin to margin, centred, its bottom 18 pt above the screen's edge (`bubbleClearance`, just over
   the home indicator). The hit area is its width and 44 pt tall (`bubbleHitOutset` 4 above and below). It names
   where you are: the page's domain on the Browser (no `www.`, no path), the screen's title in the Library, the
@@ -129,14 +129,14 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   bound paused at its saved place so ▶ resumes it there; else Listen's empty screen, *Nothing Playing*. It is not
   drawn while typing or in Library Edit (row 1 is then the field alone).
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **48 pt**
-  (`ChromeMetrics.barHeight`, Safari's address bar and buttons), for every piece in every row and state (pill,
+  (`Control.bar`, Safari's address bar and buttons), for every piece in every row and state (pill,
   fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, Jump to Audio, Library Read's ⋯), on every screen. The round
   buttons share one face (`ChromeCircleFace`).
   **Concentric:** a 48 pt end holds a 24 pt glyph slot inset 12 (`endGlyphSlot`, `endInset`), so the slot's
-  radius is the end cap's less the inset. **Every hit area is at least 44 pt** (`minTapTarget`): the glass is
+  radius is the end cap's less the inset. **Every hit area is at least 44 pt** (`Control.tap`): the glass is
   48 tall, so the hit shape is the glass itself (`hitOutset` 0; `ChromeHitShape`, `tapTarget(size)`), and
-  neighbouring hit areas never overlap. One 8 pt gap everywhere: between the rows (`gap`) and between
-  neighbours on a row (`rowGap`: ‹ › and the field, the field and Listen, the field and Cancel). ‹ 48, ‹ › 96. Every control glyph is 20 pt medium (`segmentGlyphHeight`).
+  neighbouring hit areas never overlap. One 8 pt gap everywhere (`Spacing.xs`): between the rows and between
+  neighbours on a row (‹ › and the field, the field and Listen, the field and Cancel). ‹ 48, ‹ › 96. Every control glyph is 20 pt medium (`Glyph.regular`, `BottomChrome.chromeGlyph`).
 - **Look.** Translucent glass, nothing opaque behind it: Liquid Glass inside one
   `GlassEffectContainer` on iOS 26, every piece answering a press; earlier iOS (and a Debug launch
   with `-chromeFallback`) a blur with white at 58% over it (dark: 44, 44, 48 at 55%), an inner 0.5 pt
@@ -151,7 +151,7 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   open, the half that cannot move dimmed to 35% and disabled but in place; nothing on a new page), on the
   Library its search field, in Library Read `[Aa  site]`; Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`).
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a whole
-  44 x 44 control (`BottomChrome.minTapTarget`), its glyph in the chrome ink at the chrome glyph weight
+  44 x 44 control (`Control.tap`), its glyph in the chrome ink at the chrome glyph weight
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
   about 150 pt (`ChromeMetrics.readerIconWidth`). There is no 🎧 in it on compact width: Listen
   is the round button after the field. While the page shows as its reader view the field is

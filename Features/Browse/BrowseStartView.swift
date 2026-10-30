@@ -303,11 +303,11 @@ struct BrowseStartView: View {
         if !shell.chromeScroll.fullScreen {
             LibraryTitleMenu {
                 ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
-                    .frame(width: ChromeMetrics.barHeight, height: ChromeMetrics.barHeight)
+                    .frame(width: Control.bar, height: Control.bar)
             }
             .environment(\.libraryChrome, libraryChrome)
             .readingSurface(readingAppearance.palette(accent: AppAppearance.shared.accent))
-            .padding(.trailing, ChromeMetrics.margin)
+            .padding(.trailing, Spacing.bandMargin)
             .transition(.opacity)
         }
     }

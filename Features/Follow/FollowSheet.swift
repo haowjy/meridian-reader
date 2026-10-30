@@ -126,7 +126,7 @@ private struct FollowAddressStep: View {
                     .focused($focused)
                     .onSubmit(read)
                     .padding(.horizontal, Spacing.m)
-                    .frame(minHeight: BottomChrome.minTapTarget)
+                    .frame(minHeight: Control.tap)
                     .accessibilityIdentifier("followAddress")
             } header: {
                 SectionHeader(title: String(localized: "Story Address"))
@@ -221,7 +221,7 @@ private struct FollowChapterRow: View {
         HStack(spacing: 0) {
             Button(action: onToggle) {
                 FollowCheckbox(symbol: isKept ? Icons.included : Icons.excluded)
-                    .frame(width: Glyph.rowLeading)
+                    .frame(width: Glyph.slot)
                     .padding(.leading, Spacing.m)
                     .padding(.trailing, Spacing.s)
                     .frame(minHeight: RowHeight.compact)
@@ -268,7 +268,7 @@ struct FollowCheckbox: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .tileSymbol()
+            .glyphSize(Glyph.regular)
             .foregroundStyle(symbol == Icons.excluded ? Palette.tertiaryInk : Palette.accent)
             .accessibilityHidden(true)
     }
@@ -287,7 +287,7 @@ private struct FollowMessage<Actions: View>: View {
         VStack(spacing: Spacing.s) {
             if let symbol {
                 Image(systemName: symbol)
-                    .tileSymbol()
+                    .glyphSize(Glyph.regular)
                     .foregroundStyle(Palette.secondaryInk)
             } else {
                 ProgressView()

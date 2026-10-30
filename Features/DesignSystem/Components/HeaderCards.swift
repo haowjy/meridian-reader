@@ -64,7 +64,7 @@ struct HeaderLink: View {
                     .foregroundStyle(Palette.accent)
             }
             .typeStyle(.caption)
-            .frame(minHeight: BottomChrome.minTapTarget)
+            .frame(minHeight: Control.tap)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

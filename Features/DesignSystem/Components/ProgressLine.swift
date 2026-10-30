@@ -59,7 +59,7 @@ struct ProgressLineGallery: View {
                         Color.clear.frame(height: Spacing.xl)
                         RoundedRectangle(cornerRadius: Radius.card)
                             .fill(Palette.chrome)
-                            .frame(height: BottomChrome.rowHeight)
+                            .frame(height: Control.tap)
                             .padding(.horizontal, RegularBand.horizontalMargin)
                             .padding(.vertical, Spacing.xs)
                             .frame(maxWidth: .infinity)

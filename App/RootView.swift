@@ -110,7 +110,7 @@ struct EngineNoticeBanner: View {
             if let onRetry {
                 Button("Retry", action: onRetry)
                     .typeStyle(.caption, weight: .semibold)
-                    .frame(minHeight: BottomChrome.minTapTarget)
+                    .frame(minHeight: Control.tap)
                     .buttonStyle(.plain)
                     .foregroundStyle(Palette.accent)
                     .accessibilityIdentifier("engineNoticeRetry")
@@ -119,7 +119,7 @@ struct EngineNoticeBanner: View {
                 Image(systemName: Icons.close)
                     .typeStyle(.caption, weight: .semibold)
                     .foregroundStyle(Palette.secondaryInk)
-                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                    .frame(width: Control.tap, height: Control.tap)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

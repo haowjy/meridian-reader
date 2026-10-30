@@ -1,47 +1,77 @@
 import SwiftUI
 
-/// Fixed sizes of small glyphs and indicators. They are sizes, not spacing, so changing the
-/// spacing scale never resizes them.
+/// Control sizes at the default text size: every button face, disc, field and hit area is one of
+/// these. Sizes, not spacing: changing the spacing scale never resizes them.
+///
+/// ```
+/// small 36 · tap 44 · bar 48 · prominent 62
+/// ```
+enum Control {
+    /// A small face: a round icon control, a field control (mic, the speed), a compact pill (a
+    /// sheet's bar buttons), a folder header's side controls, the folded chrome's bubble.
+    static let small: CGFloat = 36
+    /// The tap floor: no hit area is smaller, whatever it looks like. A toolbar's row, a row's ▶
+    /// and ⋯, Now Playing's transport disc, a player card tool.
+    static let tap: CGFloat = 44
+    /// A labelled pill, every piece of the compact chrome (Safari's address bar, measured on an
+    /// iPhone 17 Pro, iOS 26), the ▶ floating over a page in full screen.
+    static let bar: CGFloat = 48
+    /// The prominent ▶: Listen's player card and a folder header.
+    static let prominent: CGFloat = 62
+    /// How far a control, the field capsule, a row's minimum or a symbol grows with Dynamic Type,
+    /// as a multiple of its default size: enough that text and glyphs never clip, while the
+    /// chrome stays a band.
+    static let maxTextGrowth: CGFloat = 1.5
+
+    /// A Dynamic Type–scaled size (`@ScaledMetric` of `base`), kept between `base` and
+    /// `maxTextGrowth` times it.
+    static func grown(_ scaled: CGFloat, from base: CGFloat) -> CGFloat {
+        min(max(scaled, base), base * maxTextGrowth)
+    }
+}
+
+/// Symbol sizes, and the fixed measures of small indicators.
+///
+/// ```
+/// small 16 · regular 20 · large 26
+/// ```
 enum Glyph {
+    /// A glyph in a small or tight place: a pill's leading symbol, the ▶ floating over a page,
+    /// the playing bars in Listen's circle.
+    static let small: CGFloat = 16
+    /// Every other control and row symbol: the chrome's and a toolbar's glyphs, a round control's,
+    /// a row's ▶ and ⋯, a `SymbolRow`'s symbol, a book chapter's empty mark, the playing bars in a
+    /// pill, a Settings choice's ✓, a row's listening column (one width whether it holds a ring,
+    /// the bars or nothing, so every row's ring lines up).
+    static let regular: CGFloat = 20
+    /// A prominent glyph: the ▶ on a prominent disc, the player card's ⏮ ⏭, a folder header's ⋯,
+    /// an action tile's symbol.
+    static let large: CGFloat = 26
+    /// The square a symbol stands in beside a row's text: a `SymbolRow`'s leading column (a symbol
+    /// or a small site tile, so every such row's text starts at one place; it grows with the text
+    /// like the row), a voice model's download.
+    static let slot: CGFloat = 24
     /// A listening ring in a row's trailing column, part-way or full (rings mean listening,
     /// nothing else); the playing bars there.
     static let ring: CGFloat = 12
-    /// A row's trailing listening column, just before its ⋯: one width whether it holds a ring,
-    /// the bars or nothing, so every row's ring lines up (`ListRow`).
-    static let listeningColumn: CGFloat = 20
     /// The stroke of a ring, a drop target's outline and a chosen swatch's ring.
     static let stroke: CGFloat = 2
-    /// A book preview's chapter row's empty leading mark (`ListRow`); the playing bars inside a
-    /// play button; a Settings choice's ✓ or spinner.
-    static let mark: CGFloat = 20
-    /// A round control: a prepare's `PrepareMark` in the Prepared Audio list and a folder header, the
-    /// header's ⋯.
-    static let control: CGFloat = 28
-    /// A voice model's download in Settings, beside its row's text.
-    static let modelDownload: CGFloat = 24
-    /// The leading slot of every band field (Library search and the browser's address): 🔍, or
-    /// on a loaded page its 📄 / spinner, always this square so the text starts at one place.
-    static let fieldLeading: CGFloat = ChromeMetrics.endGlyphSlot
-    /// The leading column of a `SymbolRow` (Settings, the ⋯ panel, the Move tree, search
-    /// suggestions, Following's actions): one width for a symbol or a small site tile, so every
-    /// such row's text starts at one place. It grows with the text like the row.
-    static let rowLeading: CGFloat = 28
     /// A Frequently Visited tile on the start page: a site's icon.
     static let siteTile: CGFloat = 60
 }
 
 /// The minimum heights of a row at the default text size; larger text grows them up to
-/// `BottomChrome.maxTextGrowth`.
+/// `Control.maxTextGrowth`.
 enum RowHeight {
     /// A content row: a page, folder or book with its thumbnail and two lines (`ListRow`).
     static let content: CGFloat = 56
     /// A compact row: a symbol and a label, a setting, an action (`SymbolRow`).
     /// Matches the 44 pt tap floor (system Settings density); grows with Dynamic Type.
-    static let compact: CGFloat = BottomChrome.minTapTarget
+    static let compact: CGFloat = Control.tap
     /// A menu row in the ⋯ panel (a `SymbolRow`): the tap minimum, the height of a system menu's
     /// row, so an item's rows read alike in the panel and in its long press, and the longest
     /// panel (a folder's screen) fits an iPhone 17 Pro at the default text size.
-    static let menu: CGFloat = BottomChrome.minTapTarget
+    static let menu: CGFloat = Control.tap
     /// The least a row on a card list is (`cardListStyle`): the inset-grouped proportions of the
     /// system's Settings.
     static let card: CGFloat = 48
@@ -65,16 +95,10 @@ extension View {
         floatingShadow(opacity: 0.2)
     }
 
-    /// A symbol leading a compact row (`SymbolRow`, a search suggestion): body size, growing with
-    /// the text like the row's column.
-    func rowSymbol() -> some View {
-        modifier(RowSymbol())
-    }
-
-    /// A symbol standing where a tile or a thumbnail would (a folder row's 📁, a tile in the ⋯
-    /// panel, a voice's preview, Follow's checkboxes, the morph menu's glyphs): `.title3`.
-    func tileSymbol() -> some View {
-        font(.title3)
+    /// A symbol at one of the `Glyph` sizes (`weight` its weight), growing with the text only up to
+    /// `Control.maxTextGrowth`, so it stays inside its row's column or its pill at the largest sizes.
+    func glyphSize(_ size: CGFloat, weight: Font.Weight = .regular) -> some View {
+        modifier(ScaledGlyph(base: size, weight: weight))
     }
 
     /// The small chevron after a label that goes somewhere (*Show All ›*, a menu row's ›).
@@ -83,13 +107,18 @@ extension View {
     }
 }
 
-/// Body size, growing with the text only up to `BottomChrome.maxTextGrowth`, so the symbol stays
-/// inside its row's leading column at the largest sizes.
-private struct RowSymbol: ViewModifier {
-    @ScaledMetric(relativeTo: .body) private var size: CGFloat = RowSymbol.base
-    private static let base: CGFloat = 17
+private struct ScaledGlyph: ViewModifier {
+    let base: CGFloat
+    let weight: Font.Weight
+    @ScaledMetric private var scaled: CGFloat
+
+    init(base: CGFloat, weight: Font.Weight) {
+        self.base = base
+        self.weight = weight
+        _scaled = ScaledMetric(wrappedValue: base, relativeTo: .body)
+    }
 
     func body(content: Content) -> some View {
-        content.font(.system(size: BottomChrome.grown(size, from: Self.base)))
+        content.font(.system(size: Control.grown(scaled, from: base), weight: weight))
     }
 }

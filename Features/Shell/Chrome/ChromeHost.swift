@@ -71,7 +71,7 @@ struct ChromeHost: View {
 
     /// The bubble's width: its title at the fixed size and its padding (the layout caps it to the margins).
     private var bubbleWidth: CGFloat {
-        let font = UIFont.systemFont(ofSize: ChromeMetrics.bubbleFontSize, weight: .semibold)
+        let font = UIFont.systemFont(ofSize: TypeStyle.caption.size, weight: .semibold)
         let text = (screen.bubbleTitle as NSString).size(withAttributes: [.font: font]).width
         return ChromeMetrics.bubbleWidth(forTextWidth: ceil(text))
     }

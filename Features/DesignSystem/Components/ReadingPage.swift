@@ -160,8 +160,8 @@ private struct CoverBand<Content: View, Floating: View>: View {
             .clipShape(shape)
             .chromeSurface(shape, fill: BottomChrome.fieldFill(reading), interactive: false)
             .environment(\.chromeSkin, ChromeSkin.current)
-            .padding(.horizontal, ChromeMetrics.margin)
-            .padding(.bottom, ChromeMetrics.gap)
+            .padding(.horizontal, Spacing.bandMargin)
+            .padding(.bottom, Spacing.xs)
             .overlay(alignment: .top) { floating }
     }
 }

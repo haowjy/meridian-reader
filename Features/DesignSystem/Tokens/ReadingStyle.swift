@@ -15,7 +15,7 @@ enum ReadingStyle {
         var title: CGFloat
         var caption: CGFloat
         /// The heading's Listen pill (`TypeStyle.row`, as `PillButton`'s title), grown no more than
-        /// `BottomChrome.maxTextGrowth`.
+        /// `Control.maxTextGrowth`.
         var row: CGFloat
 
         init(body: CGFloat, title: CGFloat, caption: CGFloat, row: CGFloat) {
@@ -31,7 +31,7 @@ enum ReadingStyle {
                 UIFontMetrics(forTextStyle: text).scaledValue(for: style.size, compatibleWith: traits)
             }
             self.init(body: scaled(.body, .body), title: scaled(.title, .title1), caption: scaled(.caption, .footnote),
-                      row: BottomChrome.grown(scaled(.row, .callout), from: TypeStyle.row.size))
+                      row: Control.grown(scaled(.row, .callout), from: TypeStyle.row.size))
         }
 
         var cssVariables: String {
@@ -142,11 +142,11 @@ enum ReadingStyle {
                          column-gap: calc(var(--caption) * \(Int(Spacing.s)) / \(Int(TypeStyle.caption.size))); }
         .reader-detail span { flex: 0 0 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .reader-detail span:first-child { flex-shrink: 1; color: var(--secondary); }
-        /* ▶ Listen: an accent capsule (`PillButton`'s compact filled pill: 36 pt at the default size, growing
-           with its text), at the line's end; its tap reaches \(Int(ChromeMetrics.minTapTarget)) pt tall. */
+        /* ▶ Listen: an accent capsule (`PillButton`'s compact filled pill: `Control.small` at the default size, growing
+           with its text), at the line's end; its tap reaches \(Int(Control.tap)) pt tall. */
         .reader-listen { -webkit-appearance: none; appearance: none; border: 0; flex: none; margin-left: auto;
                          position: relative; box-sizing: border-box;
-                         height: calc(var(--row) * \(PillButton<PillSymbol>.Size.compact.height / TypeStyle.row.size));
+                         height: calc(var(--row) * \(Control.small / TypeStyle.row.size));
                          padding: 0 \(Int(Spacing.m))px; border-radius: 9999px;
                          background: var(--accent); color: var(--on-accent);
                          font-family: inherit; font-size: var(--row); font-weight: 600; line-height: 1; white-space: nowrap;
@@ -154,7 +154,7 @@ enum ReadingStyle {
         /* Clear of Library Read's ⋯, which sits on the title's line at the top right. */
         .reader-detail:has(.reader-listen) { padding-top: \(Int(Spacing.xs))px; }
         .reader-listen::after { content: ""; position: absolute; left: 0; right: 0; top: 50%;
-                         height: max(100%, \(Int(ChromeMetrics.minTapTarget))px); transform: translateY(-50%); }
+                         height: max(100%, \(Int(Control.tap))px); transform: translateY(-50%); }
         .reader-listen:active { opacity: 0.7; }
         .reader-listen svg { width: 0.7em; height: 0.8em; fill: currentColor; }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }

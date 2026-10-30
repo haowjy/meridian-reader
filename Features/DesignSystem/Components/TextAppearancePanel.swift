@@ -305,11 +305,11 @@ struct TextSizeStepper: View {
                       action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .rowSymbol()
+                .glyphSize(Glyph.regular)
                 .fontWeight(.medium)
                 .foregroundStyle(reading?.ink ?? Palette.ink)
                 .opacity(enabled ? 1 : Palette.disabledOpacity)
-                .frame(width: BottomChrome.minTapTarget * 1.5, height: BottomChrome.minTapTarget)
+                .frame(width: Control.tap * 1.5, height: Control.tap)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

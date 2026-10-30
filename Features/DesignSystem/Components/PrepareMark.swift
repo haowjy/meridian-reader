@@ -74,7 +74,7 @@ enum PrepareState: Equatable {
 /// | ◯↓ secondary | spinner (⌛ Reduce Motion) | ◯↓ 40% filled | ● ↓ secondary |
 struct PrepareMark: View {
     let state: PrepareState
-    var size: CGFloat = Glyph.control
+    var size: CGFloat = Control.small
 
     var body: some View {
         ZStack {

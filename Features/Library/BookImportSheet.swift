@@ -189,7 +189,7 @@ struct BookImportSheet: View {
                     .typeStyle(.row)
                     .foregroundStyle(Palette.secondaryInk)
                     .padding(.horizontal, Spacing.m)
-                    .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: Control.tap, alignment: .leading)
             }
         } header: {
             SectionHeader(title: Verbs.chapters)

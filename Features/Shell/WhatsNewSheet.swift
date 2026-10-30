@@ -37,7 +37,7 @@ struct WhatsNewSheet: View {
                     .typeStyle(.row, weight: .semibold)
                     .foregroundStyle(Palette.onAccent)
                     .frame(maxWidth: .infinity)
-                    .frame(height: BottomChrome.minTapTarget)
+                    .frame(height: Control.tap)
                     .background(Palette.accent, in: Capsule())
             }
             .buttonStyle(.plain)

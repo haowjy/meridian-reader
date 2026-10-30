@@ -186,7 +186,7 @@ struct ReaderTextInsets: Equatable {
 
 /// The play / pause floating at the bottom right of a reading page in full screen, while
 /// `ReadingChrome.floatingControl` says so: a small accent disc (`PlayStateButton`'s
-/// `floatingDisc`) with the floating shadow. A tap on it plays or pauses and keeps it a while
+/// `disc` at `Control.bar`) with the floating shadow. A tap on it plays or pauses and keeps it a while
 /// longer. Goes in the page's `overText`, which places it above the home indicator.
 struct FloatingPlayButton: View {
     let state: PlayState
@@ -197,7 +197,7 @@ struct FloatingPlayButton: View {
     var body: some View {
         ZStack {
             if let chrome, chrome.hidden, chrome.floatingControl {
-                PlayStateButton(state: state, look: .floatingDisc) {
+                PlayStateButton(state: state, look: .disc(size: Control.bar, glyph: Glyph.small)) {
                     chrome.revealFloatingControl()
                     action()
                 }

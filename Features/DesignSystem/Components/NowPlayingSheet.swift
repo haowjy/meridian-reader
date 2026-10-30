@@ -73,7 +73,7 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
                 // The clearance is measured from the top of the chrome's box; the card starts
                 // `topPadding` below it, so the button comes down that much to sit 12 above the card.
                 jumpToAudio
-                    .offset(y: ChromeMetrics.topPadding)
+                    .offset(y: Spacing.xxs)
                     .frame(maxHeight: .infinity, alignment: .bottom)
                 FloatingPlayButton(state: playState, action: onPlayPause)
                     .frame(maxHeight: .infinity, alignment: .bottom)
@@ -104,8 +104,8 @@ struct JumpToAudioButton: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// The circle: a bar's height. Its tap area is `minTapTarget`.
-    static let size = ChromeMetrics.barHeight
+    /// The circle: a bar's height. Its tap area is at least `Control.tap`.
+    static let size = Control.bar
 
     var body: some View {
         let shows = chrome.showsJumpToAudio(awayFromAudio: awayFromAudio)
@@ -138,7 +138,7 @@ struct JumpToAudioButton: View {
 /// - `row`: the five-slot grid, `[leading] [⏮] (⏸) [⏭] [more]`. Regular width's Now Playing puts 🔖
 ///   first and ⋯ last; the Reader puts speed (`1×`) first and ⋯ last. The disc is as tall as the
 ///   grid's 44 pt row, so every slot (and ⋯) sits where it does on the other surfaces.
-/// - `card`: the three alone, centred, larger (the 62 pt `cardDisc`, `cardSkipGlyph` skips): compact
+/// - `card`: the three alone, centred, larger (the `Control.prominent` disc, `Glyph.large` skips): compact
 ///   Listen's player card, which sets its tools on either side (`ReaderPlayerCard`); `leading` and
 ///   `more` are not drawn.
 ///
@@ -170,7 +170,7 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
                     skip(back: true)
                         .toolbarSlot(1)
                     playPause
-                        .frame(height: BottomChrome.rowHeight)
+                        .frame(height: Control.tap)
                         .toolbarSlot(2)
                     skip(back: false)
                         .toolbarSlot(3)
@@ -189,7 +189,7 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
     }
 
     private var playPause: some View {
-        PlayStateButton(state: state, look: size == .card ? .cardDisc : .disc, action: onPlayPause)
+        PlayStateButton(state: state, look: size == .card ? .disc(size: Control.prominent, glyph: Glyph.large) : .disc(), action: onPlayPause)
             .accessibilityLabel(state == .playing ? Verbs.pause : Verbs.play)
             .accessibilityIdentifier("listenPlayPause")
             .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in onPlayLongPress?() },
@@ -205,8 +205,8 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
                 image.toolbarIconFrame()
             case .card:
                 image
-                    .font(.system(size: BottomChrome.cardSkipGlyph))
-                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                    .font(.system(size: Glyph.large))
+                    .frame(width: Control.tap, height: Control.tap)
                     .contentShape(Rectangle())
                     .accessibilityShowsLargeContentViewer()
             }

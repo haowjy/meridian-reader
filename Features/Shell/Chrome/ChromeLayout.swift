@@ -58,7 +58,7 @@ struct ChromeLayout: Equatable {
     /// `ChromeMetrics.bubbleHitOutset` more above and below. Its `opacity` is its name's.
     var bubble: ChromePiece
     /// The bubble's name: its leading edge from the bubble's, and its scale (anchored there) on
-    /// `ChromeMetrics.bubbleFontSize`. It starts where the field's text is, at its size, and ends centred.
+    /// `TypeStyle.caption.size`. It starts where the field's text is, at its size, and ends centred.
     var bubbleTextX: CGFloat = 0
     var bubbleTextScale: CGFloat = 1
 
@@ -69,7 +69,7 @@ struct ChromeLayout: Equatable {
 
     init(width w: CGFloat, state s: ChromeState) {
         typealias K = ChromeMetrics
-        let bar = K.barHeight, gap = K.gap, rowGap = K.rowGap, margin = K.margin
+        let bar = Control.bar, gap = Spacing.xs, rowGap = Spacing.xs, margin = Spacing.bandMargin
         // The rows dip into the home indicator's strip; the keyboard's form sits on the keyboard instead.
         let bottom = K.footprint + (s.keyboard ? 0 : s.homeInset - K.edgeClearance)
         let rowY = bottom - bar
@@ -127,7 +127,7 @@ struct ChromeLayout: Equatable {
         let first = K.ramp(f, 0...0.5)
         let bubbleWidth = min(w - 2 * margin, s.bubbleWidth)
         let bubbleBottom = K.footprint + s.homeInset - K.bubbleClearance
-        let bubbleRect = CGRect(x: (w - bubbleWidth) / 2, y: bubbleBottom - K.bubbleHeight, width: bubbleWidth, height: K.bubbleHeight)
+        let bubbleRect = CGRect(x: (w - bubbleWidth) / 2, y: bubbleBottom - Control.small, width: bubbleWidth, height: Control.small)
         // From a row's place in the bottom row to below the screen's edge.
         let offScreen = bar + K.edgeClearance
         let row2Gone = K.ramp(f, 0...0.5), row1Gone = K.ramp(f, 0.5...0.85)
@@ -152,8 +152,8 @@ struct ChromeLayout: Equatable {
                                width: lerp(fieldDropped.width, bubbleRect.width), height: lerp(fieldDropped.height, bubbleRect.height))
         bubble = ChromePiece(rect: shrinking, isShown: hold && f > 0.5, opacity: K.ramp(f, 0.5...handOver))
         // The name: from the field's text (its inset, its size) to centred at the bubble's own size.
-        let nameWidth = max(0, bubbleWidth - 2 * K.bubbleSidePadding)
+        let nameWidth = max(0, bubbleWidth - 2 * Spacing.m)
         bubbleTextX = lerp(K.fieldTextInset, (shrinking.width - nameWidth) / 2)
-        bubbleTextScale = lerp(K.fieldTextSize / K.bubbleFontSize, 1)
+        bubbleTextScale = lerp(TypeStyle.row.size / TypeStyle.caption.size, 1)
     }
 }

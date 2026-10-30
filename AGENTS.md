@@ -111,8 +111,9 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   `bookmarks.json` are frozen (the migration copied them; nothing writes them).
 - **Screens are built from `Features/DesignSystem/`**: no ad-hoc padding, colour, radius or font
   size in feature code. Spacing and margins come from `Spacing`, corners from `Radius`, text from
-  `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), colour from `Palette` (light and dark), SF
-  Symbols from `Icons` (one per concept). Shared pieces (`PlayStateButton`, `PillButton` (a sheet's bar
+  `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), control and hit sizes from `Control` (36, the
+  44 tap floor, 48, 62), symbol sizes from `Glyph` (16, 20, 26; `glyphSize(_:)` grows them with the
+  text), colour from `Palette` (light and dark), SF Symbols from `Icons` (one per concept). Shared pieces (`PlayStateButton`, `PillButton` (a sheet's bar
   buttons are `SheetBarButton`, in `PillButton.swift`), `IconButton` (every round or toolbar-cell icon control), `ListRow` (its second
   line a `DetailLine`), `SymbolRow`, `ArtworkTile`, `NowPlayingBar`, `Sheet`, …) take plain values and
   closures, never `SpeechController`, SwiftData or `ShellState`, and carry previews in light, dark
@@ -142,7 +143,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   Browser's is a press and hold on the field's leading glyph); two rows expanded, one, then a small glass bubble naming the page folded (the field shrunk; every piece folds straight down);
   no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; later
   redesign PRs are under "Planned"). Regular width keeps `SurfaceBand`, the dock (with its ⋯) and the Settings sheet. Every piece is a capsule
-  or circle (radius = height / 2; Safari's sizes: one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, one 8 pt gap between rows and between pieces, footprints 142, 86 (one row and the keyboard) and 58 (the bubble), hit areas at least 44; the pill runs margin to margin, as row 1 does), every control glyph
+  or circle (radius = height / 2; Safari's sizes: one 48 pt `Control.bar`, laid out by `ChromeMetrics` in `Features/DesignSystem/Chrome/`, one 8 pt gap between rows and between pieces, footprints 142, 86 (one row and the keyboard) and 58 (the bubble), hit areas at least 44; the pill runs margin to margin, as row 1 does), every control glyph
   `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`: a scroll down folds it, a scroll up of 24 pt (`revealDistance`) brings both rows back, as do the bubble's tap and the top of the text, offset <= 4). Listen is not a destination: it slides up over everything, chrome included, as a `Sheet` over the screen with a grabber and no close button, the screen behind dimmed above its rounded top (a pull down on the grabber or the card, still heading down at release closes it, back to what was under it; VoiceOver: escape), the article's title at the top of its text and its player card at its foot; the in-place readers start it from the "▶ Listen" pill at the end of their heading's source line, and show no playhead (it is Listen's). The compact address pill ends
   in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
   `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,

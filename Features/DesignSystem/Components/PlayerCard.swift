@@ -4,10 +4,6 @@ import SwiftUI
 /// height and the flat card surface (background, radius, no shadow).
 enum PlayerCard {
     static let artworkSize: CGFloat = 40
-    /// A compact card tool's column: a tap target wide.
-    static let toolCell: CGFloat = ChromeMetrics.minTapTarget
-    /// A compact card tool's row: drawn 40 high, two of them beside the 62 pt play, tapped in 44.
-    static let toolRow: CGFloat = 10 * ChromeMetrics.unit
     /// Matches `ScrubTrack`'s base track height (4 pt).
     static let progressHeight: CGFloat = 4
 }
@@ -71,9 +67,9 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
     @ViewBuilder var scrub: Scrub
     /// Previous paragraph, play / pause, next paragraph (`ListenTransportView`, `card` size).
     @ViewBuilder var transport: Transport
-    /// The leading column's two small controls, top to bottom (speed, Aa): `toolCell`s.
+    /// The leading column's two small controls, top to bottom (speed, Aa): `playerCardTool`s.
     @ViewBuilder var leading: Leading
-    /// The trailing column's two (Voice, ⋯): `toolCell`s.
+    /// The trailing column's two (Voice, ⋯): `playerCardTool`s.
     @ViewBuilder var trailing: Trailing
 
     @Environment(\.readingPalette) private var reading
@@ -108,7 +104,7 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
             CardJumpButton(state: jump, action: onJump)
             save.fixedSize()
         }
-        .frame(minHeight: BottomChrome.fieldControlSize)
+        .frame(minHeight: Control.small)
     }
 
     /// The title, a Button to its origin when it has one (44 pt to tap, the row's width before Jump).
@@ -122,7 +118,7 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
         if let origin {
             Button(action: origin.open) {
                 text
-                    .frame(minHeight: ChromeMetrics.minTapTarget)
+                    .frame(minHeight: Control.tap)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -166,12 +162,11 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
 }
 
 extension View {
-    /// A player card tool (speed, Aa, Voice, ⋯): a `toolCell` column wide and a tool row high, its
-    /// glyph or text centred, so the two in a column share a centre; taps reach 44 pt.
+    /// A player card tool (speed, Aa, Voice, ⋯): a `Control.tap` square, its glyph or text centred, so
+    /// the two in a column share a centre and two columns' taps never overlap.
     func playerCardTool() -> some View {
-        frame(width: PlayerCard.toolCell, height: PlayerCard.toolRow)
+        frame(width: Control.tap, height: Control.tap)
             .contentShape(Rectangle())
-            .tapTarget(PlayerCard.toolRow)
     }
 }
 
@@ -194,7 +189,7 @@ private struct CardJumpButton: View {
                     ? String(localized: "Scrolls up to the sentence being read.")
                     : String(localized: "Scrolls down to the sentence being read."))
         case .finished:
-            Color.clear.frame(width: BottomChrome.fieldControlSize, height: BottomChrome.fieldControlSize)
+            Color.clear.frame(width: Control.small, height: Control.small)
         }
     }
 }

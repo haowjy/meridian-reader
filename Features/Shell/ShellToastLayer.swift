@@ -45,7 +45,7 @@ extension View {
     func sheetToastLayer() -> some View {
         safeAreaInset(edge: .bottom, spacing: 0) {
             Color.clear.frame(height: 0).overlay(alignment: .top) {
-                ShellToastLayer().offset(y: -BottomChrome.rowHeight)
+                ShellToastLayer().offset(y: -Control.tap)
             }
         }
     }

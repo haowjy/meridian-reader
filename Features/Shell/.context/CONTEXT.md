@@ -93,7 +93,7 @@ changing the shell code.
   (`MorphMenu.focusOffsetFromAnchor`). The `moreMenuFocus` marker, Debug builds with
   `-uiTesting` only, shows where the focus ends up.
 - **Sizing.** Field capsules use a fixed height (an unbounded `Capsule` turns into a circle) that
-  grows with Dynamic Type up to `BottomChrome.maxTextGrowth` (1.5×); every control gets a 44 pt
+  grows with Dynamic Type up to `Control.maxTextGrowth` (1.5×); every control gets a 44 pt
   tap area through `tapTarget`.
 - **Gestures.** Drags that dismiss or collapse lock their axis on the first movement and rubber-band
   the wrong direction (`SwipeGesturePolicy`, in the design system); releases seed the

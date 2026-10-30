@@ -12,8 +12,8 @@ import SwiftUI
 ///     example.org
 /// ```
 ///
-/// The column is `Glyph.rowLeading` wide and the row at least `RowHeight.compact` tall
-/// (`RowHeight.menu` in the ⋯ panel); both grow with the text up to `BottomChrome.maxTextGrowth`. Without a leading view (`symbol` nil)
+/// The column is `Glyph.slot` wide and the row at least `RowHeight.compact` tall
+/// (`RowHeight.menu` in the ⋯ panel); both grow with the text up to `Control.maxTextGrowth`. Without a leading view (`symbol` nil)
 /// the text starts at the row's edge: a card's rows either all lead with a symbol or none does.
 /// The row adds no horizontal padding (its list or panel has its own) and no tap: the caller
 /// wraps it in a `Button`, `NavigationLink` or `Toggle`. On the reading page it takes the
@@ -32,7 +32,7 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
 
     @Environment(\.readingPalette) private var reading
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.rowLeading
+    @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.slot
     /// How much the row type has grown (1 at the default size).
     @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var growth: CGFloat = 1
 
@@ -40,8 +40,8 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
         HStack(spacing: Spacing.s) {
             if let leading {
                 leading
-                    .rowSymbol()
-                    .frame(width: BottomChrome.grown(scaledColumn, from: Glyph.rowLeading))
+                    .glyphSize(Glyph.regular)
+                    .frame(width: Control.grown(scaledColumn, from: Glyph.slot))
                     .accessibilityHidden(true)
             }
             HStack(spacing: Spacing.s) {
@@ -66,7 +66,7 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         }
         .foregroundStyle(ink ?? reading?.ink ?? Palette.ink)
-        .frame(minHeight: BottomChrome.grown(height * growth, from: height))
+        .frame(minHeight: Control.grown(height * growth, from: height))
         .contentShape(Rectangle())
     }
 }
@@ -108,11 +108,11 @@ extension SymbolRow {
 struct SymbolRowSeparator: View {
     var leadingInset: CGFloat = 0
 
-    @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.rowLeading
+    @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.slot
 
     var body: some View {
         Divider()
-            .padding(.leading, leadingInset + BottomChrome.grown(scaledColumn, from: Glyph.rowLeading) + Spacing.s)
+            .padding(.leading, leadingInset + Control.grown(scaledColumn, from: Glyph.slot) + Spacing.s)
     }
 }
 
@@ -135,7 +135,7 @@ struct SymbolRowGallery: View {
             }
             PreviewState("a site tile, an accent action") {
                 SymbolRow("Notes on Tides", subtitle: "example.org") {
-                    ArtworkTile(letter: "example.org", size: Glyph.rowLeading)
+                    ArtworkTile(letter: "example.org", size: Glyph.slot)
                 } trailing: { EmptyView() }
                 SymbolRow("New Folder", symbol: Icons.newFolder, ink: Palette.accent)
             }

@@ -44,15 +44,15 @@ struct ScrubTrack: View {
 struct ScrubTrackGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("start") { ScrubTrack(value: 0).frame(height: BottomChrome.fieldControlSize) }
+            PreviewState("start") { ScrubTrack(value: 0).frame(height: Control.small) }
             PreviewState("part-way, buffered ahead") {
-                ScrubTrack(value: 0.42, buffered: [0.42...0.7]).frame(height: BottomChrome.fieldControlSize)
+                ScrubTrack(value: 0.42, buffered: [0.42...0.7]).frame(height: Control.small)
             }
             PreviewState("dragging") {
-                ScrubTrack(value: 0.6, buffered: [0.6...0.8], isDragging: true).frame(height: BottomChrome.fieldControlSize)
+                ScrubTrack(value: 0.6, buffered: [0.6...0.8], isDragging: true).frame(height: Control.small)
             }
             PreviewState("on a dark reading page") {
-                ScrubTrack(value: 0.42, buffered: [0.42...0.7]).frame(height: BottomChrome.fieldControlSize)
+                ScrubTrack(value: 0.42, buffered: [0.42...0.7]).frame(height: Control.small)
                     .onReadingPreview()
             }
         }

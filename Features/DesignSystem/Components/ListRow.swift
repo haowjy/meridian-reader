@@ -22,7 +22,7 @@ import SwiftUI
 /// give way first, and at accessibility sizes the status shows alone.
 ///
 /// Its listening mark stands in a fixed-width column at the trailing edge, just before the
-/// accessory and the ⋯ (`Glyph.listeningColumn`), so every row's ring lines up: a ring part-way,
+/// accessory and the ⋯ (`Glyph.regular`), so every row's ring lines up: a ring part-way,
 /// the same ring full once finished, the bars while it is what you hear, and nothing (the column
 /// kept, so nothing shifts) before it starts. Line two keeps the words ("18 min", "6 min left",
 /// "Finished", "Playing"). Rows with no listening (a folder with its count, a book preview's
@@ -92,15 +92,13 @@ struct ListRow: View {
     var showsListening = true
 
     /// `RowHeight.content` at the default text size; larger text grows the row through its
-    /// content, and the minimum only up to `BottomChrome.maxTextGrowth`.
+    /// content, and the minimum only up to `Control.maxTextGrowth`.
     @ScaledMetric(relativeTo: .callout) private var scaledMinHeight = RowHeight.content
     /// Space between the second line's parts: `Spacing.s`, growing with the caption.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var partSpacing = Spacing.s
     /// The two text lines' heights, scaled like their text: a page's thumbnail matches them.
     @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var titleLineHeight = TypeStyle.row.lineHeight
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var captionLineHeight = TypeStyle.caption.lineHeight
-    /// The ⋯, scaled like a toolbar glyph (`moreGlyphSize`).
-    @ScaledMetric(relativeTo: .title3) private var scaledGlyph: CGFloat = ListRow.moreGlyphSize
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The row's width, for the trailing column's place (`trailingColumnPadding`).
     @State private var width: CGFloat = 0
@@ -127,19 +125,19 @@ struct ListRow: View {
             }
             if hasListeningColumn {
                 listeningMark
-                    .frame(width: Glyph.listeningColumn)
+                    .frame(width: Glyph.regular)
                     .accessibilityHidden(true)
             }
             if let accessory {
                 accessory
-                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                    .frame(width: Control.tap, height: Control.tap)
             }
             if let menu {
                 Menu { menu } label: {
                     Image(systemName: Icons.more)
-                        .font(.system(size: BottomChrome.grown(scaledGlyph, from: Self.moreGlyphSize), weight: .semibold))
+                        .glyphSize(Glyph.regular, weight: .semibold)
                         .foregroundStyle(Palette.secondaryInk)
-                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                        .frame(width: Control.tap, height: Control.tap)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
@@ -156,7 +154,7 @@ struct ListRow: View {
         // One height in Edit and out (C123): the ⋯'s 44 pt square plus this padding is the 56 pt
         // minimum, so a row doesn't shrink when Edit takes its ⋯ away.
         .padding(.vertical, Self.verticalPadding)
-        .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: RowHeight.content))
+        .frame(minHeight: Control.grown(scaledMinHeight, from: RowHeight.content))
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
         .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
@@ -170,11 +168,8 @@ struct ListRow: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// The ⋯'s size at the default text size; it grows like a toolbar glyph.
-    static let moreGlyphSize: CGFloat = 20
-
     /// Above and below the content: what the 44 pt ⋯ leaves of the 56 pt row (6 pt).
-    static let verticalPadding = (RowHeight.content - BottomChrome.minTapTarget) / 2
+    static let verticalPadding = (RowHeight.content - Control.tap) / 2
 
     /// Trailing padding that centres the 44 pt trailing column on the toolbar's ⋯ slot, for a
     /// row `rowWidth` wide in a list at the page margin: the toolbar row is wider by the
@@ -389,14 +384,14 @@ struct ListRow: View {
                             isCover: true, fill: Palette.chrome)
                     .frame(width: thumbnailSide, height: thumbnailSide)
             } else {
-                Image(systemName: symbol).tileSymbol().foregroundStyle(Palette.accent)
+                Image(systemName: symbol).glyphSize(Glyph.regular).foregroundStyle(Palette.accent)
                     .frame(width: thumbnailSide, height: thumbnailSide)
             }
         case .article(let artwork, let letter):
             ArtworkTile(image: artwork, letter: letter, size: thumbnailSide, fill: Palette.paper)
         case .chapter:
             Color.clear
-                .frame(width: Glyph.mark, height: Glyph.mark)
+                .frame(width: Glyph.regular, height: Glyph.regular)
         case .link:
             Image(systemName: Icons.link)
                 .foregroundStyle(Palette.secondaryInk)
@@ -405,10 +400,10 @@ struct ListRow: View {
     }
 
     /// A page's thumbnail: as tall as its two lines of text, growing with them only up to
-    /// `BottomChrome.maxTextGrowth` so the title keeps room at the largest sizes.
+    /// `Control.maxTextGrowth` so the title keeps room at the largest sizes.
     private var thumbnailSide: CGFloat {
         let base = TypeStyle.row.lineHeight + TypeStyle.caption.lineHeight
-        return BottomChrome.grown(titleLineHeight + captionLineHeight, from: base)
+        return Control.grown(titleLineHeight + captionLineHeight, from: base)
     }
 }
 

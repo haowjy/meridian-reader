@@ -81,7 +81,7 @@ struct BottomToolbarLayout: Layout {
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let height = subviews.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
-        return CGSize(width: proposal.width ?? 320, height: max(BottomChrome.rowHeight, height))
+        return CGSize(width: proposal.width ?? 320, height: max(Control.tap, height))
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {

@@ -43,7 +43,7 @@ struct SettingsChoiceRow<Accessory: View>: View {
             .accessibilityAddTraits(selected ? .isSelected : [])
 
             accessory()
-                .frame(width: Glyph.control, height: Glyph.control)
+                .frame(width: Control.small, height: Control.small)
 
             ZStack {
                 if selected {
@@ -52,7 +52,7 @@ struct SettingsChoiceRow<Accessory: View>: View {
                         .fontWeight(.semibold)
                 }
             }
-            .frame(width: Glyph.mark, height: Glyph.mark)
+            .frame(width: Glyph.regular, height: Glyph.regular)
             .accessibilityHidden(true)
         }
     }
@@ -128,12 +128,12 @@ struct ModelDownloadMark: View {
     var body: some View {
         Group {
             if let fraction, fraction < 1 {
-                PrepareMark(state: .preparing(fraction: fraction), size: Glyph.modelDownload)
+                PrepareMark(state: .preparing(fraction: fraction), size: Glyph.slot)
             } else {
                 ProgressView().controlSize(.small)
             }
         }
-        .frame(width: Glyph.modelDownload, height: Glyph.modelDownload)
+        .frame(width: Glyph.slot, height: Glyph.slot)
         .contentShape(Rectangle())
     }
 }

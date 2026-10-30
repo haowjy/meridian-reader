@@ -31,7 +31,7 @@ extension ChromeDestination {
 /// `[ 📚 | 🧭 | ⚙︎ ]`: one capsule of equal segments, each a button showing its glyph only (Library,
 /// Browser and Settings are their names for VoiceOver and the large content viewer). Every segment has the same glyph size
 /// and weight; lit differs by the glyph's tint and the wash only. Each segment is tapped
-/// `hitOutset` above and below the glass, `minTapTarget` tall.
+/// `hitOutset` above and below the glass, `Control.tap` tall.
 struct ChromePill: View {
     let lit: ChromeDestination
     let onSelect: (ChromeDestination) -> Void
@@ -48,8 +48,8 @@ struct ChromePill: View {
                 // The wash is inset equally on all four sides; its radius is the pill's minus the inset.
                 Capsule()
                     .fill(Palette.lit)
-                    .frame(width: slot - 2 * K.litInset, height: size.height - 2 * K.litInset)
-                    .offset(x: slot * CGFloat(lit.segment) + K.litInset, y: K.litInset)
+                    .frame(width: slot - 2 * Spacing.xxs, height: size.height - 2 * Spacing.xxs)
+                    .offset(x: slot * CGFloat(lit.segment) + Spacing.xxs, y: Spacing.xxs)
                     .animation(reduceMotion ? nil : Motion.snappy, value: lit)
                 ForEach(ChromeDestination.allCases, id: \.self) { destination in
                     let isLit = destination == lit
@@ -70,7 +70,7 @@ struct ChromePill: View {
         Image(systemName: destination.symbol)
             .font(BottomChrome.chromeGlyph)
             .foregroundStyle(isLit ? Palette.accent : Palette.ink)
-            .frame(height: K.segmentGlyphHeight)
+            .frame(height: Glyph.regular)
             .accessibilityHidden(true)
     }
 

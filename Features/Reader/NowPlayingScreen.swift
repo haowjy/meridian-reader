@@ -285,7 +285,7 @@ struct NowPlayingScreen: View {
         } else {
             // Placeholder: keeps height stable until scrub map builds.
             HStack(spacing: 0) {
-                Color.clear.frame(height: BottomChrome.fieldControlSize)
+                Color.clear.frame(height: Control.small)
                     .frame(maxWidth: .infinity)
                 trailing()
             }

@@ -136,7 +136,7 @@ struct EditDragHandle: View {
     var body: some View {
         Image(systemName: Icons.reorder)
             .foregroundStyle(Palette.tertiaryInk)
-            .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+            .frame(width: Control.tap, height: Control.tap)
             .contentShape(Rectangle())
             .onDrag {
                 screen.beginDrag(id)

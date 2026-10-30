@@ -43,7 +43,7 @@ struct VoiceChoiceRows: View {
                         preview.toggle(voice)
                     } label: {
                         Image(systemName: preview.playingID == voice.id ? Icons.previewStop : Icons.previewPlay)
-                            .tileSymbol()
+                            .glyphSize(Glyph.regular)
                             .foregroundStyle(Palette.accent)
                     }
                     .buttonStyle(.plain)

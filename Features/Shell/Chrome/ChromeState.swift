@@ -27,7 +27,7 @@ struct ChromeState: Equatable {
     /// A Library selection's action bar is row 2: the chrome stays expanded.
     var editing = false
     /// The bubble's width once folded (`ChromeMetrics.bubbleWidth`): the host measures its title.
-    var bubbleWidth: CGFloat = ChromeMetrics.bubbleHeight
+    var bubbleWidth: CGFloat = Control.small
     /// The home indicator's strip under the safe area (0 on a phone with a Home button): the rows
     /// reach down into it, to `ChromeMetrics.edgeClearance` above the screen's edge.
     var homeInset: CGFloat = ChromeMetrics.homeIndicatorStrip

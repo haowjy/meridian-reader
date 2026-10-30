@@ -85,7 +85,7 @@ struct Toast: View {
             Text(title)
                 .typeStyle(.row, weight: .semibold)
                 .foregroundStyle(reading?.accent ?? Palette.accent)
-                .frame(minHeight: BottomChrome.minTapTarget)
+                .frame(minHeight: Control.tap)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

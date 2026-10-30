@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// A labelled capsule button: a sheet's close pill ("‹ Browser", "⌄ Library") and Listen, a book's Continue. 48 pt tall (36 compact) at the default text size, growing with
-/// Dynamic Type up to `BottomChrome.maxTextGrowth` like the rest of the band; radius `Radius.pill`.
+/// A labelled capsule button: a sheet's close pill ("‹ Browser", "⌄ Library") and Listen, a book's Continue. `Control.bar` tall (`Control.small` compact) at the default text size, growing with
+/// Dynamic Type up to `Control.maxTextGrowth` like the rest of the band; radius `Radius.pill`.
 ///
 /// A `detail` follows the title in regular weight, set apart by space rather than a separator:
 /// *▶ **Listen**  9 min*, *▶ **Continue**  Ch 24*. When the pill is short of room (large text)
@@ -24,8 +24,8 @@ struct PillButton<Leading: View>: View {
 
         var height: CGFloat {
             switch self {
-            case .regular: 48
-            case .compact: 36
+            case .regular: Control.bar
+            case .compact: Control.small
             }
         }
     }
@@ -49,7 +49,7 @@ struct PillButton<Leading: View>: View {
     @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        let height = BottomChrome.grown(size.height * scale, from: size.height)
+        let height = Control.grown(size.height * scale, from: size.height)
         Button(action: action) {
             HStack(spacing: Spacing.xs) {
                 leading
@@ -141,7 +141,7 @@ struct PillSymbol: View {
     var body: some View {
         if let name {
             Image(systemName: name)
-                .typeStyle(.row, weight: .semibold)
+                .glyphSize(Glyph.small, weight: .semibold)
                 .accessibilityHidden(true)
         }
     }

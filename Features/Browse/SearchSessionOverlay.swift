@@ -55,7 +55,7 @@ struct SearchSessionOverlay: View {
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                    .padding(.horizontal, ChromeMetrics.margin)
+                    .padding(.horizontal, Spacing.bandMargin)
                     .padding(.top, Spacing.s)
                 }
                 .scrollDismissesKeyboard(.interactively)
@@ -110,7 +110,7 @@ struct SearchSessionOverlay: View {
                     case .recent, .saved:
                         ArtworkTile(image: row.faviconData.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
                                     letter: ArticleRowTitle.artworkLetter(title: row.title, source: row.host, address: row.query),
-                                    size: Glyph.rowLeading)
+                                    size: Glyph.slot)
                     case .google:
                         Image(systemName: Icons.search).foregroundStyle(Palette.secondaryInk)
                     }
@@ -149,10 +149,10 @@ private struct SuggestionRow<Leading: View>: View {
             if let onFill {
                 Button(action: onFill) {
                     Image(systemName: Icons.fillField)
-                        .rowSymbol()
+                        .glyphSize(Glyph.regular)
                         .fontWeight(.medium)
                         .foregroundStyle(Palette.secondaryInk)
-                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                        .frame(width: Control.tap, height: Control.tap)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

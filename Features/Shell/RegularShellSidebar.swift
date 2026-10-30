@@ -65,7 +65,7 @@ struct RegularShellSidebar: View {
         HStack(spacing: Spacing.xs) {
             Image(systemName: Icons.library)
                 .foregroundStyle(Palette.accent)
-                .tileSymbol()
+                .glyphSize(Glyph.regular)
             Text("Meridian")
                 .typeStyle(.heading, weight: .bold)
                 .foregroundStyle(Palette.ink)
@@ -75,7 +75,7 @@ struct RegularShellSidebar: View {
             } label: {
                 Image(systemName: Icons.back)
                     .foregroundStyle(Palette.secondaryInk)
-                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                    .frame(width: Control.tap, height: Control.tap)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -112,7 +112,7 @@ struct RegularShellSidebar: View {
         Button(action: action) {
             HStack(spacing: Spacing.s) {
                 Image(systemName: symbol)
-                    .frame(width: Glyph.rowLeading, alignment: .center)
+                    .frame(width: Glyph.slot, alignment: .center)
                 Text(title)
                     .typeStyle(.row, weight: selected ? .semibold : .regular)
                     .lineLimit(1)
@@ -153,7 +153,7 @@ struct RegularSidebarRevealButton: View {
         } label: {
             Image(systemName: Icons.forward)
                 .foregroundStyle(Palette.ink)
-                .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                .frame(width: Control.tap, height: Control.tap)
                 .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
         .buttonStyle(.plain)
