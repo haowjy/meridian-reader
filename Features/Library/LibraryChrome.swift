@@ -41,7 +41,7 @@ struct LibraryChrome {
         return menu
     }
 
-    /// What the folded chrome's capsule names: the article being read in place, else the folder on top, else the
+    /// What the folded chrome's strip names: the article being read in place, else the folder on top, else the
     /// home's tab (Library, Favorites, Recent).
     var stripTitle: String {
         let name: String?

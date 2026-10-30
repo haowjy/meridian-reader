@@ -89,7 +89,7 @@ struct ChromePill: View {
     private func controls(slot: CGFloat, size: CGSize) -> some View {
         ForEach(ChromeDestination.allCases, id: \.self) { destination in
             Button { onSelect(destination) } label: {
-                Color.clear.contentShape(Rectangle().inset(by: -K.hitOutset))
+                Color.clear.contentShape(ChromeHitShape(sides: false))
             }
                 .buttonStyle(.plain)
                 .frame(width: slot, height: size.height)
@@ -145,7 +145,7 @@ struct ChromeNavigation: View {
                 .foregroundStyle(Palette.ink)
                 .opacity(enabled ? 1 : Self.disabledOpacity)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle().inset(by: -ChromeMetrics.hitOutset))
+                .contentShape(ChromeHitShape(sides: false))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -166,7 +166,7 @@ struct ChromeRoundLabel: View {
             .font(BottomChrome.chromeGlyph)
             .foregroundStyle(Palette.ink)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle().inset(by: -ChromeMetrics.hitOutset))
+            .contentShape(ChromeHitShape())
             .chromeSurface(Circle())
             .chromeLargeContent(label, symbol: symbol)
     }
@@ -192,7 +192,7 @@ struct ListenBackButton: View {
             .frame(height: ChromeMetrics.barHeight)
             .frame(maxWidth: ChromeMetrics.listenBackMaxWidth, alignment: .leading)
             .fixedSize(horizontal: true, vertical: false)
-            .contentShape(Rectangle().inset(by: -ChromeMetrics.hitOutset))
+            .contentShape(ChromeHitShape())
             .chromeSurface(Capsule())
             .chromeLargeContent(Verbs.back, symbol: Icons.back)
         }
@@ -232,12 +232,23 @@ struct ChromePlayButton: View {
             }
             .padding(ChromeMetrics.ringInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle().inset(by: -ChromeMetrics.hitOutset))
+            .contentShape(ChromeHitShape())
         }
         .buttonStyle(.plain)
         .chromeSurface(Circle())
         .accessibilityLabel(state.accessibilityLabel)
         .accessibilityIdentifier("chromePlayPause")
         .chromeLargeContent(state.accessibilityLabel, symbol: state == .playing ? Icons.pause : Icons.play)
+    }
+}
+
+/// A chrome control's hit area: `hitOutset` past its glass above and below, and at the sides only
+/// where no neighbour shares the glass (segments of one capsule meet edge to edge, so theirs stop there).
+struct ChromeHitShape: Shape {
+    var sides = true
+
+    func path(in rect: CGRect) -> Path {
+        let o = ChromeMetrics.hitOutset
+        return Path(rect.insetBy(dx: sides ? -o : 0, dy: -o))
     }
 }

@@ -22,11 +22,12 @@ final class ChromeHome {
 
 extension View {
     /// Reports the window's bottom safe area (without the keyboard) to `ChromeHome`. On the root view.
+    /// A geometry proxy's inset includes the keyboard's, so the change only triggers the read: the value
+    /// is the window's own, read outside the body.
     func reportsChromeHome() -> some View {
-        background {
-            Color.clear
-                .ignoresSafeArea(.keyboard)
-                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { ChromeHome.shared.report($0) }
+        onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { _ in
+            let window = UIApplication.shared.connectedScenes.lazy.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
+            if let window { ChromeHome.shared.report(window.safeAreaInsets.bottom) }
         }
     }
 }

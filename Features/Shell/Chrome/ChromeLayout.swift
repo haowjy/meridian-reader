@@ -81,7 +81,8 @@ struct ChromeLayout: Equatable {
     init(width w: CGFloat, state s: ChromeState) {
         typealias K = ChromeMetrics
         let bar = K.barHeight, gap = K.gap, rowGap = K.rowGap, margin = K.margin
-        let bottom = K.readerFootprint + s.homeInset - K.edgeClearance
+        // The rows dip into the home indicator's strip; the keyboard's form sits on the keyboard instead.
+        let bottom = K.readerFootprint + (s.keyboard ? 0 : s.homeInset - K.edgeClearance)
         let rowY = bottom - bar
         // Both rows share one pair of edges, the margins, on every width (Jimmy: "the 2 bars should be the
         // same length"). The pill keeps its fixed width at the left; ▶ and ⋯ end the row at the right, and a

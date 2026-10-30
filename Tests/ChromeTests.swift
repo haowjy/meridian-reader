@@ -131,8 +131,10 @@ final class ChromeTests: XCTestCase {
                     XCTAssertEqual(l.more.rect.height, M.barHeight, tag)
                     XCTAssertEqual(l.more.rect.minX - l.field.rect.maxX, M.rowGap, tag)
                     XCTAssertEqual(l.field.rect.width, width - 2 * M.margin - M.rowGap - M.cancelWidth, tag)
-                    XCTAssertEqual(l.field.rect.minY, rest.more.rect.minY, tag)
-                    XCTAssertEqual(l.more.rect.minY, rest.more.rect.minY, tag)
+                    // On the keyboard, not dipped into the home indicator's strip: the row ends at the box's bottom.
+                    XCTAssertEqual(l.field.rect.maxY, M.readerFootprint, "the row sits on the keyboard: \(tag)")
+                    XCTAssertEqual(l.more.rect.minY, l.field.rect.minY, tag)
+                    XCTAssertLessThan(l.field.rect.minY, rest.more.rect.minY, "above the resting row 2, which dips: \(tag)")
                 }
             }
         }

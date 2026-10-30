@@ -53,7 +53,7 @@ struct ChromePieces: View, Animatable {
         .chromeGlassContainer()
         .frame(width: width, height: K.readerFootprint, alignment: .topLeading)
         .background(alignment: .bottom) {
-            if let top = layout.top { ChromeFade(top: top, underColor: underColor) }
+            if let top = layout.top { ChromeFade(top: top, underColor: underColor, strip: layout.stripOpacity) }
         }
         .background(alignment: .bottom) {
             // While a row is up, the whole footprint is the chrome's: a tap between the rows, beside
@@ -91,8 +91,9 @@ struct ChromePieces: View, Animatable {
             content()
                 .frame(width: piece.fullWidth, height: piece.fullHeight)
                 .scaleEffect(piece.scale, anchor: .topLeading)
-                // Labels and glyphs go early, so what is left to shrink away is bare glass.
-                .opacity(K.ramp(piece.scale, 0.5...0.9))
+                // Labels and glyphs go early, so what is left to shrink away is bare glass (and no
+                // glyph drifts over the page once its glass has gone).
+                .opacity(K.ramp(piece.scale, 0.8...0.95))
                 .frame(width: piece.rect.width, height: piece.rect.height, alignment: .topLeading)
                 .offset(x: piece.rect.minX, y: piece.rect.minY)
                 .transition(.opacity)
