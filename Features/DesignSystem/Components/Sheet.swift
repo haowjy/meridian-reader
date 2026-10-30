@@ -7,9 +7,9 @@ import SwiftUI
 /// any other scroll view through `handsPullToSheet(from:)`. While pulled it looks like a system
 /// sheet (`PullDownLook`): it shrinks a little and the dim behind it lifts. Top corners
 /// `Radius.card`. Used by Follow's chapter preview and, on regular width, the Reader and Now
-/// Playing. Compact width's Listen (and its *Nothing Playing*) is the same sheet as a cover (`covers`), over the chrome
-/// too, as Apple Music's player: the screen behind shows dimmed above it, its grabber strip is a full tap target
-/// tall, and its band (the player card) pulls it as well.
+/// Playing. Compact width's Listen (and its *Nothing Playing*) is the same sheet, over the chrome too, as
+/// Apple Music's player: the screen behind shows dimmed above it, and with `largePullTargets` its
+/// grabber strip is a full tap target tall and its band (the player card) pulls it as well.
 ///
 /// It is drawn in `palette` (the reading theme's colours for the Reader and Now Playing, the same
 /// for both), which it sets on what it holds (`readingSurface`). A dark theme over a light app
@@ -29,21 +29,21 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     let palette: ReadingPalette
     /// The reading sheets' bars and full screen; nil: the header above the content, no band.
     private let chrome: ReadingChrome?
-    /// A cover: it fills the screen, under the status bar too (no gap above it, no corners).
-    private let covers: Bool
+    /// Compact Listen: the grabber strip is a full tap target tall and the band pulls the sheet too.
+    private let largePullTargets: Bool
     private let header: Header
     private let content: Content
     private let band: Band
     private let overText: OverText
 
     /// A reading sheet: the text under the header and `band`, `overText` floating over it.
-    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, chrome: ReadingChrome, covers: Bool = false,
+    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, chrome: ReadingChrome, largePullTargets: Bool = false,
          @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content, @ViewBuilder band: () -> Band,
          @ViewBuilder overText: () -> OverText) {
         self.onDismiss = onDismiss
         self.palette = palette
         self.chrome = chrome
-        self.covers = covers
+        self.largePullTargets = largePullTargets
         self.header = header()
         self.content = content()
         self.band = band()
@@ -133,12 +133,12 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         }
     }
 
-    /// The grabber and the header: pulled down, they pull the sheet. A cover's grabber strip is a
-    /// full tap target tall, so there is something to take hold of.
+    /// The grabber and the header: pulled down, they pull the sheet. With `largePullTargets` the
+    /// grabber strip is a full tap target tall, so there is something to take hold of.
     private var headerBlock: some View {
         VStack(spacing: 0) {
             SheetGrabber()
-                .frame(maxWidth: .infinity, minHeight: covers ? ChromeMetrics.minTapTarget : nil, alignment: .top)
+                .frame(maxWidth: .infinity, minHeight: largePullTargets ? ChromeMetrics.minTapTarget : nil, alignment: .top)
             header
         }
         .contentShape(Rectangle())
@@ -151,8 +151,8 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                     headerBackground: UnevenRoundedRectangle(topLeadingRadius: corner, topTrailingRadius: corner,
                                                              style: .continuous).fill(palette.background),
                     headerSlide: statusBarHeight + gap, header: headerBlock, content: content,
-                    // A cover's band (Listen's card) is its handle too: the grabber alone is too small to find.
-                    band: band.pullHandle(covers ? pullDown : nil),
+                    // Listen's card is its handle too: the grabber alone is too small to find.
+                    band: band.pullHandle(largePullTargets ? pullDown : nil),
                     overText: overText)
             .environment(\.sheetPullHandoff, pullHandoff)
     }
@@ -230,12 +230,12 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
 extension Sheet where Band == EmptyView, OverText == EmptyView {
     /// A sheet with its header above its content (Follow's preview, Listen's *Nothing Playing*): no
     /// full screen. A header that fills it pulls it from anywhere.
-    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, covers: Bool = false,
+    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, largePullTargets: Bool = false,
          @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content) {
         self.onDismiss = onDismiss
         self.palette = palette
         chrome = nil
-        self.covers = covers
+        self.largePullTargets = largePullTargets
         self.header = header()
         self.content = content()
         band = EmptyView()

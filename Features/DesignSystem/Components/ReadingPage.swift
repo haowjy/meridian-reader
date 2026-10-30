@@ -5,7 +5,7 @@ enum ReadingShowing {
     /// Regular width (the Reader, Now Playing): a `Sheet` over the surface that opened it; its close
     /// pill (`close`), grabber and pull down call `onClose` once it has gone.
     case sheet(close: Close, onClose: () -> Void)
-    /// Compact width's Listen: a `Sheet` that covers the screen, chrome and all (`Sheet`'s `covers`).
+    /// Compact width's Listen: a `Sheet` over the screen, chrome and all (`Sheet`'s `largePullTargets`).
     /// A pull down (VoiceOver: the escape gesture) closes it, then `onClose`. Its band is the player card
     /// on glass at the foot, with what it was over left as it was.
     case cover(onClose: () -> Void)
@@ -89,7 +89,7 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
             }
         case .cover(let onClose):
             // No top bar: the grabber alone (its controls are in the player card).
-            Sheet(onDismiss: onClose, palette: palette, chrome: chrome, covers: true) {
+            Sheet(onDismiss: onClose, palette: palette, chrome: chrome, largePullTargets: true) {
                 banner
             } content: {
                 text

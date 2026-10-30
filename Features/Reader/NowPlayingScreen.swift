@@ -89,7 +89,7 @@ struct NowPlayingScreen: View {
         let onClose = { [shell, presentation = shell.nowPlayingPresentation] in
             if let presentation { shell.nowPlayingDidClose(presentation) }
         }
-        return Sheet(onDismiss: onClose, palette: palette, covers: sizeClass != .regular) {
+        return Sheet(onDismiss: onClose, palette: palette, largePullTargets: sizeClass != .regular) {
             EmptyState(String(localized: "Nothing Playing"), symbol: Icons.listen,
                        description: Text("Choose an article or book to listen to.")) {
                 Button(String(localized: "Open Library")) { shell.showLibrary(at: []) }
