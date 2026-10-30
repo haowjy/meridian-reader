@@ -238,7 +238,7 @@ struct ReaderPlayerCardGallery: View {
             Text("1×").foregroundStyle(Palette.ink).roundFieldText(fill: Palette.chrome)
         }
         .frame(height: ChromeMetrics.card)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ChromeMetrics.barHeight / 2, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ChromeMetrics.cardRadius, style: .continuous))
     }
 }
 

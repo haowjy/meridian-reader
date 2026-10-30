@@ -1774,14 +1774,14 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					056724A95F436833A1D83EFE = {
-						DevelopmentTeam = JMYU8K3WZN;
+						DevelopmentTeam = D4K9ZT557F;
 					};
 					8A61C4D97EF1D05E167E3218 = {
-						DevelopmentTeam = JMYU8K3WZN;
+						DevelopmentTeam = D4K9ZT557F;
 						ProvisioningStyle = Automatic;
 					};
 					BA336FA940ECF41031D86AEB = {
-						DevelopmentTeam = JMYU8K3WZN;
+						DevelopmentTeam = D4K9ZT557F;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -2263,6 +2263,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				APP_GROUP = group.com.jimmyyao.MeridianReader;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -2294,7 +2295,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = JMYU8K3WZN;
+				DEVELOPMENT_TEAM = D4K9ZT557F;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -2382,6 +2383,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				APP_GROUP = group.com.jimmyyao.MeridianReader;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -2413,7 +2415,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = JMYU8K3WZN;
+				DEVELOPMENT_TEAM = D4K9ZT557F;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

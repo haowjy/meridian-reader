@@ -47,7 +47,9 @@ struct SearchField: View {
                 .accessibilityLabel("Clear search")
             }
         }
-        .bottomChromeField(leading: Spacing.s, trailing: clearable ? Spacing.xxs : Spacing.s)
+        // In the chrome 🔍 and ⊗ are 24 pt slots concentric with the end caps (`fieldEndInset`).
+        .bottomChromeField(leading: isChromeField ? BottomChrome.fieldEndInset : Spacing.s,
+                           trailing: clearable ? (isChromeField ? BottomChrome.fieldEndInset : Spacing.xxs) : Spacing.s)
     }
 
     @ViewBuilder

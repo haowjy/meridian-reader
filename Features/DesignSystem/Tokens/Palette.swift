@@ -75,13 +75,6 @@ enum Palette {
         traits.userInterfaceStyle == .dark ? UIColor(red: 44 / 255, green: 44 / 255, blue: 48 / 255, alpha: 0.55)
             : UIColor(white: 1, alpha: 0.58)
     })
-    /// The folded chrome's capsule over its glass: text on the glass alone can't hold 4.5:1 over any
-    /// page (white at 55% over a white page is 3.4:1), so it carries its own fill. Light is white at
-    /// 74% under ink, dark is (44, 44, 48) at 70% under ink.
-    static let capsuleFill = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark ? UIColor(red: 44 / 255, green: 44 / 255, blue: 48 / 255, alpha: 0.7)
-            : UIColor(white: 1, alpha: 0.74)
-    })
     /// The light edge of a glass piece: an inner 0.5 pt rim and a highlight on its top edge.
     static let glassEdge = Color(uiColor: UIColor { traits in
         UIColor(white: 1, alpha: traits.userInterfaceStyle == .dark ? 0.14 : 0.75)

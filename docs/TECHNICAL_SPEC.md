@@ -340,7 +340,7 @@ Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their 
 `CFBundleDocumentTypes` for PDF and EPUB and the `meridian-reader` URL scheme. A file Open In
 calls `onOpenURL` with a file URL → `BookImportActions.importPicked` (same path as *Import from…*).
 The Share Extension writes a web URL or a copied book file into the App Group inbox
-(`group.com.jimmyyao.Reader`, or `group.com.jimmyyao.Reader.probe` when `BUNDLE_ID_SUFFIX` is set;
+(`group.com.jimmyyao.MeridianReader` from `APP_GROUP` in project.yml, or `group.com.jimmyyao.MeridianReader.probe` when `BUNDLE_ID_SUFFIX` is set;
 both app and extension declare the groups in their entitlements) and opens
 `meridian-reader://inbox`; the host drains on that URL and whenever it becomes active
 (`IncomingOpenModifier`). http(s) shares call `ShellState.navigate` (Browse).

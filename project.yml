@@ -6,7 +6,9 @@ options:
   createIntermediateGroups: true
 settings:
   SWIFT_VERSION: "5.0"
-  DEVELOPMENT_TEAM: JMYU8K3WZN
+  DEVELOPMENT_TEAM: D4K9ZT557F
+  # The App Group, the one place it is named: entitlements and both Info.plists read it.
+  APP_GROUP: group.com.jimmyyao.MeridianReader
 packages:
   FluidAudio:
     # Vendored v0.16.1 with local patches (see Vendor/FluidAudio/VENDORED.md); Meridian Reader uses only Kokoro
@@ -58,8 +60,8 @@ targets:
       path: App/MeridianReader.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.jimmyyao.Reader
-          - group.com.jimmyyao.Reader.probe
+          - $(APP_GROUP)
+          - $(APP_GROUP).probe
     info:
       path: App/Info.plist
       properties:
@@ -71,7 +73,7 @@ targets:
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
         # Probe installs set BUNDLE_ID_SUFFIX; SharedInbox reads this so the App Group matches.
-        MeridianAppGroupSuffix: $(BUNDLE_ID_SUFFIX)
+        MeridianAppGroup: $(APP_GROUP)$(BUNDLE_ID_SUFFIX)
         # Open In / Copy to Meridian from Files and other apps (PDF, EPUB).
         LSSupportsOpeningDocumentsInPlace: false
         CFBundleDocumentTypes:
@@ -155,15 +157,15 @@ targets:
       path: ShareExtension/Share.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.jimmyyao.Reader
-          - group.com.jimmyyao.Reader.probe
+          - $(APP_GROUP)
+          - $(APP_GROUP).probe
     info:
       path: ShareExtension/Info.plist
       properties:
         CFBundleDisplayName: Meridian Reader
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
-        MeridianAppGroupSuffix: $(BUNDLE_ID_SUFFIX)
+        MeridianAppGroup: $(APP_GROUP)$(BUNDLE_ID_SUFFIX)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController

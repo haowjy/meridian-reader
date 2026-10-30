@@ -52,7 +52,9 @@ struct SurfaceMemoryStore {
     static let homeTabKey = "library.homeTab"
     /// Where the tab was kept while there were two (true: Favorites); read once, then removed.
     static let favoritesTabKey = "library.favoritesTab"
-    static let storedKeys = [key, homeTabKey, favoritesTabKey]
+    /// Where the playing listening was launched from (`ListenLaunch.Stored`): Listen's ‹ after a relaunch.
+    static let listenLaunchKey = "shell.listenLaunch"
+    static let storedKeys = [key, homeTabKey, favoritesTabKey, listenLaunchKey]
 
     var defaults: UserDefaults
 
@@ -60,6 +62,20 @@ struct SurfaceMemoryStore {
 
     func load() -> SurfaceMemory? {
         defaults.data(forKey: Self.key).flatMap { try? JSONDecoder().decode(SurfaceMemory.self, from: $0) }
+    }
+
+    func loadListenLaunch() -> ListenLaunch? {
+        defaults.data(forKey: Self.listenLaunchKey)
+            .flatMap { try? JSONDecoder().decode(ListenLaunch.Stored.self, from: $0) }
+            .flatMap(ListenLaunch.init(stored:))
+    }
+
+    func saveListenLaunch(_ launch: ListenLaunch?) {
+        guard let launch, let data = try? JSONEncoder().encode(launch.stored) else {
+            defaults.removeObject(forKey: Self.listenLaunchKey)
+            return
+        }
+        defaults.set(data, forKey: Self.listenLaunchKey)
     }
 
     func save(_ memory: SurfaceMemory) {

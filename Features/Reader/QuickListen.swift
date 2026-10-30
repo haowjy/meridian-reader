@@ -106,7 +106,7 @@ struct ReaderListenButton: View {
                 .font(BottomChrome.chromeGlyph)
                 .foregroundStyle(listen.isHearing ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Circle())
+                .tapTarget(ChromeMetrics.barHeight)
                 .chromeSurface(Circle(), fill: BottomChrome.fieldFill(reading))
                 .chromeLargeContent(Verbs.listen, symbol: Icons.listen)
         }

@@ -25,9 +25,9 @@ struct ChromeScreen {
     let more: AnyView
     /// The Browser's reader mode: the round control that listens to the page, at the end of row 1.
     var listen: AnyView?
-    /// What the capsule names once a scroll down has folded both rows: the page's domain in the Browser, a
+    /// What the strip names once a scroll down has folded both rows: the page's domain in the Browser, a
     /// screen, folder or article's title in the Library, the source in the Browser's reader mode.
-    var capsuleTitle = ""
+    var stripTitle = ""
     /// Library Edit: replaces the pill and ⋯ on row 2 with the selection's actions.
     var editBar: AnyView?
 }

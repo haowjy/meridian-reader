@@ -17,6 +17,11 @@ enum BottomChrome {
     /// The glyph inside a round icon control (`roundFieldControl`): the chrome glyph's weight (medium),
     /// scaled to the 36 pt circle. Fixed, like every chrome glyph.
     static let roundGlyph = Font.system(size: 18, weight: .medium)
+    /// The address field's trailing 🎤 or ⊗ while searching: Safari's size and weight there.
+    static let fieldAccessoryGlyph = Font.system(size: 17, weight: .regular)
+    /// How far a 24 pt field glyph slot (🔍, 🎤, ⊗) sits in from the capsule's end while
+    /// searching: equal top, bottom and end, so the slot is concentric with the end cap.
+    static let fieldEndInset: CGFloat = ChromeMetrics.endInset
     /// Text on a round control's face (the speed): the same weight, even-width digits.
     static let roundText = Font.system(size: 15, weight: .medium).monospacedDigit()
     /// The place name on Listen's ‹ ("‹ reddit.com"): the chrome glyph's weight, fixed like it.
@@ -39,10 +44,11 @@ enum BottomChrome {
     static let headerDiscSize: CGFloat = 56
     /// The glyph inside the header disc.
     static let headerDiscGlyph: CGFloat = (transportDiscGlyph * headerDiscSize / transportDiscSize).rounded()
-    /// The play / pause disc floating over a reading page in full screen: one tap target wide.
-    static let floatingDiscSize: CGFloat = minTapTarget
+    /// The play / pause disc floating over a reading page in full screen: a bar's height, tapped in
+    /// `minTapTarget`.
+    static let floatingDiscSize: CGFloat = ChromeMetrics.barHeight
     /// The glyph inside the floating disc.
-    static let floatingDiscGlyph: CGFloat = 18
+    static let floatingDiscGlyph: CGFloat = 16
     /// How far the field capsule and its controls grow with Dynamic Type, as a multiple of their
     /// default size: enough that text and glyphs never clip, while the chrome stays a band.
     static let maxTextGrowth: CGFloat = 1.5

@@ -19,17 +19,47 @@ final class ObscuredWebView: WKWebView {
         // The window's, not the view's: SwiftUI lets the page run under the home indicator, and the view's
         // own safe area can read 0 there.
         let home = max(safeAreaInsets.bottom, window?.safeAreaInsets.bottom ?? 0)
-        let bottom = obscuredBottom > 0 ? obscuredBottom + home : 0
+        // The footprints are measured from the screen's edge, the home indicator's strip included.
+        let bottom = obscuredBottom > 0 ? max(obscuredBottom, home) : 0
         let insets = UIEdgeInsets(top: 0, left: 0, bottom: bottom, right: 0)
         if obscuredContentInsets != insets { obscuredContentInsets = insets }
-        // What `lvh` (the large viewport) and `svh` (the small one) measure: the capsule's footprint and the
+        // What `lvh` (the large viewport) and `svh` (the small one) measure: the strip's footprint and the
         // expanded one's, as in Safari with its bar folded and unfolded (`dvh` follows the obscured inset). Both
         // zero where nothing covers the page. (`100vh` itself stays the whole frame: WebKit ties it to neither.)
-        let folded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: ChromeMetrics.capsuleFootprint + home, right: 0) : .zero
-        let expanded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: ChromeMetrics.footprint + home, right: 0) : .zero
+        let folded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: max(ChromeMetrics.stripFootprint, home), right: 0) : .zero
+        let expanded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: max(ChromeMetrics.footprint, home), right: 0) : .zero
         if minimumViewportInset != folded || maximumViewportInset != expanded {
             setMinimumViewportInset(folded, maximumViewportInset: expanded)
         }
+    }
+
+    // MARK: - Past the page's end
+
+    /// Fills the room the page keeps clear for the chrome (`WebView.bottomInset`) past the document's end
+    /// with the colour the page ends in, so at the end of a page it still runs under the glass to the screen's
+    /// edge. Without it WebKit paints that room in the page's own background (white on Wikipedia, whose
+    /// footer is grey): a hard line above the chrome. Nil (a page loading, no colour found) leaves WebKit's.
+    var endColor: UIColor? {
+        didSet {
+            endFill.backgroundColor = endColor
+            endFill.isHidden = endColor == nil
+        }
+    }
+
+    private lazy var endFill: UIView = {
+        let fill = UIView()
+        fill.isUserInteractionEnabled = false
+        fill.isHidden = true
+        // Behind WebKit's content and the scroll indicators.
+        scrollView.insertSubview(fill, at: 0)
+        return fill
+    }()
+    private var contentSizeObservation: NSKeyValueObservation?
+
+    private func placeEndFill() {
+        let size = scrollView.contentSize
+        // Deep enough for the inset and a rubber-band pull past it.
+        endFill.frame = CGRect(x: 0, y: size.height, width: max(size.width, bounds.width), height: bounds.height)
     }
 
     override func safeAreaInsetsDidChange() {
@@ -40,6 +70,12 @@ final class ObscuredWebView: WKWebView {
     override func layoutSubviews() {
         super.layoutSubviews()
         applyObscuredInset()
+        if contentSizeObservation == nil {
+            contentSizeObservation = scrollView.observe(\.contentSize, options: [.new]) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.placeEndFill() }
+            }
+        }
+        placeEndFill()
     }
 
     override func didMoveToWindow() {
@@ -140,6 +176,46 @@ struct WebView: UIViewRepresentable {
 
         private var readerableGeneration = 0
 
+        /// The colour the page ends in: the last opaque background down the chain of last visible
+        /// children from `<html>` (Wikipedia's grey footer). In an isolated world, so page scripts can't see it.
+        private static let endColorScript = """
+        (() => {
+          let bg = null;
+          const pick = el => {
+            const m = getComputedStyle(el).backgroundColor.match(/[\\d.]+/g);
+            if (m && m.length >= 3 && (m.length < 4 || Number(m[3]) > 0.5)) bg = m.slice(0, 3).map(Number);
+          };
+          const shown = el => {
+            const s = getComputedStyle(el);
+            return s.display !== 'none' && s.visibility !== 'hidden' && s.position !== 'fixed'
+              && s.position !== 'sticky' && el.getBoundingClientRect().height > 0;
+          };
+          let el = document.documentElement;
+          while (el) {
+            pick(el);
+            el = [...el.children].reverse().find(shown);
+          }
+          return bg;
+        })()
+        """
+
+        /// Sets the web view's `endColor` from the page, now and once more for late content.
+        @MainActor
+        func sampleEndColor(_ webView: WKWebView) {
+            guard let obscured = webView as? ObscuredWebView else { return }
+            let url = webView.url
+            for delay in [0, 1.5] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak obscured] in
+                    guard let obscured, obscured.url == url else { return }
+                    obscured.evaluateJavaScript(Self.endColorScript, in: nil, in: .defaultClient) { result in
+                        guard obscured.url == url, case .success(let value) = result,
+                              let rgb = value as? [Double], rgb.count == 3 else { return }
+                        obscured.endColor = UIColor(red: rgb[0] / 255, green: rgb[1] / 255, blue: rgb[2] / 255, alpha: 1)
+                    }
+                }
+            }
+        }
+
         /// Runs Readability's `isProbablyReaderable` in an isolated content world (page scripts
         /// can't see or break it). Once now-ish and once later, for content that renders late.
         @MainActor
@@ -166,6 +242,7 @@ struct WebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             Task { @MainActor in
+                (webView as? ObscuredWebView)?.endColor = nil
                 store.isLoading = true
                 readerableGeneration += 1
                 store.isReaderable = false
@@ -186,7 +263,14 @@ struct WebView: UIViewRepresentable {
             Task { @MainActor in
                 store.isLoading = false
                 store.syncNavigationState()
+                if let y = store.takePendingScroll() {
+                    let scroll = webView.scrollView
+                    let top = -scroll.adjustedContentInset.top
+                    let bottom = max(top, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+                    scroll.setContentOffset(CGPoint(x: 0, y: min(max(top + y, top), bottom)), animated: false)
+                }
                 checkReaderable(webView)
+                sampleEndColor(webView)
                 // Late-rendered articles (client-side apps): look once more.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self, weak webView] in
                     guard let self, let webView, !self.store.isReaderable else { return }

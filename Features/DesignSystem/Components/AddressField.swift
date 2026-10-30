@@ -112,12 +112,17 @@ struct AddressField<Field: View, Accessory: View>: View {
             }
             accessory
         }
-        .bottomChromeField(leading: reader == .showing ? Spacing.s * (1 - readerReveal) : Spacing.s,
-                           // ↻ / ✕'s 44 pt square sits 2 pt in from the capsule's end: its glyph centres on the
-                           // end's curve like the 📄 at the other end.
-                           trailing: reload != nil || appearance != nil ? (ChromeMetrics.barHeight - BottomChrome.minTapTarget) / 2
-                           : listen == nil && Accessory.self == EmptyView.self ? Spacing.s : Spacing.xxs)
+        // In the chrome a 24 pt glyph slot (📄, 🔍, 🎤, ⊗) sits `fieldEndInset` in from the capsule's end, so it
+        // is concentric with the end cap; a 44 pt button (↻ / ✕, 🎧) sits 2 pt in, which centres it the same way.
+        .bottomChromeField(leading: reader == .showing ? leadingInset * (1 - readerReveal) : leadingInset,
+                           trailing: reload != nil || appearance != nil || listen != nil
+                               ? (ChromeMetrics.barHeight - BottomChrome.minTapTarget) / 2
+                               : Accessory.self == EmptyView.self ? Spacing.s
+                               : isChromeField ? BottomChrome.fieldEndInset : Spacing.xxs)
     }
+
+    /// The leading glyph slot's inset: concentric with the end cap in the chrome.
+    private var leadingInset: CGFloat { isChromeField ? BottomChrome.fieldEndInset : Spacing.s }
 
     @ViewBuilder
     private var leading: some View {

@@ -58,8 +58,6 @@ struct NowPlayingScreen: View {
                 let actions = ArticleActions(article: article, readerArticle: readerArticle, library: library, shell: shell, speech: speech,
                                              preparedAudio: preparedAudio, follow: follow)
                 player(now, actions)
-                    // ‹'s fallback when nothing launched this listening: the page's own place.
-                    .onChange(of: actions.listenOrigin, initial: true) { _, origin in shell.listenPageOrigin = origin }
             }
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
             .onChange(of: now.articleKey, initial: true) { _, key in load(key) }

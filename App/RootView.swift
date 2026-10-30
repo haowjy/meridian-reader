@@ -13,6 +13,7 @@ struct RootView: View {
 
     var body: some View {
         BrowseStartView()
+            .reportsChromeHome()
             .overlay(alignment: .top) {
                 if let notice = speech.localTTS.engineCrashNotice {
                     EngineNoticeBanner(text: notice,

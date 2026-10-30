@@ -49,6 +49,9 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
                 overText
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, (hidden ? chrome.pageFooter : overTextClearance ?? bandHeight + bottomClearance) + Spacing.s)
+                    // A keyboard left up elsewhere (Browse's field) must not lift it: the floating ⏸
+                    // in full screen rode up by the keyboard height.
+                    .ignoresSafeArea(.keyboard)
             }
             header
                 .background { headerBackground }
@@ -78,5 +81,8 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
         // The bars stay while VoiceOver runs.
         .onChange(of: voiceOver) { _, on in if on { chrome.show() } }
         .environment(\.readingChrome, chrome)
+        // Nothing on a reading page takes text, so the page never avoids the keyboard; this also
+        // keeps the measured bottom inset (chrome.homeIndicator) the home indicator alone.
+        .ignoresSafeArea(.keyboard)
     }
 }

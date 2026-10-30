@@ -60,8 +60,8 @@
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>
-	<key>MeridianAppGroupSuffix</key>
-	<string>$(BUNDLE_ID_SUFFIX)</string>
+	<key>MeridianAppGroup</key>
+	<string>$(APP_GROUP)$(BUNDLE_ID_SUFFIX)</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Meridian Reader uses the microphone when you tap the mic in the Browse address bar, so you can say what to search for.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

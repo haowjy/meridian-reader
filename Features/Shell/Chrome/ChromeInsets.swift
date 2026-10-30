@@ -1,7 +1,39 @@
 import SwiftUI
+import UIKit
 
-/// Where a screen's scroll position goes: the chrome folds into its capsule as it scrolls down (a tap on
-/// the capsule opens it).
+/// The home indicator's strip on this phone (the window's bottom safe area, the keyboard's left
+/// out; 0 with a Home button): the chrome's footprints are measured from the screen's edge, and
+/// what is laid out above the safe area keeps clear of `ChromeMetrics.aboveSafeArea(_:home:)`.
+/// The root view reports it (`reportsChromeHome()`); reading the window's insets in a view's body
+/// instead makes SwiftUI's graph loop and remount the page's web view.
+@MainActor
+@Observable
+final class ChromeHome {
+    static let shared = ChromeHome()
+    private(set) var value: CGFloat = ChromeMetrics.homeIndicatorStrip
+
+    static var inset: CGFloat { shared.value }
+
+    /// `footprint` (from the screen's edge) above this phone's safe area.
+    static func above(_ footprint: CGFloat) -> CGFloat { ChromeMetrics.aboveSafeArea(footprint, home: inset) }
+
+    fileprivate func report(_ bottom: CGFloat) { if value != bottom { value = bottom } }
+}
+
+extension View {
+    /// Reports the window's bottom safe area (without the keyboard) to `ChromeHome`. On the root view.
+    /// A geometry proxy's inset includes the keyboard's, so the change only triggers the read: the value
+    /// is the window's own, read outside the body.
+    func reportsChromeHome() -> some View {
+        onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { _ in
+            let window = UIApplication.shared.connectedScenes.lazy.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
+            if let window { ChromeHome.shared.report(window.safeAreaInsets.bottom) }
+        }
+    }
+}
+
+/// Where a screen's scroll position goes: the chrome folds a step at a time as it scrolls down (a tap on
+/// the strip opens it).
 extension View {
     /// Reports this view's scroll views' offset to `chrome`, past the rubber band at both ends.
     func chromeScrollSource(_ chrome: ChromeScroll) -> some View {
@@ -23,8 +55,8 @@ struct CompactChromeInsets: ViewModifier {
     func body(content: Content) -> some View {
         if isCompact {
             content
-                .contentMargins(.bottom, ChromeMetrics.footprint, for: .scrollContent)
-                .contentMargins(.bottom, ChromeMetrics.footprint, for: .scrollIndicators)
+                .contentMargins(.bottom, ChromeHome.above(ChromeMetrics.footprint), for: .scrollContent)
+                .contentMargins(.bottom, ChromeHome.above(ChromeMetrics.footprint), for: .scrollIndicators)
                 .ignoresSafeArea(.container, edges: .bottom)
         } else {
             content

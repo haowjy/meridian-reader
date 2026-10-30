@@ -168,7 +168,7 @@ private struct PlayStateDisc: View {
                 }
             }
             .frame(width: size, height: size)
-            .contentShape(Circle())
+            .tapTarget(size)
         }
         .buttonStyle(PillPressStyle())
         .accessibilityLabel(state.accessibilityLabel)

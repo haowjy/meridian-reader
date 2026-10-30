@@ -12,10 +12,9 @@ enum SharedInbox {
     static let scheme = "meridian-reader"
     static let inboxHost = "inbox"
 
-    /// `group.com.jimmyyao.Reader` or `group.com.jimmyyao.Reader.probe` when `BUNDLE_ID_SUFFIX` is set.
+    /// The App Group (`APP_GROUP` in project.yml, plus `BUNDLE_ID_SUFFIX` on a probe install), from Info.plist.
     static var appGroupID: String {
-        let suffix = Bundle.main.object(forInfoDictionaryKey: "MeridianAppGroupSuffix") as? String ?? ""
-        return "group.com.jimmyyao.Reader\(suffix)"
+        Bundle.main.object(forInfoDictionaryKey: "MeridianAppGroup") as? String ?? "group.com.jimmyyao.MeridianReader"
     }
 
     static var containerURL: URL? {

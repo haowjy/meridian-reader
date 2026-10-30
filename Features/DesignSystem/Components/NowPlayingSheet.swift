@@ -88,7 +88,7 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     }
 }
 
-/// Jump to Audio: a round 44 pt glass button, the app's round-button face (`chromeSurface`, the
+/// Jump to Audio: a round glass button a bar high (36 pt, tapped in 44), the app's round-button face (`chromeSurface`, the
 /// reading card's fill before iOS 26), an arrow that points to the spoken sentence. Its own view so
 /// it reads `chrome.hidden` in its own body: this page builds its overText before the compact chrome
 /// attaches (`ReadingChrome.attach`), so a read made by the page's body would only watch the
@@ -106,8 +106,8 @@ struct JumpToAudioButton: View {
     @Environment(\.readingPalette) private var reading
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// The circle, and so its tap area: the tap floor.
-    static let size = BottomChrome.minTapTarget
+    /// The circle: a bar's height. Its tap area is `minTapTarget`.
+    static let size = ChromeMetrics.barHeight
 
     var body: some View {
         let shows = chrome.showsJumpToAudio(awayFromAudio: awayFromAudio)
@@ -118,7 +118,7 @@ struct JumpToAudioButton: View {
                         .font(BottomChrome.chromeGlyph)
                         .foregroundStyle(reading?.ink ?? Palette.ink)
                         .frame(width: Self.size, height: Self.size)
-                        .contentShape(Circle())
+                        .tapTarget(Self.size)
                         .chromeSurface(Circle(), fill: BottomChrome.fieldFill(reading))
                         .environment(\.chromeSkin, ChromeSkin.current)
                 }

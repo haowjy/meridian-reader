@@ -20,8 +20,8 @@
 	<string>0.1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>MeridianAppGroupSuffix</key>
-	<string>$(BUNDLE_ID_SUFFIX)</string>
+	<key>MeridianAppGroup</key>
+	<string>$(APP_GROUP)$(BUNDLE_ID_SUFFIX)</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>

@@ -7,9 +7,11 @@ import QuartzCore
 /// continuous `progress` (0 expanded, 1 collapsed) that follows the finger on the way down only:
 /// `progress += dy / travel` for a scroll down, and a scroll up never gives a row back (decided:
 /// the rows are too big to pop out on every reverse flick, and a button is what brings them
-/// back). The chrome comes back by a tap on the capsule it folded into (it pins it expanded:
-/// scrolling down does not fold it again until the top, a new screen or page), or the very top of the text (0 at the top). Once the
-/// finger has been still for `settleDelay` a half-folded chrome finishes folding. It is the
+/// back). It folds in two steps: 0 to 0.5 takes row 2 away (one row left), 0.5 to 1 takes the
+/// field into the domain strip. The chrome comes back by a tap on the strip (the next `refoldGrace`
+/// of scrolling down is ignored, then it folds again: no pin), the very top of the text (0 at the
+/// top), a new page or screen, and opening the search. Once the finger has been still for
+/// `settleDelay` a fold between steps finishes the step it is in. It is the
 /// mockups' `bindScroll` without its reverse follow, and
 /// `displayed` is its per-frame smoothing: an exponential filter with a `smoothing` time constant,
 /// stepped by a display link while it still has ground to cover. What is drawn follows `displayed`;
@@ -20,11 +22,11 @@ import QuartzCore
 @MainActor
 @Observable
 final class ChromeScroll {
-    /// 0 expanded, 1 folded into the capsule, anywhere between while a finger is on the scroll view.
+    /// 0 two rows, 0.5 one row, 1 the strip, anywhere between while a finger is on the scroll view.
     private(set) var progress: CGFloat = 0
     /// `progress` as drawn: it chases `progress` a frame at a time (`smoothing`).
     private(set) var displayed: CGFloat = 0
-    /// Past half: the chrome is a capsule. Its own property so a screen that only needs to know (the
+    /// Past the first step: row 2 is gone (one row or the strip). Its own property so a screen that only needs to know (the
     /// reading page's floating controls) is not redrawn by every step of `progress`.
     private(set) var isCollapsed = false
     /// `isCollapsed` as drawn: past half in `displayed`, so what keeps clear of the chrome (the web
@@ -34,10 +36,12 @@ final class ChromeScroll {
     private(set) var fullScreen = false
     /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
     var isLocked = false
-    /// The user expanded it by hand (the capsule's tap): scrolling down does not
-    /// fold it again, for that scroll or any later one, until the text is back at its top, a new screen
-    /// or page is up, or the screen is left. The pin is what makes the tap win over the scroll.
-    private(set) var isPinnedExpanded = false
+    /// What is drawn, by step: 0 two rows, 1 one row, 2 the strip (nearest end of `displayed`), so
+    /// what keeps clear of the chrome moves a step at a time with it (`ChromeMetrics.footprint(step:)`).
+    private(set) var drawnStep = 0
+    /// Points of scrolling down still ignored after the strip's tap: the rows stay for a short
+    /// scroll (and the tail of a fling already under way), then fold again. Never a lasting pin.
+    private(set) var grace: CGFloat = 0
     /// The destination keeps its chrome expanded whatever the scroll (Listen, a reader in Pages mode):
     /// scroll reports move nothing, and turning it on expands.
     var holdsExpanded = false {
@@ -45,7 +49,11 @@ final class ChromeScroll {
     }
 
     /// Points of scrolling that fold the chrome all the way.
-    static let travel: CGFloat = 90
+    static let travel: CGFloat = 120
+    /// Scrolling down after the strip's tap brought the rows back that folds nothing.
+    static let refoldGrace: CGFloat = 24
+    /// After the strip's tap, scroll reports this soon are a fling already under way and move nothing.
+    static let tapQuiet: CFTimeInterval = 0.35
     /// At or above this offset the chrome is expanded.
     static let topEdge: CGFloat = 4
     static let settleDelay: Duration = .milliseconds(150)
@@ -67,6 +75,7 @@ final class ChromeScroll {
     @ObservationIgnored private var settling: Task<Void, Never>?
     @ObservationIgnored private var ticker: FrameTicker?
     @ObservationIgnored private var lastFrame: CFTimeInterval = 0
+    @ObservationIgnored private var tappedAt: CFTimeInterval = -1
 
     /// A scroll view's content offset, 0 at its top edge (below its own top inset).
     func scrolled(to offset: CGFloat) {
@@ -75,14 +84,21 @@ final class ChromeScroll {
         guard !isLocked, !holdsExpanded, !fullScreen else { return }
         if offset <= Self.topEdge {
             settling?.cancel()
-            isPinnedExpanded = false
+            grace = 0
             set(0)
             return
         }
-        guard !isPinnedExpanded else { return }
         guard delta != 0, abs(delta) <= Self.jump else { return }
         guard delta > 0 else { return }
-        set(min(1, progress + delta / Self.travel))
+        var down = delta
+        if grace > 0 {
+            guard CACurrentMediaTime() - tappedAt >= Self.tapQuiet else { return }
+            let used = min(grace, down)
+            grace -= used
+            down -= used
+            guard down > 0 else { return }
+        }
+        set(min(1, progress + down / Self.travel))
         scheduleSettle()
     }
 
@@ -92,31 +108,39 @@ final class ChromeScroll {
     func anchor(at offset: CGFloat) {
         last = offset
         if offset <= Self.topEdge {
-            isPinnedExpanded = false
+            grace = 0
             set(0)
         }
     }
 
-    /// Finishes a fold the finger stopped partway through: scrolling only ever folds.
+    /// Finishes the step the finger stopped partway through: scrolling only ever folds.
     func settle() {
         settling?.cancel()
-        if progress > 0, progress < 1 { set(1) }
+        set(Self.stepEnd(progress))
     }
 
+    /// The end of the step `progress` is in: 0, 0.5 or 1.
+    nonisolated static func stepEnd(_ progress: CGFloat) -> CGFloat {
+        progress <= 0 ? 0 : progress <= 0.5 ? 0.5 : 1
+    }
+
+    /// The step `value` is nearest: 0 two rows, 1 one row, 2 the strip.
+    nonisolated static func step(_ value: CGFloat) -> Int { value < 0.25 ? 0 : value < 0.75 ? 1 : 2 }
+
     /// Back to two rows because a screen or page changed (a new screen, a page reader opening): scrolling
-    /// folds it again from here, so this clears the pin.
+    /// folds it again from here.
     func expand() {
         settling?.cancel()
-        isPinnedExpanded = false
+        grace = 0
         set(0)
     }
 
-    /// Back to two rows by the user's hand (the capsule's tap): it stays,
-    /// whatever the scroll does next (`isPinnedExpanded`). A momentum scroll already under way cannot
-    /// fold it either.
+    /// Back to two rows by the user's hand (the strip's tap): they stay for the next `refoldGrace` of
+    /// scrolling down (a fling already under way moves nothing for `tapQuiet`), then fold again.
     func expandByHand() {
         expand()
-        isPinnedExpanded = true
+        grace = Self.refoldGrace
+        tappedAt = CACurrentMediaTime()
     }
 
     func setFullScreen(_ on: Bool) {
@@ -169,6 +193,8 @@ final class ChromeScroll {
 
     private func drawnCollapsed(_ value: CGFloat) {
         if isDrawnCollapsed != (value >= 0.5) { isDrawnCollapsed = value >= 0.5 }
+        let step = Self.step(value)
+        if drawnStep != step { drawnStep = step }
     }
 }
 

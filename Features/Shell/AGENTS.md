@@ -19,5 +19,5 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
 - **Two size classes.** iPad layout is gated on `horizontalSizeClass == .regular` and compact (iPhone,
   iPad in a compact window) draws the chrome host; regular width keeps `SurfaceBand` and the dock. When you touch shell chrome, check both.
 - **Sizes are tokens** in `../DesignSystem/Tokens/RegularLayout.swift`; don't hard-code a width in a view.
-- **Listen always has a way back** when the page has a place: ‹ goes to the launch record (`listenLaunch`), else the playing page's own place (`listenPageOrigin`); both resolve through `listenBackOrigin`. Don't add a Listen entry that leaves both nil for a page with a place (docs/NAVIGATION.md).
+- **Listen's ‹ is always the launch place**: `listenLaunch` is set only by a launch (`noteLaunch`), persisted (`SurfaceMemoryStore.saveListenLaunch`) and restored at launch; never fall back to the playing page's own place, and never let a resume or a launch with no place clear it (docs/NAVIGATION.md).
 - Add a screen as a case in `ShellState`, not a presentation flag in a view.

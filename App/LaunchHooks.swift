@@ -106,7 +106,10 @@ enum LaunchHooks {
     /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`, `-listenDemo`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
                                shell: ShellState) async {
-        if options.listensDemo { await listenDemo(after: options.listenBackAfter, library: library, speech: speech, shell: shell) }
+        if options.listensDemo || options.opensListen {
+            await listenDemo(from: options.listenDemoFrom, launches: options.listensDemo, back: options.listenBackAfter,
+                             library: library, speech: speech, shell: shell)
+        }
         if options.playsTestEPUB {
             await importTestEPUB(in: library)
             await playTestEPUB(library: library, speech: speech)
@@ -321,18 +324,33 @@ enum LaunchHooks {
         }
     }
 
-    /// `-listenDemo` / `-listenBackAfter`: the newest saved page plays from the surface on screen and
-    /// Listen rises; then, optionally, Listen's ‹.
-    static func listenDemo(after back: Double?, library: LibraryStore, speech: SpeechController, shell: ShellState) async {
+    /// `-listenDemo` / `-openListen` / `-listenDemoFrom` / `-listenBackAfter`: the newest saved page plays and
+    /// Listen rises, launched from the surface on screen (or the page or folder named), or, with `-openListen`,
+    /// raised first so nothing new is launched; then, optionally, Listen's ‹.
+    static func listenDemo(from place: String?, launches: Bool, back: Double?, library: LibraryStore,
+                           speech: SpeechController, shell: ShellState) async {
         try? await Task.sleep(for: .seconds(1))
+        if let place {
+            if let url = URL(string: place), url.scheme != nil {
+                shell.navigate(to: url)
+                try? await Task.sleep(for: .seconds(3))
+                shell.web.webView?.scrollView.setContentOffset(CGPoint(x: 0, y: 300), animated: false)
+                try? await Task.sleep(for: .seconds(1))
+            } else if let folder = (try? library.context.fetch(FetchDescriptor<Folder>()))?.first(where: { $0.name == place }) {
+                shell.showLibrary(at: library.path(to: folder))
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
         var newest = LibraryQueries.savedInLibrary
         newest.fetchLimit = 1
         guard let saved = try? library.context.fetch(newest).first else { return }
+        if !launches { shell.showNowPlaying() }
         speech.listen(to: ReaderArticle(article: saved))
         shell.showNowPlaying()
         guard let back else { return }
         try? await Task.sleep(for: .seconds(back))
-        shell.backFromListen(folderExists: { library.folder(id: $0) != nil })
+        shell.backFromListen(folderExists: { library.folder(id: $0) != nil },
+                             article: { library.article(key: $0).map(ReaderArticle.init(article:)) })
     }
 
     /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article in the Reader
