@@ -76,6 +76,11 @@ struct SettingsView: View {
                 // In place a pushed page reports its own scroll: a modifier above the stack doesn't reach it.
                 .navigationDestination(for: SettingsRoute.self) { page($0).modifier(CompactChromeScroll(isCompact: inPlace)) }
         }
+        // Back to the results whenever Search Settings takes focus, a search already under way included
+        // (a result opened, then the field tapped again).
+        .onChange(of: shell.settingsSearch.isFocused) { _, focused in
+            if inPlace, focused, !shell.settingsPath.isEmpty { shell.settingsPath = [] }
+        }
         .modifier(CompactChromeInsets(isCompact: inPlace))
         .scrollDismissesKeyboard(.interactively)
         .environment(\.settingsSearch, search)
