@@ -17,6 +17,7 @@ enum AppMain {
         BookImportActions.importsTestBook = LaunchOptions.current.importsTestEPUB
         ChromeSkin.forcesMaterial = LaunchOptions.current.forcesChromeFallback
         ChromeScroll.forcedFold = LaunchOptions.current.chromeFold
+        ReadingChrome.opensInFullScreen = LaunchOptions.current.readerFullScreen
         #endif
         ReaderApp.main()
     }

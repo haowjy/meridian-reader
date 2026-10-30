@@ -393,8 +393,8 @@ extension HTMLReadingWebView.Coordinator {
             .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
     }
 
-    /// The title (hidden when the player card shows it) and the source line, ending in ▶ Listen when
-    /// the heading has it (a button, so VoiceOver offers it; its triangle is drawn, never an emoji).
+    /// The title (hidden when the player card shows it) and the source line, ending in the ▶ Listen pill
+    /// when the heading has it (a button, so VoiceOver offers it; its triangle is drawn, never an emoji).
     private static func headerHTML(_ heading: ReaderHeading) -> String {
         var html = "<header class=\"reader-heading\">"
         if let title = heading.title {

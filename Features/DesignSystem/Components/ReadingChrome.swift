@@ -60,7 +60,21 @@ final class ReadingChrome {
         fullScreen = place.fullScreen
         onUserScroll = place.scrolled
         onScrollAnchor = place.anchored
+        #if DEBUG
+        guard Self.opensInFullScreen else { return }
+        Self.opensInFullScreen = false
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            self?.hide()
+        }
+        #endif
     }
+
+    #if DEBUG
+    /// `-readerFullScreen`: the first page read in place goes full screen 3 s after it opens, as a
+    /// middle tap does. Set by the launch (`AppMain`).
+    static var opensInFullScreen = false
+    #endif
 
     private func setHidden(_ value: Bool) {
         if let fullScreen { fullScreen.wrappedValue = value } else { ownHidden = value }

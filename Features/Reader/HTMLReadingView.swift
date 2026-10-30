@@ -13,7 +13,7 @@ struct ReaderHeading: Equatable {
     /// The title shows elsewhere (C141: the player card), so neither it nor the article's own
     /// matching leading heading shows in the text.
     var titleHidden = false
-    /// The in-place readers' start: a small "▶ Listen" in the accent at the end of the source line
+    /// The in-place readers' start: a "▶ Listen" accent capsule at the end of the source line
     /// (`HTMLReadingView.onListen`). A fixed label, so the page never reloads as playback changes.
     var listens = false
 }

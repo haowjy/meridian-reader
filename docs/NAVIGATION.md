@@ -250,11 +250,16 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   text is a reading page like the Reader's (`ReadingPage`, in place): Pages or Scroll as the
   Appearance setting says, the footer, a tap in the middle for full screen, *Play from Here* on a
   selection, and it opens at the page's saved listening spot, underlined. The reader's theme runs up
-  under the status bar. Under the title the source line reads "site  length  ▶ Listen": ▶ Listen is a
-  small text button in the accent (a `<button>` in the page's heading, so it scrolls with the text and is
-  never read aloud). It plays the page from its saved spot and slides Listen up; for the page you hear
-  it only slides Listen up. A page you hear shows the playhead and Jump to Audio in its text and the
-  floating ▶ / ⏸ (which pauses; it does not leave the reader). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor, no following. Aa is in the address field beside ↻ (`readerAppearance`), and ⋯ → *Text Appearance* opens the same panel, a popover pointing at Aa either way. The web page
+  under the status bar. Under the title the source line reads "site  length" and ends in ▶ Listen, an
+  accent-filled capsule (on-accent text, semibold; 36 pt tall at the default text size, growing with it
+  up to 1.5×; a 44 pt tap) at the line's right end, centred on it: a long site gives way first (an
+  ellipsis), and the pill never wraps or shrinks. It is a `<button>` in the page's heading, so it scrolls
+  with the text and is never read aloud, and its label stays "▶ Listen" while the page plays. It plays the
+  page from its saved spot and slides Listen up; for the page you hear it only slides Listen up. The
+  reader stays a plain reader while its page plays: no spoken paragraph, underlined sentence, following
+  or Jump to Audio (the playhead is Listen's), and no saved-spot underline; *Play from Here* moves the
+  playhead and slides Listen up. Full screen is the text alone, down to the screen's foot: no floating
+  ▶ / ⏸ (that is Listen's and the regular-width sheets'). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor. Aa is in the address field beside ↻ (`readerAppearance`), and ⋯ → *Text Appearance* opens the same panel, a popover pointing at Aa either way. The web page
   under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
   what ‹ does (back, which closes the reader).
 - **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
@@ -1181,7 +1186,7 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
 - **Full screen is a tap in the middle of the text, in and out, and nothing else.** In a compact
   in-place reader it removes the whole bottom chrome: its rows (or bubble), the fade and the status bar
   go (fade only under Reduce Motion), the home indicator dims, and the text shows alone, never
-  moving. In compact Listen the top bar and the player card slide off and the status bar hides; the
+  moving, down to the screen's foot, with nothing floating over it. In compact Listen the top bar and the player card slide off and the status bar hides; the
   chrome under Listen keeps its state. **Scrolling does nothing to the chrome in full screen, and
   scrolling never enters or leaves it.** Leaving full screen returns to what the chrome was before
   (folded stays folded). On regular width the sheet's grabber, top bar and bottom band hide and show
@@ -1197,7 +1202,8 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   leaves full screen. The first 48 pt from the left edge do nothing, so an edge swipe never turns a
   page. Edge taps leave the bars as they are. In Now Playing a page turn stops following the audio
   as a drag does, and *Jump to Audio* appears (on compact Listen, the card's Jump turns into its arrow).
-- **A small ▶ / ⏸ floats at the bottom right** in full screen (a 44 pt accent disc with the
+- **A small ▶ / ⏸ floats at the bottom right** in full screen, in Listen and on regular width (never in
+  a compact in-place reader) (a 44 pt accent disc with the
   shadow, above the home indicator, at the article margin): Now Playing's plays and pauses
   what you hear; the Reader's is its Listen (and turns it into Now Playing). It fades out 3 s after
   full screen begins; an edge tap (a page turn), or a tap on it, brings it back for another 3 s. A
@@ -1207,7 +1213,7 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   back; scrolling never leaves it, and compact full screen is left by the middle tap alone
   (on regular width it never closes the sheet; a pull that begins with the bars showing closes it as
   usual, and while it pulls the sheet it never hides or shows the bars).
-- The floating *Jump to Audio* (the in-place readers, regular width's Now Playing) shows only with the bars up, at the right edge just above the card, and only while the
+- The floating *Jump to Audio* (regular width's Now Playing) shows only with the bars up, at the right edge just above the card, and only while the
   text is away from the audio. It never shows in full screen, in Scroll or Pages: there the
   floating ▶ (unchanged: bottom right, fades after 3 s) is the only control over the text (C128,
   one rule, `ReadingChrome.showsJumpToAudio`).

@@ -14,11 +14,15 @@ enum ReadingStyle {
         var body: CGFloat
         var title: CGFloat
         var caption: CGFloat
+        /// The heading's Listen pill (`TypeStyle.row`, as `PillButton`'s title), grown no more than
+        /// `BottomChrome.maxTextGrowth`.
+        var row: CGFloat
 
-        init(body: CGFloat, title: CGFloat, caption: CGFloat) {
+        init(body: CGFloat, title: CGFloat, caption: CGFloat, row: CGFloat) {
             self.body = body
             self.title = title
             self.caption = caption
+            self.row = row
         }
 
         /// Scaled like `typeStyle(_:)` for `traits` (nil: the current ones).
@@ -26,11 +30,13 @@ enum ReadingStyle {
             func scaled(_ style: TypeStyle, _ text: UIFont.TextStyle) -> CGFloat {
                 UIFontMetrics(forTextStyle: text).scaledValue(for: style.size, compatibleWith: traits)
             }
-            self.init(body: scaled(.body, .body), title: scaled(.title, .title1), caption: scaled(.caption, .footnote))
+            self.init(body: scaled(.body, .body), title: scaled(.title, .title1), caption: scaled(.caption, .footnote),
+                      row: BottomChrome.grown(scaled(.row, .callout), from: TypeStyle.row.size))
         }
 
         var cssVariables: String {
             "--body: \(Int(body.rounded()))px; --title: \(Int(title.rounded()))px; --caption: \(Int(caption.rounded()))px;"
+                + " --row: \(Int(row.rounded()))px;"
         }
     }
 
@@ -67,6 +73,7 @@ enum ReadingStyle {
         var secondary: String
         var tertiary: String
         var accent: String
+        var onAccent: String
         var highlight: String
         var underline: String
         var rule: String
@@ -81,6 +88,7 @@ enum ReadingStyle {
             secondary = ReadingStyle.hex(palette.secondaryInk, traits)
             tertiary = ReadingStyle.hex(palette.tertiaryInk, traits)
             accent = ReadingStyle.hex(palette.accent, traits)
+            onAccent = ReadingStyle.hex(palette.onAccent, traits)
             highlight = ReadingStyle.hex(palette.highlight, traits)
             underline = ReadingStyle.hex(palette.underline, traits)
             rule = ReadingStyle.hex(palette.track, traits)
@@ -89,7 +97,7 @@ enum ReadingStyle {
         var cssVariables: String {
             "color-scheme: \(scheme == .dark ? "dark" : "light"); --paper: \(paper); --ink: \(ink); --dim: \(dim);"
                 + " --secondary: \(secondary); --tertiary: \(tertiary); --accent: \(accent);"
-                + " --highlight: \(highlight); --underline: \(underline); --rule: \(rule);"
+                + " --on-accent: \(onAccent); --highlight: \(highlight); --underline: \(underline); --rule: \(rule);"
         }
     }
 
@@ -128,15 +136,26 @@ enum ReadingStyle {
         .reader-heading { margin: 0 0 \(Int(Spacing.xl))px; }
         .reader-title { font-size: calc(var(--title) * var(--scale)); font-weight: 700; line-height: 1.15;
                         margin: 0 0 \(pad)px; }
+        /* One line: the site gives way first (an ellipsis), the length never wraps, ▶ Listen ends it. */
         .reader-detail { font-family: -apple-system, system-ui, sans-serif; font-size: var(--caption);
-                         color: var(--tertiary); display: flex; flex-wrap: wrap;
+                         color: var(--tertiary); display: flex; align-items: center;
                          column-gap: calc(var(--caption) * \(Int(Spacing.s)) / \(Int(TypeStyle.caption.size))); }
-        .reader-detail span { min-width: 0; overflow-wrap: anywhere; }
-        .reader-detail span:first-child { color: var(--secondary); }
-        /* ▶ Listen: a text button in the accent, tapped well past its line (the padding is taken back by the margin). */
-        .reader-listen { -webkit-appearance: none; appearance: none; background: none; border: 0; font: inherit;
-                         font-weight: 600; color: var(--accent); display: inline-flex; align-items: center;
-                         gap: 0.35em; padding: \(Int(Spacing.s))px \(pad)px; margin: -\(Int(Spacing.s))px -\(pad)px; cursor: pointer; }
+        .reader-detail span { flex: 0 0 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .reader-detail span:first-child { flex-shrink: 1; color: var(--secondary); }
+        /* ▶ Listen: an accent capsule (`PillButton`'s compact filled pill: 36 pt at the default size, growing
+           with its text), at the line's end; its tap reaches \(Int(ChromeMetrics.minTapTarget)) pt tall. */
+        .reader-listen { -webkit-appearance: none; appearance: none; border: 0; flex: none; margin-left: auto;
+                         position: relative; box-sizing: border-box;
+                         height: calc(var(--row) * \(PillButton<PillSymbol>.Size.compact.height / TypeStyle.row.size));
+                         padding: 0 \(Int(Spacing.m))px; border-radius: 9999px;
+                         background: var(--accent); color: var(--on-accent);
+                         font-family: inherit; font-size: var(--row); font-weight: 600; line-height: 1; white-space: nowrap;
+                         display: inline-flex; align-items: center; gap: \(Int(Spacing.xs))px; cursor: pointer; }
+        /* Clear of Library Read's ⋯, which sits on the title's line at the top right. */
+        .reader-detail:has(.reader-listen) { padding-top: \(Int(Spacing.xs))px; }
+        .reader-listen::after { content: ""; position: absolute; left: 0; right: 0; top: 50%;
+                         height: max(100%, \(Int(ChromeMetrics.minTapTarget))px); transform: translateY(-50%); }
+        .reader-listen:active { opacity: 0.7; }
         .reader-listen svg { width: 0.7em; height: 0.8em; fill: currentColor; }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }

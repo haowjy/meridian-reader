@@ -67,8 +67,7 @@ struct BrowseStartView: View {
             // While searching, avoid the keyboard so the field sits right above it. Otherwise keep
             // ignoring it (typing into a web page must not resize the page / the web view).
             .ignoresSafeArea(.keyboard, edges: search.isFocused ? [] : .bottom)
-            // The reader and the library cover the whole browser, edge to edge. Outside the page
-            // ZStack, whose `.clipped()` would cut them at the safe area.
+            // The library, Settings, the Reader sheet and Listen cover the whole browser.
             .overlay { layers }
             // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
             // everything else (the library's navigation bar too).
@@ -150,7 +149,6 @@ struct BrowseStartView: View {
                     }
                 }
             }
-            .clipped()
 
             // The library draws its own chrome and covers this; the reader overlay draws its own
             // too, but this stays under it so its pull-down reveals the browser whole.
@@ -158,9 +156,11 @@ struct BrowseStartView: View {
                 bottomChrome
             }
         }
-        // The page area is clipped to the safe area; what shows there (paper on the start page and
-        // the search layer, the in-place reader's theme, a web page's own background) continues
-        // up under the status bar.
+        // On compact width the page, the in-place reader and the search layer run down through the home
+        // indicator's strip (nothing clips them at the safe area: the reader's text and its floating ▶
+        // reach the screen's foot in full screen). What shows there (paper on the start page and the
+        // search layer, the in-place reader's theme, a web page's own background) continues up under
+        // the status bar.
         .background {
             if !hasPage || search.isActive {
                 Palette.paper.ignoresSafeArea()
