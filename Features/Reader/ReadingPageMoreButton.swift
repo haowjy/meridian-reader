@@ -1,13 +1,9 @@
 import SwiftUI
 
-/// ⋯ on the Reader sheet and on Listen: opens the page's menu (`ArticleActions.readingPageMenu`), a
-/// toolbar glyph cell. At regular width the transport row holds it; on compact width the player
-/// card's tools row (`compact`, the compact menu's tiles). `extraRows` are the page's own, first
-/// among the screen's rows (*Play from a Paragraph*, which compact Listen has no top bar button for).
+/// ⋯ on the Reader sheet and on regular width's Listen: opens the page's ⋯ panel
+/// (`ArticleActions.readingPageMenu`), a toolbar glyph cell in the transport row.
 struct ReadingPageMoreButton: View {
     let id: String
-    var compact = false
-    var extraRows: [MenuRow] = []
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
@@ -17,10 +13,8 @@ struct ReadingPageMoreButton: View {
 
     var body: some View {
         MoreMenuButton(id: id) {
-            var menu = ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
-                                                      preparedAudio: preparedAudio, follow: follow, compact: compact)
-            menu.screen = extraRows + menu.screen
-            return menu
+            ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
+                                           preparedAudio: preparedAudio, follow: follow)
         }
     }
 }

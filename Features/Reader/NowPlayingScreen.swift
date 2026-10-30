@@ -3,14 +3,15 @@ import SwiftUI
 /// Now Playing, Listen: what you hear, opened up (`NowPlayingSheet`). The Reader's page in the
 /// same reading theme and type: the spoken paragraph highlighted in full ink like the rest, on the
 /// highlight. Presented over everything by the shell: on compact width a cover that slides up over
-/// the chrome too, with the player card at its foot (its last row: Aa, speed, Voice, ⋯); on
+/// the chrome too, with the player card at its foot (`ReaderPlayerCard`: Jump to Audio, Save, speed, Aa, Voice, ⋯); on
 /// regular width a sheet. It holds no article of its own: it shows `speech.nowPlaying` and the
 /// playing page's content, looked up in the library by its key.
 ///
 /// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
 ///   there (each new paragraph, a long paragraph's sentence leaving the screen); the spoken
 ///   paragraph is highlighted (every paragraph in full ink), its sentence underlined. A drag stops
-///   following; Jump to Audio resumes it, back to the sentence. Scrubbing scrolls to the
+///   following; Jump to Audio resumes it, back to the sentence (on compact width the card's Jump, an
+///   arrow then; on regular width the floating button). Scrubbing scrolls to the
 ///   paragraph under the thumb.
 /// - On regular width the close pill names where the page plays from: a page in a folder plays from that folder (a
 ///   book, a series, Favorites, a folder you made), a saved page in no folder from the Library,
@@ -18,9 +19,9 @@ import SwiftUI
 ///   or the Library; for a site, ⋯ → Website opens the page in the browser.
 /// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎
 ///   then a tap on a paragraph plays from there; 🔖 saves / removes (tap) or files the page
-///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `ArticleActions`, as
-///   in the Reader. Voice (an `IconButton`) sits to the right of the title in the bottom band
-///   and opens the same Voice picker as ⋯ › Voice.
+///   (long-press, *Save to Folder…*); ⋯ is the page's menu at `.nowPlaying` (on compact width a
+///   small system menu). Both act through `ArticleActions`, as in the Reader. Voice (an `IconButton`)
+///   opens the Voice picker: beside the title in regular width's band, over ⋯ on the compact card.
 /// - At the end it stays: the text stays, all in full ink, the player card says "● Finished" (the ring, full)
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
 /// - A tap in the middle of the text reads full screen, as in the Reader (`ReadingPage`,
@@ -115,7 +116,8 @@ struct NowPlayingScreen: View {
             showing: regular ? .sheet(close: .collapse(playingFromName(now, saved: actions.isSaved)), onClose: onClose)
                 : .cover(onClose: onClose),
             playState: speech.playState(of: .article(now.articleKey)),
-            showsJumpToAudio: !following && !now.isFinished,
+            // Compact width's Jump is in the card.
+            showsJumpToAudio: regular && !following && !now.isFinished,
             jumpDirection: spotSide,
             onPlayPause: speech.pressNowPlaying,
             onJumpToAudio: { following = true },
@@ -138,7 +140,7 @@ struct NowPlayingScreen: View {
                     bandContent(now: now, actions: actions, palette: palette, artwork: artwork, spot: spot)
                 }
             } else {
-                card(now, actions, artwork: artwork)
+                card(now, actions)
             }
         } floating: {
             // The toast floats above the hairline.
@@ -149,16 +151,8 @@ struct NowPlayingScreen: View {
         }
     }
 
-    /// Compact width: ⋯'s row for ☝︎.
-    private var jumpRow: MenuRow {
-        MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
-                availability: MenuAvailability(when: !speech.document.isEmpty)) {
-            withAnimation(Motion.snappy) { jumpMode.toggle() }
-        }
-    }
-
     /// Compact width: the player card at Listen's foot.
-    private func card(_ now: NowPlaying, _ actions: ArticleActions, artwork: Image?) -> some View {
+    private func card(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
         PlayheadReader(speech: speech) { spot in
             let doc = speech.document
             let rate = speech.rateMultiplier
@@ -169,8 +163,9 @@ struct NowPlayingScreen: View {
                 title: now.lineOne,
                 detail: note.map { [$0] } ?? (now.isFinished ? [String(localized: "Finished")]
                     : [source, left > 0 ? ListeningTime.leftLabel(minutes: left) : nil].compactMap { $0 }),
-                artwork: artwork, artworkLetter: now.artworkLetter,
-                origin: actions.cardOrigin(title: now.lineOne)
+                origin: actions.cardOrigin(title: now.lineOne),
+                jump: now.isFinished ? .finished : following ? .following : .away(spotSide),
+                onJump: { following = true }
             ) {
                 SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                  onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder, round: true)
@@ -178,17 +173,40 @@ struct NowPlayingScreen: View {
             } scrub: {
                 playerScrub(spot: spot) { EmptyView() }
             } transport: {
-                ListenTransportView(speech: speech)
-            } tools: {
-                TextAppearanceControl(arrowEdge: .bottom, round: false)
+                ListenTransportView(size: .card, speech: speech)
+            } leading: {
                 SpeedButton(speech: speech)
-                    .frame(maxWidth: .infinity)
+                    .playerCardTool()
+                TextAppearanceControl(arrowEdge: .bottom, round: false)
+                    .playerCardTool()
+            } trailing: {
                 IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "nowPlayingVoice", round: false) {
                     shell.present(.voice(.article(now.articleKey)))
                 }
-                ReadingPageMoreButton(id: "listenMore", compact: true, extraRows: [jumpRow])
+                .playerCardTool()
+                moreMenu(now, actions)
+                    .playerCardTool()
             }
         }
+    }
+
+    /// Compact width's ⋯: a system menu. *Play from a Paragraph* (Listen's own: compact Listen has no
+    /// top bar for ☝︎), then the page's rows at `.nowPlaying` (`ArticleMenu`), each block a section.
+    private func moreMenu(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
+        let jumpRow = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
+                              availability: MenuAvailability(when: !speech.document.isEmpty)) {
+            withAnimation(Motion.snappy) { jumpMode.toggle() }
+        }
+        return Menu {
+            MenuRows([jumpRow])
+            ArticleMenu(actions: actions, place: .nowPlaying(actions.goTo(now)))
+        } label: {
+            Image(systemName: Icons.more)
+                .foregroundStyle(appearance.palette(accent: AppAppearance.shared.accent).ink)
+                .toolbarIconFrame()
+        }
+        .accessibilityLabel(Verbs.more)
+        .accessibilityIdentifier("listenMore")
     }
 
     /// The integrated bottom band: title + Voice (trailing), scrub, notes, transport — all flat on

@@ -9,7 +9,7 @@ struct TextAppearanceControl: View {
     /// Which edge of Aa the popover's arrow is on: `.top` under a top bar's Aa, `.bottom` for the
     /// player card's, which sits at the screen's foot and has no room below it.
     var arrowEdge: Edge = .top
-    /// Aa's round face; false in the compact player card's tools row (a toolbar cell).
+    /// Aa's round face; false in the compact player card (a toolbar cell).
     var round = true
 
     var body: some View {

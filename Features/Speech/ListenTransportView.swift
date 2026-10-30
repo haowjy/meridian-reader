@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Now Playing's transport row: [leading] [⏮] (⏸) [⏭] [trailing], in the five-slot
-/// grid (`NowPlayingTransport`). It always acts on the session, which is what Now Playing shows.
-/// On regular width `leading` is 🔖 and `trailing` ⋯, in the Reader's slots; the compact player card
-/// leaves both empty, so ⏮ ▶ ⏭ sit in the middle. A sideways swipe on
-/// the row skips a paragraph; with developer options on, a long-press on play / pause opens
-/// Listen debug.
+/// Now Playing's transport (`NowPlayingTransport`), acting on the session, which is what Now
+/// Playing shows. On regular width the five-slot row, `[leading] [⏮] (⏸) [⏭] [trailing]`: 🔖 and
+/// ⋯ in the Reader's slots. The compact player card takes the `card` size: ⏮ ▶ ⏭ alone, larger,
+/// with no slots. A sideways swipe on it skips a paragraph; with developer options on, a
+/// long-press on play / pause opens Listen debug.
 struct ListenTransportView: View {
+    var size = TransportSize.row
     var leading: AnyView? = nil
     var trailing: AnyView? = nil
 
@@ -21,6 +21,7 @@ struct ListenTransportView: View {
     var body: some View {
         NowPlayingTransport(
             state: state,
+            size: size,
             canSkipBack: speech.canSkipToPreviousParagraph,
             canSkipForward: speech.canSkipToNextParagraph,
             onSkipBack: speech.skipToPreviousParagraph,
@@ -63,7 +64,7 @@ struct ListenTransportView: View {
 }
 
 /// The playback speed ("1×", "1.25×"): at the trailing end of the regular-width scrub capsule, and
-/// in the compact player card's tools row. A tap opens the speed list, pointing at it.
+/// over Aa in the compact player card. A tap opens the speed list, pointing at it.
 struct SpeedButton: View {
     @Bindable var speech: SpeechController
     @State private var showsPicker = false

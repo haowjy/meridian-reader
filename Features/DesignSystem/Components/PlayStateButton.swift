@@ -40,6 +40,7 @@ enum PlayState: CaseIterable {
 /// | `pill` (Listen, Continue) | filled ▶ title | filled spinner title | tinted moving bars | tinted still bars |
 /// | `disc` (Now Playing's transport) | ▶ on an accent disc | spinner on the disc | ⏸ on the disc | ▶ on the disc |
 /// | `floatingDisc` (full screen) | as `disc`, smaller | | | |
+/// | `cardDisc` (Listen's player card) | as `disc`, larger | | | |
 struct PlayStateButton: View {
     enum Look: Equatable {
         case glyph
@@ -57,6 +58,8 @@ struct PlayStateButton: View {
         case floatingDisc
         /// `disc` at `BottomChrome.headerDiscSize`: a folder header's centre control.
         case headerDisc
+        /// `disc` at `BottomChrome.cardDiscSize`: the compact player card's centre control.
+        case cardDisc
     }
 
     let state: PlayState
@@ -85,6 +88,9 @@ struct PlayStateButton: View {
                           action: action)
         case .floatingDisc:
             PlayStateDisc(state: state, size: BottomChrome.floatingDiscSize, glyphSize: BottomChrome.floatingDiscGlyph,
+                          action: action)
+        case .cardDisc:
+            PlayStateDisc(state: state, size: BottomChrome.cardDiscSize, glyphSize: BottomChrome.cardDiscGlyph,
                           action: action)
         }
     }

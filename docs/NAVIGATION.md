@@ -202,15 +202,31 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
   its scroll, a reader in place and its fold or full screen, a search (its keyboard lowered when Listen
   opened). Audio keeps playing. At the foot a glass player card at the chrome's margins (`cardRadius` 24),
-  as tall as its four rows, over a fade into the page. Row 1: artwork, the title on one line (cut with …),
-  under it the site and time left one text step smaller (two parts set apart by a 12 pt gap; the site
-  truncates first), and Save at the right. The title block opens the article's own place in the Library
-  or its page, and never seeks; only the track does. Row 2: the full-width scrubber, no times. Row 3:
-  ⏮, ▶ / ⏸, ⏭ in the middle three slots of the five-slot grid (`NowPlayingTransport`). Under a hairline,
-  row 4: small glyphs with no labels sharing the row evenly: Aa, the speed (1×), Voice (VoiceOver:
-  "Voice", never a voice's name) and ⋯ (`listenMore`: the page's menu, first *Play from a Paragraph*).
-  There is no sleep timer. The page's status note (preparing, voice and language notes) takes the card's
-  second line. **Full screen** is a tap in the middle of the text, in and out: the top bar and
+  as tall as its rows, over a fade into the page (`ReaderPlayerCard`). No artwork and no divider: its
+  groups are set apart by space alone.
+
+  ```
+  Title of the article, one line…          (➤)(🔖)
+  example.com                         6 min left
+  ━━━━━━━━━━━━━━━━●──────────────────────────────
+  1×                                       Voice
+           ⏮        (  ▶  )        ⏭
+  Aa                                         ⋯
+  ```
+
+  Row 1: the title on one line (cut with …), then Jump to Audio and Save, round 36 pt buttons. The title
+  opens the article's own place in the Library or its page, and never seeks; only the track does.
+  Row 2, one text step smaller: the site at the left (it truncates) and the time left at the right; the
+  page's status note (preparing, voice and language notes) or "Finished" alone in its place. Then the
+  full-width scrubber, no times. Under it two rows of small glyphs, no labels, at the card's margins:
+  the speed (1×) over Aa at the left, Voice (VoiceOver: "Voice", never a voice's name) over ⋯ at the
+  right; between them ⏮, a 62 pt ▶ / ⏸ and ⏭ (`NowPlayingTransport`'s `card` size), centred across
+  both rows. Jump never moves: while the text follows the audio it is a quiet filled arrow (VoiceOver:
+  "Following the audio"; a tap changes nothing); scrolled away, a lit ↑ or ↓ toward the spoken sentence
+  that brings it back (VoiceOver: "Jump to Audio"); once the article has finished, its place is empty.
+  Compact Listen has no floating Jump to Audio. ⋯ (`listenMore`) is a system menu, a section per
+  group: *Play from a Paragraph*; *Go to <folder or Library>*, *Add to Favorites*, *Save to Folder…*,
+  *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place). There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the top bar and
   the card slide off and the status bar hides; a ▶ / ⏸ floats for 3 s. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
 - **Listen with nothing to play** (nothing bound and nothing played before): the same cover, its grabber and
@@ -362,7 +378,7 @@ the same spot. ⋯ is never replaced.
   aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, Favorites, History, the Move tree)
   run after the panel has closed.
 - **The ⋯ panel** (`MorphMenuOverlay`: one overlay for the browser toolbar ⋯, the library
-  toolbar ⋯, the Reader's ⋯ and Now Playing's ⋯; its rows come from the surface that opened it,
+  toolbar ⋯, the Reader's ⋯ and regular width's Now Playing ⋯; its rows come from the surface that opened it,
   `MenuContext`: the item's menu, the screen's rows, the big buttons) is not a popover: it is placed so the bottom-right button's icon (Reader,
   or Website in the Reader and Now Playing — marked with `morphMenuFocus`) sits slightly up and to
   the left of the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it.
@@ -1090,8 +1106,9 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   spoken sentence instead (below). The spoken paragraph lights up to full ink while the one before dims (a short
   fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
-  doesn't move the text, so following goes on); a round *Jump to Audio* button floats over the text at the
-  right edge, 12 pt above the player card (level with the card's right edge; the strip when an in-place reader folds;
+  doesn't move the text, so following goes on). On compact Listen the player card's Jump turns into an
+  arrow toward the spoken sentence ("Bottom chrome", above). Elsewhere a round *Jump to Audio* button floats over the text at the
+  right edge, 12 pt above the player card of an in-place reader (level with the card's right edge; the strip when it folds;
   on regular width above the band): a 48 pt glass circle on the round buttons' shared face (`ChromeCircleFace`), with an arrow
   that points to the spoken sentence, ↑ when it is above the visible text and ↓ when below (Pages: on an earlier or a later page).
   VoiceOver: "Jump to Audio", hint "Scrolls up / down to the sentence being read". Tap it (or start another page) and
@@ -1103,8 +1120,8 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   says "Finished" where the time left was (the Reader shows the article's length), and ▶
   plays the article again.
 - **Controls** (the band): optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the five-slot
-  grid, then the scrub row and speed. (Compact width's Listen has the player card instead, its ⋯ in
-  the card's last row: "Bottom chrome", above.) ▶︎ / ⏸ is a 44 pt round button (accent fill, dark glyph; fixed size,
+  grid, then the scrub row and speed. (Compact width's Listen has the player card instead, its ⋯ a
+  small system menu: "Bottom chrome", above.) ▶︎ / ⏸ is a 44 pt round button (accent fill, dark glyph; fixed size,
   like the toolbar glyphs), as tall as the row, so every slot sits where it does on the other
   surfaces. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
   (D4). A sideways swipe on the row skips too.
@@ -1175,7 +1192,7 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   `Motion.standard` spring, a jump under Reduce Motion, never past either end), the middle enters or
   leaves full screen. The first 48 pt from the left edge do nothing, so an edge swipe never turns a
   page. Edge taps leave the bars as they are. In Now Playing a page turn stops following the audio
-  as a drag does, and *Jump to Audio* appears.
+  as a drag does, and *Jump to Audio* appears (on compact Listen, the card's Jump turns into its arrow).
 - **A small ▶ / ⏸ floats at the bottom right** in full screen (a 44 pt accent disc with the
   shadow, above the home indicator, at the article margin): Now Playing's plays and pauses
   what you hear; the Reader's is its Listen (and turns it into Now Playing). It fades out 3 s after
@@ -1186,7 +1203,7 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   back; scrolling never leaves it, and compact full screen is left by the middle tap alone
   (on regular width it never closes the sheet; a pull that begins with the bars showing closes it as
   usual, and while it pulls the sheet it never hides or shows the bars).
-- *Jump to Audio* shows only with the bars up, at the right edge just above the card, and only while the
+- The floating *Jump to Audio* (the in-place readers, regular width's Now Playing) shows only with the bars up, at the right edge just above the card, and only while the
   text is away from the audio. It never shows in full screen, in Scroll or Pages: there the
   floating ▶ (unchanged: bottom right, fades after 3 s) is the only control over the text (C128,
   one rule, `ReadingChrome.showsJumpToAudio`).

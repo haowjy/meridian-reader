@@ -25,7 +25,7 @@ enum MenuRegistry {
         case history
         /// The Reader's ⋯ panel.
         case reader
-        /// Now Playing's ⋯ panel.
+        /// Listen's ⋯ (compact width: the player card's system menu; regular width: its band's ⋯ panel).
         case nowPlaying
         /// The browser's ⋯ panel.
         case browser
@@ -111,6 +111,8 @@ enum MenuRegistry {
         var parent: Option?
         /// Its block: block 1 comes after block 0, set apart by a divider.
         var block = 0
+        /// Its block where it differs from `block`.
+        var blockAt: [Place: Int] = [:]
         /// The item can ever take it (false: hidden).
         var applies: (Facts) -> Bool = { _ in true }
         /// It can run now (false: greyed out).
@@ -129,32 +131,36 @@ enum MenuRegistry {
     }
 
     private static let articlePlaces: Set<Place> = [.row, .tile, .bar, .history, .reader, .nowPlaying, .browser]
+    /// Listen's ⋯ keeps to where the page is and its lists: Voice is on its card, and Prepare,
+    /// Playback and Remove from Recent are left out of it.
+    private static let articlePlacesButListen = articlePlaces.subtracting([.nowPlaying])
     /// Where a page isn't on screen with its own bookmark: *Read* and *Save* show there.
     private static let articleListPlaces: Set<Place> = [.row, .tile, .bar, .history]
     private static let folderPlaces: Set<Place> = [.row, .tile, .header]
-    private static let panelPlaces: Set<Place> = [.libraryHome, .folderScreen, .browser, .reader, .nowPlaying]
+    private static let panelPlaces: Set<Place> = [.libraryHome, .folderScreen, .browser, .reader]
 
     static let specs: [Spec] = [
         // A page. The row's tap plays it; Edit is on screen; the Reader, Now Playing and the
         // browser have the bookmark, so *Save* isn't in their menus.
         Spec(option: .read, kind: .article, places: articleListPlaces, enabled: { $0.hasTarget }, greyIf: "no page or address"),
         Spec(option: .goTo, kind: .article, places: [.nowPlaying], enabled: { $0.goToEnabled }, greyIf: "nowhere to go"),
-        Spec(option: .prepare, kind: .article, places: articlePlaces, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
+        Spec(option: .prepare, kind: .article, places: articlePlacesButListen, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
         // C138: the voice it speaks in (its book's for a chapter); picking one remakes its audio.
-        Spec(option: .voice, kind: .article, places: articlePlaces, applies: { $0.hasPage }, enabled: { $0.hasVoices },
+        Spec(option: .voice, kind: .article, places: articlePlacesButListen, applies: { $0.hasPage }, enabled: { $0.hasVoices },
              hiddenIf: "no page (a page in the browser only)", greyIf: "Apple's voice is selected"),
         Spec(option: .favorite, kind: .article, places: articlePlaces, enabled: { $0.canFavorite }, greyIf: "it can\u{2019}t be starred"),
         Spec(option: .move, kind: .article, places: articlePlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
         Spec(option: .finished, kind: .article, places: articlePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),
         // Chapter-only and rare: one submenu, only for a page in a folder.
-        Spec(option: .playback, kind: .article, places: articlePlaces, applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "neither row inside can run"),
+        Spec(option: .playback, kind: .article, places: articlePlacesButListen, applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "neither row inside can run"),
         Spec(option: .markAllAbove, kind: .article, places: [.row], parent: .playback,
              applies: { $0.inFolder }, enabled: { $0.isSaved }, hiddenIf: "not in a folder; outside a list row", greyIf: "not saved"),
-        Spec(option: .skip, kind: .article, places: articlePlaces, parent: .playback,
+        Spec(option: .skip, kind: .article, places: articlePlacesButListen, parent: .playback,
              applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "not saved and not a waiting chapter"),
-        Spec(option: .share, kind: .article, places: articlePlaces, applies: { $0.hasShareURL }, hiddenIf: "no web address"),
+        Spec(option: .share, kind: .article, places: articlePlaces, blockAt: [.nowPlaying: 1], applies: { $0.hasShareURL },
+             hiddenIf: "no web address"),
         Spec(option: .save, kind: .article, places: articleListPlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
-        Spec(option: .removeFromRecent, kind: .article, places: articlePlaces,
+        Spec(option: .removeFromRecent, kind: .article, places: articlePlacesButListen,
              applies: { !$0.inLibrary }, enabled: { $0.inRecent }, hiddenIf: "in the Library", greyIf: "not in Recent"),
         Spec(option: .stopListening, kind: .article, places: [.bar], block: 1, enabled: { $0.isLoaded }, greyIf: "nothing loaded"),
         Spec(option: .removeFromHistory, kind: .article, places: [.history], block: 1),
@@ -215,7 +221,7 @@ enum MenuRegistry {
             if specs.contains(where: { $0.parent == spec.option }) && children.isEmpty { return nil }
             let enabled = spec.enabled(facts) && (children.isEmpty || children.contains { $0.availability == .enabled })
             return Entry(option: spec.option, availability: enabled ? .enabled : .disabled, children: children,
-                         block: spec.block)
+                         block: spec.blockAt[place] ?? spec.block)
         }
         return specs.filter { $0.parent == nil }.compactMap(entry)
     }

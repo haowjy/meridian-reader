@@ -4,6 +4,10 @@ import SwiftUI
 /// height and the flat card surface (background, radius, no shadow).
 enum PlayerCard {
     static let artworkSize: CGFloat = 40
+    /// A compact card tool's column: a tap target wide.
+    static let toolCell: CGFloat = ChromeMetrics.minTapTarget
+    /// A compact card tool's row: drawn 40 high, two of them beside the 62 pt play, tapped in 44.
+    static let toolRow: CGFloat = 10 * ChromeMetrics.unit
     /// Matches `ScrubTrack`'s base track height (4 pt).
     static let progressHeight: CGFloat = 4
 }
@@ -40,56 +44,55 @@ struct CardOrigin {
 }
 
 /// The Listen player card on compact width: one glass card at the foot of Listen (the cover band
-/// supplies the glass; Listen never folds). Plain values and slots. It sizes to its rows.
+/// supplies the glass; Listen never folds). Plain values and slots. It sizes to its rows; nothing
+/// divides them but space.
 ///
 /// ```
-/// [art]  Notes on Tides…                  (🔖)    art, title (one line), site and time left; Save
-///        example.org   9 min left
-/// [━━━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━]   scrubber, no times
-///            ⏮          (▶)          ⏭           transport (`NowPlayingTransport`'s grid)
-/// ─────────────────────────────────────────────
-///    Aa         1×         ♫          ⋯          tools: glyphs, no labels, equal shares
+/// Notes on Tides, and Why the Moon…  (➤)(🔖)    title (one line); Jump to Audio, Save
+/// example.org                   6 min left    site leading, time left trailing (or one note)
+/// ━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━   scrubber, no times
+/// 1×                                  Voice   `leading` over each other, `trailing` too, at the
+///          ⏮       (  ▶  )       ⏭            margins; the transport centred across both rows
+/// Aa                                    ⋯
 /// ```
-struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Tools: View>: View {
+struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View, Trailing: View>: View {
     let title: String
-    /// Under the title, set apart by space (never a separator character): the site, then the time left,
-    /// or one status note. The first part truncates first; the others never do.
+    /// Under the title, set apart by space (never a separator character): the site, then the time left
+    /// at the trailing end, or one status note. The first part truncates; the others never do.
     var detail: [String] = []
-    var artwork: Image?
-    var artworkLetter: String
-    /// The title block's tap (art, title, site): nil leaves it inert. It never seeks.
+    /// The title's tap: nil leaves it inert. It never seeks.
     var origin: CardOrigin?
+    /// Jump to Audio, before Save: where the text is from the spoken sentence.
+    var jump: JumpState = .following
+    var onJump: () -> Void = {}
     /// Save, at the title row's trailing end (`SaveToggleButton`'s round face).
     @ViewBuilder var save: Save
     /// The bare scrubber (`ReaderScrubRow` with `isCapsule: false`).
     @ViewBuilder var scrub: Scrub
-    /// Previous paragraph, play / pause, next paragraph (`ListenTransportView`).
+    /// Previous paragraph, play / pause, next paragraph (`ListenTransportView`, `card` size).
     @ViewBuilder var transport: Transport
-    /// The last row's small buttons, each in a `toolbarIconFrame` cell, so they share the row evenly.
-    @ViewBuilder var tools: Tools
+    /// The leading column's two small controls, top to bottom (speed, Aa): `toolCell`s.
+    @ViewBuilder var leading: Leading
+    /// The trailing column's two (Voice, ⋯): `toolCell`s.
+    @ViewBuilder var trailing: Trailing
 
     @Environment(\.readingPalette) private var reading
-    /// The gap between the site and the time left: `Spacing.s` (12 pt), growing with the caption as `DetailLine`'s does.
-    @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var spacing = Spacing.s
 
     private var palette: ReadingPalette { reading ?? .app }
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-                .padding(.horizontal, Spacing.s)
-                .padding(.top, Spacing.s)
+            titleRow
+            detailRow
             scrub
-                .padding(.horizontal, Spacing.s)
-            transport
-                .padding(.horizontal, Spacing.s)
-            Divider()
-                .overlay(palette.hairline)
-                .padding(.horizontal, Spacing.s)
-            HStack(spacing: 0) { tools }
-                .padding(.horizontal, Spacing.xxs)
+                // The track sits mid-row; its touch area may reach under the text above and the gap below.
+                .padding(.vertical, -Spacing.xxs)
+            controls
         }
-        // The whole card takes a tap, so one on its title block or its blank corners never reaches the
+        .padding(.horizontal, Spacing.s)
+        .padding(.top, Spacing.xs)
+        .padding(.bottom, Spacing.xxs)
+        // The whole card takes a tap, so one on its title or its blank corners never reaches the
         // page behind it (a tap there hides the chrome) and nothing in it seeks.
         .contentShape(Rectangle())
         .onTapGesture {}
@@ -99,56 +102,99 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Tools: View>: 
         .accessibilityIdentifier("readingPlayerCard")
     }
 
-    private var header: some View {
+    private var titleRow: some View {
         HStack(spacing: Spacing.xs) {
-            titleBlock
+            titleText
+            CardJumpButton(state: jump, action: onJump)
             save.fixedSize()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(minHeight: PlayerCard.artworkSize)
+        .frame(minHeight: BottomChrome.fieldControlSize)
     }
 
-    /// Art, title and detail: one Button (44 pt high, inside the block only) when the article has an origin.
+    /// The title, a Button to its origin when it has one (44 pt to tap, the row's width before Jump).
     @ViewBuilder
-    private var titleBlock: some View {
-        let block = HStack(spacing: Spacing.xs) {
-            ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: PlayerCard.artworkSize)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title)
-                    .typeStyle(.row, weight: .semibold)
-                    .foregroundStyle(palette.ink)
-                    .lineLimit(1)
-                if !detail.isEmpty {
-                    HStack(spacing: spacing) {
-                        ForEach(Array(detail.enumerated()), id: \.offset) { index, part in
-                            if index == 0 {
-                                Text(part).lineLimit(1)
-                            } else {
-                                Text(part).lineLimit(1).fixedSize(horizontal: true, vertical: false)
-                            }
-                        }
-                    }
-                    .typeStyle(.caption)
-                    .foregroundStyle(palette.secondaryInk)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(DetailLine.accessibilityLabel(detail))
-                }
-            }
+    private var titleText: some View {
+        let text = Text(title)
+            .typeStyle(.row, weight: .semibold)
+            .foregroundStyle(palette.ink)
+            .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
         if let origin {
             Button(action: origin.open) {
-                block
+                text
                     .frame(minHeight: ChromeMetrics.minTapTarget)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityElement(children: .ignore)
             .accessibilityLabel(origin.label)
-            .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("listenOrigin")
+            .padding(.vertical, -Spacing.xxs)
         } else {
-            block
+            text
+        }
+    }
+
+    /// The site leading and the time left trailing; a single part (a note, "Finished") leading.
+    @ViewBuilder
+    private var detailRow: some View {
+        if !detail.isEmpty {
+            HStack(spacing: Spacing.s) {
+                Text(detail[0]).lineLimit(1)
+                Spacer(minLength: 0)
+                ForEach(Array(detail.dropFirst().enumerated()), id: \.offset) { _, part in
+                    Text(part).lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                }
+            }
+            .typeStyle(.caption)
+            .foregroundStyle(palette.secondaryInk)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(DetailLine.accessibilityLabel(detail))
+        }
+    }
+
+    /// The tools at the margins, two over two, and the transport centred across both rows.
+    private var controls: some View {
+        ZStack {
+            HStack(spacing: 0) {
+                VStack(spacing: 0) { leading }
+                Spacer(minLength: 0)
+                VStack(spacing: 0) { trailing }
+            }
+            transport
+        }
+    }
+}
+
+extension View {
+    /// A player card tool (speed, Aa, Voice, ⋯): a `toolCell` column wide and a tool row high, its
+    /// glyph or text centred, so the two in a column share a centre; taps reach 44 pt.
+    func playerCardTool() -> some View {
+        frame(width: PlayerCard.toolCell, height: PlayerCard.toolRow)
+            .contentShape(Rectangle())
+            .tapTarget(PlayerCard.toolRow)
+    }
+}
+
+/// The card's Jump to Audio, a round icon control before Save that never moves: following the
+/// audio, a quiet filled arrow that does nothing more; scrolled away, an arrow toward the spoken
+/// sentence, lit, that brings the text back to it; once the page has finished, its place left empty.
+private struct CardJumpButton: View {
+    let state: JumpState
+    let action: () -> Void
+
+    var body: some View {
+        switch state {
+        case .following:
+            IconButton(symbol: Icons.followingAudio, label: String(localized: "Following the audio"),
+                       identifier: "nowPlayingJumpToAudio", isQuiet: true, action: action)
+        case .away(let direction):
+            IconButton(symbol: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown,
+                       label: Verbs.jumpToAudio, identifier: "nowPlayingJumpToAudio", isOn: true, action: action)
+                .accessibilityHint(direction == .up
+                    ? String(localized: "Scrolls up to the sentence being read.")
+                    : String(localized: "Scrolls down to the sentence being read."))
+        case .finished:
+            Color.clear.frame(width: BottomChrome.fieldControlSize, height: BottomChrome.fieldControlSize)
         }
     }
 }
@@ -157,36 +203,36 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Tools: View>: 
 struct ReaderPlayerCardGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("Not started") { card(state: .idle, detail: ["example.org", "9 min"]) }
-            PreviewState("Now Playing, saved") {
-                card(state: .playing, detail: ["example.org", "6 min left"], saved: true)
+            PreviewState("Not started, following") { card(state: .idle, detail: ["example.org", "9 min"]) }
+            PreviewState("Now Playing, saved, scrolled away") {
+                card(state: .playing, detail: ["example.org", "6 min left"], saved: true, jump: .away(.down))
                     .onReadingPreview(.sepia)
             }
             PreviewState("Paused, a status note") {
-                card(state: .paused, detail: ["Preparing next…"]).onReadingPreview(.dark)
+                card(state: .paused, detail: ["Preparing next…"], jump: .away(.up)).onReadingPreview(.dark)
             }
+            PreviewState("Finished") { card(state: .idle, detail: ["Finished"], jump: .finished) }
         }
     }
 
-    private func card(state: PlayState, detail: [String], saved: Bool = false) -> some View {
+    private func card(state: PlayState, detail: [String], saved: Bool = false, jump: JumpState = .following) -> some View {
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
         return ReaderPlayerCard(title: "Notes on Tides, and Why the Moon Pulls Twice a Day", detail: detail,
-                                artworkLetter: "N") {
+                                jump: jump) {
             SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {}, round: true)
         } scrub: {
             ReaderScrubRow(map: map, position: 0.3, onScrubPreview: { _ in }, onScrubCommit: { _ in },
                            isCapsule: false) { EmptyView() }
         } transport: {
-            NowPlayingTransport(state: state, onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
-                EmptyView()
-            } more: {
-                EmptyView()
-            }
-        } tools: {
+            NowPlayingTransport(state: state, size: .card, onSkipBack: {}, onSkipForward: {}, onPlayPause: {})
+        } leading: {
+            Text("1×").fieldTextFrame().playerCardTool()
             IconButton(symbol: Icons.textAppearance, label: Verbs.textAppearance, identifier: "previewAa", round: false) {}
-            Text("1×").fieldTextFrame().frame(maxWidth: .infinity)
+                .playerCardTool()
+        } trailing: {
             IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "previewVoice", round: false) {}
-            Image(systemName: Icons.more).toolbarIconFrame()
+                .playerCardTool()
+            Image(systemName: Icons.more).toolbarIconFrame().playerCardTool()
         }
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ChromeMetrics.cardRadius, style: .continuous))
     }

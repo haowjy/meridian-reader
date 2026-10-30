@@ -155,6 +155,14 @@ enum JumpDirection {
     case down
 }
 
+/// Listen's player card Jump: the text following the audio, away from it (the spoken sentence
+/// that way), or the page finished (nothing to follow).
+enum JumpState: Equatable {
+    case following
+    case away(JumpDirection)
+    case finished
+}
+
 /// Room the text leaves for the bars drawn over it (points; the bottom includes the home
 /// indicator's inset).
 struct ReaderTextInsets: Equatable {

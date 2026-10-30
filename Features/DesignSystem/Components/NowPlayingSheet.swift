@@ -133,12 +133,19 @@ struct JumpToAudioButton: View {
     }
 }
 
-/// Transport row in the five-slot grid: `[leading] [⏮] (⏸) [⏭] [more]`. Now Playing puts 🔖
-/// first and ⋯ last; the Reader puts speed (`1×`) first and ⋯ last. The play button is the big round disc
-/// and reads "Play" / "Pause" like any player's. The disc is as tall as the grid's 44 pt row, so every slot (and ⋯) sits where
-/// it does on the other surfaces.
+/// The transport: ⏮ (▶) ⏭, in one of two arrangements (`TransportSize`).
+///
+/// - `row`: the five-slot grid, `[leading] [⏮] (⏸) [⏭] [more]`. Regular width's Now Playing puts 🔖
+///   first and ⋯ last; the Reader puts speed (`1×`) first and ⋯ last. The disc is as tall as the
+///   grid's 44 pt row, so every slot (and ⋯) sits where it does on the other surfaces.
+/// - `card`: the three alone, centred, larger (the 62 pt `cardDisc`, `cardSkipGlyph` skips): compact
+///   Listen's player card, which sets its tools on either side (`ReaderPlayerCard`); `leading` and
+///   `more` are not drawn.
+///
+/// The play button reads "Play" / "Pause" like any player's.
 struct NowPlayingTransport<Leading: View, More: View>: View {
     let state: PlayState
+    var size = TransportSize.row
     var canSkipBack = true
     var canSkipForward = true
     let onSkipBack: () -> Void
@@ -154,28 +161,72 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
     @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        BottomToolbarLayout {
-            leading
-                .toolbarSlot(0)
-            Button(action: onSkipBack) { Image(systemName: Icons.previous).toolbarIconFrame() }
-                .disabled(!canSkipBack)
-                .accessibilityLabel("Previous paragraph")
-                .toolbarSlot(1)
-            PlayStateButton(state: state, look: .disc, action: onPlayPause)
-                .accessibilityLabel(state == .playing ? Verbs.pause : Verbs.play)
-                .accessibilityIdentifier("listenPlayPause")
-                .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in onPlayLongPress?() },
-                                     including: onPlayLongPress == nil ? .subviews : .all)
-                .frame(height: BottomChrome.rowHeight)
-                .toolbarSlot(2)
-            Button(action: onSkipForward) { Image(systemName: Icons.next).toolbarIconFrame() }
-                .disabled(!canSkipForward)
-                .accessibilityLabel("Next paragraph")
-                .toolbarSlot(3)
-            more
-                .toolbarSlot(BottomToolbarLayout.moreSlot)
+        Group {
+            switch size {
+            case .row:
+                BottomToolbarLayout {
+                    leading
+                        .toolbarSlot(0)
+                    skip(back: true)
+                        .toolbarSlot(1)
+                    playPause
+                        .frame(height: BottomChrome.rowHeight)
+                        .toolbarSlot(2)
+                    skip(back: false)
+                        .toolbarSlot(3)
+                    more
+                        .toolbarSlot(BottomToolbarLayout.moreSlot)
+                }
+            case .card:
+                HStack(spacing: Spacing.m) {
+                    skip(back: true)
+                    playPause
+                    skip(back: false)
+                }
+            }
         }
         .tint(reading?.ink ?? Palette.ink)
+    }
+
+    private var playPause: some View {
+        PlayStateButton(state: state, look: size == .card ? .cardDisc : .disc, action: onPlayPause)
+            .accessibilityLabel(state == .playing ? Verbs.pause : Verbs.play)
+            .accessibilityIdentifier("listenPlayPause")
+            .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in onPlayLongPress?() },
+                                 including: onPlayLongPress == nil ? .subviews : .all)
+    }
+
+    @ViewBuilder
+    private func skip(back: Bool) -> some View {
+        Button(action: back ? onSkipBack : onSkipForward) {
+            let image = Image(systemName: back ? Icons.previous : Icons.next)
+            switch size {
+            case .row:
+                image.toolbarIconFrame()
+            case .card:
+                image
+                    .font(.system(size: BottomChrome.cardSkipGlyph))
+                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                    .contentShape(Rectangle())
+                    .accessibilityShowsLargeContentViewer()
+            }
+        }
+        .disabled(back ? !canSkipBack : !canSkipForward)
+        .accessibilityLabel(back ? "Previous paragraph" : "Next paragraph")
+    }
+}
+
+/// `NowPlayingTransport`'s arrangement: the five-slot `row`, or the player `card`'s larger three.
+enum TransportSize { case row, card }
+
+extension NowPlayingTransport where Leading == EmptyView, More == EmptyView {
+    /// The transport with no slots of its own: the player card's.
+    init(state: PlayState, size: TransportSize, canSkipBack: Bool = true, canSkipForward: Bool = true,
+         onSkipBack: @escaping () -> Void, onSkipForward: @escaping () -> Void, onPlayPause: @escaping () -> Void,
+         onPlayLongPress: (() -> Void)? = nil) {
+        self.init(state: state, size: size, canSkipBack: canSkipBack, canSkipForward: canSkipForward,
+                  onSkipBack: onSkipBack, onSkipForward: onSkipForward, onPlayPause: onPlayPause,
+                  onPlayLongPress: onPlayLongPress, leading: { EmptyView() }, more: { EmptyView() })
     }
 }
 

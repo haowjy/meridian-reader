@@ -44,6 +44,12 @@ enum BottomChrome {
     static let floatingDiscSize: CGFloat = ChromeMetrics.barHeight
     /// The glyph inside the floating disc.
     static let floatingDiscGlyph: CGFloat = 16
+    /// The compact player card's play / pause, centred across its two tool rows.
+    static let cardDiscSize: CGFloat = 62
+    /// The glyph inside the card's disc, in the transport disc's proportion.
+    static let cardDiscGlyph: CGFloat = (transportDiscGlyph * cardDiscSize / transportDiscSize).rounded()
+    /// ⏮ and ⏭ beside the card's disc.
+    static let cardSkipGlyph: CGFloat = 26
     /// How far the field capsule and its controls grow with Dynamic Type, as a multiple of their
     /// default size: enough that text and glyphs never clip, while the chrome stays a band.
     static let maxTextGrowth: CGFloat = 1.5

@@ -1,16 +1,19 @@
 import SwiftUI
 
-/// The app's icon button: a symbol in the reading page's colours, lit (`isOn`) in the accent.
+/// The app's icon button: a symbol in the reading page's colours, lit (`isOn`) in the accent, or
+/// quiet (`isQuiet`, the secondary ink: a state shown, nothing to do; the player card's Jump while
+/// following).
 /// Round (`round`), it sits on `roundFieldControl`'s face (36 pt, the field fill and a hairline,
 /// 44 pt to tap), the highlight while lit: Aa and ☝︎ in a sheet's top bar, Voice beside the
 /// player's title. Otherwise it is a bare glyph cell of a toolbar row (`toolbarIconFrame`): the
-/// compact player card's tools. The bookmark (`SaveToggleButton`) draws the same two faces through
+/// compact player card's tools (Aa, Voice). The bookmark (`SaveToggleButton`) draws the same two faces through
 /// `iconButtonFace`, so every icon control reads alike.
 struct IconButton: View {
     let symbol: String
     let label: String
     let identifier: String
     var isOn = false
+    var isQuiet = false
     var round = true
     let action: () -> Void
 
@@ -19,7 +22,8 @@ struct IconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .foregroundStyle(isOn ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink)
+                .foregroundStyle(isOn ? reading?.accent ?? Palette.accent
+                                 : isQuiet ? reading?.secondaryInk ?? Palette.secondaryInk : reading?.ink ?? Palette.ink)
                 .iconButtonFace(round: round,
                                 fill: isOn ? reading?.highlight ?? Palette.playingTint : BottomChrome.fieldFill(reading))
         }
