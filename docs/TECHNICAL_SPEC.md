@@ -552,7 +552,7 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 
 ## Paste Text (C127)
 
-*Paste Text…* opens `PasteTextSheet` (`LibraryScreenState.pasteText(into:)`, prefilled from `UIPasteboard.general.string` when `hasStrings`). *Save* calls `LibraryStore.saveText(title:text:in:)`: a new `.saved` article with no web address (`ArticleOrigin.book`, locator `text:<key>`, byline "Pasted text"), one `<p>` per line, its listen paragraphs built as any article's, at the end of the folder. A blank title becomes `LibraryStore.defaultTitle(for:)`: the first line up to its first sentence end, at most 80 characters.
+*Paste Text…* opens `PasteTextSheet` (`LibraryScreenState.pasteText(into:)`, prefilled from `UIPasteboard.general.string` when `hasStrings`). *Save* calls `LibraryStore.saveText(title:text:in:)`: a new `.saved` article with no web address (`ArticleOrigin.book`, locator `text:<key>`, byline "Pasted text"), one `<p>` per line, its listen paragraphs built as any article's, at the end of the folder. A blank title becomes `LibraryStore.defaultTitle(for:)`: the first line up to its first sentence end, at most 80 characters. A first line that is the whole title (an untitled paste's first line with no sentence end inside it, or a line matching the typed title) is a heading and is left out of the text and paragraphs, as a web page's heading matching its title is; a one-line paste keeps its line.
 
 ## Jump to Audio and full screen (C128)
 
