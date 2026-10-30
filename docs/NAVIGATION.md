@@ -458,7 +458,7 @@ name, each row showing where it is below the folder (its site when it is in the 
 the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. The History tab is everything you opened or started (C104); the browser's
 *History* (🕘 on regular width, a row of the compact menus) is its pages visited. The two share a name (the
-owner's choice, 2026-10-30). From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On
+owner's choice, 2026-10-30). From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ shows as in any folder (C149); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On
 History and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. Going to a place in the Library (Now Playing's ⋯ → *Go to …*, the title on Listen's card,

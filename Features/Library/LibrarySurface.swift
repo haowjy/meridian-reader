@@ -88,16 +88,13 @@ struct LibrarySurface: View {
                 BandToolbarButton(systemImage: Icons.back, label: Verbs.back,
                                   identifier: "libraryBack", action: shell.libraryBack)
                     .disabled(shell.libraryPath.isEmpty)
-                let createRows = screenMenu.createRows
-                if !createRows.isEmpty {
-                    Menu {
-                        MenuRows(createRows)
-                    } label: {
-                        Image(systemName: Icons.add).toolbarIconFrame()
-                    }
-                    .accessibilityLabel("Add")
-                    .accessibilityIdentifier("libraryAdd")
+                Menu {
+                    MenuRows(screenMenu.createRows)
+                } label: {
+                    Image(systemName: Icons.add).toolbarIconFrame()
                 }
+                .accessibilityLabel("Add")
+                .accessibilityIdentifier("libraryAdd")
                 BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
                                   identifier: "libraryHistory") { shell.present(.history) }
                 MoreMenuButton(id: "libraryMore") { screenMenu.menu(compact: false) }

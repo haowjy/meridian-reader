@@ -168,14 +168,14 @@ The row is the second path to the panel: Aa in the address field (`readerAppeara
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| sort | the folder keeps its own order (imported, followed) | never |
+| sort | never | never |
 | preparedAudio | never | never |
 
 ### screen at folderScreen
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| sort | the folder keeps its own order (imported, followed) | never |
+| sort | never | never |
 | preparedAudio | never | never |
 
 ### screen at preparedAudio
@@ -189,17 +189,17 @@ The row is the second path to the panel: Aa in the address field (`readerAppeara
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| newFolder | the folder keeps its own order (imported, followed) | never |
-| importFile | the folder keeps its own order (imported, followed) | never |
-| pasteText | the folder keeps its own order (imported, followed) | never |
+| newFolder | never | never |
+| importFile | never | never |
+| pasteText | never | never |
 
 ### screen at edit
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| newFolder | the folder keeps its own order (imported, followed) | never |
-| importFile | the folder keeps its own order (imported, followed) | never |
-| pasteText | the folder keeps its own order (imported, followed) | never |
+| newFolder | never | never |
+| importFile | never | never |
+| pasteText | never | never |
 
 ## Prepared Audio list ⋯ (C135)
 

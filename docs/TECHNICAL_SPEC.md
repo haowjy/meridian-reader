@@ -535,11 +535,11 @@ The library's item model is `Article` (it was `Page`), alongside `Folder`. Its s
 
 ## New Folder everywhere and the header disc (C122, C124)
 
-`MenuRegistry` has `.folderNewFolder` at `.header` and `.newFolder` at `.add` and the new `.edit` place, all hidden when `Facts.isFixedOrder` (an imported EPUB or followed story). `LibraryEditBar` shows `.newFolder` in slot 3 when the registry offers it; `LibraryScreenState.makeFolder(in:with:)` keeps the selection in `NewFolder.items`, and the alert's OK files them into the made folder with `library.move(_:to:)`, then clears the selection. `Verbs.newFolderInside` is gone. `FolderHeader` plays with `PlayStateButton.Look.headerDisc` (`BottomChrome.headerDiscSize` 56, glyph 23); `CentredSidesLayout` puts each side control's 44 pt glyph middle on the disc's middle, with its caption hanging below.
+`MenuRegistry` has `.folderNewFolder` at `.header` and `.newFolder` at `.add` and the new `.edit` place. `LibraryEditBar` shows `.newFolder` in slot 3 when the registry offers it; `LibraryScreenState.makeFolder(in:with:)` keeps the selection in `NewFolder.items`, and the alert's OK files them into the made folder with `library.move(_:to:)`, then clears the selection. `Verbs.newFolderInside` is gone. `FolderHeader` plays with `PlayStateButton.Look.headerDisc` (`BottomChrome.headerDiscSize` 56, glyph 23); `CentredSidesLayout` puts each side control's 44 pt glyph middle on the disc's middle, with its caption hanging below.
 
 ## The create group (C126)
 
-`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds the one create group from `MenuRegistry` (`.newFolder`, `.importFile`, `.pasteText` at `.add` and `.edit`, each hidden when `isFixedOrder`). ＋ uses it as `createRows`, `FolderMenu` at `.header` appends it as a second block (`.folderNewFolder` is gone), and `LibraryEditBar` slot 3 is a ＋ `Menu` with it at `.edit`, `filing` the selection. Follow… and Save from Website… left the group (C142): they are done from the browser.
+`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds the one create group from `MenuRegistry` (`.newFolder`, `.importFile`, `.pasteText` at `.add` and `.edit`). ＋ uses it as `createRows`, `FolderMenu` at `.header` appends it as a second block (`.folderNewFolder` is gone), and `LibraryEditBar` slot 3 is a ＋ `Menu` with it at `.edit`, `filing` the selection. Follow… and Save from Website… left the group (C142): they are done from the browser.
 
 ## One row height in Edit and out (C123)
 

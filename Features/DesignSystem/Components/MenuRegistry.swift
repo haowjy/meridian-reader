@@ -95,8 +95,6 @@ enum MenuRegistry {
         var inReaderMode = false
         /// *Follow…* can run (the browser: a web page is up).
         var canFollow = true
-        /// Kept for menu compatibility; always false since C149.
-        var isFixedOrder = false
     }
 
     struct Spec {
@@ -168,7 +166,6 @@ enum MenuRegistry {
         Spec(option: .folderPrepare, kind: .folder, places: [.row],
              enabled: { $0.prepareIsOn || $0.hasPreparedAudio || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
         Spec(option: .removePreparedAudio, kind: .folder, places: [.header], enabled: { $0.hasPreparedAudio }, greyIf: "nothing downloaded or downloading"),
-        // Its screen's More makes a subfolder in it (C122); never in a folder that keeps its own order.
         Spec(option: .folderVoice, kind: .folder, places: folderPlaces, applies: { $0.isBookOrSeries },
              enabled: { $0.hasVoices }, hiddenIf: "a plain folder (each article keeps its own voice)",
              greyIf: "Apple's voice is selected"),
@@ -185,19 +182,14 @@ enum MenuRegistry {
         // ＋ makes things in the screen on top; the ⋯ panels keep only Sort, Reload and the tail.
         // The one create group (C126): ＋ (home and folder), a folder header's More and Edit's
         // bar show it, into the folder on screen; Edit's New Folder files the selection in it.
-        // Hidden whole in a folder that keeps its own order (an imported EPUB, a followed story).
-        Spec(option: .newFolder, kind: .screen, places: [.add, .edit],
-             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
-        Spec(option: .importFile, kind: .screen, places: [.add, .edit],
-             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
-        Spec(option: .pasteText, kind: .screen, places: [.add, .edit],
-             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
+        Spec(option: .newFolder, kind: .screen, places: [.add, .edit]),
+        Spec(option: .importFile, kind: .screen, places: [.add, .edit]),
+        Spec(option: .pasteText, kind: .screen, places: [.add, .edit]),
         Spec(option: .textAppearance, kind: .screen, places: [.browser],
              applies: { $0.inReaderMode }, hiddenIf: "the browser shows the web page, not its reader"),
         Spec(option: .follow, kind: .screen, places: [.browser],
              enabled: { $0.canFollow }, greyIf: "browser: no web page up"),
-        Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen],
-             applies: { !$0.isFixedOrder }, hiddenIf: "the folder keeps its own order (imported, followed)"),
+        Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen]),
         Spec(option: .reload, kind: .screen, places: [.browser], enabled: { $0.hasWebPage }, greyIf: "no page up"),
         Spec(option: .preparedAudio, kind: .screen, places: panelPlaces),
         // The Prepared Audio list's ⋯: each only while its section has rows.

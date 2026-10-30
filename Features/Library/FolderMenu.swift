@@ -61,7 +61,6 @@ struct FolderMenu: View {
         facts.hasArticles = !articles.isEmpty
         facts.prepareIsOn = preparedAudio.isOn(folder)
         facts.hasPreparedAudio = preparedAudio.hasPreparedAudio(folder, articles: articles)
-        facts.isFixedOrder = false
         facts.isBookOrSeries = folder.kind.isBookOrSeries
         facts.hasVoices = true // C138a: every article has a voice (an Apple one too)
         return facts

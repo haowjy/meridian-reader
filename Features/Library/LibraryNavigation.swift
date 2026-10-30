@@ -66,7 +66,7 @@ struct LibraryEditBar: View {
             }
             .disabled(actions.selected(in: screen).articles.allSatisfy { !$0.isSaved })
             .toolbarSlot(2)
-            if let folder = editedFolder, !createRows(in: folder).isEmpty {
+            if let folder = editedFolder {
                 Menu { MenuRows(createRows(in: folder)) } label: {
                     Image(systemName: Icons.add).toolbarIconFrame()
                 }

@@ -29,14 +29,12 @@ struct LibraryScreenMenu {
         }
     }
 
-    /// The screen's rows (C98, C100): *Sort ›* (not in a folder that keeps its own order),
+    /// The screen's rows (C98, C100): *Sort ›*,
     /// *Prepared Audio*; then `[Settings][Saved][Reader]` (`[Settings][Saved][History][Reader]` on compact width). Reader opens Now Playing when audio
     /// is playing, greyed otherwise.
     func menu(compact: Bool) -> MenuContext {
         let folder = topFolder
-        var facts = MenuRegistry.Facts()
-        facts.isFixedOrder = false
-        let screenRows = MenuContext.screenRows(at: folder == nil ? .libraryHome : .folderScreen, facts: facts,
+        let screenRows = MenuContext.screenRows(at: folder == nil ? .libraryHome : .folderScreen, facts: MenuRegistry.Facts(),
                                                 shell: shell) { option in
             option == .sort ? sortRow(folder) : nil
         }
@@ -84,15 +82,9 @@ struct LibraryCreateMenu {
     /// Edit's selection: New Folder files it.
     var filing: () -> [LibraryItem] = { [] }
 
-    static func facts(for folder: Folder?) -> MenuRegistry.Facts {
-        var facts = MenuRegistry.Facts()
-        facts.isFixedOrder = false
-        return facts
-    }
-
     var rows: [MenuRow] {
         let folder = folder
-        return MenuRegistry.rows(.screen, at: place, Self.facts(for: folder)) { option in
+        return MenuRegistry.rows(.screen, at: place, MenuRegistry.Facts()) { option in
             switch option {
             case .newFolder:
                 return MenuRow(id: "moreNewFolder", title: Verbs.newFolder, icon: Icons.newFolder) { [screen, filing] in
