@@ -678,12 +678,20 @@ extension ArticleAudioCache {
 
     /// Rewrite cache voice keys in every index, for a voice library whose key format changed
     /// (`rename`: the new key, nil to keep it). Only the indexes change; the files stay. Launch-time
-    /// only, like `purgeEngine`. `complete`: every index that needed it was written.
+    /// only, like `purgeEngine`. `complete`: the cache was listed and every index read, and each one
+    /// that needed it written.
     func renameVoices(_ rename: (String) -> String?) -> (articles: Int, complete: Bool) {
         var articles = 0
         var complete = true
-        for articleID in cachedArticleKeys() {
-            guard var index = readIndexFile(for: articleID) else { continue }
+        let dirs: [String]
+        do { dirs = try fileManager.contentsOfDirectory(atPath: root.path) } catch {
+            return (0, !fileManager.fileExists(atPath: root.path))
+        }
+        for articleID in dirs.compactMap(UUID.init(uuidString:)) where hasCache(for: articleID) {
+            // A file that can't be read now (locked before first unlock) is retried next launch;
+            // one that reads but doesn't decode never will, and no read path can use it.
+            guard let data = try? Data(contentsOf: indexURL(for: articleID)) else { complete = false; continue }
+            guard var index = try? JSONDecoder().decode(IndexFile.self, from: data) else { continue }
             let before = index
             index.voiceID = rename(index.voiceID) ?? index.voiceID
             for i in index.paragraphs.indices {

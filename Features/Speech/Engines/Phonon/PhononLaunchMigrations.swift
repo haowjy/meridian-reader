@@ -19,15 +19,18 @@ struct PhononDownloadLeftovers: LaunchMigration {
 /// Phonon's cache voice keys carry the model revision ("phonon.Zoey" → "phonon@1792483937.Zoey",
 /// `OnDeviceTraits.cacheRevision`). Audio under the old keys is that revision's: until the bundle
 /// shipped in the app, every build downloaded the one release (v0.4.0, the same zip SHA-256 since
-/// Phonon was added). Once; engine ids and voice selections don't change.
+/// Phonon was added). Once; engine ids and voice selections don't change. Prepares' `keptVoice`
+/// needs no rename: *Keep* was gone before Phonon was added, so none holds a Phonon key.
 struct PhononCacheRevision: LaunchMigration {
     static let doneKey = "reader.migration.phononCacheRevision"
 
-    /// A key without a revision, in the current one; nil for any other key.
+    /// The revision every unrevisioned key was rendered by (v0.4.0's `built` stamp). Fixed, not
+    /// the current bundle's: a later bundle must not adopt that audio as its own.
+    static let legacyRevision = "phonon@1792483937"
+
+    /// A key without a revision, in `legacyRevision`; nil for any other key.
     static func renamed(_ key: String) -> String? {
-        guard let traits = PhononProvider.descriptor.onDevice else { return nil }
-        let old = traits.cacheVoicePrefix + "."
-        return key.hasPrefix(old) ? traits.cacheVoiceNamespace + "." + key.dropFirst(old.count) : nil
+        key.hasPrefix("phonon.") ? legacyRevision + key.dropFirst("phonon".count) : nil
     }
 
     func runIfNeeded(_ tts: LocalTTSCoordinator) {

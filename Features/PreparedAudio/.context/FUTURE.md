@@ -13,6 +13,5 @@
   (`stopIfPlaying` → `removeBakeJob`). When that chapter is also the active prepare,
   `checkActive` requeues it once with the paragraphs it took before the *Replace*, so it may
   render the old text; the prepare should take the revised chapter's paragraphs.
-- A *Keep* is per prepare: after a second voice change the kept voice is still accepted.
 - Storage is measured per prepare from its pages' audio folders; pages shared by two prepared audio
   count in both.

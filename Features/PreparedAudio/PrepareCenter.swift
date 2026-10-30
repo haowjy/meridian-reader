@@ -465,11 +465,6 @@ final class PrepareCenter {
         advance()
     }
 
-    /// *Keep*: audio in `voice` counts as done for this prepare.
-    func keep(_ id: UUID, voice: String) {
-        withRecord(id) { $0.keptVoice = voice }
-    }
-
     /// *Remove Prepare* in a page's menu: the page leaves every prepare (`forget`) and its audio
     /// goes (unless listening needs it, `purgeAudio`). It stays deleted: a folder's prepare no
     /// longer lists it, so the folder shows as not all prepared, and nothing renders it again
