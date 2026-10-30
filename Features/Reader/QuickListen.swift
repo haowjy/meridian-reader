@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// What Listen does for the article an in-place reader shows (the Library's Read, the Browser's
-/// reader mode): where it starts, what it is called, and what a tap does. Values read from the
-/// speech controller, the shell and the library at the moment of use, so the control that shows it
-/// stays current as playback changes.
+/// What ▶ Listen does for the article an in-place reader shows (the Library's Read, the Browser's
+/// reader mode): where it starts and what a tap does. Values read from the speech controller, the
+/// shell and the library at the moment of use, so they stay current as playback changes.
 @MainActor
 struct QuickListen {
     let article: ReaderArticle
@@ -23,15 +22,14 @@ struct QuickListen {
     /// Nothing to read aloud yet.
     var isDisabled: Bool { article.document.isEmpty }
 
-    /// "Listen" and "9 min", "Continue" and "6 min left", or "Listen Again"; the page you hear is
-    /// "Now Playing".
-    var label: (title: String, detail: String?) {
-        if isHearing { return (String(localized: "Now Playing"), nil) }
-        return article.listenLabel(from: start, finished: page?.finishedAt != nil, rate: speech.rateMultiplier)
+    /// What the source line says of the page's length: "9 min" before a start, "6 min left" part-way,
+    /// nil once finished or while it is what you hear.
+    var lengthDetail: String? {
+        isHearing ? nil : article.listenLabel(from: start, finished: page?.finishedAt != nil, rate: speech.rateMultiplier).detail
     }
 
-    /// Plays the page from `start` and raises Now Playing (the Listen destination); this reader is
-    /// only a temporary view, so it ends there. The page you hear goes to Now Playing as it is.
+    /// Plays the page from `start` and slides Listen up over the reader, which stays under it. The
+    /// page you hear goes to Listen as it is.
     func press() {
         guard !isDisabled else { return }
         if !isHearing { speech.listen(to: article, at: start) }
@@ -41,79 +39,5 @@ struct QuickListen {
     /// Warms the page's audio for its start, once per content (`ReaderSurface` runs it).
     func warmUp() {
         speech.warmUp(article, from: start, saved: page?.isSavedToLibrary == true)
-    }
-}
-
-/// The Library's Read: Aa at the left and *▶ Listen · 9 min* beside it, one field in its own
-/// place on row 1, next to ‹. The field draws its own surface, as the search field does.
-struct ReaderListenCapsule: View {
-    let article: ReaderArticle
-
-    @Environment(\.speechController) private var speech
-    @Environment(ShellState.self) private var shell
-    @Environment(LibraryStore.self) private var library
-    @Environment(\.readingPalette) private var reading
-
-    var body: some View {
-        let listen = QuickListen(article: article, speech: speech, shell: shell, library: library)
-        let label = listen.label
-        HStack(spacing: Spacing.xxs) {
-            TextAppearanceControl(arrowEdge: .bottom)
-            Button(action: listen.press) {
-                HStack(spacing: Spacing.xs) {
-                    Image(systemName: Icons.play)
-                        .font(BottomChrome.chromeGlyph)
-                    Text(label.title)
-                        .typeStyle(.row, weight: .semibold)
-                    if let detail = label.detail {
-                        Text(detail)
-                            .typeStyle(.row)
-                            .foregroundStyle(reading?.secondaryInk ?? Palette.secondaryInk)
-                    }
-                }
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .foregroundStyle(listen.isHearing ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(PillButton<EmptyView>.accessibilityLabel(title: label.title, detail: label.detail))
-            }
-            .buttonStyle(.plain)
-            .disabled(listen.isDisabled)
-            .accessibilityIdentifier("readerListen")
-        }
-        .bottomChromeField(leading: Spacing.xxs, trailing: Spacing.xxs)
-    }
-}
-
-/// The Browser's reader mode: a round control at the end of the address row that listens to the
-/// page. Headphones, the Listen tab's glyph, so it never reads as the chrome's ▶ / ⏸ (what is
-/// bound to playback); accent while this page is what you hear, when it goes to Now Playing.
-struct ReaderListenButton: View {
-    let article: ReaderArticle
-
-    @Environment(\.speechController) private var speech
-    @Environment(ShellState.self) private var shell
-    @Environment(LibraryStore.self) private var library
-    @Environment(\.readingPalette) private var reading
-
-    var body: some View {
-        let listen = QuickListen(article: article, speech: speech, shell: shell, library: library)
-        let label = listen.label
-        Button(action: listen.press) {
-            Image(systemName: Icons.listen)
-                .font(BottomChrome.chromeGlyph)
-                .foregroundStyle(listen.isHearing ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .tapTarget(ChromeMetrics.barHeight)
-                .chromeSurface(Circle(), fill: BottomChrome.fieldFill(reading))
-                .chromeLargeContent(Verbs.listen, symbol: Icons.listen)
-        }
-        .buttonStyle(.plain)
-        .disabled(listen.isDisabled)
-        .accessibilityLabel(PillButton<EmptyView>.accessibilityLabel(title: label.title, detail: label.detail))
-        .accessibilityHint(String(localized: "Reads this page aloud."))
-        .accessibilityIdentifier("readerListen")
     }
 }

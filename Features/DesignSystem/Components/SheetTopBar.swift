@@ -81,6 +81,25 @@ struct SheetClosePill: View {
     }
 }
 
+/// ⌄ at a cover's top bar's leading edge (Listen on compact width): closes it, as a pull down does.
+/// The chrome's round face, a bar high, tapped in `minTapTarget`.
+struct SheetCloseButton: View {
+    /// What VoiceOver calls it ("Close Listen").
+    let label: String
+
+    @Environment(\.dismissSheet) private var dismissSheet
+
+    var body: some View {
+        Button { dismissSheet() } label: {
+            ChromeCircleFace(symbol: Icons.collapse, label: label)
+                .frame(width: ChromeMetrics.barHeight, height: ChromeMetrics.barHeight)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier("listenClose")
+    }
+}
+
 /// ☝︎ Listen from a paragraph: on, the next tap on a paragraph plays from there. One round field
 /// control (36 pt, 44 pt to tap) at the trailing end of both sheets' top bars, on the card fill
 /// at rest and the highlight while on, in the reading page's colours.

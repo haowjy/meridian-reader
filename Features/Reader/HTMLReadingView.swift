@@ -3,7 +3,7 @@ import SwiftUI
 import WebKit
 
 /// The page's title and source line, drawn at the top of the text (part of the page, so it
-/// scrolls with it; not a listen block, so it never shifts paragraph indices).
+/// scrolls with it; not a listen block, so it never shifts paragraph indices, and never read aloud).
 struct ReaderHeading: Equatable {
     /// nil: the page has none, and the heading is its source line alone.
     var title: String?
@@ -13,6 +13,9 @@ struct ReaderHeading: Equatable {
     /// The title shows elsewhere (C141: the player card), so neither it nor the article's own
     /// matching leading heading shows in the text.
     var titleHidden = false
+    /// The in-place readers' start: a small "▶ Listen" in the accent at the end of the source line
+    /// (`HTMLReadingView.onListen`). A fixed label, so the page never reloads as playback changes.
+    var listens = false
 }
 
 /// Lets the owner read where the text is scrolled to (the Reader hands it to Now Playing, D2).
@@ -76,6 +79,8 @@ struct HTMLReadingView: View {
     var onSpotSide: (JumpDirection) -> Void = { _ in }
     /// A link on the page was tapped (the reading view never follows one).
     var onOpenLink: (URL) -> Void = { _ in }
+    /// The heading's ▶ Listen was tapped (`ReaderHeading.listens`).
+    var onListen: () -> Void = {}
     /// Pages mode's footer: the time left from a page's first character (its listen paragraph and
     /// the UTF-16 offset in it), "2 min left" ("2 min left in chapter" for a chapter); nil shows the
     /// page alone.
@@ -125,6 +130,7 @@ struct HTMLReadingView: View {
             onUserScroll: onUserScroll,
             onSpotSide: onSpotSide,
             onOpenLink: onOpenLink,
+            onListen: onListen,
             onPlaySelection: onPlaySelection,
             onTapParagraph: onTapParagraph
         )
@@ -198,6 +204,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
     var onUserScroll: () -> Void = {}
     var onSpotSide: (JumpDirection) -> Void = { _ in }
     var onOpenLink: (URL) -> Void = { _ in }
+    var onListen: () -> Void = {}
     var onPlaySelection: ((_ paragraph: Int, _ offset: Int) -> Void)?
     let onTapParagraph: (Int) -> Void
 
@@ -260,6 +267,7 @@ struct HTMLReadingWebView: UIViewRepresentable {
         c.onUserScroll = onUserScroll
         c.onSpotSide = onSpotSide
         c.onOpenLink = onOpenLink
+        c.onListen = onListen
         c.chrome = chrome
         // In full screen a pull at the top only rubber-bands (and brings the bars back); a drag
         // in progress keeps the hand-off it began with (`ScrollPullHandoff`).

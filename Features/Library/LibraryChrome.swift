@@ -63,8 +63,8 @@ struct LibraryChrome {
             backID: "libraryReaderBack",
             onBack: shell.closeLibraryReader,
             field: { focus in
-                // Reading a page in place: the field's place is the page's Listen field (Aa, Listen).
-                if let article = shell.libraryReader { return AnyView(ReaderListenCapsule(article: article)) }
+                // Reading a page in place: Aa and the page's site, as the Browser's reader mode shows its page.
+                if let article = shell.libraryReader { return AnyView(LibraryReaderField(article: article)) }
                 return AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt,
                                     focus: focus, fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard))
             },
@@ -73,5 +73,26 @@ struct LibraryChrome {
             stripTitle: stripTitle,
             editBar: screen.isEditing ? AnyView(LibraryEditBar()) : nil
         )
+    }
+}
+
+/// The Library's Read, row 1's field: Aa (the text appearance panel) and the page's site, as the
+/// Browser's reader mode shows Aa with its address. Listening starts from the heading's ▶ Listen.
+private struct LibraryReaderField: View {
+    let article: ReaderArticle
+
+    @Environment(\.readingPalette) private var reading
+
+    var body: some View {
+        HStack(spacing: Spacing.xxs) {
+            TextAppearanceControl(arrowEdge: .bottom)
+            Text(article.sourceLabel)
+                .typeStyle(.row)
+                .foregroundStyle(reading?.ink ?? Palette.ink)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .bottomChromeField(leading: Spacing.xxs, trailing: Spacing.s)
     }
 }

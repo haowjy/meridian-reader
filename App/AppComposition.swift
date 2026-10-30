@@ -63,7 +63,6 @@ enum AppComposition {
     static func attachLibrary(_ library: LibraryStore) {
         guard progressRecorder == nil else { return }
         speechController.nextChapters = library
-        speechController.onLaunch = { [shell] in shell.noteLaunch() }
         progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 

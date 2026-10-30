@@ -1,11 +1,16 @@
 import SwiftUI
 
-/// Where a reading page (the Reader, Now Playing) is shown.
+/// Where a reading page is shown.
 enum ReadingShowing {
-    /// Regular width: a `Sheet` over the surface that opened it; its close pill (`close`), grabber and
-    /// pull down call `onClose` once it has gone.
+    /// Regular width (the Reader, Now Playing): a `Sheet` over the surface that opened it; its close
+    /// pill (`close`), grabber and pull down call `onClose` once it has gone.
     case sheet(close: SheetClosePill.Kind, onClose: () -> Void)
-    /// Compact width: in place under the bottom chrome. No sheet, pill, grabber or pull down.
+    /// Compact width's Listen: a `Sheet` that covers the screen, chrome and all (`Sheet`'s `covers`).
+    /// ⌄ at the top left (VoiceOver: `closeLabel`) or a pull down closes it, then `onClose`. Its band
+    /// is the player card on glass at the foot, with what it was over left as it was.
+    case cover(closeLabel: String, onClose: () -> Void)
+    /// Compact width's in-place readers (the Library's Read, the Browser's reader mode): under the
+    /// bottom chrome. No sheet, pill, grabber or pull down.
     case inPlace(ReadingInPlace)
 }
 
@@ -32,10 +37,10 @@ struct ReadingInPlace {
 /// A reading page: the text between a top bar and a bottom band, in the reading theme. The Reader
 /// (`ReaderSheet`) and Now Playing (`NowPlayingSheet`) are the same page with different bands.
 ///
-/// Regular width puts it in a `Sheet` with a grabber and a close pill. Compact width draws it in
-/// place, edge to edge, with nothing but the text (and the ☝︎ hint): the top bar's `trailing`, the
-/// `band` and `floating` are the sheet's, and the page hands the chrome host its player card
-/// instead (`ChromeCard`).
+/// Regular width puts it in a `Sheet` with a grabber and a close pill. Compact width's Listen is
+/// the same sheet as a cover, ⌄ in the close pill's place and its band a card on glass. Compact
+/// width's in-place readers draw it edge to edge with nothing but the text: the top bar, the
+/// `band` and `floating` are the sheet's, and what is around the text is the chrome's.
 struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floating: View,
                    OverText: View>: View {
     let showing: ReadingShowing
@@ -65,6 +70,20 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
                 text
             } band: {
                 ReadingBottomBand { band } floating: { floating }
+            } overText: {
+                overText
+            }
+        case .cover(let closeLabel, let onClose):
+            Sheet(onDismiss: onClose, palette: palette, chrome: chrome, covers: true) {
+                VStack(spacing: 0) {
+                    SheetTopBar { SheetCloseButton(label: closeLabel) } trailing: { trailing }
+                        .environment(\.chromeSkin, ChromeSkin.current)
+                    banner
+                }
+            } content: {
+                text
+            } band: {
+                CoverBand { band } floating: { floating }
             } overText: {
                 overText
             }
@@ -116,5 +135,37 @@ private struct InPlaceFrame<Header: View, Content: View, OverText: View>: View {
             .readingSurface(palette)
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }
             .systemBars(lightStatusBar: palette.isDark && !place.covered, hidden: chrome.hidden && !place.covered)
+    }
+}
+
+/// A cover's band: the player card on the chrome's glass, at the chrome's margins, over a fade from
+/// the text into the page's colour (as behind the chrome), so the text dissolves before it reaches
+/// the card and runs on under it while the card stays legible. `floating` (a toast) sits on its top.
+private struct CoverBand<Content: View, Floating: View>: View {
+    @ViewBuilder var content: Content
+    @ViewBuilder var floating: Floating
+
+    @Environment(\.readingPalette) private var reading
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: ChromeMetrics.cardRadius, style: .continuous)
+        let background = (reading ?? .app).background
+        content
+            .frame(height: ChromeMetrics.card, alignment: .top)
+            // The card is a fixed height: larger text would clip (its glyphs offer the large content viewer).
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            .clipShape(shape)
+            .chromeSurface(shape, fill: BottomChrome.fieldFill(reading), interactive: false)
+            .environment(\.chromeSkin, ChromeSkin.current)
+            .padding(.horizontal, ChromeMetrics.margin)
+            .padding(.bottom, ChromeMetrics.gap)
+            .background(alignment: .bottom) {
+                LinearGradient(stops: [.init(color: background.opacity(0), location: 0), .init(color: background, location: 0.7)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: ChromeMetrics.card + ChromeMetrics.gap + ChromeMetrics.fadeRise)
+                    .ignoresSafeArea(edges: .bottom)
+                    .allowsHitTesting(false)
+            }
+            .overlay(alignment: .top) { floating }
     }
 }

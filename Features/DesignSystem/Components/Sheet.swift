@@ -7,7 +7,8 @@ import SwiftUI
 /// any other scroll view through `handsPullToSheet(from:)`. While pulled it looks like a system
 /// sheet (`PullDownLook`): it shrinks a little and the dim behind it lifts. Top corners
 /// `Radius.card`. Used by Follow's chapter preview and, on regular width, the Reader and Now
-/// Playing (compact width shows them in place: `ReadingInPlace`).
+/// Playing. Compact width's Listen is the same sheet as a cover (`covers`): edge to edge, from the
+/// screen's top, no gap or corners, so nothing shows behind it until it is pulled.
 ///
 /// It is drawn in `palette` (the reading theme's colours for the Reader and Now Playing, the same
 /// for both), which it sets on what it holds (`readingSurface`). A dark theme over a light app
@@ -27,18 +28,21 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     let palette: ReadingPalette
     /// The reading sheets' bars and full screen; nil: the header above the content, no band.
     private let chrome: ReadingChrome?
+    /// A cover: it fills the screen, under the status bar too (no gap above it, no corners).
+    private let covers: Bool
     private let header: Header
     private let content: Content
     private let band: Band
     private let overText: OverText
 
     /// A reading sheet: the text under the header and `band`, `overText` floating over it.
-    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, chrome: ReadingChrome,
+    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, chrome: ReadingChrome, covers: Bool = false,
          @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content, @ViewBuilder band: () -> Band,
          @ViewBuilder overText: () -> OverText) {
         self.onDismiss = onDismiss
         self.palette = palette
         self.chrome = chrome
+        self.covers = covers
         self.header = header()
         self.content = content()
         self.band = band()
@@ -79,7 +83,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
             if chrome != nil, isUp {
                 // Full screen: the page runs up to the screen's top edge.
                 palette.background
-                    .frame(height: statusBarHeight + Self.topGap)
+                    .frame(height: statusBarHeight + gap)
                     .frame(maxHeight: .infinity, alignment: .top)
                     .ignoresSafeArea()
                     .opacity(fullScreen ? 1 : 0)
@@ -101,13 +105,12 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                     }
                 }
                 .background {
-                    UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,
-                                           style: .continuous)
+                    UnevenRoundedRectangle(topLeadingRadius: corner, topTrailingRadius: corner, style: .continuous)
                         .fill(palette.background)
-                        .ignoresSafeArea(edges: .bottom)
+                        .ignoresSafeArea(edges: covers ? .all : .bottom)
                 }
                 .readingSurface(palette)
-                .padding(.top, Self.topGap)
+                .padding(.top, gap)
                 .scaleEffect(pullLook.scale, anchor: .top)
                 .offset(y: pull)
                 .transition(.sheet(reduceMotion: reduceMotion))
@@ -136,9 +139,9 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     /// The reading sheet's layout: the text to the screen's foot, the header and the band over it.
     private func overlaidBars(_ chrome: ReadingChrome) -> some View {
         ReadingBars(chrome: chrome,
-                    headerBackground: UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,
+                    headerBackground: UnevenRoundedRectangle(topLeadingRadius: corner, topTrailingRadius: corner,
                                                              style: .continuous).fill(palette.background),
-                    headerSlide: statusBarHeight + Self.topGap, header: headerBlock, content: content, band: band,
+                    headerSlide: statusBarHeight + gap, header: headerBlock, content: content, band: band,
                     overText: overText)
             .environment(\.sheetPullHandoff, pullHandoff)
     }
@@ -225,6 +228,7 @@ extension Sheet where Band == EmptyView, OverText == EmptyView {
         self.onDismiss = onDismiss
         self.palette = palette
         chrome = nil
+        covers = false
         self.header = header()
         self.content = content()
         band = EmptyView()
@@ -250,6 +254,11 @@ extension Sheet {
     }
 
     private var maxDim: Double { Self.maxDim(palette) }
+
+    /// Between the status bar and the top edge: none for a cover.
+    private var gap: CGFloat { covers ? 0 : Self.topGap }
+    /// The top corners' radius: square for a cover, which meets the screen's.
+    private var corner: CGFloat { covers ? 0 : Radius.card }
 }
 
 /// The bar at the top of a sheet that says it can be pulled down.

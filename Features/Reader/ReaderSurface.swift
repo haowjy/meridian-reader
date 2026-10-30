@@ -6,13 +6,13 @@ import SwiftUI
 /// Scroll), with the footer, a tap in the middle for full screen, and *Play from Here* on a
 /// selection; the text opens at the page's saved listening spot, underlined.
 ///
-/// What is around the text is the chrome's: the Library's Listen field (Aa, Listen) or the Browser's
-/// round Listen control (`ReaderListenCapsule`, `ReaderListenButton`), and ‹. Listen plays the page
-/// and raises Now Playing (the Listen destination), so this surface ends there; coming back with
-/// ‹ shows it again. While the page is what you hear its text shows the playhead as Now Playing's
-/// does (the spoken paragraph in full ink, its sentence underlined, the text following the audio)
-/// with Jump to Audio after a drag. Links navigate the browser. The title and source line are the
-/// first thing in the text (no card shows them).
+/// The title, then "site  length  ▶ Listen", are the first thing in the text and scroll with it.
+/// ▶ Listen plays the page from its saved spot (`QuickListen`) and slides Listen up over this
+/// surface, which stays mounted under it: closing Listen shows it again where it was. What is
+/// around the text is the chrome's (the field with Aa, ‹). While the page is what you hear its text
+/// shows the playhead as Now Playing's does (the spoken paragraph in full ink, its sentence
+/// underlined, the text following the audio) with Jump to Audio after a drag. Links navigate the
+/// browser.
 struct ReaderSurface: View {
     let article: ReaderArticle
     let speech: SpeechController
@@ -88,22 +88,22 @@ struct ReaderSurface: View {
         let start = listen.start
         return SpokenText(
             speech: speech, html: article.readingHTML,
-            heading: ReaderHeading(title: article.title, detail: detail(listen, hearing: hearing)),
+            heading: ReaderHeading(title: article.title, detail: detail(listen), listens: !listen.isDisabled),
             spoken: hearing, document: hearing ? speech.document : article.document,
             finished: finished, scrubMap: hearing ? scrubMap : nil,
             savedSentence: hearing ? nil : savedSentence(start),
             follows: following && !covered, opensAtSentence: !hearing,
             onUserScroll: { following = false }, onSpotSide: { spotSide = $0 },
-            onTap: { _ in }, onOpenLink: shell.navigate(to:),
+            onTap: { _ in }, onOpenLink: shell.navigate(to:), onListen: listen.press,
             onPlaySelection: { playFromSelection(listen, hearing: hearing, paragraph: $0, offset: $1) })
     }
 
     /// The source, then the length before a start ("9 min") or the time left part-way ("6 min left"), as a row's second line says.
-    private func detail(_ listen: QuickListen, hearing: Bool) -> [String] {
+    private func detail(_ listen: QuickListen) -> [String] {
         let length = article.document.isEmpty ? article.plainText.utf16.count : article.document.utf16Length
         let minutes = ListeningTime.minutes(utf16Length: length, rate: speech.rateMultiplier)
         let total = minutes > 0 ? ListeningTime.label(minutes: minutes) : ""
-        return [article.sourceLabel, (hearing ? nil : listen.label.detail) ?? total].filter { !$0.isEmpty }
+        return [article.sourceLabel, listen.lengthDetail ?? total].filter { !$0.isEmpty }
     }
 
     /// The sentence at the page's saved listening spot, while it is part-way through: the text

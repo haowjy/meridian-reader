@@ -1,15 +1,14 @@
 import XCTest
 @testable import MeridianReader
 
-/// The compact chrome's rules: its state (`ChromeState`), where every piece sits (`ChromeLayout`,
-/// checked against the mockups' `width-table.md` and the invariants of `rules.js`) and how scrolling
-/// folds it (`ChromeScroll`). Pure values, no screen.
+/// The compact chrome's rules: its state (`ChromeState`), where every piece sits (`ChromeLayout`)
+/// and how scrolling folds it (`ChromeScroll`). Pure values, no screen.
 final class ChromeTests: XCTestCase {
     private typealias M = ChromeMetrics
 
-    private func layout(_ destination: ChromeDestination, width: CGFloat = 393, progress: CGFloat = 0, played: Bool = false,
+    private func layout(_ destination: ChromeDestination, width: CGFloat = 393, progress: CGFloat = 0,
                         back: Bool = false, forward: Bool = false, keyboard: Bool = false) -> ChromeLayout {
-        ChromeLayout(width: width, state: ChromeState(destination: destination, progress: progress, played: played,
+        ChromeLayout(width: width, state: ChromeState(destination: destination, progress: progress,
                                                       canGoBack: back, canGoForward: forward, keyboard: keyboard))
     }
 
@@ -27,44 +26,37 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(typing.fold, 0, "no strip while typing: the field's row is the only row")
     }
 
-    func testListenHoldsTheChromeExpandedWhateverTheScroll() {
-        XCTAssertEqual(ChromeState(destination: .reader, progress: 1).collapse, 0)
-        XCTAssertEqual(ChromeState(destination: .library, progress: 1).collapse, 1)
-        XCTAssertEqual(ChromeState(destination: .reader, progress: 1).fold, 0)
-    }
-
-    func testEditKeepsBothRowsAndListenNeverShowsTheStripWhateverTheScroll() {
-        func state(_ destination: ChromeDestination, editing: Bool = false) -> ChromeState {
-            ChromeState(destination: destination, progress: 1, played: true, editing: editing)
-        }
-        let scrolled = ChromeLayout(width: 393, state: state(.browse))
-        let edit = ChromeLayout(width: 393, state: state(.library, editing: true))
-        let listen = ChromeLayout(width: 393, state: state(.reader))
+    func testEditKeepsBothRowsWhateverTheScroll() {
+        let scrolled = ChromeLayout(width: 393, state: ChromeState(destination: .browse, progress: 1))
+        let edit = ChromeLayout(width: 393, state: ChromeState(destination: .library, progress: 1, editing: true))
         XCTAssertTrue(scrolled.strip.isShown)
         XCTAssertFalse(scrolled.pill.isShown, "scrolled: the rows are the strip")
         XCTAssertFalse(edit.strip.isShown, "Edit: row 2 stays")
         XCTAssertTrue(edit.editBar.isShown)
-        XCTAssertFalse(listen.strip.isShown, "Listen never folds")
-        XCTAssertTrue(listen.pill.isShown && listen.field.isShown)
-        XCTAssertEqual(listen.field.rect.minY + M.card + M.gap, listen.pill.rect.minY)
     }
 
-    /// Browse reader mode: the Listen control is a bar-sized disc at the end of row 1 and the field gives it
-    /// its room; any other state has no control and the field runs to the margin.
-    func testBrowseReaderModeHasTheListenDiscAtTheEndOfRowOneAndTheFieldYieldsToIt() {
+    /// Listen is a bar-sized disc ending row 1 on every destination, reader modes too, and the field
+    /// gives it its room; typing and Edit have none, and the field runs to the margin.
+    func testListenEndsRowOneOnEveryDestinationAndTheFieldYieldsToIt() {
         let width: CGFloat = 393
-        let page = ChromeLayout(width: width, state: ChromeState(destination: .browse, progress: 0, played: true))
-        let reader = ChromeLayout(width: width, state: ChromeState(destination: .browse, progress: 0, played: true, readerMode: true))
-        XCTAssertFalse(page.listen.isShown)
-        XCTAssertTrue(reader.listen.isShown)
-        XCTAssertEqual(reader.listen.rect.width, M.barHeight)
-        XCTAssertEqual(reader.listen.rect.height, M.barHeight)
-        XCTAssertEqual(reader.listen.rect.maxX, width - M.margin)
-        XCTAssertEqual(reader.listen.rect.minY, reader.field.rect.minY)
-        XCTAssertEqual(reader.field.rect.maxX + M.rowGap, reader.listen.rect.minX)
-        XCTAssertEqual(page.field.rect.maxX, width - M.margin, "the field runs to the margin without the control")
-        let library = ChromeLayout(width: width, state: ChromeState(destination: .library, progress: 0, played: true, readerMode: true))
-        XCTAssertFalse(library.listen.isShown, "the Library's Listen field is the field itself")
+        for destination in ChromeDestination.allCases {
+            for readerMode in [false, true] {
+                let l = ChromeLayout(width: width, state: ChromeState(destination: destination, canGoBack: readerMode,
+                                                                      readerMode: readerMode))
+                let tag = "\(destination) reader mode \(readerMode)"
+                XCTAssertTrue(l.listen.isShown, tag)
+                XCTAssertEqual(l.listen.rect.width, M.barHeight, tag)
+                XCTAssertEqual(l.listen.rect.height, M.barHeight, tag)
+                XCTAssertEqual(l.listen.rect.maxX, width - M.margin, tag)
+                XCTAssertEqual(l.listen.rect.minY, l.field.rect.minY, tag)
+                XCTAssertEqual(l.field.rect.maxX + M.rowGap, l.listen.rect.minX, tag)
+            }
+        }
+        let typing = layout(.browse, width: width, keyboard: true)
+        XCTAssertFalse(typing.listen.isShown, "typing: the field and Cancel only")
+        let edit = ChromeLayout(width: width, state: ChromeState(destination: .library, editing: true))
+        XCTAssertFalse(edit.listen.isShown, "Edit: the search alone on row 1")
+        XCTAssertEqual(edit.field.rect.maxX, width - M.margin, "the field runs to the margin without Listen")
     }
 
     // MARK: Tokens
@@ -75,7 +67,6 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(M.footprint, 98, "4 + 36 + 8 + 36 + 14, from the screen's edge")
         XCTAssertEqual(M.collapsedFootprint, 54, "one row: the keyboard's and the fold's first step")
         XCTAssertEqual(M.stripFootprint, 38, "the strip: 4 + 20 + 14")
-        XCTAssertEqual(M.readerFootprint, 202)
         XCTAssertEqual([M.footprint(step: 0), M.footprint(step: 1), M.footprint(step: 2)], [98, 54, 38])
         XCTAssertEqual(M.aboveSafeArea(M.footprint, home: 34), 64)
         XCTAssertEqual(M.aboveSafeArea(M.stripFootprint, home: 34), 4)
@@ -89,16 +80,17 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual([M.endGlyphSlot, M.endInset], [24, 6], "concentric: a 24 slot 6 in from a 36 pill's end")
         XCTAssertEqual(M.barHeight / 2 - M.endInset, M.endGlyphSlot / 2, "inner radius = outer - inset")
         XCTAssertEqual(M.barHeight - 2 * M.litInset, 28, "the lit segment")
-        XCTAssertEqual(M.cardRadius, 24, "Listen's card keeps its corners")
         XCTAssertGreaterThanOrEqual(M.minTapTarget, 44)
-        XCTAssertEqual([M.margin, M.gap, M.topPadding, M.barHeight, M.litInset, M.stripHeight].map { $0.truncatingRemainder(dividingBy: M.unit) },
-                       Array(repeating: 0, count: 6), "every size is a multiple of the unit")
+        XCTAssertEqual([M.margin, M.gap, M.topPadding, M.barHeight, M.litInset, M.stripHeight, M.pillWidth]
+                           .map { $0.truncatingRemainder(dividingBy: M.unit) },
+                       Array(repeating: 0, count: 7), "every size is a multiple of the unit")
     }
 
-    // MARK: Layout: widths from width-table.md
+    // MARK: Layout
 
     func testExpandedWidthsAtEveryPhone() {
-        for (width, both, none) in [(375.0, 269.0, 351.0), (393, 287, 369), (430, 324, 406)] {
+        // Row 1 less the margins and Listen's disc and gap: 351 - 46 on the SE, less ‹ › and a gap with arrows.
+        for (width, both, none) in [(375.0, 223.0, 305.0), (393, 241, 323), (430, 278, 360)] {
             let w = CGFloat(width)
             XCTAssertEqual(layout(.browse, width: w, back: true, forward: true).field.rect.width, both)
             XCTAssertEqual(layout(.browse, width: w, back: true).field.rect.width, both, "‹ alone still shows the pair: › dimmed")
@@ -106,36 +98,33 @@ final class ChromeTests: XCTestCase {
             XCTAssertEqual(layout(.library, width: w, back: true).field.rect.width, none, "no arrows outside the Browser")
             XCTAssertEqual(layout(.browse, width: w).field.rect.width, none)
             XCTAssertEqual(layout(.library, width: w).field.rect.width, none)
-            XCTAssertEqual(layout(.library, width: w).pill.rect.width, 235, "row 2, nothing played: ▶'s slot stays reserved and empty, and the pill is the SE's 235 on every phone")
-            XCTAssertEqual(layout(.library, width: w, played: true).pill.rect.width, 235, "[pill][▶][⋯]")
+            XCTAssertEqual(layout(.library, width: w).pill.rect.width, 156, "two segments of 78 on every phone")
         }
     }
 
-    /// Typing: the field and Cancel only (no pill, ▶, ⋯ or arrows), margin to margin on every phone:
+    /// Typing: the field and Cancel only (no pill, ⋯, Listen or arrows), margin to margin on every phone:
     /// the field from the left margin, Cancel (a word, `cancelWidth`) ending at the right margin, one gap
-    /// between, at the bottom row's y, whatever was played or where the arrows were. Not the fixed 351 block.
+    /// between, at the bottom row's y, wherever the arrows were.
     func testTypingIsTheFieldAndCancelMarginToMargin() {
         for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
-            for destination in [ChromeDestination.browse, .library] {
-                for played in [false, true] {
-                    let l = layout(destination, width: width, played: played, back: true, forward: true, keyboard: true)
-                    let rest = layout(destination, width: width, played: played)
-                    let tag = "\(width) \(destination) played \(played)"
-                    XCTAssertFalse(l.pill.isShown, tag)
-                    XCTAssertFalse(l.play.isShown, tag)
-                    XCTAssertFalse(l.nav.isShown && l.navShowsBack, tag)
-                    XCTAssertTrue(l.field.isShown && l.more.isShown, tag)
-                    XCTAssertEqual(l.field.rect.minX, M.margin, "the field starts at the left margin: \(tag)")
-                    XCTAssertEqual(l.more.rect.maxX, width - M.margin, "Cancel ends at the right margin: \(tag)")
-                    XCTAssertEqual(l.more.rect.width, M.cancelWidth, tag)
-                    XCTAssertEqual(l.more.rect.height, M.barHeight, tag)
-                    XCTAssertEqual(l.more.rect.minX - l.field.rect.maxX, M.rowGap, tag)
-                    XCTAssertEqual(l.field.rect.width, width - 2 * M.margin - M.rowGap - M.cancelWidth, tag)
-                    // On the keyboard, not dipped into the home indicator's strip: the row ends at the box's bottom.
-                    XCTAssertEqual(l.field.rect.maxY, M.readerFootprint, "the row sits on the keyboard: \(tag)")
-                    XCTAssertEqual(l.more.rect.minY, l.field.rect.minY, tag)
-                    XCTAssertLessThan(l.field.rect.minY, rest.more.rect.minY, "above the resting row 2, which dips: \(tag)")
-                }
+            for destination in ChromeDestination.allCases {
+                let l = layout(destination, width: width, back: true, forward: true, keyboard: true)
+                let rest = layout(destination, width: width)
+                let tag = "\(width) \(destination)"
+                XCTAssertFalse(l.pill.isShown, tag)
+                XCTAssertFalse(l.listen.isShown, tag)
+                XCTAssertFalse(l.nav.isShown && l.navShowsBack, tag)
+                XCTAssertTrue(l.field.isShown && l.more.isShown, tag)
+                XCTAssertEqual(l.field.rect.minX, M.margin, "the field starts at the left margin: \(tag)")
+                XCTAssertEqual(l.more.rect.maxX, width - M.margin, "Cancel ends at the right margin: \(tag)")
+                XCTAssertEqual(l.more.rect.width, M.cancelWidth, tag)
+                XCTAssertEqual(l.more.rect.height, M.barHeight, tag)
+                XCTAssertEqual(l.more.rect.minX - l.field.rect.maxX, M.rowGap, tag)
+                XCTAssertEqual(l.field.rect.width, width - 2 * M.margin - M.rowGap - M.cancelWidth, tag)
+                // On the keyboard, not dipped into the home indicator's strip: the row ends at the box's bottom.
+                XCTAssertEqual(l.field.rect.maxY, M.footprint, "the row sits on the keyboard: \(tag)")
+                XCTAssertEqual(l.more.rect.minY, l.field.rect.minY, tag)
+                XCTAssertLessThan(l.field.rect.minY, rest.more.rect.minY, "above the resting row 2, which dips: \(tag)")
             }
         }
     }
@@ -152,91 +141,37 @@ final class ChromeTests: XCTestCase {
         XCTAssertFalse(layout(.browse, back: false, forward: false).nav.isShown)
     }
 
-    func testPlayStaysAtTheWidthTablesX() {
-        for (width, x) in [(375.0, 281.0), (393, 299), (430, 336)] {  // margin to margin: ▶ at width − 12 − 82
-            XCTAssertEqual(layout(.library, width: CGFloat(width), played: true).play.rect.minX, x, "▶ at \(width)")
-        }
-    }
-
-    func testTheRowIsAPillAndTwoDiscsWithOneEvenGap() {
-        for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
-            let l = layout(.library, width: width, played: true)
-            XCTAssertGreaterThanOrEqual(l.play.rect.minX - l.pill.rect.maxX, M.rowGap, "pill, gap, ▶ at \(width)")
-            XCTAssertEqual(l.play.rect.maxX + M.rowGap, l.more.rect.minX, "▶, gap, ⋯ at \(width)")
-            XCTAssertEqual(l.play.rect.width, M.barHeight)
-            XCTAssertEqual(l.more.rect.width, M.barHeight)
-            XCTAssertEqual(l.pill.rect.width, l.expandedPillWidth)
-            XCTAssertGreaterThanOrEqual(l.expandedPillWidth / M.barHeight, 4.8, "a long capsule, not a fat one, at \(width)")
-        }
-        XCTAssertEqual(layout(.library, width: 402, played: true).expandedPillWidth, 235)
-    }
-
-    func testPlayKeepsItsSlotAndTheMoreEndsTheCentredRow() {
-        for width in [375.0, 393, 430].map({ CGFloat($0) }) {
-            for destination in ChromeDestination.allCases where destination != .reader {
-                let expanded = layout(destination, width: width, played: true)
-                XCTAssertGreaterThanOrEqual(expanded.play.rect.minX - expanded.pill.rect.maxX, M.rowGap, "[pill][▶]")
-                XCTAssertEqual(expanded.play.rect.maxX + M.rowGap, expanded.more.rect.minX, "[▶][⋯]")
-                XCTAssertEqual(expanded.more.rect.maxX, width - M.margin, "⋯ ends the row at the margin")
-            }
-        }
-        XCTAssertFalse(layout(.library).play.isShown, "no ▶ before anything has played")
-    }
-
-    func testListenHasNoPlayDiscAndItsSlotStaysEmptyAtEveryFold() {
-        for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
-            let library = layout(.library, width: width, played: true)
-            for progress in [0.0, 1.0] {
-                let l = layout(.reader, width: width, progress: CGFloat(progress), played: true)
-                XCTAssertFalse(l.play.isShown, "Listen's card has the play button at \(width)")
-                XCTAssertFalse(l.strip.isShown, "Listen never folds")
-                XCTAssertEqual(l.pill.rect, library.pill.rect, "the pill is the Library's, not wider, at \(width)")
-                XCTAssertEqual(l.more.rect, library.more.rect)
-                XCTAssertGreaterThanOrEqual(library.play.rect.minX - l.pill.rect.maxX, M.rowGap, "▶'s slot stays empty between the pill and ⋯")
-                XCTAssertEqual(library.play.rect.maxX + M.rowGap, l.more.rect.minX)
-                XCTAssertEqual(l.field.rect.height, M.card, "the card stays")
-            }
-        }
-        XCTAssertTrue(layout(.library, played: true).play.isShown, "▶ stays on the other destinations")
-    }
-
-    /// One pill, one width, one x on every destination and state (▶ or not): tabs never move or resize it.
+    /// One pill, one width, one x on every destination and state: tabs never move or resize it, and ⋯
+    /// ends row 2 at the margin.
     func testThePillAndMoreNeverMoveOrResizeAcrossDestinationsAndStates() {
         for width in [375.0, 393, 402, 430].map({ CGFloat($0) }) {
-            let reference = layout(.library, width: width, played: true)
+            let reference = layout(.library, width: width)
             for destination in ChromeDestination.allCases {
-                for played in [false, true] {
-                    for back in [false, true] {
-                        let l = layout(destination, width: width, played: played, back: back, forward: back)
-                        XCTAssertEqual(l.pill.rect, reference.pill.rect, "\(destination) played \(played) at \(width)")
-                        XCTAssertEqual(l.more.rect, reference.more.rect)
-                        XCTAssertEqual(l.expandedPillWidth, reference.expandedPillWidth)
-                    }
+                for back in [false, true] {
+                    let l = layout(destination, width: width, back: back, forward: back)
+                    XCTAssertEqual(l.pill.rect, reference.pill.rect, "\(destination) at \(width)")
+                    XCTAssertEqual(l.more.rect, reference.more.rect)
                 }
             }
         }
-        XCTAssertEqual(layout(.reader, width: 402).expandedPillWidth, 235)
-        XCTAssertEqual(layout(.library, width: 375).expandedPillWidth, 235)
     }
 
     /// Both rows share the margins as their edges on every width (Jimmy: "the 2 bars should be the same
-    /// length"): the pill is one fixed width at the left, ▶ and ⋯ end the row, the gap after the pill grows.
+    /// length"): the pill is one fixed width at the left, ⋯ ends row 2 and Listen row 1, the gap between grows.
     func testBothRowsShareTheSameEdgesOnEveryWidth() {
-        XCTAssertEqual(M.pillWidth, 235)
-        XCTAssertEqual(M.bottomRowWidth, 327, "the pill, ▶ and ⋯ with their gaps: room to spare on the SE")
+        XCTAssertEqual(M.pillWidth, 2 * M.segmentWidth)
         XCTAssertEqual(M.margin, 12)
         for width in [375.0, 393, 402, 430, 440, 744, 1024].map({ CGFloat($0) }) {
-            for played in [false, true] {
-                for destination in ChromeDestination.allCases where destination != .reader {
-                    let l = layout(destination, width: width, played: played)
-                    let tag = "\(destination) played \(played) at \(width)"
-                    XCTAssertEqual(l.pill.rect.minX, M.margin, tag)
-                    XCTAssertEqual(l.more.rect.maxX, width - M.margin, tag)
-                    XCTAssertEqual(l.field.rect.minX, l.pill.rect.minX, "row 1 starts where row 2 does, \(tag)")
-                    XCTAssertEqual(l.field.rect.maxX, l.more.rect.maxX, "row 1 ends where row 2 does, \(tag)")
-                    XCTAssertEqual(l.pill.rect.width, M.pillWidth, tag)
-                    XCTAssertEqual(l.more.rect.minX - l.pill.rect.maxX, width - 2 * M.margin - M.pillWidth - M.barHeight, tag)
-                }
+            for destination in ChromeDestination.allCases {
+                let l = layout(destination, width: width)
+                let tag = "\(destination) at \(width)"
+                XCTAssertEqual(l.pill.rect.minX, M.margin, tag)
+                XCTAssertEqual(l.more.rect.maxX, width - M.margin, tag)
+                XCTAssertEqual(l.field.rect.minX, l.pill.rect.minX, "row 1 starts where row 2 does, \(tag)")
+                XCTAssertEqual(l.listen.rect.maxX, l.more.rect.maxX, "row 1 ends where row 2 does, \(tag)")
+                XCTAssertEqual(l.listen.rect.minX, l.more.rect.minX, "Listen over ⋯, \(tag)")
+                XCTAssertEqual(l.pill.rect.width, M.pillWidth, tag)
+                XCTAssertEqual(l.more.rect.minX - l.pill.rect.maxX, width - 2 * M.margin - M.pillWidth - M.barHeight, tag)
             }
         }
     }
@@ -244,33 +179,29 @@ final class ChromeTests: XCTestCase {
     func testEveryPieceIsAsTallAsTheBarWideEnoughToTapAndInsideTheMargins() {
         for width in [375.0, 393, 430].map({ CGFloat($0) }) {
             for destination in ChromeDestination.allCases {
-                for played in [false, true] {
-                    for (progress, keyboard) in [(0.0, false), (1.0, false), (0.0, true)] where !(keyboard && destination == .reader) {
-                        let l = layout(destination, width: width, progress: CGFloat(progress), played: played, back: true, forward: true, keyboard: keyboard)
-                        let tag = "\(width) \(destination) played \(played) progress \(progress) keyboard \(keyboard)"
-                        let shown = [l.pill, l.field, l.nav, l.play, l.more].filter(\.isShown)
-                        for piece in shown {
-                            let isCard = destination == .reader && piece == l.field
-                            XCTAssertEqual(piece.rect.height, isCard ? M.card : M.barHeight, tag)
-                            XCTAssertGreaterThanOrEqual(piece.rect.width + 2 * M.hitOutset, M.minTapTarget, "a 44 pt hit area with the outset: \(tag)")
-                            XCTAssertGreaterThanOrEqual(piece.rect.minX, M.margin - 0.01, tag)
-                            XCTAssertLessThanOrEqual(piece.rect.maxX, width - M.margin + 0.01, tag)
-                            XCTAssertEqual(piece.radius, isCard ? M.cardRadius : M.barHeight / 2, "capsule \(tag)")
+                for (progress, keyboard) in [(0.0, false), (1.0, false), (0.0, true)] {
+                    let l = layout(destination, width: width, progress: CGFloat(progress), back: true, forward: true, keyboard: keyboard)
+                    let tag = "\(width) \(destination) progress \(progress) keyboard \(keyboard)"
+                    let shown = [l.pill, l.field, l.nav, l.listen, l.more].filter(\.isShown)
+                    for piece in shown {
+                        XCTAssertEqual(piece.rect.height, M.barHeight, tag)
+                        XCTAssertGreaterThanOrEqual(piece.rect.width + 2 * M.hitOutset, M.minTapTarget, "a 44 pt hit area with the outset: \(tag)")
+                        XCTAssertGreaterThanOrEqual(piece.rect.minX, M.margin - 0.01, tag)
+                        XCTAssertLessThanOrEqual(piece.rect.maxX, width - M.margin + 0.01, tag)
+                        XCTAssertEqual(piece.radius, M.barHeight / 2, "capsule \(tag)")
+                    }
+                    for (i, a) in shown.enumerated() {
+                        for b in shown[(i + 1)...] where abs(a.rect.minY - b.rect.minY) < M.barHeight / 2 {
+                            let gap = max(a.rect.minX, b.rect.minX) - min(a.rect.maxX, b.rect.maxX)
+                            XCTAssertGreaterThanOrEqual(gap, M.rowGap - 0.01, tag)
                         }
-                        for (i, a) in shown.enumerated() {
-                            for b in shown[(i + 1)...] where abs(a.rect.minY - b.rect.minY) < M.barHeight / 2 {
-                                let gap = max(a.rect.minX, b.rect.minX) - min(a.rect.maxX, b.rect.maxX)
-                                XCTAssertGreaterThanOrEqual(gap, M.rowGap - 0.01, tag)
-                            }
-                        }
-                        // Every hit area (the glass and `hitOutset` round it) is 44 tall and overlaps no other.
-                        let hits = [l.field, l.nav, l.play, l.more].filter { $0.isShown && $0.rect.height == M.barHeight }
-                            .map { $0.rect.insetBy(dx: -M.hitOutset, dy: -M.hitOutset) }
-                        for (i, a) in hits.enumerated() {
-                            XCTAssertEqual(a.height, M.minTapTarget, tag)
-                            for b in hits[(i + 1)...] {
-                                XCTAssertTrue(a.intersection(b).isNull || a.intersection(b).width * a.intersection(b).height < 0.01, "hit areas overlap: \(tag)")
-                            }
+                    }
+                    // Every hit area (the glass and `hitOutset` round it) is 44 tall and overlaps no other.
+                    let hits = shown.map { $0.rect.insetBy(dx: -M.hitOutset, dy: -M.hitOutset) }
+                    for (i, a) in hits.enumerated() {
+                        XCTAssertEqual(a.height, M.minTapTarget, tag)
+                        for b in hits[(i + 1)...] {
+                            XCTAssertTrue(a.intersection(b).isNull || a.intersection(b).width * a.intersection(b).height < 0.01, "hit areas overlap: \(tag)")
                         }
                     }
                 }
@@ -278,43 +209,42 @@ final class ChromeTests: XCTestCase {
         }
     }
 
-    func testExpandedIsTwoRowsAndTheReaderCardSitsOneGapAboveRowTwo() {
+    func testExpandedIsTwoRowsLowInTheBox() {
         let browse = layout(.browse, back: true, forward: true)
         XCTAssertEqual(browse.field.rect.minY + M.barHeight + M.gap, browse.pill.rect.minY, "row 1 over row 2")
         XCTAssertEqual(browse.nav.rect.width, M.navPairWidth)
         XCTAssertEqual(browse.top, browse.field.rect.minY)
-        let reader = layout(.reader, played: true)
-        XCTAssertEqual(reader.field.rect.height, M.card)
-        XCTAssertEqual(reader.field.rect.maxY + M.gap, reader.pill.rect.minY)
-        XCTAssertEqual(reader.field.rect.minY, M.topPadding + 34, "the card's room above it is the home strip the rows reach into")
-        XCTAssertEqual(browse.pill.rect.maxY, M.readerFootprint + 34 - M.edgeClearance, "row 2 ends 14 above the screen's edge")
+        XCTAssertEqual(browse.field.rect.minY, M.topPadding + 34, "the room above row 1 is the home strip the rows reach into")
+        XCTAssertEqual(browse.pill.rect.maxY, M.footprint + 34 - M.edgeClearance, "row 2 ends 14 above the screen's edge")
         let se = ChromeLayout(width: 375, state: { var s = ChromeState(destination: .library); s.homeInset = 0; return s }())
-        XCTAssertEqual(se.pill.rect.maxY, M.readerFootprint - M.edgeClearance, "with a Home button: 14 above the edge too")
+        XCTAssertEqual(se.pill.rect.maxY, M.footprint - M.edgeClearance, "with a Home button: 14 above the edge too")
+        XCTAssertEqual(se.top, M.topPadding)
     }
 
     /// The fold's steps: two rows, then one (row 2 gone, row 1 in its place), then the strip.
     func testFoldingGoesTwoRowsThenOneThenTheStrip() {
-        let expanded = layout(.browse, progress: 0, played: true, back: true)
-        let one = layout(.browse, progress: 0.5, played: true, back: true)
-        let folded = layout(.browse, progress: 1, played: true, back: true)
+        let expanded = layout(.browse, progress: 0, back: true)
+        let one = layout(.browse, progress: 0.5, back: true)
+        let folded = layout(.browse, progress: 1, back: true)
         XCTAssertFalse(expanded.strip.isShown)
-        XCTAssertEqual([one.pill, one.play, one.more].map(\.isShown), [false, false, false], "one row: row 2 gone")
-        XCTAssertTrue(one.field.isShown && one.nav.isShown)
+        XCTAssertEqual([one.pill, one.more].map(\.isShown), [false, false], "one row: row 2 gone")
+        XCTAssertTrue(one.field.isShown && one.nav.isShown && one.listen.isShown)
         XCTAssertFalse(one.strip.isShown)
         XCTAssertEqual(one.field.rect, expanded.field.rect.offsetBy(dx: 0, dy: M.barHeight + M.gap), "row 1 drops into row 2's place")
+        XCTAssertEqual(one.listen.rect, expanded.listen.rect.offsetBy(dx: 0, dy: M.barHeight + M.gap), "Listen with it")
         XCTAssertEqual(one.field.rect.minY, expanded.pill.rect.minY)
         XCTAssertEqual(one.top, expanded.pill.rect.minY)
-        XCTAssertEqual([folded.pill, folded.field, folded.nav, folded.play, folded.more, folded.listen].map(\.isShown),
-                       Array(repeating: false, count: 6), "folded: nothing but the strip")
+        XCTAssertEqual([folded.pill, folded.field, folded.nav, folded.more, folded.listen].map(\.isShown),
+                       Array(repeating: false, count: 5), "folded: nothing but the strip")
         XCTAssertTrue(folded.strip.isShown)
         XCTAssertEqual(folded.stripOpacity, 1)
-        let first = layout(.browse, progress: 0.2, played: true, back: true)
+        let first = layout(.browse, progress: 0.2, back: true)
         XCTAssertLessThan(first.pill.rect.width, expanded.pill.rect.width, "row 2 shrinks away")
         XCTAssertGreaterThan(first.field.rect.minY, expanded.field.rect.minY, "while row 1 drops")
         XCTAssertEqual(first.field.rect.width, expanded.field.rect.width, "row 1 keeps its size in the first step")
         var last: CGFloat = -1
         for step in 0...20 {
-            let o = layout(.browse, progress: CGFloat(step) / 20, played: true).stripOpacity
+            let o = layout(.browse, progress: CGFloat(step) / 20).stripOpacity
             XCTAssertGreaterThanOrEqual(o, last, "the strip only comes up as the rows fold")
             last = o
         }
@@ -324,19 +254,19 @@ final class ChromeTests: XCTestCase {
     /// as its name (to 260), centred, ending 14 above the screen's edge, a 44 pt hit area, nothing else on screen.
     func testTheStripIsTextAboveTheHomeIndicatorWithA44HitAreaAndTheRowsAreGone() {
         for width in [375.0, 402].map({ CGFloat($0) }) {
-            for destination in [ChromeDestination.browse, .library] {
+            for destination in ChromeDestination.allCases {
                 for (text, expected) in [(0.0, 20.0), (60.0, 80), (110, 130), (300, 260)] {
                     let stripWidth = M.stripWidth(forTextWidth: CGFloat(text))
                     XCTAssertEqual(stripWidth, CGFloat(expected), "\(text) pt of title")
-                    let l = ChromeLayout(width: width, state: ChromeState(destination: destination, progress: 1, played: true,
+                    let l = ChromeLayout(width: width, state: ChromeState(destination: destination, progress: 1,
                                                                           canGoBack: true, canGoForward: true, stripWidth: stripWidth))
                     let tag = "\(width) \(destination) \(text)"
                     XCTAssertTrue(l.strip.isShown, tag)
                     XCTAssertEqual(l.strip.rect.height, 20, tag)
                     XCTAssertEqual(l.strip.rect.width, stripWidth, tag)
                     XCTAssertEqual(l.strip.rect.midX, width / 2, tag)
-                    XCTAssertEqual(l.strip.rect.maxY, M.readerFootprint + 34 - M.edgeClearance, "14 above the screen's edge: \(tag)")
-                    XCTAssertEqual(M.readerFootprint + 34 - l.strip.rect.midY, 24, "centred 24 above the edge: \(tag)")
+                    XCTAssertEqual(l.strip.rect.maxY, M.footprint + 34 - M.edgeClearance, "14 above the screen's edge: \(tag)")
+                    XCTAssertEqual(M.footprint + 34 - l.strip.rect.midY, 24, "centred 24 above the edge: \(tag)")
                     let hit = l.strip.rect.insetBy(dx: 0, dy: -M.stripHitOutset)
                     XCTAssertEqual(hit.height, 44, tag)
                     XCTAssertEqual(l.top, l.strip.rect.minY, "nothing else is on screen: \(tag)")
@@ -345,12 +275,11 @@ final class ChromeTests: XCTestCase {
         }
     }
 
-    func testTheStripIsOnlyThereFoldedAndNeverTypingOrOnListenOrEditing() {
+    func testTheStripIsOnlyThereFoldedAndNeverTypingOrEditing() {
         for width in [375.0, 402].map({ CGFloat($0) }) {
             XCTAssertFalse(layout(.browse, width: width, progress: 0).strip.isShown, "expanded")
             XCTAssertFalse(layout(.browse, width: width, progress: 0.5).strip.isShown, "one row")
             XCTAssertFalse(layout(.library, width: width, progress: 1, keyboard: true).strip.isShown, "typing")
-            XCTAssertFalse(layout(.reader, width: width, progress: 1).strip.isShown, "Listen")
             XCTAssertFalse(ChromeLayout(width: width, state: ChromeState(destination: .library, progress: 1, editing: true)).strip.isShown, "Edit")
             XCTAssertFalse(ChromeLayout(width: width, state: ChromeState(destination: .browse, progress: 1, fullScreen: true)).strip.isShown, "full screen")
         }
@@ -362,11 +291,12 @@ final class ChromeTests: XCTestCase {
     }
 
     func testEditBarReplacesRowTwoAndFullScreenShowsNothing() {
-        let edit = ChromeLayout(width: 393, state: ChromeState(destination: .library, played: true, editing: true))
+        let edit = ChromeLayout(width: 393, state: ChromeState(destination: .library, editing: true))
         XCTAssertTrue(edit.editBar.isShown)
-        XCTAssertEqual([edit.pill, edit.play, edit.more].map(\.isShown), [false, false, false])
-        let full = ChromeLayout(width: 393, state: ChromeState(destination: .reader, fullScreen: true, played: true))
-        XCTAssertEqual([full.pill, full.field, full.nav, full.play, full.more, full.editBar].map(\.isShown), Array(repeating: false, count: 6))
+        XCTAssertEqual([edit.pill, edit.more, edit.listen].map(\.isShown), [false, false, false])
+        let full = ChromeLayout(width: 393, state: ChromeState(destination: .browse, fullScreen: true, readerMode: true))
+        XCTAssertEqual([full.pill, full.field, full.nav, full.listen, full.more, full.editBar].map(\.isShown),
+                       Array(repeating: false, count: 6))
         XCTAssertNil(full.top)
     }
 
@@ -456,7 +386,7 @@ final class ChromeTests: XCTestCase {
         scroll(chrome, to: [130])
         XCTAssertTrue(chrome.isCollapsed, "a Library scrolled down")
         chrome.holdsExpanded = true
-        XCTAssertFalse(chrome.isCollapsed, "coming to Listen from a folded Library: expanded")
+        XCTAssertFalse(chrome.isCollapsed, "coming to a held screen (Pages mode, Edit) from a folded Library: expanded")
         chrome.anchor(at: 10)
         scroll(chrome, to: [60, 120, 200, 300])
         XCTAssertEqual(chrome.progress, 0)

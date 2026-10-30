@@ -24,8 +24,6 @@ enum BottomChrome {
     static let fieldEndInset: CGFloat = ChromeMetrics.endInset
     /// Text on a round control's face (the speed): the same weight, even-width digits.
     static let roundText = Font.system(size: 15, weight: .medium).monospacedDigit()
-    /// The place name on Listen's ‹ ("‹ reddit.com"): the chrome glyph's weight, fixed like it.
-    static let originLabel = Font.system(size: 15, weight: .medium)
     /// Text standing in for a field control (the speed). Like the glyphs it keeps its size at
     /// large text sizes, so the controls never crowd.
     static let toolbarTextSize: CGFloat = 17

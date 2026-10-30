@@ -5,7 +5,7 @@ import CoreGraphics
 /// reads from here: `ChromeLayout` places the pieces with them, and no other file holds a bar size.
 ///
 /// One shape language and one height: every floating piece is a Capsule or a Circle `barHeight`
-/// (36 pt) high (the pill, the search and address fields, ‹ ›, ▶, ⋯, ✕, the keyboard's row), so its
+/// (36 pt) high (the pill, the search and address fields, ‹ ›, Listen, ⋯, ✕, the keyboard's row), so its
 /// corner radius is half that, and every one is tapped in `minTapTarget` (`hitOutset` past its edge).
 /// The rows sit low: the bottom row ends `edgeClearance` above the screen's edge, in the home
 /// indicator's strip. Scrolling down folds in steps: row 2 goes (the field drops to its place), then
@@ -23,18 +23,16 @@ enum ChromeMetrics {
 
     /// Left and right margin; also the gap between a row's pieces and the screen edge.
     static let margin: CGFloat = 3 * unit
-    /// Gap between the rows (and the card over row 2).
+    /// Gap between the rows.
     static let gap: CGFloat = 2 * unit
-    /// Gap between two pieces on one row: [pill] [▶] [⋯], [content] [icon] [▶] [⋯], ‹ › and the field.
-    /// About a quarter of the bar's height, the same between every pair. The one size here that is not
-    /// a multiple of the unit.
+    /// Gap between two pieces on one row: ‹ › and the field, the field and Listen, the keyboard's field
+    /// and Cancel. About a quarter of the bar's height, the same between every pair. The one size here
+    /// that is not a multiple of the unit.
     static let rowGap: CGFloat = 10
-    /// The three-segment pill's width: one constant on every iPhone, never derived from the screen. With
-    /// the gaps, ▶ and ⋯ it fits the SE's 375 pt with room to spare (`bottomRowWidth`, margin 12 each side).
-    static let pillWidth: CGFloat = 235
-    /// The bottom row's narrowest width: [pill] [▶ slot] [⋯] with one `rowGap` between (327; the SE's 375 less
-    /// the margins is 351). The row runs margin to margin like the top row; on a wider screen the gap after the pill grows.
-    static let bottomRowWidth: CGFloat = pillWidth + 2 * (rowGap + barHeight)
+    /// One segment of the pill (Library, Browser): one constant on every iPhone, never derived from the screen.
+    static let segmentWidth: CGFloat = 78
+    /// The two-segment pill's width. Row 2 is [pill] … [⋯], margin to margin; a wider screen only widens the gap.
+    static let pillWidth: CGFloat = 2 * segmentWidth
     /// Cancel's width while a search is editing: a word, not a circle. The keyboard's row is
     /// [field][Cancel] from margin to margin on every phone, the field taking what Cancel leaves.
     static let cancelWidth: CGFloat = 72
@@ -49,8 +47,6 @@ enum ChromeMetrics {
 
     /// The one height of every piece, in every row and state: thin, and still tapped in `minTapTarget`.
     static let barHeight: CGFloat = 9 * unit
-    /// Listen's ‹ capsule at its widest: a long place name truncates before the middle of a phone.
-    static let listenBackMaxWidth: CGFloat = 50 * unit
     /// Hit areas never go below this, whatever they look like.
     static let minTapTarget: CGFloat = 44
     /// How far a piece's hit area reaches past its glass on every side: 4 pt, so the rows' hit areas
@@ -71,11 +67,8 @@ enum ChromeMetrics {
     // VoiceOver and the large content viewer).
     /// A control's glyph, and the glyph's cell in a pill segment.
     static let segmentGlyphHeight: CGFloat = 20
-    /// The Reader segment while there is nothing to open.
-    static let segmentDimmedOpacity = 0.55
-    /// ▶'s progress ring: its line width and its inset from the circle.
-    static let ringWidth: CGFloat = 2.5
-    static let ringInset: CGFloat = 4
+    /// The playing bars in Listen's circle: smaller than a glyph, so four bars read as a level meter.
+    static let playingBarsHeight: CGFloat = 4 * unit
 
     // MARK: - The strip (the folded chrome)
 
@@ -100,8 +93,7 @@ enum ChromeMetrics {
     /// How far above the top piece the fade behind the chrome starts.
     static let fadeRise: CGFloat = 50
 
-    /// The Reader's player card above row 2 (Listen's card is not resized with the bars: its own height
-    /// and corner radius).
+    /// Listen's player card, at the foot of Listen: its own height and corner radius (not a bar's).
     static let card: CGFloat = 140
     static let cardRadius: CGFloat = 6 * unit
 
@@ -112,8 +104,6 @@ enum ChromeMetrics {
     static let collapsedFootprint: CGFloat = topPadding + barHeight + edgeClearance
     /// The fold's end: the strip (38 pt).
     static let stripFootprint: CGFloat = topPadding + stripHeight + edgeClearance
-    /// What the Reader's text keeps clear: the card, a gap and row 2.
-    static let readerFootprint: CGFloat = topPadding + card + gap + barHeight + edgeClearance
     /// What the chrome covers at a fold step (`ChromeScroll.drawnStep`): 0 two rows, 1 one row, 2 the strip.
     static func footprint(step: Int) -> CGFloat {
         step <= 0 ? footprint : step == 1 ? collapsedFootprint : stripFootprint

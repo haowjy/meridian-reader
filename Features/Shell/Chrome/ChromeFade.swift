@@ -18,16 +18,16 @@ struct ChromeFade: View {
     var body: some View {
         let start = top - ChromeMetrics.fadeRise
         // With the strip up the page colour is solid by the strip's top, so its text sits on calm ground.
-        let stripTop = ChromeMetrics.fadeRise / max(ChromeMetrics.readerFootprint - start + ChromeHome.inset, 1)
+        let stripTop = ChromeMetrics.fadeRise / max(ChromeMetrics.footprint - start + ChromeHome.inset, 1)
         let solidAt = Self.solidAt + (min(stripTop, Self.solidAt) - Self.solidAt) * strip
         LinearGradient(stops: [.init(color: underColor.opacity(0), location: 0), .init(color: underColor, location: solidAt)],
                        startPoint: .top, endPoint: .bottom)
             .opacity(Self.opacity + (1 - Self.opacity) * strip)
-            .frame(height: ChromeMetrics.readerFootprint - start + ChromeHome.inset)
-            // Down through the home indicator's strip (the rows and the strip dip into it); up beyond
-            // the box when the Reader's card is tall.
+            .frame(height: ChromeMetrics.footprint - start + ChromeHome.inset)
+            // Down through the home indicator's strip (the rows and the strip dip into it), and up
+            // past the box's top by `fadeRise`.
             .offset(y: ChromeHome.inset)
-            .frame(height: ChromeMetrics.readerFootprint, alignment: .bottom)
+            .frame(height: ChromeMetrics.footprint, alignment: .bottom)
             .allowsHitTesting(false)
     }
 }

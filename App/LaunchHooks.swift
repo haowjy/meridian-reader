@@ -96,18 +96,29 @@ enum LaunchHooks {
             shell.navigate(to: url)
         }
         if options.opensLibrary { shell.openLibrary() }
-        if options.opensDemoInReader { openNewestInReader(in: library, shell: shell) }
         if options.failsLibrarySaves { library.saveContext = { _ in throw InjectedSaveFailure() } }
     }
 
     /// `-failLibrarySaves`' refusal.
     private struct InjectedSaveFailure: Error {}
 
-    /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`, `-listenDemo`.
+    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-listenDemo`, `-playTestEPUB`,
+    /// `-chainDemoChapters`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
                                shell: ShellState) async {
-        if options.listensDemo || options.opensListen {
-            await listenDemo(from: options.listenDemoFrom, launches: options.listensDemo, back: options.listenBackAfter,
+        if options.opensDemoInReader { await openNewestInReader(in: library, shell: shell) }
+
+        if options.tapsListen {
+            try? await Task.sleep(for: .seconds(1))
+            ChromeListenButton.open(speech: speech, shell: shell,
+                                    lastPlayed: (try? library.context.fetch(LibraryQueries.lastPlayed))?.first(where: \.isLive))
+            if let close = options.closesListenAfter {
+                try? await Task.sleep(for: .seconds(close))
+                shell.hideNowPlaying()
+            }
+        }
+        if options.listensDemo {
+            await listenDemo(from: options.listenDemoFrom, closeAfter: options.closesListenAfter,
                              library: library, speech: speech, shell: shell)
         }
         if options.playsTestEPUB {
@@ -324,10 +335,9 @@ enum LaunchHooks {
         }
     }
 
-    /// `-listenDemo` / `-openListen` / `-listenDemoFrom` / `-listenBackAfter`: the newest saved page plays and
-    /// Listen rises, launched from the surface on screen (or the page or folder named), or, with `-openListen`,
-    /// raised first so nothing new is launched; then, optionally, Listen's ‹.
-    static func listenDemo(from place: String?, launches: Bool, back: Double?, library: LibraryStore,
+    /// `-listenDemo` / `-listenDemoFrom` / `-closeListenAfter`: the newest saved page plays and Listen rises
+    /// over the surface on screen (or the page or folder named); then, optionally, Listen closes.
+    static func listenDemo(from place: String?, closeAfter: Double?, library: LibraryStore,
                            speech: SpeechController, shell: ShellState) async {
         try? await Task.sleep(for: .seconds(1))
         if let place {
@@ -344,18 +354,18 @@ enum LaunchHooks {
         var newest = LibraryQueries.savedInLibrary
         newest.fetchLimit = 1
         guard let saved = try? library.context.fetch(newest).first else { return }
-        if !launches { shell.showNowPlaying() }
         speech.listen(to: ReaderArticle(article: saved))
         shell.showNowPlaying()
-        guard let back else { return }
-        try? await Task.sleep(for: .seconds(back))
-        shell.backFromListen(folderExists: { library.folder(id: $0) != nil },
-                             article: { library.article(key: $0).map(ReaderArticle.init(article:)) })
+        guard let closeAfter else { return }
+        try? await Task.sleep(for: .seconds(closeAfter))
+        shell.hideNowPlaying()
     }
 
-    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article in the Reader
-    /// sheet over the browser, without needing the network.
-    static func openNewestInReader(in library: LibraryStore, shell: ShellState) {
+    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article as the Browser's
+    /// reader mode (the Reader sheet on regular width), without needing the network. Once the browser's
+    /// first page (`-browseTestPages`) has loaded, which would otherwise end the reader mode.
+    static func openNewestInReader(in library: LibraryStore, shell: ShellState) async {
+        try? await Task.sleep(for: .seconds(2))
         var newest = LibraryQueries.savedInLibrary
         newest.fetchLimit = 1
         guard let saved = try? library.context.fetch(newest).first else { return }
@@ -366,7 +376,11 @@ enum LaunchHooks {
             article.document = document
             article.trustedParagraphs = document.paragraphs
         }
-        shell.openReader(article)
+        if shell.readsInPlace {
+            shell.openPageReader(article, requestedAt: shell.pageReaderEpoch)
+        } else {
+            shell.openReader(article)
+        }
     }
 }
 #endif

@@ -1,12 +1,11 @@
 import SwiftUI
 
-/// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). The Reader's page in
-/// the same reading theme and type: the spoken paragraph highlighted in full
-/// ink like the rest, on the highlight. Presented over everything by the shell (in place under the
-/// bottom chrome on compact width, a sheet on regular width); it holds no article of its
-/// own: it shows `speech.nowPlaying` and the playing page's content, looked up in the library by
-/// its key. On compact width the chrome draws its player card (`ChromeCard`), the same card as the
-/// Reader's.
+/// Now Playing, Listen: what you hear, opened up (`NowPlayingSheet`). The Reader's page in the
+/// same reading theme and type: the spoken paragraph highlighted in full ink like the rest, on the
+/// highlight. Presented over everything by the shell: on compact width a cover that slides up over
+/// the chrome too, with the player card at its foot, ⌄ at the top left and ⋯ at the top right; on
+/// regular width a sheet. It holds no article of its own: it shows `speech.nowPlaying` and the
+/// playing page's content, looked up in the library by its key.
 ///
 /// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
 ///   there (each new paragraph, a long paragraph's sentence leaving the screen); the spoken
@@ -27,8 +26,9 @@ import SwiftUI
 /// - A tap in the middle of the text reads full screen, as in the Reader (`ReadingPage`,
 ///   `ReadingChrome`): the text still follows the audio, a page turn by a tap stops following as a drag does, and a link
 ///   in the text opens in the browser.
-/// - On compact width Library or Browser in the pill leaves it; on regular width the pill or a pull
-///   down shrinks it back into the bar.
+/// - ⌄ or a pull down closes it, back to exactly what was under it (on regular width the pill or a
+///   pull down shrinks it back into the bar). Its full screen is its own: the chrome under it keeps
+///   its fold and full screen.
 struct NowPlayingScreen: View {
     @Bindable var speech: SpeechController
 
@@ -72,13 +72,13 @@ struct NowPlayingScreen: View {
     private func player(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
         let palette = appearance.palette(accent: AppAppearance.shared.accent)
         let artwork = now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
-        let compactCard = sizeClass == .regular ? nil : card(now, actions, artwork: artwork)
+        let regular = sizeClass == .regular
+        let onClose = { [shell, presentation = shell.nowPlayingPresentation] in
+            if let presentation { shell.nowPlayingDidClose(presentation) }
+        }
         return NowPlayingSheet(
-            showing: shell.readingShowing(
-                regular: sizeClass == .regular, close: .collapse(playingFromName(now, saved: actions.isSaved)),
-                onClose: { [shell, presentation = shell.nowPlayingPresentation] in
-                    if let presentation { shell.nowPlayingDidClose(presentation) }
-                }),
+            showing: regular ? .sheet(close: .collapse(playingFromName(now, saved: actions.isSaved)), onClose: onClose)
+                : .cover(closeLabel: String(localized: "Close Listen"), onClose: onClose),
             playState: speech.playState(of: .article(now.articleKey)),
             showsJumpToAudio: !following && !now.isFinished,
             jumpDirection: spotSide,
@@ -86,17 +86,27 @@ struct NowPlayingScreen: View {
             onJumpToAudio: { following = true },
             palette: palette
         ) {
-            TextAppearanceControl()
+            if regular { TextAppearanceControl() }
         } accessory: {
-            JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
-                .disabled(speech.document.isEmpty)
+            if regular {
+                JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
+                    .disabled(speech.document.isEmpty)
+            } else {
+                // Compact: ☝︎ is a row of ⋯ (Aa is in the card).
+                ReadingPageMoreButton(id: "listenMore", chrome: true, extraRows: [jumpRow])
+                    .frame(width: ChromeMetrics.barHeight, height: ChromeMetrics.barHeight)
+            }
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
             text(now, readerArticle: actions.readerArticle)
         } band: {
-            PlayheadReader(speech: speech) { spot in
-                bandContent(now: now, actions: actions, palette: palette, artwork: artwork, spot: spot)
+            if regular {
+                PlayheadReader(speech: speech) { spot in
+                    bandContent(now: now, actions: actions, palette: palette, artwork: artwork, spot: spot)
+                }
+            } else {
+                card(now, actions, artwork: artwork)
             }
         } floating: {
             // The toast floats above the hairline.
@@ -105,12 +115,19 @@ struct NowPlayingScreen: View {
                 ShellToastLayer()
             }
         }
-        .chromeCard(compactCard)
     }
 
-    /// Compact width: the card the chrome draws above row 2, and ⋯'s row for ☝︎.
-    private func card(_ now: NowPlaying, _ actions: ArticleActions, artwork: Image?) -> ChromeCard {
-        let view = PlayheadReader(speech: speech) { spot in
+    /// Compact width: ⋯'s row for ☝︎.
+    private var jumpRow: MenuRow {
+        MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
+                availability: MenuAvailability(when: !speech.document.isEmpty)) {
+            withAnimation(Motion.snappy) { jumpMode.toggle() }
+        }
+    }
+
+    /// Compact width: the player card at Listen's foot.
+    private func card(_ now: NowPlaying, _ actions: ArticleActions, artwork: Image?) -> some View {
+        PlayheadReader(speech: speech) { spot in
             let doc = speech.document
             let rate = speech.rateMultiplier
             let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: spot.utf16Offset, rate: rate)
@@ -140,11 +157,6 @@ struct NowPlayingScreen: View {
                 SpeedButton(speech: speech, round: true)
             }
         }
-        let jump = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
-                           availability: MenuAvailability(when: !speech.document.isEmpty)) {
-            withAnimation(Motion.snappy) { jumpMode.toggle() }
-        }
-        return ChromeCard(content: AnyView(view), menuRows: [jump])
     }
 
     /// The integrated bottom band: title + Voice (trailing), scrub, notes, transport — all flat on
@@ -196,8 +208,7 @@ struct NowPlayingScreen: View {
                 leading: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                                    onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                     .disabled(actions.readerArticle == nil)),
-                // Compact width: the chrome's ⋯ (`ReadingPageMoreButton`) is the page's menu.
-                trailing: sizeClass == .regular ? AnyView(ReadingPageMoreButton(id: "nowPlayingMore")) : nil,
+                trailing: AnyView(ReadingPageMoreButton(id: "nowPlayingMore")),
                 speech: speech
             )
         }

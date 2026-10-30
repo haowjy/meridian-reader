@@ -2,9 +2,9 @@ import SwiftUI
 
 /// What the chrome host needs from a destination to draw its first row and ⋯: the field (and its
 /// search session), the arrows, the ⋯ button. The browser and the Library each build one; the rest
-/// of the chrome (the pill, the play button, the fold) is the host's.
+/// of the chrome (the pill, Listen, the fold) is the host's.
 struct ChromeScreen {
-    /// nil: no field to search in (the Reader).
+    /// nil: no field to search in.
     var session: SearchSession?
     /// The ✕ that ends a search: its accessibility identifier and action.
     var cancelID = ""
@@ -23,8 +23,6 @@ struct ChromeScreen {
     var field: (FocusState<Bool>.Binding) -> AnyView = { _ in AnyView(EmptyView()) }
     /// The ⋯ button, filling the frame the host gives it.
     let more: AnyView
-    /// The Browser's reader mode: the round control that listens to the page, at the end of row 1.
-    var listen: AnyView?
     /// What the strip names once a scroll down has folded both rows: the page's domain in the Browser, a
     /// screen, folder or article's title in the Library, the source in the Browser's reader mode.
     var stripTitle = ""

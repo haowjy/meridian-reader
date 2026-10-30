@@ -122,3 +122,42 @@ private struct ChromeGlassContainer: ViewModifier {
         }
     }
 }
+
+/// The chrome's round button face: `content` (a glyph, the playing bars) in the chrome glyph's size and
+/// ink, centred on a glass circle that fills the frame it is given, tapped `hitOutset` past it. ⋯,
+/// Listen and Listen's close are this; each button keeps its own action and accessibility.
+struct ChromeCircleFace<Content: View>: View {
+    /// What the glyph is called, and its symbol, for the large content viewer.
+    let label: String
+    let symbol: String
+    @ViewBuilder var content: Content
+
+    @Environment(\.readingPalette) private var reading
+
+    var body: some View {
+        content
+            .font(BottomChrome.chromeGlyph)
+            .foregroundStyle(reading?.ink ?? Palette.ink)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(ChromeHitShape())
+            .chromeSurface(Circle(), fill: BottomChrome.fieldFill(reading))
+            .chromeLargeContent(label, symbol: symbol)
+    }
+}
+
+extension ChromeCircleFace where Content == Image {
+    init(symbol: String, label: String) {
+        self.init(label: label, symbol: symbol) { Image(systemName: symbol) }
+    }
+}
+
+/// A chrome control's hit area: `hitOutset` past its glass above and below, and at the sides only
+/// where no neighbour shares the glass (segments of one capsule meet edge to edge, so theirs stop there).
+struct ChromeHitShape: Shape {
+    var sides = true
+
+    func path(in rect: CGRect) -> Path {
+        let o = ChromeMetrics.hitOutset
+        return Path(rect.insetBy(dx: sides ? -o : 0, dy: -o))
+    }
+}

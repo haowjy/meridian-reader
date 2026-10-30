@@ -5,7 +5,8 @@ import WebKit
 
 /// The browser, and the root of the shell: the web page or start page with its bottom chrome,
 /// the address search layer, and over it the layers `ShellState` says are up, in order: the
-/// library, the Reader, Now Playing, the one ⋯ menu overlay and the one sheet.
+/// library, the Reader sheet, the compact chrome, Listen (Now Playing), the one ⋯ menu overlay and
+/// the one sheet.
 struct BrowseStartView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(\.articleExtractor) private var extractor
@@ -241,10 +242,10 @@ struct BrowseStartView: View {
 
     // MARK: - Layers
 
-    /// The library, the Reader over it (or over the browser), Now Playing over them, and at
-    /// compact width the bottom chrome over all of them. On compact width the Reader and Now Playing
-    /// are destinations drawn in place under the chrome and cross-fade with the others; on regular
-    /// width they are sheets that rise. Each layer is out of reach and hidden from VoiceOver while one covers it.
+    /// The library, the Reader sheet over it (regular width), at compact width the bottom chrome over
+    /// them, and Listen (Now Playing) over everything: on compact width a cover that slides up over
+    /// the chrome too, on regular width a sheet that rises. Each layer is out of reach and hidden
+    /// from VoiceOver while one covers it, and stays as it was under it.
     private var layers: some View {
         ZStack {
             if shell.isInLibrary {
@@ -267,57 +268,25 @@ struct BrowseStartView: View {
                     .covered(shell.isNowPlayingPresented)
                     .transition(.opacity)
             }
+            if !isRegular {
+                compactChrome
+                    .covered(shell.isNowPlayingPresented)
+            }
+            // `Sheet` animates its own rise and close.
             if shell.isNowPlayingPresented {
                 NowPlayingScreen(speech: speech)
                     .id(shell.nowPlayingPresentation)
-                    .transition(.opacity)
             }
         }
         .animation(isRegular || reduceMotion ? nil : Motion.snappy, value: ReadingLayers(reader: shell.reader?.presentation,
-                                                                              nowPlaying: shell.nowPlayingPresentation,
                                                                               libraryReader: shell.libraryReader != nil))
         .onChange(of: isRegular, initial: true) { _, regular in shell.readsInPlace = !regular }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Listen's ‹ (compact): back to where the listening was launched from (kept across relaunches),
-        // named ("‹ reddit.com", "‹ Tides"). Not in full screen, and not when there is nowhere to go.
-        .overlay(alignment: .topLeading) {
-            if !isRegular, let origin = shell.listenBackOrigin, !shell.chromeScroll.fullScreen {
-                ListenBackButton(place: placeName(origin)) {
-                    shell.backFromListen(folderExists: { library.folder(id: $0) != nil },
-                                         article: { library.article(key: $0).map(ReaderArticle.init(article:)) })
-                }
-                    .transition(.opacity)
-            }
-        }
-        .animation(reduceMotion ? nil : Motion.snappy, value: shell.chromeScroll.fullScreen)
-        // Compact: the one bottom chrome, over the browser, the Library, the Reader and Now
-        // Playing alike. The Reader is a destination: it keeps the pill (row 2) under its text, and
-        // the Reader or Now Playing hands the chrome the card it draws above it.
-        .overlayPreferenceValue(ChromeCardKey.self) { card in
-            if !isRegular {
-                compactChrome(card)
-            }
-        }
-    }
-
-    /// ‹'s short name for a place: the Library folder's name (its nearest surviving one, else
-    /// "Library"), or the page's site without "www.".
-    private func placeName(_ origin: ListenOrigin) -> String {
-        switch origin {
-        case .library(let path):
-            let kept = ShellState.surviving(path, exists: { library.folder(id: $0) != nil })
-            if case .folder(let id)? = kept.last, let name = library.folder(id: id)?.name, !name.isEmpty { return name }
-            return Verbs.library
-        case .browser(let url):
-            let host = url.host() ?? url.absoluteString
-            return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-        }
     }
 
     /// Which reading layers are up: a change cross-fades them on compact width.
     private struct ReadingLayers: Equatable {
         var reader: UUID?
-        var nowPlaying: UUID?
         var libraryReader: Bool
     }
 
@@ -330,10 +299,10 @@ struct BrowseStartView: View {
 
     /// The host for the browser's and the Library's chrome. The browser's depends on the page
     /// (saved or not), so the host sits inside its lookup.
-    private func compactChrome(_ card: ChromeCard?) -> some View {
+    private var compactChrome: some View {
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
         return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
-            ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen(), card: card)
+            ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen())
                 .environment(libraryScreen)
                 .frame(maxHeight: .infinity, alignment: .bottom)
         }
@@ -361,7 +330,6 @@ struct BrowseStartView: View {
                                            onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
             },
             more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) }),
-            listen: shell.pageReader.map { AnyView(ReaderListenButton(article: $0)) },
             stripTitle: stripTitle
         )
     }

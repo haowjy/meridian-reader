@@ -28,6 +28,7 @@ struct SpokenText: View {
     var onSpotSide: (JumpDirection) -> Void = { _ in }
     let onTap: (Int) -> Void
     let onOpenLink: (URL) -> Void
+    var onListen: () -> Void = {}
     var onPlaySelection: ((Int, Int) -> Void)?
 
     var body: some View {
@@ -48,6 +49,7 @@ struct SpokenText: View {
             onUserScroll: onUserScroll,
             onSpotSide: onSpotSide,
             onOpenLink: onOpenLink,
+            onListen: onListen,
             pageTimeLeft: { [document, rate = speech.rateMultiplier, isChapter] in
                 ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate, chapter: isChapter)
             },

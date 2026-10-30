@@ -3,7 +3,7 @@ import SwiftUI
 /// Draws the compact chrome's pieces where `ChromeLayout` puts them. Animatable in the fold
 /// (`ChromeState.progress`): while a finger scrolls, the host feeds it the smoothed progress
 /// (`ChromeScroll.displayed`) and this body runs every frame, so the pieces fold away
-/// as the finger moves (one step, then the other). Anything else that changes (the keyboard, the arrows, ▶) is a discrete
+/// as the finger moves (one step, then the other). Anything else that changes (the keyboard, the arrows) is a discrete
 /// step the host animates as the frames move.
 ///
 /// A piece is in the tree only while `ChromePiece.isShown`.
@@ -12,9 +12,6 @@ struct ChromePieces: View, Animatable {
     var state: ChromeState
     let width: CGFloat
     let screen: ChromeScreen
-    let card: ChromeCard?
-    let play: ChromePlayButton?
-    let hasReader: Bool
     let underColor: Color
     let focus: FocusState<Bool>.Binding
     let onSelect: (ChromeDestination) -> Void
@@ -26,7 +23,7 @@ struct ChromePieces: View, Animatable {
     }
 
     private typealias K = ChromeMetrics
-    /// The largest text the field, and the card draw: they sit in pieces of a fixed
+    /// The largest text the field draws: it sits in a piece of a fixed
     /// height, where larger text clips or overlaps. Every glyph still offers the large content viewer.
     private static let largestText = DynamicTypeSize.xxxLarge
 
@@ -39,19 +36,18 @@ struct ChromePieces: View, Animatable {
                                  onBack: screen.onBack, onForward: screen.onForward)
             }
             fieldPiece(layout)
-            piece(layout.play) { play }
             piece(layout.pill) {
-                ChromePill(lit: state.destination, hasReader: hasReader, expandedWidth: layout.expandedPillWidth, onSelect: onSelect)
+                ChromePill(lit: state.destination, onSelect: onSelect)
             }
             piece(layout.editBar) {
                 screen.editBar.frame(maxHeight: .infinity).chromeSurface(Capsule())
             }
-            piece(layout.listen) { screen.listen }
+            piece(layout.listen) { ChromeListenButton() }
             piece(layout.more) { more }
             stripPiece(layout.strip, opacity: layout.stripOpacity)
         }
         .chromeGlassContainer()
-        .frame(width: width, height: K.readerFootprint, alignment: .topLeading)
+        .frame(width: width, height: K.footprint, alignment: .topLeading)
         .background(alignment: .bottom) {
             if let top = layout.top { ChromeFade(top: top, underColor: underColor, strip: layout.stripOpacity) }
         }
@@ -61,9 +57,9 @@ struct ChromePieces: View, Animatable {
             if let top = layout.top, state.fold < 0.75 {
                 Color.clear
                     .contentShape(Rectangle())
-                    .frame(height: K.readerFootprint - top + K.topPadding)
+                    .frame(height: K.footprint - top + K.topPadding)
                     .ignoresSafeArea(.container, edges: .bottom)
-                    .frame(height: K.readerFootprint, alignment: .bottom)
+                    .frame(height: K.footprint, alignment: .bottom)
                     .onTapGesture {}
             }
         }
@@ -132,37 +128,21 @@ struct ChromePieces: View, Animatable {
         }
     }
 
-    /// The address, the search, or on Listen the player card, which is its own glass (never folded).
-    @ViewBuilder
+    /// The address or the search field.
     private func fieldPiece(_ layout: ChromeLayout) -> some View {
         let field = layout.field
-        if state.destination == .reader {
-            piece(field) {
-                ZStack(alignment: .topLeading) {
-                    if let card {
-                        card.content
-                            .frame(width: field.fullWidth, height: K.card, alignment: .top)
+        return piece(field) {
+            screen.field(focus)
+                .dynamicTypeSize(...Self.largestText)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("bandField")
+                .environment(\.isChromeField, true)
+                .environment(\.chromeFieldWidth, field.fullWidth)
+                .overlay {
+                    if state.destination == .browse {
+                        LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())
                     }
                 }
-                .frame(width: field.fullWidth, height: field.fullHeight, alignment: .topLeading)
-                .dynamicTypeSize(...Self.largestText)
-                .clipShape(RoundedRectangle(cornerRadius: field.radius, style: .continuous))
-                .chromeSurface(RoundedRectangle(cornerRadius: field.radius, style: .continuous), interactive: false)
-            }
-        } else {
-            piece(field) {
-                screen.field(focus)
-                    .dynamicTypeSize(...Self.largestText)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("bandField")
-                    .environment(\.isChromeField, true)
-                    .environment(\.chromeFieldWidth, field.fullWidth)
-                    .overlay {
-                        if state.destination == .browse {
-                            LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())
-                        }
-                    }
-            }
         }
     }
 

@@ -52,7 +52,8 @@ struct SurfaceMemoryStore {
     static let homeTabKey = "library.homeTab"
     /// Where the tab was kept while there were two (true: Favorites); read once, then removed.
     static let favoritesTabKey = "library.favoritesTab"
-    /// Where the playing listening was launched from (`ListenLaunch.Stored`): Listen's ‹ after a relaunch.
+    /// Retired: where a listening was launched from, for a ‹ on Listen that no longer exists. Nothing
+    /// reads or writes it; it stays here so `-resetLibrary` still clears what older builds stored.
     static let listenLaunchKey = "shell.listenLaunch"
     static let storedKeys = [key, homeTabKey, favoritesTabKey, listenLaunchKey]
 
@@ -62,20 +63,6 @@ struct SurfaceMemoryStore {
 
     func load() -> SurfaceMemory? {
         defaults.data(forKey: Self.key).flatMap { try? JSONDecoder().decode(SurfaceMemory.self, from: $0) }
-    }
-
-    func loadListenLaunch() -> ListenLaunch? {
-        defaults.data(forKey: Self.listenLaunchKey)
-            .flatMap { try? JSONDecoder().decode(ListenLaunch.Stored.self, from: $0) }
-            .flatMap(ListenLaunch.init(stored:))
-    }
-
-    func saveListenLaunch(_ launch: ListenLaunch?) {
-        guard let launch, let data = try? JSONEncoder().encode(launch.stored) else {
-            defaults.removeObject(forKey: Self.listenLaunchKey)
-            return
-        }
-        defaults.set(data, forKey: Self.listenLaunchKey)
     }
 
     func save(_ memory: SurfaceMemory) {

@@ -1,43 +1,40 @@
 import SwiftUI
 import UIKit
 
-/// The compact bottom chrome, one view above every destination (Reader, Library, Browser): two
-/// rows expanded, then one, then a domain strip as it folds, none in the Reader's full screen. `ChromeState` says what is
-/// drawn, `ChromeLayout` where, `ChromePieces` draws it; this view only wires them to the app.
+/// The compact bottom chrome, one view above both destinations (Library, Browser): two rows
+/// expanded, then one, then a domain strip as it folds, none in an in-place reader's full screen.
+/// `ChromeState` says what is drawn, `ChromeLayout` where, `ChromePieces` draws it; this view only
+/// wires them to the app. Listen is not under it: it slides up over everything, chrome included.
 ///
 /// ```
-/// expanded    [‹][›][ address / Search Library          ]        row 1; Listen's is its player card
-///             [ Listen | Library | Browser ][▶][  ⋯  ]          row 2: where you are, play, menu (Listen: no ▶)
-/// one row     [‹][›][ address / Search Library          ]        a scroll down's first step: row 2 goes, row 1 drops into its place
-/// folded                       example.com                       the second step: text naming the page over the home indicator (never on Listen)
+/// expanded    [‹][›][ address / Search Library     ][🎧]     row 1, Listen at its end
+///             [ Library | Browser ]               [ ⋯ ]     row 2: where you are, the menu
+/// one row     [‹][›][ address / Search Library     ][🎧]     a scroll down's first step: row 2 goes, row 1 drops into its place
+/// folded                       example.com                   the second step: text naming the page over the home indicator
 /// keyboard    [ 🔍 field                      ⊗ 🎤 ][Cancel]    the keyboard is up (or its session open): margin to margin
-/// full screen (nothing)                                         the Reader's middle tap
+/// full screen (nothing)                                     an in-place reader's middle tap
 /// ```
 ///
-/// Scrolling down folds it a step at a time (never on Listen, in a reader's Pages mode, on the Browser's
+/// Scrolling down folds it a step at a time (never in a reader's Pages mode, on the Browser's
 /// start page, or with VoiceOver on: those stay expanded). Scrolling up never unfolds it
 /// (`ChromeScroll`): a tap on the strip does (until the next short scroll down), and so does the top
 /// of the text, a new page and opening the search (while searching, a swipe up on the row lowers the
 /// keyboard). The host never changes the size of what is under it, but for the Browser's page, which
 /// keeps clear of the step drawn (`ChromeMetrics.footprint(step:)`): screens reserve
-/// `ChromeMetrics.footprint` (the Reader `readerFootprint`) at the bottom and scroll under it. Reduce Motion: no travel, every
+/// `ChromeMetrics.footprint` at the bottom and scroll under it. Reduce Motion: no travel, every
 /// change of form (the fold, the keyboard, full screen) is a cross-fade.
 ///
-/// It owns the field's focus (kept in sync with the session), the play / pause button's state and
-/// what the Reader hands up (`ChromeCard`); each destination supplies its field, arrows and ⋯ as a
-/// `ChromeScreen`.
+/// It owns the field's focus (kept in sync with the session); each destination supplies its field,
+/// arrows and ⋯ as a `ChromeScreen`.
 struct ChromeHost: View {
     let browse: ChromeScreen
     let library: ChromeScreen
-    /// The Reader's or Now Playing's player card, when one is up.
-    let card: ChromeCard?
 
     @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.readingAppearance) private var readingAppearance
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
-    private let playback = ChromePlayback()
     @FocusState private var focused: Bool
     /// Reduce Motion: the form drawn. A change of `live` is not drawn at once: the chrome fades out
     /// showing the old form, `shown` becomes `pending` at the bottom of the dip, and it fades in.
@@ -51,15 +48,9 @@ struct ChromeHost: View {
     private var destination: ChromeDestination { shell.chromeDestination }
     private var screen: ChromeScreen {
         switch destination {
-        case .reader: readerScreen
         case .library: library
         case .browse: browse
         }
-    }
-    /// The Reader has no arrows or search: its ⋯ is the reading page's own menu, with the rows only
-    /// the page can run.
-    private var readerScreen: ChromeScreen {
-        ChromeScreen(more: AnyView(ReadingPageMoreButton(id: "chromeReaderMore", chrome: true, extraRows: card?.menuRows ?? [])))
     }
     private var session: SearchSession? { screen.session }
     private var isSearching: Bool { session?.isActive == true }
@@ -68,11 +59,11 @@ struct ChromeHost: View {
     private var readerMode: Bool {
         (destination == .browse && shell.pageReader != nil) || (destination == .library && shell.libraryReader != nil)
     }
-    /// The chrome stays expanded whatever the text does: Listen's card, a reader in Pages mode (it
-    /// turns pages by tap, not by scroll), the start page (it has no page to name), Library Edit (its bar is row 2) and VoiceOver (the
-    /// rows are what it reads).
+    /// The chrome stays expanded whatever the text does: a reader in Pages mode (it turns pages by
+    /// tap, not by scroll), the start page (it has no page to name), Library Edit (its bar is row 2)
+    /// and VoiceOver (the rows are what it reads).
     private var pinned: Bool {
-        destination == .reader || voiceOver || screen.editBar != nil || (readerMode && readingAppearance.layout == .pages)
+        voiceOver || screen.editBar != nil || (readerMode && readingAppearance.layout == .pages)
             || (destination == .browse && !readerMode && !shell.web.hasPage)
     }
 
@@ -87,7 +78,7 @@ struct ChromeHost: View {
     /// (one end or the other, never between) and 0 otherwise: the fold between is drawn by
     /// `ChromeFold`, so a scroll report redraws the pieces and not this view.
     private var live: ChromeState {
-        ChromeState(destination: destination, progress: reduceMotion ? ChromeScroll.stepEnd(scroll.progress) : 0, fullScreen: scroll.fullScreen, played: playback.isAvailable,
+        ChromeState(destination: destination, progress: reduceMotion ? ChromeScroll.stepEnd(scroll.progress) : 0, fullScreen: scroll.fullScreen,
                     canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, keyboard: isSearching,
                     readerMode: readerMode, editing: screen.editBar != nil, stripWidth: stripWidth,
                     homeInset: ChromeHome.inset)
@@ -95,10 +86,10 @@ struct ChromeHost: View {
 
     private var state: ChromeState { reduceMotion ? shown ?? live : live }
 
-    /// What the page under the chrome is drawn in: the reading theme on the Reader, Now Playing and
-    /// the Browser's in-place reader view; nil elsewhere (the app's own surface).
+    /// What the page under the chrome is drawn in: the reading theme on an in-place reader (the
+    /// Browser's reader mode, the Library's Read); nil elsewhere (the app's own surface).
     private var readingPalette: ReadingPalette? {
-        guard destination == .reader || shell.pageReader != nil || shell.libraryReader != nil else { return nil }
+        guard readerMode else { return nil }
         return readingAppearance.palette(accent: AppAppearance.shared.accent)
     }
     /// The colour of what is under the chrome: the reading theme, a web page's own background, or
@@ -116,9 +107,8 @@ struct ChromeHost: View {
             ChromeFold(scroll: scroll, fixed: reduceMotion ? state.progress : nil) { progress in
                 var drawn = state
                 drawn.progress = progress
-                return ChromePieces(state: drawn, width: proxy.size.width, screen: screen, card: card,
-                                    play: playback.button, hasReader: playback.isAvailable, underColor: underColor,
-                                    focus: $focused, onSelect: playback.select, onExpand: expandTapped)
+                return ChromePieces(state: drawn, width: proxy.size.width, screen: screen, underColor: underColor,
+                                    focus: $focused, onSelect: shell.select, onExpand: expandTapped)
             }
                 .opacity(dip)
                 // Folding follows the finger frame by frame (`ChromeScroll.displayed`); every other change
@@ -126,7 +116,7 @@ struct ChromeHost: View {
                 .animation(reduceMotion ? nil : Motion.standard, value: state.discrete)
                 .animation(reduceMotion ? nil : Motion.snappy, value: destination)
         }
-        .frame(height: ChromeMetrics.readerFootprint)
+        .frame(height: ChromeMetrics.footprint)
         .environment(\.chromeSkin, skin)
         .readingSurface(readingPalette)
         .tint(Palette.ink)

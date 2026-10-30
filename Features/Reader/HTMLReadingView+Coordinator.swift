@@ -21,6 +21,8 @@ extension HTMLReadingWebView {
         var onUserScroll: () -> Void = {}
         var onSpotSide: (JumpDirection) -> Void = { _ in }
         var onOpenLink: (URL) -> Void = { _ in }
+        /// The heading's ▶ Listen was tapped.
+        var onListen: () -> Void = {}
         weak var chrome: ReadingChrome?
         weak var webView: WKWebView?
         var lastHTML: String = ""
@@ -526,7 +528,9 @@ extension HTMLReadingWebView {
             didReceive message: WKScriptMessage
         ) {
             guard message.name == "readerBridge", let body = message.body as? [String: Any] else { return }
-            if let x = body["tapX"] as? Double, let width = body["width"] as? Double {
+            if body["listen"] != nil {
+                DispatchQueue.main.async { self.onListen() }
+            } else if let x = body["tapX"] as? Double, let width = body["width"] as? Double {
                 textTapped(x: CGFloat(x), width: CGFloat(width))
             } else if body["layout"] != nil {
                 if loaded { layout.contentChanged() }

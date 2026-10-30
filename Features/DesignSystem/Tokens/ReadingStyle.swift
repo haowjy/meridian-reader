@@ -133,6 +133,11 @@ enum ReadingStyle {
                          column-gap: calc(var(--caption) * \(Int(Spacing.s)) / \(Int(TypeStyle.caption.size))); }
         .reader-detail span { min-width: 0; overflow-wrap: anywhere; }
         .reader-detail span:first-child { color: var(--secondary); }
+        /* ▶ Listen: a text button in the accent, tapped well past its line (the padding is taken back by the margin). */
+        .reader-listen { -webkit-appearance: none; appearance: none; background: none; border: 0; font: inherit;
+                         font-weight: 600; color: var(--accent); display: inline-flex; align-items: center;
+                         gap: 0.35em; padding: \(Int(Spacing.s))px \(pad)px; margin: -\(Int(Spacing.s))px -\(pad)px; cursor: pointer; }
+        .reader-listen svg { width: 0.7em; height: 0.8em; fill: currentColor; }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
         html.reader-paged [data-reader-index] { transition: none; }

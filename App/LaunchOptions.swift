@@ -33,7 +33,8 @@ struct LaunchOptions: Equatable {
     /// test launches with it.
     var resetsLibrary = false
     var demoArticle: DemoArticle?
-    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): start in the reader overlay on it.
+    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): start in the Browser's reader mode on it (compact
+    /// width; the Reader sheet on regular width), over page one with `-browseTestPages`.
     var opensDemoInReader = false
     /// `-openLibrary`: start in the library.
     var opensLibrary = false
@@ -88,14 +89,15 @@ struct LaunchOptions: Equatable {
     /// `-playTestEPUB`: at launch, import the synthetic EPUB into the Library's top level (no
     /// sheet), then play it from its place, as a book's Play does.
     var playsTestEPUB = false
-    /// `-listenDemo`: once launched, Listen to the newest saved page from the surface on screen (a
-    /// launch, so Listen's ‹ goes back there) and raise Listen. `-listenDemoFrom <address or folder name>`:
-    /// first open that page (scrolled down 300 pt) or that Library folder. `-openListen`: raise Listen on it
-    /// without a launch (the saved ‹ after a relaunch). `-listenBackAfter N`: N seconds later, ‹.
+    /// `-listenDemo`: once launched, Listen to the newest saved page and raise Listen over the surface
+    /// on screen. `-listenDemoFrom <address or folder name>`: first open that page (scrolled down
+    /// 300 pt) or that Library folder. `-closeListenAfter N`: N seconds later, Listen closes, back
+    /// to that surface.
     var listensDemo = false
+    /// `-tapListen`: once launched, what a tap on the chrome's Listen does (with `-closeListenAfter`, then closes).
+    var tapsListen = false
     var listenDemoFrom: String?
-    var opensListen = false
-    var listenBackAfter: Double?
+    var closesListenAfter: Double?
     /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
     /// library save fails, so a probe sees the edits that can't be saved.
     var failsLibrarySaves = false
@@ -154,9 +156,9 @@ struct LaunchOptions: Equatable {
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
         listensDemo = flags.contains("-listenDemo")
+        tapsListen = flags.contains("-tapListen")
         listenDemoFrom = value(after: "-listenDemoFrom")
-        opensListen = flags.contains("-openListen")
-        listenBackAfter = value(after: "-listenBackAfter").flatMap(Double.init)
+        closesListenAfter = value(after: "-closeListenAfter").flatMap(Double.init)
         failsLibrarySaves = flags.contains("-failLibrarySaves")
         showsWhatsNew = flags.contains("-showWhatsNew")
         usesTestVoice = flags.contains("-testVoice")
