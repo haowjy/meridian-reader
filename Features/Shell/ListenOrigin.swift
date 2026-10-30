@@ -31,7 +31,7 @@ extension ShellState {
             if let current = web.currentURL, current.isSamePage(as: url) {
                 endAddressSearch()
                 showBrowser()
-                if let article, readsInPlace { openPageReader(article, requestedAt: pageReaderEpoch) }
+                if let article, isCompact { openPageReader(article, requestedAt: pageReaderEpoch) }
             } else {
                 navigate(to: url)
             }

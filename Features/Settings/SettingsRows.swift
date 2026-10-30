@@ -66,17 +66,18 @@ extension SettingsChoiceRow where Accessory == EmptyView {
     }
 }
 
-/// A row that opens a page of choices: its symbol (nil: none, as the rest of its card), its name,
-/// the current choice in secondary ink, then ›. One line; the value truncates first.
-struct SettingsLinkRow<Destination: View>: View {
+/// A row that opens a page of choices (`route`, pushed on Settings' stack): its symbol (nil: none,
+/// as the rest of its card), its name, the current choice in secondary ink, then ›. One line; the
+/// value truncates first.
+struct SettingsLinkRow: View {
     let title: String
     let symbol: String?
     let value: String
     let accessibilityID: String
-    @ViewBuilder let destination: () -> Destination
+    let route: SettingsRoute
 
     var body: some View {
-        NavigationLink(destination: destination) {
+        NavigationLink(value: route) {
             SymbolRow(title, symbol: symbol) {
                 Text(value)
                     .typeStyle(.row)
@@ -137,4 +138,34 @@ struct ModelDownloadMark: View {
         .frame(width: Glyph.modelDownload, height: Glyph.modelDownload)
         .contentShape(Rectangle())
     }
+}
+
+/// Search Settings (the Settings destination's field): which of the settings list's rows show. A row
+/// shows when its title or its section's title contains the text; a section shows when one of its
+/// rows does. Each section lists its rows' titles (`Group`), the same strings the rows draw.
+struct SettingsSearch: Equatable {
+    /// A section of the settings list: its header ("" for none) and its rows' titles.
+    struct Group: Equatable {
+        let title: String
+        let rows: [String]
+    }
+
+    var text = ""
+
+    private var term: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+    var isFiltering: Bool { !term.isEmpty }
+
+    func shows(_ row: String, in group: Group) -> Bool {
+        guard isFiltering else { return true }
+        return group.title.localizedStandardContains(term) || row.localizedStandardContains(term)
+    }
+
+    func shows(_ group: Group) -> Bool {
+        group.rows.contains { shows($0, in: group) }
+    }
+}
+
+extension EnvironmentValues {
+    /// What Search Settings has typed, for the settings list's sections.
+    @Entry var settingsSearch = SettingsSearch()
 }

@@ -186,6 +186,8 @@ struct BrowseAddressField: View {
     var onOpenReader: () -> Void
     /// The compact chrome host's field: ↻ / ✕ in place of 🎧.
     var compact = false
+    /// The compact Browser's menu, a press and hold on the leading glyph (nil: none, regular width).
+    var holdMenu: [[MenuRow]]? = nil
     /// 🎧 (regular width): listen to the page now, or pause / resume it when it is what you hear.
     var onListen: () -> Void = {}
     /// ↻ / ✕ (compact width).
@@ -232,8 +234,8 @@ struct BrowseAddressField: View {
 
     var body: some View {
         @Bindable var search = search
-        Field(reader: readerButton, listen: listenState, reload: reloadButton, appearance: appearanceBinding, onOpenReader: onOpenReader,
-              onListen: onListen, onReload: onReload) {
+        Field(reader: readerButton, listen: listenState, reload: reloadButton, appearance: appearanceBinding,
+              holdMenu: search.isActive ? nil : holdMenu, onOpenReader: onOpenReader, onListen: onListen, onReload: onReload) {
             TextFieldBox(text: $search.text, isDictating: isDictating, focus: focus, onSubmit: onSubmit)
         } accessory: {
             AddressAccessories(text: $search.text, searching: search.isActive, isDictating: isDictating,

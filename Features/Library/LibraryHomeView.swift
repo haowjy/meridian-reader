@@ -1,18 +1,18 @@
 import SwiftData
 import SwiftUI
 
-/// The Library home: the Everything / Favorites / Recent tab (`ShellState.homeTab`) above one
-/// mixed list of folders and pages. Everything is the top level of the Library: its folders, then
-/// the pages in no folder in the top level's sort. Favorites is the starred folders and pages from
-/// anywhere in the tree, in the Library or not. Recent is the pages played without saving, most
-/// recent first (no folders). The band's search (`ShellState.librarySearch`), begun on the home,
+/// The Library home: the title line (with ⋯ on compact width, `LibraryTitleMenu`), then the Library /
+/// Favorites / History tab (`ShellState.homeTab`; History is the `recent` case) above one mixed list
+/// of folders and pages. Library (`everything`) is the top level: its folders, then the pages in no
+/// folder in the top level's sort. Favorites is the starred folders and pages from anywhere in the
+/// tree, in the Library or not. History is the pages played without saving, most recent first (no
+/// folders). The band's search (`ShellState.librarySearch`), begun on the home,
 /// searches the selected tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'. A favorite
 /// keeps its location; filtered (a tab other than Everything, or a search) a row shows where it
 /// is (`LibraryScreenKey.filtered`).
 struct LibraryHomeView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
-    @Environment(LibraryScreenState.self) private var screen
 
     @Query private var queriedFolders: [Folder]
     @Query private var queriedArticles: [Article]
@@ -63,7 +63,7 @@ struct LibraryHomeView: View {
             Section {
                 EmptyView()
             } header: {
-                ScreenTitle(Verbs.library)
+                TitleLine(title: Verbs.library) { LibraryTitleMenu() }
                     .accessibilityIdentifier("libraryTitle")
                     .listHeader()
             }
@@ -75,13 +75,6 @@ struct LibraryHomeView: View {
                 .accessibilityIdentifier("libraryTabs")
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
-            }
-            if tab == .everything {
-                Section {
-                    NewFolderRow { screen.makeFolder(in: nil) }
-                }
-                .listRowInsets(EdgeInsets())
-                .listCard()
             }
             Section {
                 ForEach(folders, id: \.id) { folder in
@@ -116,12 +109,12 @@ struct LibraryHomeView: View {
             ContentUnavailableView.search(text: searchText)
                 .listRowBackground(Color.clear)
         } else if tab == .favorites {
-            EmptyState(String(localized: "No Favorites Yet"), symbol: Icons.favorite,
-                       description: String(localized: "Star a folder or article to find it here."))
+            EmptyState(String(localized: "No Favorites"), symbol: Icons.favorite,
+                       description: String(localized: "Tap the star on an article, book or folder to keep it here."))
                 .listRowBackground(Color.clear)
         } else if tab == .recent {
-            EmptyState(String(localized: "No Recent Articles Yet"), symbol: Icons.recent,
-                       description: String(localized: "Articles you start show up here, saved or not."))
+            EmptyState(String(localized: "No History"), symbol: Icons.history,
+                       description: String(localized: "Articles you play without saving show up here for 7 days."))
                 .listRowBackground(Color.clear)
         } else {
             emptyCard
@@ -130,38 +123,23 @@ struct LibraryHomeView: View {
 
     // MARK: - Empty
 
-    /// An empty Everything: what the toolbar does, with the two first-run actions.
+    /// An empty Library: the two ways something gets in, as the system's plain buttons, stacked.
     private var emptyCard: some View {
-        EmptyState(String(localized: "Find Something to Listen To"), symbol: Icons.library,
-                   description: Text("Tap \(Text.symbol(Icons.browser)) to find an article, or \(Text.symbol(Icons.add)) to import an EPUB. Articles you save, EPUBs you import and folders you make show up here.")) {
-            ActionButtonRow { fit in
-                PillButton(String(localized: "Browse the Web"), shortTitle: String(localized: "Browse"),
-                           systemImage: Icons.browser, style: .filled, fit: fit) { shell.leaveLibrary() }
+        EmptyState(String(localized: "No Articles or Books"), symbol: Icons.library,
+                   description: Text("Articles you save and books you import show up here.")) {
+            VStack(spacing: Spacing.s) {
+                Button(String(localized: "Browse the Web")) { shell.showBrowser() }
                     .accessibilityIdentifier("libraryEmptyBrowse")
-                PillButton(Verbs.importBook, shortTitle: Verbs.import,
-                           systemImage: Icons.importFile, style: .neutral, fit: fit) {
+                Button(String(localized: "Import a Book")) {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }
                 .accessibilityIdentifier("libraryEmptyImport")
             }
+            .fontWeight(.semibold)
+            .tint(Palette.accent)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("libraryEmpty")
-    }
-}
-
-/// A tappable row at the top of the Library's Everything list: plus-folder icon and "New Folder…",
-/// accent tinted, triggers the new-folder alert.
-private struct NewFolderRow: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            SymbolRow(Verbs.newFolder, symbol: Icons.newFolder, ink: Palette.accent)
-                .padding(.horizontal, Spacing.m)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("libraryNewFolder")
     }
 }
 
@@ -180,29 +158,13 @@ enum LibraryTopLevel {
     }
 }
 
-extension View {
-    /// A screen with no navigation bar (the Library home): paper behind the status bar, so rows
-    /// scrolled up pass under it rather than under the clock.
-    func statusBarBacking() -> some View {
-        // A line with no height at the safe area's top; its paper reaches up through the status
-        // bar. (The list itself runs edge to edge, so an overlay of it starts above the clock.)
-        safeAreaInset(edge: .top, spacing: 0) {
-            Color.clear
-                .frame(height: 0)
-                .background(Palette.paper.ignoresSafeArea(edges: .top))
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-    }
-}
-
 extension LibraryHomeTab {
     /// Its name in the tabs.
     var title: String {
         switch self {
         case .everything: Verbs.library
         case .favorites: Verbs.favorites
-        case .recent: String(localized: "Recent")
+        case .recent: Verbs.history
         }
     }
 

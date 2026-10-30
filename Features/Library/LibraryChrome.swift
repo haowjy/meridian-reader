@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// What the Library hands the shell's bottom chrome: its screen state (Edit's selection, the
-/// dialogs), the ⋯ menu of the screen on top, the search prompt. Built by the shell
-/// (`BrowseStartView`), which owns the chrome, and shared with `LibrarySurface`, which draws the
-/// screens.
+/// dialogs), the search prompt; and the ⋯ menu of the screen on top, which its title line draws
+/// on compact width (`LibraryTitleMenu`). Built by the shell (`BrowseStartView`), which owns the
+/// chrome, and shared with `LibrarySurface`, which draws the screens.
 @MainActor
 struct LibraryChrome {
     let shell: ShellState
@@ -31,8 +31,8 @@ struct LibraryChrome {
         return folder.map { LibraryHomeTab.searchPrompt(naming: $0.name) } ?? shell.homeTab.searchPrompt
     }
 
-    /// The compact ⋯: the screen's menu, with what the old toolbar's ＋ did as rows of it
-    /// (*New Folder…*, *Import from…*, *Paste Text…*), so they stay one tap from ⋯.
+    /// The compact ⋯ on the title line: the screen's menu, with what regular width's ＋ does as rows
+    /// of it (*New Folder…*, *Import from…*, *Paste Text…*).
     var compactMenu: MenuContext {
         var menu = screenMenu.menu(compact: true)
         // Favorites only lists starred items; nothing is created there (C150).
@@ -49,7 +49,7 @@ struct LibraryChrome {
         return name.flatMap { $0.isEmpty ? nil : $0 } ?? shell.homeTab.title
     }
 
-    /// The Library as the chrome host draws it: the search field, ⋯, Edit's bar.
+    /// The Library as the chrome host draws it: the search field, Edit's bar.
     func chromeScreen() -> ChromeScreen {
         let search = search
         return ChromeScreen(
@@ -68,12 +68,36 @@ struct LibraryChrome {
                 return AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt,
                                     focus: focus, fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard))
             },
-            more: AnyView(MoreMenuButton(id: "libraryMore", chrome: true) { compactMenu }
-                .turnOffPrepareQuestion(turningOff)),
             stripTitle: stripTitle,
             editBar: screen.isEditing ? AnyView(LibraryEditBar()) : nil
         )
     }
+}
+
+extension EnvironmentValues {
+    /// The Library's chrome on compact width, for its title lines' ⋯ (nil on regular width, where
+    /// the dock has ⋯).
+    @Entry var libraryChrome: LibraryChrome?
+}
+
+/// The ⋯ on a Library screen's title line (compact width): the menu of the screen on top, the same
+/// rows in the same order as the chrome's ⋯ had (`compactMenu`). *Turn Off Prepare* asks by it.
+/// `face`: how it is drawn (the title's glyph; a glass circle over Library Read's text).
+struct LibraryTitleMenu<Face: View>: View {
+    @ViewBuilder var face: Face
+
+    @Environment(\.libraryChrome) private var chrome
+
+    var body: some View {
+        if let chrome {
+            TitleMenuButton(id: "libraryMore", blocks: chrome.compactMenu.blocks) { face }
+                .turnOffPrepareQuestion(chrome.turningOff)
+        }
+    }
+}
+
+extension LibraryTitleMenu where Face == TitleMenuGlyph {
+    init() { self.init { TitleMenuGlyph() } }
 }
 
 /// The Library's Read, row 1's field: Aa (the text appearance panel) and the page's site, as the

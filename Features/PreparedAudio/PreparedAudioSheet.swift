@@ -119,7 +119,7 @@ struct PreparedAudioList: View {
                         .accessibilityIdentifier("preparedListeningHeader")
                 } footer: {
                     let total = listening.compactMap { listeningSizes[$0] }.reduce(0, +)
-                    Text(String(localized: "Audio made while you listen. It’s cleared once its article leaves the last \(LibraryStore.recentLimit) in Recent.")
+                    Text(String(localized: "Audio made while you listen. It’s cleared once its article leaves the last \(LibraryStore.recentLimit) in History.")
                          + (total > 0 ? " " + String(localized: "\(FileSizes.label(total)) on this iPhone.") : ""))
                         .listFooter()
                 }
@@ -255,7 +255,7 @@ struct PreparedAudioList: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(String(localized: "Prepared audio renders with an on-device voice. Choose one in Settings to go on."))
             PillButton(Verbs.settings, systemImage: Icons.settings, style: .neutral, size: .compact) {
-                shell.present(.settings)
+                shell.showSettings()
             }
                 .accessibilityIdentifier("downloadsSettings")
         }

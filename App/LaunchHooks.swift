@@ -107,6 +107,8 @@ enum LaunchHooks {
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
                                shell: ShellState) async {
         if options.opensDemoInReader { await openNewestInReader(in: library, shell: shell) }
+        if options.opensSettings { await openSettings(options, shell: shell) }
+        if options.readsDemoInLibrary { await readNewestInLibrary(in: library, shell: shell) }
 
         if options.tapsListen {
             try? await Task.sleep(for: .seconds(1))
@@ -361,6 +363,28 @@ enum LaunchHooks {
         shell.hideNowPlaying()
     }
 
+    /// `-readDemoInLibrary`: the newest saved article in Library Read, a second in.
+    static func readNewestInLibrary(in library: LibraryStore, shell: ShellState) async {
+        try? await Task.sleep(for: .seconds(1))
+        var newest = LibraryQueries.savedInLibrary
+        newest.fetchLimit = 1
+        guard let saved = try? library.context.fetch(newest).first else { return }
+        shell.openLibrary()
+        shell.openSaved(saved.listenKey, in: library, inPlace: shell.isCompact)
+    }
+
+    /// `-openSettings` and its `-searchSettings` / `-openSettingsPage`: a second in, once the window's
+    /// width is known (compact: the destination; regular: the sheet).
+    static func openSettings(_ options: LaunchOptions, shell: ShellState) async {
+        try? await Task.sleep(for: .seconds(1))
+        shell.select(.settings)
+        if let text = options.settingsSearch {
+            shell.beginSettingsSearch()
+            shell.settingsSearch.text = text
+        }
+        if let page = options.settingsPage { shell.settingsPath = [page] }
+    }
+
     /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article as the Browser's
     /// reader mode (the Reader sheet on regular width), without needing the network. Once the browser's
     /// first page (`-browseTestPages`) has loaded, which would otherwise end the reader mode.
@@ -376,7 +400,7 @@ enum LaunchHooks {
             article.document = document
             article.trustedParagraphs = document.paragraphs
         }
-        if shell.readsInPlace {
+        if shell.isCompact {
             shell.openPageReader(article, requestedAt: shell.pageReaderEpoch)
         } else {
             shell.openReader(article)

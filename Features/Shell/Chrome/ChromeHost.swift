@@ -1,14 +1,14 @@
 import SwiftUI
 import UIKit
 
-/// The compact bottom chrome, one view above both destinations (Library, Browser): two rows
+/// The compact bottom chrome, one view above the three destinations (Library, Browser, Settings): two rows
 /// expanded, then one, then a domain strip as it folds, none in an in-place reader's full screen.
 /// `ChromeState` says what is drawn, `ChromeLayout` where, `ChromePieces` draws it; this view only
 /// wires them to the app. Listen is not under it: it slides up over everything, chrome included.
 ///
 /// ```
 /// expanded    [‹][›][ address / Search Library     ][🎧]     row 1, Listen at its end
-///             [ Library | Browser ]               [ ⋯ ]     row 2: where you are, the menu
+///             [ Library  |  Browser  |  Settings      ]     row 2: where you are, margin to margin
 /// one row     [‹][›][ address / Search Library     ][🎧]     a scroll down's first step: row 2 goes, row 1 drops into its place
 /// folded                       example.com                   the second step: text naming the page over the home indicator
 /// keyboard    [ 🔍 field                      ⊗ 🎤 ][Cancel]    the keyboard is up (or its session open): margin to margin
@@ -24,11 +24,12 @@ import UIKit
 /// `ChromeMetrics.footprint` at the bottom and scroll under it. Reduce Motion: no travel, every
 /// change of form (the fold, the keyboard, full screen) is a cross-fade.
 ///
-/// It owns the field's focus (kept in sync with the session); each destination supplies its field,
-/// arrows and ⋯ as a `ChromeScreen`.
+/// It owns the field's focus (kept in sync with the session); each destination supplies its field
+/// and arrows as a `ChromeScreen`.
 struct ChromeHost: View {
     let browse: ChromeScreen
     let library: ChromeScreen
+    let settings: ChromeScreen
 
     @Environment(ShellState.self) private var shell
     @Environment(\.speechController) private var speech
@@ -50,6 +51,7 @@ struct ChromeHost: View {
         switch destination {
         case .library: library
         case .browse: browse
+        case .settings: settings
         }
     }
     private var session: SearchSession? { screen.session }

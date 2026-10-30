@@ -1,9 +1,9 @@
 import CoreGraphics
 
-/// The two places the chrome's pill switches between. Listen is not one of them: it slides up over
-/// everything (`ShellState.isNowPlayingPresented`), and the chrome's Listen button opens it.
+/// The places the chrome's pill switches between, in the pill's order. Listen is not one of them:
+/// it slides up over everything (`ShellState.isNowPlayingPresented`), and the chrome's Listen button opens it.
 enum ChromeDestination: CaseIterable, Equatable {
-    case library, browse
+    case library, browse, settings
 }
 
 /// Everything the compact chrome is drawn from. A pure value (no UIKit, no observation) so

@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// What the chrome host needs from a destination to draw its first row and ⋯: the field (and its
-/// search session), the arrows, the ⋯ button. The browser and the Library each build one; the rest
-/// of the chrome (the pill, Listen, the fold) is the host's.
+/// What the chrome host needs from a destination to draw its first row: the field (and its search
+/// session) and the arrows. Each destination builds one; the rest of the chrome (the pill, Listen,
+/// the fold) is the host's. The chrome has no ⋯: a screen's menu is on its title line, the
+/// Browser's on its field's leading glyph.
 struct ChromeScreen {
     /// nil: no field to search in.
     var session: SearchSession?
@@ -21,11 +22,9 @@ struct ChromeScreen {
     /// The field (a `SearchField`, an `AddressField`): the host passes the focus binding it keeps in
     /// sync with `session.isFocused`.
     var field: (FocusState<Bool>.Binding) -> AnyView = { _ in AnyView(EmptyView()) }
-    /// The ⋯ button, filling the frame the host gives it.
-    let more: AnyView
     /// What the strip names once a scroll down has folded both rows: the page's domain in the Browser, a
     /// screen, folder or article's title in the Library, the source in the Browser's reader mode.
     var stripTitle = ""
-    /// Library Edit: replaces the pill and ⋯ on row 2 with the selection's actions.
+    /// Library Edit: replaces the pill on row 2 with the selection's actions.
     var editBar: AnyView?
 }

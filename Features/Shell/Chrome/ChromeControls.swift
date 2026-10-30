@@ -5,6 +5,7 @@ extension ChromeDestination {
         switch self {
         case .library: Icons.library
         case .browse: Icons.browser
+        case .settings: Icons.settings
         }
     }
 
@@ -12,6 +13,7 @@ extension ChromeDestination {
         switch self {
         case .library: Verbs.library
         case .browse: Verbs.browser
+        case .settings: Verbs.settings
         }
     }
 
@@ -19,14 +21,15 @@ extension ChromeDestination {
         switch self {
         case .library: "chromeLibrary"
         case .browse: "chromeBrowser"
+        case .settings: "chromeSettings"
         }
     }
 
     var segment: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
-/// `[ 📚 | 🧭 ]`: one capsule, each segment a button showing its glyph only (Library and Browser are
-/// their names for VoiceOver and the large content viewer). Every segment has the same glyph size
+/// `[ 📚 | 🧭 | ⚙︎ ]`: one capsule of equal segments, each a button showing its glyph only (Library,
+/// Browser and Settings are their names for VoiceOver and the large content viewer). Every segment has the same glyph size
 /// and weight; lit differs by the glyph's tint and the wash only. Each segment is tapped
 /// `hitOutset` above and below the glass, `minTapTarget` tall.
 struct ChromePill: View {

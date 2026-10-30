@@ -71,6 +71,7 @@ struct LibrarySurface: View {
         .libraryDropZone(screen, top: shell.libraryPath.last.map(LibraryScreenKey.route) ?? .home,
                          actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow))
         .environment(screen)
+        .environment(\.libraryChrome, isRegular ? nil : chrome)
         .libraryDialogs(screen) {
             shell.pruneLibraryPath { library.folder(id: $0) != nil }
         }

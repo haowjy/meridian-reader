@@ -17,6 +17,11 @@ enum ReaderOrigin: Equatable {
     }
 }
 
+/// A page pushed in Settings (Settings › Voice).
+enum SettingsRoute: String, Hashable {
+    case voice, language, speed, appearance, reading, preparedAudio, acknowledgements
+}
+
 /// The Reader sheet: a page shown for reading over the surface that opened it, on regular width.
 /// Compact width reads in place instead (`ShellState.libraryReader`, `pageReader`).
 struct ReaderSheetState: Equatable {
@@ -137,6 +142,8 @@ final class ShellState {
         case browse
         /// The Library, at `libraryPath`.
         case library
+        /// Settings in place, compact width only (regular width shows it as a sheet, `showSettings`).
+        case settings
     }
 
     /// The compact bottom chrome's presence (collapsed to one row, an in-place reader's full screen) and
@@ -174,8 +181,16 @@ final class ShellState {
     /// the heading's ▶ Listen (which raises Now Playing over it); ‹ (or the edge swipe) puts the
     /// Library back as it was.
     private(set) var libraryReader: ReaderArticle?
-    /// Compact width reads in place (`libraryReader`, `pageReader`); regular width keeps the Reader sheet.
-    var readsInPlace = false
+    /// Compact width reads in place (`libraryReader`, `pageReader`) and has Settings as a destination;
+    /// regular width keeps the Reader sheet and the Settings sheet, so a Settings surface (restored, or
+    /// the window widened) becomes the browser with the Settings sheet over it.
+    var isCompact = false {
+        didSet {
+            guard !isCompact, isInSettings else { return }
+            showBrowser()
+            present(.settings)
+        }
+    }
     /// The text appearance panel of the Browser's in-place reader: open from Aa in the address field or from ⋯ → Text
     /// Appearance, always pointing at Aa (the Library's has Aa on its capsule).
     var readerAppearanceOpen = false
@@ -212,6 +227,10 @@ final class ShellState {
     let addressSearch = SearchSession()
     /// The Library's search field, in the band (decision D22): its text filters the Library home.
     let librarySearch = SearchSession()
+    /// Search Settings, the Settings destination's field: its text filters the settings list.
+    let settingsSearch = SearchSession()
+    /// The Settings destination's pushed pages, kept while another destination shows.
+    var settingsPath: [SettingsRoute] = []
     /// Regular-width sidebar collapsed for focus reading / full-bleed Browse (iPad). Compact ignores it.
     var sidebarCollapsed = false
     /// Whether a target is what you hear (the playback session answers).
@@ -231,7 +250,11 @@ final class ShellState {
         guard restores, let memory else { return }
         homeTab = memory.loadHomeTab()
         if let last = memory.load() {
-            surface = last.base == .library ? .library : .browse
+            surface = switch last.base {
+            case .library: .library
+            case .browse: .browse
+            case .settings: .settings
+            }
             libraryPath = last.libraryPath
             pendingBrowserURL = last.browserURL.flatMap(URL.init(string:))
         } else {
@@ -252,6 +275,10 @@ final class ShellState {
         if case .library = surface { true } else { false }
     }
 
+    var isInSettings: Bool {
+        if case .settings = surface { true } else { false }
+    }
+
     /// `path` up to its first folder that no longer exists: a deleted folder falls back to its
     /// nearest surviving parent, at worst the Library's home.
     static func surviving(_ path: [LibraryRoute], exists: (UUID) -> Bool) -> [LibraryRoute] {
@@ -262,8 +289,14 @@ final class ShellState {
 
     // MARK: - The chrome's destination
 
-    /// The pill's lit segment: the surface on screen. Listen covers both without changing it.
-    var chromeDestination: ChromeDestination { isInLibrary ? .library : .browse }
+    /// The pill's lit segment: the surface on screen. Listen covers it without changing it.
+    var chromeDestination: ChromeDestination {
+        switch surface {
+        case .browse: .browse
+        case .library: .library
+        case .settings: .settings
+        }
+    }
 
     /// A tap on a segment of the chrome's pill. The lit segment is where you already are.
     func select(_ target: ChromeDestination) {
@@ -271,6 +304,7 @@ final class ShellState {
         switch target {
         case .library: openLibrary()
         case .browse: showBrowser()
+        case .settings: showSettings()
         }
     }
 
@@ -284,7 +318,7 @@ final class ShellState {
             showNowPlaying()
             return
         }
-        guard readsInPlace else {
+        guard isCompact else {
             reader = ReaderSheetState(article: article, origin: isInLibrary ? .library : .browser)
             return
         }
@@ -382,6 +416,7 @@ final class ShellState {
         // A search stays open under Listen, its keyboard lowered.
         addressSearch.lowerKeyboard()
         librarySearch.lowerKeyboard()
+        settingsSearch.lowerKeyboard()
         if let article = reader?.article, isHearingArticle(of: article) {
             reader = nil
         }
@@ -431,7 +466,7 @@ final class ShellState {
 
     /// At launch, once the library is open: the path keeps the folders that still exist (up to the
     /// first that doesn't), and the browser reloads its last page: now when it is showing, or the
-    /// first time you go there from the Library (`leaveLibrary`).
+    /// first time you go there from another surface (`showBrowser`).
     func restoreAtLaunch(folderExists: (UUID) -> Bool) {
         pruneLibraryPath(keeping: folderExists)
         if isBrowsing, let url = pendingBrowserURL {
@@ -451,7 +486,12 @@ final class ShellState {
 
     private func remember() {
         guard let memory else { return }
-        memory.save(SurfaceMemory(base: isInLibrary ? .library : .browse, libraryPath: libraryPath,
+        let base: SurfaceMemory.Base = switch surface {
+        case .browse: .browse
+        case .library: .library
+        case .settings: .settings
+        }
+        memory.save(SurfaceMemory(base: base, libraryPath: libraryPath,
                                   browserURL: (web.currentURL ?? pendingBrowserURL)?.absoluteString))
     }
 
@@ -486,33 +526,53 @@ final class ShellState {
 
     /// 📚: the Library as it was left, its place and its tab.
     func openLibrary() {
-        endAddressSearch()
-        closePageReader()
         reader = nil
         hideNowPlaying()
-        surface = .library
+        show(.library)
     }
 
-    /// Back to the browser as it was: the page (or start page) under the library is untouched. A
-    /// Reader opened from the library goes with it.
-    func leaveLibrary() {
-        guard isInLibrary else { return }
-        endLibrarySearch()
-        libraryReader = nil
-        if reader?.origin == .library { reader = nil }
-        surface = .browse
-        // Reopened on the Library: the browser's last page loads the first time you go there.
+    /// The browser as it was, with nothing over it (the Reader, Now Playing): the page (or start page)
+    /// under the other surfaces is untouched.
+    func showBrowser() {
+        reader = nil
+        hideNowPlaying()
+        guard !isBrowsing else { return }
+        show(.browse)
+        // Reopened elsewhere: the browser's last page loads the first time you go there.
         if let url = pendingBrowserURL, web.currentURL == nil {
             pendingBrowserURL = nil
             navigate(to: url)
         }
     }
 
-    /// The browser, with nothing over it: closes the Reader and Now Playing, leaves the library.
-    func showBrowser() {
-        reader = nil
+    /// Settings: on compact width the Settings destination, in place under the chrome (a sheet that
+    /// asked for it closes); on regular width the Settings sheet.
+    func showSettings() {
+        guard isCompact else {
+            present(.settings)
+            return
+        }
+        sheet = nil
         hideNowPlaying()
-        leaveLibrary()
+        show(.settings)
+    }
+
+    /// `new` on screen: what belonged only to the surface it replaces goes (its search, its page read
+    /// in place, a Reader opened from the Library). What it shows stays for the next visit.
+    private func show(_ new: Surface) {
+        guard surface != new else { return }
+        switch surface {
+        case .browse:
+            endAddressSearch()
+            closePageReader()
+        case .library:
+            endLibrarySearch()
+            libraryReader = nil
+            if reader?.origin == .library { reader = nil }
+        case .settings:
+            endSettingsSearch()
+        }
+        surface = new
     }
 
     // MARK: - Pages
@@ -544,6 +604,17 @@ final class ShellState {
     }
 
     // MARK: - Address field
+
+    /// Search Settings' field tapped: the search shows its results on the list, so a pushed page goes.
+    func beginSettingsSearch() {
+        settingsPath = []
+        settingsSearch.begin()
+    }
+
+    /// Search Settings' ✕ (or leaving Settings): ends its search and clears the filter.
+    func endSettingsSearch() {
+        settingsSearch.end(showing: "")
+    }
 
     /// The Library's ✕: ends its search and clears the filter.
     func endLibrarySearch() {

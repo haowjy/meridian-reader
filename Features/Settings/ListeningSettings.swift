@@ -10,30 +10,37 @@ import AVFoundation
 struct ListeningSettingsSection: View {
     @Bindable var speech: SpeechController
 
+    @Environment(\.settingsSearch) private var search
+
+    static let group = SettingsSearch.Group(title: String(localized: "Listening"),
+                                            rows: [Verbs.voice, Verbs.language, Verbs.speed])
+
     private var localTTS: LocalTTSCoordinator { speech.localTTS }
 
     var body: some View {
-        Section {
-            SettingsLinkRow(title: Verbs.voice, symbol: nil, value: voiceName,
-                            accessibilityID: "settingsVoice") {
-                VoicePage(speech: speech)
+        if search.shows(Self.group) {
+            Section {
+                if search.shows(Verbs.voice, in: Self.group) {
+                    SettingsLinkRow(title: Verbs.voice, symbol: nil, value: voiceName,
+                                    accessibilityID: "settingsVoice", route: .voice)
+                }
+                if search.shows(Verbs.language, in: Self.group) {
+                    SettingsLinkRow(title: Verbs.language, symbol: nil, value: languageName,
+                                    accessibilityID: "settingsLanguage", route: .language)
+                }
+                if search.shows(Verbs.speed, in: Self.group) {
+                    SettingsLinkRow(title: Verbs.speed, symbol: nil, value: ListenRate.label(speech.rateMultiplier),
+                                    accessibilityID: "settingsSpeed", route: .speed)
+                }
+            } header: {
+                SectionHeader(title: Self.group.title, size: .settings).listHeader()
+            } footer: {
+                if let notice = localTTS.engineCrashNotice {
+                    Text(notice).foregroundStyle(Palette.destructive).listFooter()
+                }
             }
-            SettingsLinkRow(title: Verbs.language, symbol: nil, value: languageName,
-                            accessibilityID: "settingsLanguage") {
-                LanguagePage(speech: speech)
-            }
-            SettingsLinkRow(title: Verbs.speed, symbol: nil, value: ListenRate.label(speech.rateMultiplier),
-                            accessibilityID: "settingsSpeed") {
-                SpeedPage(speech: speech)
-            }
-        } header: {
-            SectionHeader(title: String(localized: "Listening"), size: .settings).listHeader()
-        } footer: {
-            if let notice = localTTS.engineCrashNotice {
-                Text(notice).foregroundStyle(Palette.destructive).listFooter()
-            }
+            .listCard()
         }
-        .listCard()
     }
 
     // MARK: - Values shown on the rows
@@ -48,7 +55,7 @@ struct ListeningSettingsSection: View {
 
 /// Settings › Listening › Speed: `ListenRate`'s speeds, slowest first, with Now Playing's speed
 /// list's labels and ids (`listenSpeedOption-1×`); the chosen one ✓.
-private struct SpeedPage: View {
+struct SpeedPage: View {
     @Bindable var speech: SpeechController
 
     var body: some View {

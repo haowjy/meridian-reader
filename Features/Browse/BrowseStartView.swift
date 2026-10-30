@@ -34,9 +34,9 @@ struct BrowseStartView: View {
     private var webStore: WebViewStore { shell.web }
     private var search: SearchSession { shell.addressSearch }
 
-    /// Something covers the browser (the library, a sheet, Now Playing).
+    /// Something covers the browser (the Library, Settings, a sheet, Now Playing).
     private var isCovered: Bool {
-        shell.isInLibrary || shell.reader != nil || shell.isNowPlayingPresented
+        !shell.isBrowsing || shell.reader != nil || shell.isNowPlayingPresented
     }
 
     private var hasPage: Bool { webStore.hasPage }
@@ -258,9 +258,15 @@ struct BrowseStartView: View {
                                   covered: shell.reader != nil || shell.isNowPlayingPresented,
                                   onEdgeSwipeBack: shell.closeLibraryReader)
                         .id(article.id)
+                        .overlay(alignment: .topTrailing) { libraryReadMenu }
                         .covered(shell.reader != nil || shell.isNowPlayingPresented)
                         .transition(.opacity)
                 }
+            }
+            if shell.isInSettings, !isRegular {
+                SettingsView(speech: speech, placement: .destination)
+                    .covered(shell.isNowPlayingPresented)
+                    .transition(.opacity)
             }
             if let reader = shell.reader {
                 ReaderSheetScreen(state: reader, speech: speech)
@@ -280,7 +286,7 @@ struct BrowseStartView: View {
         }
         .animation(isRegular || reduceMotion ? nil : Motion.snappy, value: ReadingLayers(reader: shell.reader?.presentation,
                                                                               libraryReader: shell.libraryReader != nil))
-        .onChange(of: isRegular, initial: true) { _, regular in shell.readsInPlace = !regular }
+        .onChange(of: isRegular, initial: true) { _, regular in shell.isCompact = !regular }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -288,6 +294,22 @@ struct BrowseStartView: View {
     private struct ReadingLayers: Equatable {
         var reader: UUID?
         var libraryReader: Bool
+    }
+
+    /// Library Read's ⋯ (the Library's screen menu, which the chrome has no ⋯ for): a round face at
+    /// the top right over the text, on its title's line, gone in full screen with the chrome.
+    @ViewBuilder
+    private var libraryReadMenu: some View {
+        if !shell.chromeScroll.fullScreen {
+            LibraryTitleMenu {
+                ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
+                    .frame(width: ChromeMetrics.barHeight, height: ChromeMetrics.barHeight)
+            }
+            .environment(\.libraryChrome, libraryChrome)
+            .readingSurface(readingAppearance.palette(accent: AppAppearance.shared.accent))
+            .padding(.trailing, ChromeMetrics.margin)
+            .transition(.opacity)
+        }
     }
 
     // MARK: - Compact bottom chrome
@@ -302,7 +324,7 @@ struct BrowseStartView: View {
     private var compactChrome: some View {
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
         return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
-            ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen())
+            ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen(), settings: settingsChromeScreen)
                 .environment(libraryScreen)
                 .frame(maxHeight: .infinity, alignment: .bottom)
         }
@@ -326,11 +348,27 @@ struct BrowseStartView: View {
             field: { focus in
                 AnyView(BrowseAddressField(speech: speech, dictation: dictation,
                                            onOpenReader: { run { try await $0.openInReader(inPlace: true) } }, compact: true,
-                                           onReload: reloadOrStop,
+                                           holdMenu: holdMenu(actions), onReload: reloadOrStop,
                                            onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
             },
-            more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) }),
             stripTitle: stripTitle
+        )
+    }
+
+    /// Settings as the chrome host draws it: Search Settings, which filters the list.
+    private var settingsChromeScreen: ChromeScreen {
+        let search = shell.settingsSearch
+        return ChromeScreen(
+            session: search,
+            cancelID: "settingsSearchCancel",
+            onCancel: shell.endSettingsSearch,
+            begin: shell.beginSettingsSearch,
+            field: { focus in
+                AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }),
+                                    prompt: String(localized: "Search Settings"), focus: focus,
+                                    fieldIdentifier: "settingsSearchField", onSubmit: search.lowerKeyboard))
+            },
+            stripTitle: Verbs.settings
         )
     }
 
@@ -384,13 +422,33 @@ struct BrowseStartView: View {
         speech.press(target) {
             let page = page
             Task {
-                if case .nothingToListenTo = await page.listenNow() {
-                    withAnimation(Motion.snappy) {
-                        shell.showToast(ShellToast(message: String(localized: "Nothing to listen to on this page"),
-                                                   systemImage: Icons.listen))
-                    }
-                }
+                if case .nothingToListenTo = await page.listenNow() { sayNothingToListenTo() }
             }
+        }
+    }
+
+    /// The hold menu's *Listen* (compact width): Listen over the page you hear; another page is
+    /// extracted and plays (what's playing keeps on until it is ready), and Listen rises once it starts.
+    private func listenAndShow() {
+        guard let url = webStore.currentURL else { return }
+        let target = ListenTarget.webPage(canonicalURL: ArticleIdentity.canonicalURLString(from: url))
+        guard speech.playState(of: target) == .idle else {
+            shell.showNowPlaying()
+            return
+        }
+        let page = page
+        Task {
+            switch await page.listenNow() {
+            case .started: shell.showNowPlaying()
+            case .nothingToListenTo: sayNothingToListenTo()
+            case .superseded: break
+            }
+        }
+    }
+
+    private func sayNothingToListenTo() {
+        withAnimation(Motion.snappy) {
+            shell.showToast(ShellToast(message: String(localized: "Nothing to listen to on this page"), systemImage: Icons.listen))
         }
     }
 
@@ -442,6 +500,20 @@ struct BrowseStartView: View {
     }
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
+
+    /// The compact Browser's menu, a press and hold on the field's leading glyph (the chrome has no ⋯):
+    /// *Open in Reader* (or *Show Web Page*) and *Listen*, then the rows regular width's ⋯ shows, in
+    /// its order, less its Reader tile (the first row here).
+    private func holdMenu(_ actions: ArticleActions) -> [[MenuRow]] {
+        let context = menu(actions)
+        let reader = context.tiles.last.map { tile in
+            MenuRow(id: tile.id, title: shell.pageReader != nil ? Verbs.showWebPage : Verbs.openInReader, icon: tile.icon,
+                    availability: tile.availability, action: tile.action)
+        }
+        let listen = MenuRow(id: "moreListenPage", title: Verbs.listen, icon: Icons.listen,
+                             availability: MenuAvailability(when: hasPage && webStore.isReaderable), action: listenAndShow)
+        return [[reader, listen].compactMap { $0 }, context.item, context.screen, Array(context.tiles.dropLast())]
+    }
 
     // MARK: - Start page
 

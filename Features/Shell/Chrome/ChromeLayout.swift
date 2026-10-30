@@ -35,18 +35,19 @@ struct ChromePiece: Equatable {
 ///
 /// ```
 /// expanded    [‹][›][ address / search             ][🎧]     row 1: Listen ends it on every destination
-///             [ Library | Browser ]               [⋯]       row 2
+///             [ Library  |  Browser  |  Settings      ]     row 2: the pill alone, margin to margin
 /// one row     [‹][›][ address / search             ][🎧]     the fold's first step: row 1 in row 2's place
 /// folded                       example.com                   the strip: text over the home indicator
 /// reader mode [‹][›][ address                      ][🎧]     the Browser's page as the Reader draws it
 ///             [‹][ Aa  site                         ][🎧]     the Library's Read
 /// editing     [‹][ search                                ]   no Listen
-///             [ the selection's actions                 ]   row 2 whole: no pill or ⋯
+///             [ the selection's actions                 ]   row 2 whole: no pill
 /// keyboard    [ 🔍 field                      ⊗ 🎤 ][Cancel]    margin to margin on every phone: the field, one gap, Cancel
 /// full screen (nothing)
 /// ```
 ///
-/// The pill keeps one place at the left of row 2 and ⋯ one at its right, in every expanded form.
+/// The pill keeps one place, row 2 whole, in every expanded form. There is no ⋯: each screen's menu is
+/// on its title line, the Browser's on the field's leading glyph (a press and hold).
 struct ChromeLayout: Equatable {
     /// The pill: the keyboard's form hides it (the field and Cancel take its row).
     var pill: ChromePiece
@@ -57,9 +58,9 @@ struct ChromeLayout: Equatable {
     /// Which of ‹ and › the capsule draws (the other's circle isn't there).
     var navShowsBack = false
     var navShowsForward = false
-    /// ⋯, or Cancel (a word, `ChromeMetrics.cancelWidth` wide) while the keyboard is up.
-    var more: ChromePiece
-    /// A Library selection's actions: row 2 whole, in place of the pill and ⋯.
+    /// Cancel (a word, `ChromeMetrics.cancelWidth` wide), ending the keyboard's row.
+    var cancel: ChromePiece
+    /// A Library selection's actions: row 2 whole, in place of the pill.
     var editBar: ChromePiece
     /// Listen, the round button at the end of row 1: opens Listen over everything.
     var listen: ChromePiece
@@ -71,7 +72,7 @@ struct ChromeLayout: Equatable {
 
     /// The top edge of the highest piece, nil when nothing shows (full screen).
     var top: CGFloat? {
-        [pill, field, nav, more, editBar, listen, strip].filter(\.isShown).map(\.rect.minY).min()
+        [pill, field, nav, cancel, editBar, listen, strip].filter(\.isShown).map(\.rect.minY).min()
     }
 
     init(width w: CGFloat, state s: ChromeState) {
@@ -80,8 +81,7 @@ struct ChromeLayout: Equatable {
         // The rows dip into the home indicator's strip; the keyboard's form sits on the keyboard instead.
         let bottom = K.footprint + (s.keyboard ? 0 : s.homeInset - K.edgeClearance)
         let rowY = bottom - bar
-        // Both rows share one pair of edges, the margins, on every width. The pill keeps its fixed width
-        // at the left and ⋯ ends the row at the right; a wider screen only widens the gap between them.
+        // Both rows share one pair of edges, the margins, on every width.
         let row1Y = rowY - gap - bar
         let isBrowse = s.destination == .browse
         let hold = !s.fullScreen
@@ -89,19 +89,17 @@ struct ChromeLayout: Equatable {
         func navWidth(_ arrows: CGFloat) -> CGFloat { arrows >= 2 ? K.navPairWidth : arrows * K.navSingleWidth }
         let row2 = !s.editing && hold
 
-        // Typing: only the field and Cancel (no pill or ⋯: nothing there needs to stay put), so the
-        // field runs from the left margin to Cancel, which ends at the right margin, on every phone.
+        // Typing: only the field and Cancel (no pill), so the field runs from the left margin to Cancel,
+        // which ends at the right margin, on every phone.
         let typing = s.keyboard && !s.editing && hold
-        let moreRect = typing ? CGRect(x: w - margin - K.cancelWidth, y: rowY, width: K.cancelWidth, height: bar)
-                              : CGRect(x: w - margin - bar, y: rowY, width: bar, height: bar)
+        let cancelRect = CGRect(x: w - margin - K.cancelWidth, y: rowY, width: K.cancelWidth, height: bar)
         // The field's right end while typing: Cancel's left, or the right margin during Edit (no Cancel then).
-        let rightEdge = typing ? moreRect.minX - rowGap : w - margin
+        let rightEdge = typing ? cancelRect.minX - rowGap : w - margin
 
-        more = ChromePiece(rect: moreRect, isShown: row2)
+        cancel = ChromePiece(rect: cancelRect, isShown: typing)
         editBar = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar),
                               isShown: s.editing && hold)
-        // The pill runs from the left margin to one gap before ⋯, so its right end lines up with the field's above (Listen over ⋯).
-        pill = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin - rowGap - bar, height: bar), isShown: row2 && !typing)
+        pill = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar), isShown: row2 && !typing)
 
         // ‹ ›. In the Browser: the pair whenever either way is open, the one that isn't dimmed (so ›
         // never hides behind a lone ‹ after going back to the first page). Elsewhere (a Library page
@@ -152,7 +150,6 @@ struct ChromeLayout: Equatable {
         strip = ChromePiece(rect: stripFull, isShown: hold && grown > 0)
         stripOpacity = grown
         pill = foldRow2(pill)
-        more = foldRow2(more)
         nav = foldRow1(navForm)
         listen = foldRow1(listenForm)
         field = foldRow1(fieldForm)

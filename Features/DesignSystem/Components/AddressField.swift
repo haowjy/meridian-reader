@@ -18,6 +18,9 @@ import SwiftUI
 /// does: it is a whole 44 pt control at the field's trailing end, its glyph the chrome's own,
 /// centred in the capsule's end (concentric with it), so the text gives way to it.
 ///
+/// `holdMenu` (the compact Browser's menu, which has no ⋯ in its chrome) opens on a press and hold of
+/// the leading glyph, 📄 or 🔍, as a system menu; a tap on 📄 still toggles the reader view.
+///
 /// `field` is the text itself: the page's address while idle, the `TextField` while editing.
 /// `accessory` sits at the trailing end while editing, in the trailing button's place (🎤).
 struct AddressField<Field: View, Accessory: View>: View {
@@ -49,6 +52,8 @@ struct AddressField<Field: View, Accessory: View>: View {
     /// Aa before ↻ while the Browser shows a page's reader (compact width): opens the text appearance
     /// panel pointing at it. The binding is the panel's open state; nil draws no Aa.
     var appearance: Binding<Bool>?
+    /// The menu a press and hold on the leading glyph opens (nil: none).
+    var holdMenu: [[MenuRow]]?
     var onOpenReader: () -> Void = {}
     var onListen: () -> Void = {}
     var onReload: () -> Void = {}
@@ -130,20 +135,31 @@ struct AddressField<Field: View, Accessory: View>: View {
         // 🔍 when there is nothing to read or while editing: the same slot, glyph and frame as
         // the Library's `SearchField`, so both fields line up. A caption-size hint, not a control.
         case .hidden, .searching:
-            Image(systemName: Icons.search)
+            let glyph = Image(systemName: Icons.search)
                 .font(isChromeField ? BottomChrome.chromeGlyph : .caption)
                 .foregroundStyle(Palette.secondaryInk)
                 .frame(width: Glyph.fieldLeading * readerReveal, height: Glyph.fieldLeading)
                 .opacity(readerReveal)
                 .clipped()
-                .accessibilityHidden(true)
+            if let holdMenu, reader == .hidden {
+                // Nothing to read: the glyph holds the page's menu, and a tap does nothing.
+                Menu { MenuRows(blocks: holdMenu) } label: { glyph.tapTarget(Glyph.fieldLeading) } primaryAction: {}
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .allowsHitTesting(readerReveal > 0.5)
+                    .accessibilityHidden(readerReveal < 0.5)
+                    .accessibilityLabel(Verbs.more)
+                    .accessibilityIdentifier("addressMenu")
+            } else {
+                glyph.accessibilityHidden(true)
+            }
         case .extracting:
             ProgressView()
                 .controlSize(.small)
                 .frame(width: Self.readerSize * readerReveal, height: Self.readerSize)
                 .opacity(readerReveal)
         case .available:
-            Button(action: onOpenReader) {
+            readerControl {
                 Image(systemName: Icons.reader)
                     .font(controlFont)
                     .foregroundStyle(Palette.accent)
@@ -151,7 +167,6 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .opacity(readerReveal)
                     .tapTarget(Self.readerSize)
             }
-            .buttonStyle(.plain)
             .allowsHitTesting(readerReveal > 0.5)
             .accessibilityHidden(readerReveal < 0.5)
             .accessibilityLabel(Verbs.openInReader)
@@ -162,7 +177,7 @@ struct AddressField<Field: View, Accessory: View>: View {
             // The reader view shows: the icon sits in a lit capsule inset from the field's edge,
             // concentric with it (the pill's lit segment, the same fill).
             let side = ChromeMetrics.barHeight
-            Button(action: onOpenReader) {
+            readerControl {
                 Image(systemName: Icons.readerShowing)
                     .font(controlFont)
                     .foregroundStyle(Palette.accent)
@@ -173,7 +188,6 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .opacity(readerReveal)
                     .clipped()
             }
-            .buttonStyle(.plain)
             .allowsHitTesting(readerReveal > 0.5)
             .accessibilityHidden(readerReveal < 0.5)
             .accessibilityLabel(Verbs.showWebPage)
@@ -181,6 +195,21 @@ struct AddressField<Field: View, Accessory: View>: View {
             .accessibilityIdentifier("addressReader")
             .chromeLargeContent(Verbs.showWebPage, symbol: Icons.readerShowing)
             .transition(.opacity)
+        }
+    }
+}
+
+extension AddressField {
+    /// 📄: a tap toggles the reader view; with a `holdMenu`, a press and hold opens it.
+    @ViewBuilder
+    fileprivate func readerControl(@ViewBuilder _ label: () -> some View) -> some View {
+        if let holdMenu {
+            Menu { MenuRows(blocks: holdMenu) } label: { label() } primaryAction: { onOpenReader() }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+        } else {
+            Button(action: onOpenReader, label: label)
+                .buttonStyle(.plain)
         }
     }
 }

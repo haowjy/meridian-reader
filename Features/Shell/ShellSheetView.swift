@@ -46,7 +46,7 @@ struct ShellSheetView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         case .settings:
-            SettingsView(speech: speech) { shell.sheet = nil }
+            SettingsView(speech: speech, placement: .sheet(onDone: { shell.sheet = nil }))
                 .regularInsetFormSheet(isRegular: isRegular)
         case .share(let url):
             ActivityShareSheet(items: [url])

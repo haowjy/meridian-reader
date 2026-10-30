@@ -84,7 +84,7 @@ enum Verbs {
     static let removeFromLibrary = String(localized: "Remove from Library")
     /// A page out of the Library: the same remove as *Remove from Library* (in no list after,
     /// the star kept).
-    static let removeFromRecent = String(localized: "Remove from Recent")
+    static let removeFromRecent = String(localized: "Remove from History")
     static let stopListening = String(localized: "Stop Listening")
     /// Edit's bar: the selected pages removed from the Library, the selected folders deleted
     /// after asking.

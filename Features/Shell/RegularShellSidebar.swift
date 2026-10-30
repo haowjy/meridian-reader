@@ -56,7 +56,7 @@ struct RegularShellSidebar: View {
             .frame(maxHeight: .infinity, alignment: .top)
 
             sidebarButton(title: Verbs.settings, symbol: Icons.settings, identifier: "sidebarSettings",
-                          selected: isSettingsUp, action: { shell.present(.settings) })
+                          selected: isSettingsUp, action: shell.showSettings)
                 .padding(.horizontal, Spacing.xs)
                 .padding(.bottom, Spacing.m)
         }
@@ -107,7 +107,7 @@ struct RegularShellSidebar: View {
             if surface == .library {
                 shell.openLibrary()
             } else {
-                shell.leaveLibrary()
+                shell.showBrowser()
             }
         }
         .padding(.horizontal, Spacing.xs)

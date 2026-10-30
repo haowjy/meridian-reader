@@ -66,16 +66,17 @@ Regular width keeps the Reader and Now Playing sheets ("iPad and regular width")
 ## Bottom chrome (compact width)
 
 On iPhone (any compact width) one floating chrome host (`Features/Shell/Chrome/ChromeHost.swift`)
-sits over both destinations, the Browser and the Library (and their in-place readers). Listen is
-not a destination: it slides up over the chrome. There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
+sits over three destinations, the Library, the Browser and Settings (and the in-place readers). Listen is
+not a destination: it slides up over the chrome. The chrome has no ⋯: the Library's screens, Library Read and
+Settings have ⋯ on their title line, and the Browser's menu is a press and hold on its field's leading glyph. There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
 Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular width", below).
 
 ```
 expanded    [‹ ›][ address / Search Library     ][🎧]     row 1: the screen's own, Listen at its end
-            [ ▤ | 🌐 ]                       [⋯]     row 2: where you are (icons only), menu
+            [ ▤  |  🌐  |  ⚙︎                  ]     row 2: where you are (icons only), margin to margin
 one row     [‹ ›][ address / Search Library     ][🎧]     first step of a scroll down: row 2 gone, row 1 in its place
 folded                       example.com                  second step: a text strip that names the page; a tap brings both rows back
-searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no pill, Listen or ⋯, no strip
+searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no pill or Listen, no strip
 Listen      slides up over everything                     a pull down closes it, back to what was under it
 ```
 
@@ -84,8 +85,8 @@ has **steps**: 0 is two rows, 0.5 one row, 1 the strip. From 0 to 0.5 row 2 shri
 row 1 drops one row (bar + gap) into its place; from 0.5 to 1 row 1 shrinks toward the strip's centre while the
 strip's text fades and rises in (`ChromeLayout.stripOpacity`). The sizes are Safari's (measured on an iPhone 17 Pro,
 iOS 26). Both rows run **margin to margin with identical leading and trailing edges** on every phone: the field
-and the pill start at the left margin, Listen and ⋯ end at the right one, and the pill ends one gap before ⋯, so
-its right end lines up with the field's above (Listen over ⋯). A wider phone widens the field and the pill.
+and the pill start at the left margin, Listen and the pill end at the right one. A wider phone widens the field and
+the pill.
 
 **Placement is measured from the screen's edge.** The bottom row's bottom sits 34 pt above the screen's edge
 (`ChromeMetrics.edgeClearance`), on the home-indicator strip rather than in it, on every phone (a Home button phone
@@ -100,12 +101,23 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   text up to 260 pt (`stripMaxWidth`), centred, its bottom 34 pt above the screen's edge. The hit area is the
   text's width and 44 pt tall (`stripHitOutset` 12 above and below). It names where you are: the page's domain
   on the Browser (no `www.`, no path), the screen's title in the Library, the article's title in Library Read,
-  the source in the Browser's reader mode (`ChromeScreen.stripTitle`). Audio keeps playing while folded; the
-  strip's tap and a scroll up bring both rows back. Settings and sheets have no strip.
+  the source in the Browser's reader mode, *Settings* in Settings (`ChromeScreen.stripTitle`). Audio keeps playing
+  while folded; the strip's tap and a scroll up bring both rows back. Sheets have no strip.
 
-- **The pill** `[Library | Browser]`: two equal segments, half the pill each, **icons only** (each keeps its
-  accessibility label: Library, Browser), the lit one the screen you are on (an inset capsule, 4 pt on all
-  four sides, 40 tall, its glyph accent).
+- **The pill** `[Library | Browser | Settings]`: three equal segments, a third of the pill each (117 pt on the
+  SE's 375), **icons only** (each keeps its accessibility label: Library, Browser, Settings; ids `chromeLibrary`,
+  `chromeBrowser`, `chromeSettings`), the lit one the screen you are on (an inset capsule, 4 pt on all four sides,
+  40 tall, its glyph accent).
+- **Settings** (compact width) is a destination like the other two: its pill segment shows it in place under
+  the same chrome (`ShellState.Surface.settings`, remembered for the next launch as `settings`), Library and
+  Browser leave it, and it scrolls under the chrome and folds like the Library. Its title heads the list with ⋯ at
+  the end of the line (Settings has no rows of its own, so the app-wide ones: Saved, History, Listen). Row 1 is
+  **Search Settings**, which filters the list as you type: a row shows when its title or its section's title
+  contains the text, sections without a match go, and nothing matching says *No Results for "…"* (the
+  Library search's view). Starting a search shows the list (a pushed page goes); the pages it pushes (Voice,
+  Appearance, Prepared Audio, …) are `ShellState.settingsPath`, kept while another destination shows. Regular
+  width keeps the Settings sheet (the sidebar's Settings); a Settings surface restored on regular width (or a
+  window widened onto it) becomes the browser with the Settings sheet over it.
 - **Listen** (`ChromeListenButton`, id `chromeListen`, VoiceOver *Listen*, value *Playing* while it plays): a
   48 pt glass circle ending row 1 on every screen, Library Read and the Browser's reader mode included. It shows
   the headphones, or the app's playing bars in the accent while something plays (still under Reduce Motion).
@@ -114,14 +126,13 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   drawn while typing or in Library Edit (row 1 is then the field alone).
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **48 pt**
   (`ChromeMetrics.barHeight`, Safari's address bar and buttons), for every piece in every row and state (pill,
-  fields, ‹ ›, Listen, ⋯, Cancel, the floating ▶ / ⏸, Jump to Audio, Listen's ⋯), on every screen. The round
+  fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, Jump to Audio, Listen's ⋯, Library Read's ⋯), on every screen. The round
   buttons share one face (`ChromeCircleFace`).
   **Concentric:** a 48 pt end holds a 24 pt glyph slot inset 12 (`endGlyphSlot`, `endInset`), so the slot's
   radius is the end cap's less the inset. **Every hit area is at least 44 pt** (`minTapTarget`): the glass is
   48 tall, so the hit shape is the glass itself (`hitOutset` 0; `ChromeHitShape`, `tapTarget(size)`), and
   neighbouring hit areas never overlap. One 8 pt gap everywhere: between the rows (`gap`) and between
-  neighbours on a row (`rowGap`: ‹ › and the field, the field and Listen, the pill and ⋯, the field and
-  Cancel). ‹ 48, ‹ › 96. Every control glyph is 20 pt medium (`segmentGlyphHeight`).
+  neighbours on a row (`rowGap`: ‹ › and the field, the field and Listen, the field and Cancel). ‹ 48, ‹ › 96. Every control glyph is 20 pt medium (`segmentGlyphHeight`).
 - **Look.** Translucent glass, nothing opaque behind it: Liquid Glass inside one
   `GlassEffectContainer` on iOS 26, every piece answering a press; earlier iOS (and a Debug launch
   with `-chromeFallback`) a blur with white at 58% over it (dark: 44, 44, 48 at 55%), an inner 0.5 pt
@@ -143,8 +154,7 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   `[reader icon][URL][Aa][↻]`: Aa (`readerAppearance`, VoiceOver *Text Appearance*) is the same 44 x 44
   control as ↻ and sits before it, so the URL truncates first. Aa is not drawn on the web page or while
   the search field is open (opening search closes its panel).
-- **Row 2** is the pill from the left margin to one gap before ⋯, and ⋯ ending at the right margin; they never
-  move or resize across destinations and states. There is no play / pause in the chrome: Listen, the row's tap in
+- **Row 2** is the pill alone, margin to margin; it never moves or resizes across destinations and states. There is no play / pause in the chrome: Listen, the row's tap in
   the Library and the readers' ▶ Listen start and control playback.
 - **Collapse follows the finger down, in steps; a scroll up brings it back at once.** One progress value
   (`ChromeScroll`), 0 two rows, 0.5 one row, 1 the strip: `progress += dy / 120` for a scroll down (60 pt a
@@ -164,7 +174,7 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   the field (🔍 left, the text, a round ⊗ inside at the right while there is text, 🎤 at its end) and a **Cancel**
   text button (accent, 72 pt) at the right margin. It is not the fixed 351 pt block (the one exception to it): the
   field runs from the left margin (12) to Cancel, one 8 pt gap between, so it is 375 − 24 − 8 − 72 = 271 pt on the
-  SE and 298 pt on a 402 pt phone (`testTypingIsTheFieldAndCancelMarginToMargin`). The pill, Listen, ⋯, the strip and any globe
+  SE and 298 pt on a 402 pt phone (`testTypingIsTheFieldAndCancelMarginToMargin`). The pill, Listen, the strip and any globe
   are not drawn while typing. Above the field the search layer is **opaque paper from under the safe area down to the
   keyboard**, and at its top, 12 pt under the safe area and 12 pt from each side, one **rounded card** of rows
   (`SearchSessionOverlay`): untouched (or empty), *Recent Searches* (header + Clear All, a 🔍 row each); typing, first
@@ -217,14 +227,23 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   a row's ⋯ → Read shows the article's text over the Library, which stays the lit segment and under it
   with its scroll; the chrome folds to a strip naming the article on a scroll down in Scroll mode and stays expanded in Pages mode (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
   or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][Aa  site][Listen]`, as the
-  Browser's reader mode: Aa opens the text appearance panel. The heading's ▶ Listen starts it, as in the
+  Browser's reader mode: Aa opens the text appearance panel. The Library's ⋯ is a round glass face at the
+  top right, on the title's line, gone in full screen. The heading's ▶ Listen starts it, as in the
   Browser's reader mode. Nothing plays until then. Opening a saved page anywhere else on compact width
   (Prepared Audio's rows) opens it here too. At regular width Read keeps opening the sheet.
   A search in the Library ends when Read opens, so the chrome shows the reader's row and not the keyboard form.
-- **⋯** opens the screen's ⋯ panel ("Menus", below). The compact chrome has no 🕘 or ＋ buttons:
-  *History* is a tile of every compact ⋯ (Browser, Library, Reader, Now Playing), and the Library's
-  ⋯ adds *New Folder…*, *Import from…* and *Paste Text…*. On the Browser the page's *Save to
-  Folder…* is in ⋯ too; the Reader tile reads *Show Web Page* while the in-place reader shows.
+- **⋯ is not in the chrome.** Each screen's menu keeps its rows and their order (`MenuContext`) and is a
+  system menu (`MenuRows`, `TitleMenuButton`), the panel's big buttons as its last section:
+  - the Library home: ⋯ at the end of the title's line (`libraryMore`); a folder's screen: ⋯ beside Edit in its
+    navigation bar; Library Read: a round ⋯ at the top right. The Library's menu adds *New Folder…*,
+    *Import from…* and *Paste Text…* to its screen's rows, and *History* is among its last rows.
+  - Settings: ⋯ at the end of its title's line (`settingsMore`).
+  - the Browser (page, start page, reader mode): a press and hold on the field's leading glyph (the reader
+    icon, or 🔍 where there is none, `addressMenu`); a tap on the reader icon still toggles reader mode.
+    Its rows: *Open in Reader* (or *Show Web Page*), *Listen* (Listen over the page you hear; another readable
+    page is extracted and plays, and Listen rises once it starts), then the page's menu and the screen's rows
+    regular width's ⋯ shows (*Save to Folder…*, *Follow…*, *Reload*, …), then *Saved* and *History*.
+  Compact width has no *Settings* row anywhere: the pill has it.
 - The field's and Listen's card's text grows with Dynamic Type up to *xxxLarge* inside
   the fixed pieces (larger clips or overlaps); every glyph offers the large content viewer. Every tap target is at least 44 pt.
 - **Overlays, never rows:** prepare progress and toasts, on the top piece's edge.
@@ -235,9 +254,7 @@ Still to come, from the approved design (mockups and build plan in the
 project context, `work/bottom-chrome/`, outside this repo; the decision
 `three-destination-bottom-chrome` in the project KB):
 
-- **⋯ sectioned** (Settings first and most prominent, Prepared Audio, then the screen's own rows),
-  its panel growing out of the glass.
-- **Widths:** below 360 pt or at large text, ‹ › move into ⋯.
+- **Widths:** below 360 pt or at large text, ‹ › give way to the field.
 
 ## Two surfaces: the Library and the browser (no tab bar)
 
@@ -367,11 +384,11 @@ the same spot. ⋯ is never replaced.
   once.
 - **One library**: everything is an article in a folder (or in none). An article is a *link* (an address
   you kept, such as a favorite: no text or audio), *saved* (text and audio kept), or played
-  without saving (kept while in the last 50 of Recent, listed in the Library's Recent tab, and in the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
+  without saving (kept while in the last 50 of History, listed in the Library's History tab, and in the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
   Edit, 🔖, the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar's long-press):
-  the article leaves its folder and every Library list it was in, Recent and Favorites too, and keeps its
+  the article leaves its folder and every Library list it was in, History and Favorites too, and keeps its
   star; if it is what you hear, playback stops, as for
-  *Stop Listening*, and Now Playing closes. It is kept while it is in the last 50 of Recent (C134) (an article never
+  *Stop Listening*, and Now Playing closes. It is kept while it is in the last 50 of History (C134) (an article never
   played goes at the next launch) but the bar doesn't offer it, and it comes back only when you
   save it or listen to it again (🎧, the Reader's Listen). There is one article per address: saving
   a favorite saves it in place. 🔖 = saved, ☆ = favorite.
@@ -400,23 +417,25 @@ the same spot. ⋯ is never replaced.
 
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
-back up, as does the regular-width dock's ‹ (dimmed at the home). The home has **Library / Favorites / Recent** (C104)
-tabs at the top; the bottom field searches the tab on screen and says so (*Search Library* on
-Library, *Search Favorites*, *Search Recent*). On a folder's screen it searches that folder,
+back up, as does the regular-width dock's ‹ (dimmed at the home). The home's title line is *Library* with ⋯ at
+its end on compact width, then **Library / Favorites / History** tabs (C104; History is the `recent` case,
+stored as `history`, once labelled Recent); the bottom field searches the tab on screen and says so (*Search Library* on
+Library, *Search Favorites*, *Search History*). On a folder's screen it searches that folder,
 everything under it, and says so (*Search Demo Finance*): the results stand under the folder's
 name, each row showing where it is below the folder (its site when it is in the folder itself);
 the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. Favorites
-are the starred items in the Library. Recent is everything you opened or started (C104); *History* (🕘 on regular width,
-a tile of the compact ⋯) is the browser's pages visited: one name per concept. From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as Recent does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
-Recent and in search results a row in a folder shows that folder's
+are the starred items in the Library. The History tab is everything you opened or started (C104); the browser's
+*History* (🕘 on regular width, a row of the compact menus) is its pages visited. The two share a name (the
+owner's choice, 2026-10-30). From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ is hidden (nothing can ever be added there, C130); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On Favorites,
+History and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. ⋯ → **Favorites** (and the start page's Show All) opens the home on Favorites;
 going to a place in the Library (Now Playing's ⋯ → *Go to …*, the title on Listen's card, a
 favorite folder's tile, an imported book) opens it on Library, where every place shows; Library
 comes back to the tab you left. Either way a page open in Library Read closes first, so the place
 asked for shows. The tab is remembered with the surface. On compact width the chrome's row 1 is the search
-field and ⋯ holds the creating rows, with *History* among its tiles ("Bottom chrome", above); on regular width the
+field and the title line's ⋯ holds the creating rows, with *History* among its last rows ("Bottom chrome", above); on regular width the
 band and dock are the browser's: the search field and `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
 (*New Folder…* in a folder) and *Import from…*, both made in the folder on screen (a book's too). Browser shows the browser as
 it was; Library there comes back to the same folder. The
@@ -426,9 +445,8 @@ Follow…, Prepared Audio, Settings*, and the big buttons **Favorites**, **Histo
 as the chrome's Browser.
 
 ```
-Library
-Library  Favorites  Recent
-📁⁺ New Folder…                         accent tinted, Everything only (C150)
+Library                                ⋯   ⋯ on compact width: New Folder…, Import from…, Paste Text…, Sort, …
+Library  Favorites  History
 ▣ Pride and Prejudice              ⋯   tap opens; its cover never changes (C102)
 ▣ Tide Tables                      ⋯
 ▣ Finance ★                        ⋯   location-independent favorite
@@ -444,23 +462,25 @@ when it is short of room, and at accessibility text sizes the row shows its stat
 own lighter label after the title (*Pages* then *48*). VoiceOver reads the parts joined with
 commas.
 
-- **The home** (`LibraryHomeView`, C104): Library shows what is saved: a prominent *New Folder…*
-  row (accent tinted, plus-folder icon) at the top of the list (C150), then top-level folders and
-  pages in no folder. Preparing an article saves it to the Library first (an article played without
+- **The home** (`LibraryHomeView`, C104): Library shows what is saved: top-level folders and pages in
+  no folder (*New Folder…* is in the title line's ⋯ on compact width, ＋ on regular width). Preparing an article saves it to the Library first (an article played without
   saving goes to the top level). Favorites shows only the starred folders and pages wherever
   they live; starring an article played without saving saves it to the top level (an article that is
-  nowhere yet becomes a saved link, as before). Recent shows every article you started listening to
+  nowhere yet becomes a saved link, as before). History shows every article you started listening to
   ("opened" is started: `lastPlayedAt`), saved, prepared or played without saving (no folders,
   links or chapters), most recent first, in the same rows; a tap plays one. An unsaved one's ⋯ (and
-  long-press) has *Save to Library*, which moves the article into the Library (it stays in Recent), *Save to Folder…*, and *Remove from Recent* (the same remove as *Remove from
-  Library*: in no list after, its star kept, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from Recent*. *Remove from Recent* never shows on an article in the
-  Library (a saved article in Recent has *Remove from Library*), and is dimmed on one out of it that
-  isn't in Recent. Empty, Recent says *No Recent Pages Yet* (as Favorites says *No Favorites Yet*,
-  History *No History Yet*, Prepared Audio *Nothing Prepared*: every empty list is the system's
-  empty view with a symbol, a Title Case title and one line, `EmptyState`).
+  long-press) has *Save to Library*, which moves the article into the Library (it stays in History), *Save to Folder…*, and *Remove from History* (the same remove as *Remove from
+  Library*: in no list after, its star kept, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
+  Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
+  isn't in History. Every empty list is the system's empty view with a symbol, a Title Case title and one
+  line (`EmptyState`): an empty Library says *No Articles or Books*, "Articles you save and books you import
+  show up here.", with two plain buttons stacked, *Browse the Web* (the Browser) and *Import a Book* (the
+  Files picker, as *Import from…*); Favorites *No Favorites*, "Tap the star on an article, book or folder to
+  keep it here."; History *No History*, "Articles you play without saving show up here for 7 days." (the
+  browser's History sheet *No History Yet*, Prepared Audio *Nothing Prepared*).
   Search filters the tab on screen: on
   Everything the Library's folders and pages across the tree, on Favorites starred ones, on
-  Recent Recent's pages; folders by name, then pages by title (the newest first among equal
+  History its pages; folders by name, then pages by title (the newest first among equal
   titles); a result keeps its location and shows the path (one at the top level keeps its own second
   line). Favorites' rows carry no ★, since every one is a favorite. The old Favorites folder is migrated into star
   flags on its direct children only: its pages become loose, its subfolders move to the top level
@@ -642,7 +662,7 @@ article row (a chapter too) is exactly two lines (decision D21): its title (its 
 then one short line of what it is and where it stands, with a small thumbnail as tall as the two
 lines. Its site comes first on that line everywhere (none for an article without a title, whose
 first line already is its site), except in a book or series, whose header names the source once;
-on Favorites, Recent and in search an article in a folder shows its folder's path there instead. The listening mark stands in a
+on Favorites, History and in search an article in a folder shows its folder's path there instead. The listening mark stands in a
 fixed-width column at the row's trailing edge, just before the ⋯, so the rings line up down the list
 (C88): nothing before a start (the column kept; line two says "18 min"), a small ring part-way
 (line two "6 min left"; the only rings in the app are listening), the same ring full once finished
@@ -657,7 +677,7 @@ article you hear, which opens Now Playing (a stray tap never pauses), and a link
 which opens in the browser; a skipped page plays when tapped. *Read*, the menu's first row, opens
 it (the Reader; Now Playing for the page you hear; the browser for a link). **Tapping a folder
 row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own last row,
-by its name: an article's *Remove from Library* (or *Remove from Recent*), which takes its row out of
+by its name: an article's *Remove from Library* (or *Remove from History*), which takes its row out of
 every list once it is saved, and leaves it, with a toast, when it can't be; a folder's *Delete
 Folder…* (*Delete Folder…*), which asks.
 In Edit the row has no ⋯ and a tap selects it.
@@ -696,7 +716,7 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 |---|---|---|
 | Folder, book or series | opens it (push) | *Delete Folder…* / *Delete Folder…* |
 | Saved article (including a chapter) | plays it (Now Playing if it's what you hear) | *Remove from Library* |
-| Recent article (played without saving) | plays it (Now Playing if it's what you hear) | *Remove from Recent* |
+| History article (played without saving) | plays it (Now Playing if it's what you hear) | *Remove from History* |
 | Link page | opens it in the browser (a followed story's chapter: fetches it, then plays it) | *Remove from Library* |
 
 ### Menus
@@ -726,7 +746,7 @@ are red everywhere.
 | *Share* | an article with a web address |
 | *Select* | a folder screen's rows (Edit with that row selected) |
 | *Save to Library* / *Remove from Library* (red) | *Save to Library* dimmed without text to save |
-| *Remove from Recent* (red) | an article out of the Library; dimmed while it isn't in Recent |
+| *Remove from History* (red) | an article out of the Library; dimmed while it isn't in History |
 
 | A folder's menu | Where it shows |
 |---|---|

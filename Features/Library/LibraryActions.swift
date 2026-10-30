@@ -30,7 +30,7 @@ struct LibraryActions {
     /// mode: no change of destination and nothing plays. Regular width opens the Reader sheet; a
     /// link opens in the browser.
     func read(_ article: Article) {
-        if article.isLink || !shell.readsInPlace || !shell.isInLibrary {
+        if article.isLink || !shell.isCompact || !shell.isInLibrary {
             open(article)
             return
         }

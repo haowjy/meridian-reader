@@ -4,7 +4,7 @@ Every menu option is defined once, in `MenuRegistry` (`Features/DesignSystem/Com
 
 - **kind**: article, folder, prepare or screen;
 - **places**: where it can ever show (`row`, `tile`, `bar`, `history`, `reader`, `nowPlaying`, `browser`, `header`, `libraryHome`, `folderScreen`, `prepared audio`);
-- **applies**: a fact about the item that no state change in that place undoes (an article in no folder never gets *Playback ›*; an article in the Library never gets *Remove from Recent*); false hides it;
+- **applies**: a fact about the item that no state change in that place undoes (an article in no folder never gets *Playback ›*; an article in the Library never gets *Remove from History* (the tab)); false hides it;
 - **enabled**: whether it can run now; false greys it out;
 - order (the spec order), block (a divider before block 1) and parent (a submenu).
 
@@ -16,16 +16,17 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 ## The menus (C98)
 
-- **Page** (row ⋯ and long press, Favorites tile, Now Playing bar, History, Reader, Now Playing, browser): Read (from the Library: in place, no destination switch), Prepare / Remove Prepared Audio, Voice: <name> (C138), Favorites, Move to… / Save to Folder…, Mark as Finished, Playback › (Mark All Above as Finished in a list row, Skip in Playback; a page in a folder only), Share, Save / Remove from Library (not in the Reader, Now Playing or the browser: the bookmark is there), Remove from Recent (out of the Library). The bar adds Stop Listening, History adds Remove from History, and Now Playing has Go to <folder> instead of Read.
+- **Page** (row ⋯ and long press, Favorites tile, Now Playing bar, History, Reader, Now Playing, browser): Read (from the Library: in place, no destination switch), Prepare / Remove Prepared Audio, Voice: <name> (C138), Favorites, Move to… / Save to Folder…, Mark as Finished, Playback › (Mark All Above as Finished in a list row, Skip in Playback; a page in a folder only), Share, Save / Remove from Library (not in the Reader, Now Playing or the browser: the bookmark is there), Remove from History (the History tab; out of the Library). The bar adds Stop Listening, a browser History visit adds its own Remove from History, and Now Playing has Go to <folder> instead of Read.
 - **Folder** row and tile (an imported EPUB or followed story is a folder too, the same menu: C100): Continue, Prepare / Turn Off Prepare / Remove Prepared Audio (one row by state), Voice: <name> (a book or series only, C138), Favorites, Move to…, Edit Details… (holds the name), Delete.
 - **Folder header More**: Play from Start, Remove Prepared Audio, Voice: <name> (a book or series), Favorites, Move to…, Edit Details…, Delete, then the create group into this folder (C126).
-- **Library home ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Listen], with [History] before Listen on compact width (regular width has 🕘). Listen goes to Now Playing when audio is playing, greyed otherwise. Saved opens the Library home (already there: harmless).
-- **Folder screen ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Listen], with [History] before Listen on compact width (regular width has 🕘). Listen goes to Now Playing when audio is playing, greyed otherwise.
+- **Library home ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Listen]; on compact width (the title line's ⋯, a system menu) the create group first, then Sort ›, Prepared Audio, Saved, History, Listen (no Settings: the chrome's pill has it; regular width has 🕘). Listen goes to Now Playing when audio is playing, greyed otherwise. Saved opens the Library home (already there: harmless).
+- **Folder screen ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Listen]; on compact width (beside Edit in the navigation bar, and Library Read's round ⋯) as the Library home's. Listen goes to Now Playing when audio is playing, greyed otherwise.
 - **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB/PDF file picker), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127). Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; shown in every folder including imported EPUBs and followed stories (C149). Follow… and Save from Website… are not here; users do those from the browser.
 - **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
-- **Reader / Now Playing ⋯**: on compact width Listen's top right ⋯ (`ReadingPageMoreButton`), at regular width the transport's: the article's options, then Prepared Audio, then [Settings][Saved][Listen], with [History] before Listen on compact width (regular width has 🕘). Listen is disabled (already there). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
-- **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, then [Settings][Saved][Reader], with [History] before Reader on compact width (regular width has 🕘). Reader opens the current page in the Reader (greyed when the page isn't readable). No New Search: a tap on the address field starts one.
+- **Reader / Now Playing ⋯**: on compact width Listen's top right ⋯ (`ReadingPageMoreButton`), at regular width the transport's: the article's options, then Prepared Audio, then [Settings][Saved][Listen], on compact width [Saved][History][Listen] (regular width has 🕘). Listen is disabled (already there). Website stays reachable via Share in the article's own rows. Favorites stays reachable from the item's own menu row and from the Library's Favorites tab; it leaves the tile row (C140).
+- **Browser ⋯**: the page's options, then Follow…, Reload, Prepared Audio, then [Settings][Saved][Reader] (regular width has 🕘). Reader opens the current page in the Reader (greyed when the page isn't readable). No New Search: a tap on the address field starts one. Compact width has no ⋯: a press and hold on the field's leading glyph (the reader icon, or 🔍) opens Open in Reader (Show Web Page), Listen, then the page's options, the screen's rows, Saved and History.
+- **Settings ⋯** (compact width, its title line): Saved, History, Listen (Settings has no rows of its own).
 - **Prepare on a page out of the Library** (C104): enabled; it saves the page to the Library's top level first. Grey only on a browser page not yet loaded as a page.
 - **Prepared Audio row** (one article, C110): Prepare Again (that article), Remove Prepared Audio (that article). Pause All in the section header; a folder's prepare is turned off on its screen.
 
@@ -259,13 +260,13 @@ Row menu: *Delete Audio* (`menuDeleteAudio`) on every row; *Prepare Again* only 
 
 The names for the chrome that runs along the bottom of every screen.
 
-*On compact width the chrome host (`ChromeHost`, `docs/NAVIGATION.md` "Bottom chrome") draws the field, the pill, ▶ and ⋯; the ＋ rows are rows of its ⋯ and *History* a tile of it (`MenuContext.tiles`). `SurfaceBand` and the five-slot `BottomToolbarLayout` rows below are regular width's. Still planned (PR2 to PR4): the ⋯ panel sectioned with Settings first, growing out of the glass.*
+*On compact width the chrome host (`ChromeHost`, `docs/NAVIGATION.md` "Bottom chrome") draws the field, Listen and the `[Library | Browser | Settings]` pill, and no ⋯: the screens' ⋯ are on their title lines (the ＋ rows are rows of the Library's, *History* a row of each), the Browser's a press and hold on its field's leading glyph. `SurfaceBand` and the five-slot `BottomToolbarLayout` rows below are regular width's.*
 
 | Name | Kind | What it is |
 |---|---|---|
-| `ChromeHost` | view | Compact width only: the one chrome above the Library and the browser (and their in-place readers): two rows expanded, one collapsed, over `ChromeScreen`s from each destination. |
+| `ChromeHost` | view | Compact width only: the one chrome above the Library, the browser and Settings (and the in-place readers): two rows expanded, one collapsed, over `ChromeScreen`s from each destination. |
 | `ChromeListenButton` | view | Listen at the end of row 1: headphones or the playing bars; opens Listen on what plays or the page played last. |
-| `ChromeScreen` | struct | What a destination hands the host: its field, ‹ › callbacks and ids, ⋯ and edit bar. |
+| `ChromeScreen` | struct | What a destination hands the host: its field, ‹ › callbacks and ids, strip title and edit bar. |
 | `ChromeState` | struct | What the chrome shows: destination, collapse progress, `fullScreen`, history, keyboard, reader mode. |
 | `ChromeScroll` | class | The one scroll controller: a continuous progress from scroll reports (90 pt a travel, snap at rest); `expand()` is the icon tap and a new page. |
 | `ChromeLayout` | struct | The rect and opacity of every piece for a width and a `ChromeState` (the mockups' `rectsFor` and width table), sized by `ChromeMetrics`. |

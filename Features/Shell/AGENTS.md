@@ -4,10 +4,11 @@ Navigation state (`ShellState`), the ⋯ menu's content, the Now Playing bar, an
 clustered dock. Working notes and contracts: [`.context/CONTEXT.md`](.context/CONTEXT.md). What the
 user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
 
-- **Compact width draws one chrome host** (`Chrome/ChromeHost.swift`) over two destinations (Library,
-  Browser: `docs/NAVIGATION.md`, "Bottom chrome"). Row 1 is the screen's field and the Listen button
-  (`ChromeListenButton`), row 2 the pill and ⋯; there is no ▶ in the chrome. Each destination hands the
-  host a `ChromeScreen` (field, arrows, ⋯). One state (`ChromeState`), one pure layout (`ChromeLayout`, from
+- **Compact width draws one chrome host** (`Chrome/ChromeHost.swift`) over three destinations (Library,
+  Browser, Settings: `docs/NAVIGATION.md`, "Bottom chrome"). Row 1 is the screen's field and the Listen button
+  (`ChromeListenButton`), row 2 the pill alone; there is no ⋯ or ▶ in the chrome. Each destination hands the
+  host a `ChromeScreen` (field, arrows, strip title). A screen's ⋯ is on its title line (`TitleMenuButton`,
+  `LibraryTitleMenu`, drawing `MenuContext.blocks`); the Browser's is `AddressField`'s `holdMenu`. One state (`ChromeState`), one pure layout (`ChromeLayout`, from
   `ChromeMetrics`, Safari's sizes: `barHeight` 48, footprint 142) and one scroll controller (`ChromeScroll`: a
   scroll down folds it; a scroll up of `revealDistance`, the strip's tap or the top of the text expand it); Library Read and Browse reader
   mode open in place via `ReaderSurface` and feed it. The host draws translucent glass (`ChromeSkin`; App
@@ -26,3 +27,6 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   iPad in a compact window) draws the chrome host; regular width keeps `SurfaceBand` and the dock. When you touch shell chrome, check both.
 - **Sizes are tokens** in `../DesignSystem/Tokens/RegularLayout.swift`; don't hard-code a width in a view.
 - Add a screen as a case in `ShellState`, not a presentation flag in a view.
+- **Settings is a surface on compact width only** (`Surface.settings`, `showSettings()`, `settingsPath`,
+  `settingsSearch`); regular width presents `ShellSheet.settings`. Every entry point calls `showSettings()`,
+  never `present(.settings)`. `isCompact` turning false on the Settings surface moves it to the sheet.

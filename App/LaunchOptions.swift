@@ -36,8 +36,16 @@ struct LaunchOptions: Equatable {
     /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): start in the Browser's reader mode on it (compact
     /// width; the Reader sheet on regular width), over page one with `-browseTestPages`.
     var opensDemoInReader = false
+    /// `-readDemoInLibrary` (with `-seedDemoArticle`): start in Library Read on it (the Reader sheet on regular width).
+    var readsDemoInLibrary = false
     /// `-openLibrary`: start in the library.
     var opensLibrary = false
+    /// `-openSettings`: once launched, what a tap on the pill's Settings does. `-searchSettings <text>`:
+    /// then Search Settings holds the text. `-openSettingsPage <page>` (`voice`, `appearance`, …): then
+    /// that page is pushed.
+    var opensSettings = false
+    var settingsSearch: String?
+    var settingsPage: SettingsRoute?
     /// `-browseTestPages`: serve and open the offline `reader-test://` pages.
     var servesTestPages = false
     /// `-testStoryChapters N`: the offline story's table of contents (`reader-test://story/toc`)
@@ -136,7 +144,11 @@ struct LaunchOptions: Equatable {
                                       listenAt: value(after: "-seedDemoListenAt").flatMap(Int.init) ?? 0)
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
+        readsDemoInLibrary = flags.contains("-readDemoInLibrary")
         opensLibrary = flags.contains("-openLibrary")
+        settingsSearch = value(after: "-searchSettings")
+        settingsPage = value(after: "-openSettingsPage").flatMap(SettingsRoute.init(rawValue:))
+        opensSettings = flags.contains("-openSettings") || settingsSearch != nil || settingsPage != nil
         servesTestPages = flags.contains("-browseTestPages")
         testStoryChapters = value(after: "-testStoryChapters").flatMap(Int.init) ?? testStoryChapters
         testStoryThrottles = flags.contains("-testStoryThrottles")

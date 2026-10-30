@@ -3,7 +3,8 @@
 What the user sees is in `../../../docs/NAVIGATION.md`. This file holds what to keep in mind while
 changing the shell code.
 
-- **`ShellState` is the navigation model** (what you see). Surface (browser or library) and the
+- **`ShellState` is the navigation model** (what you see). Surface (browser, library, or Settings on
+  compact width, with its pushed pages `settingsPath` and Search Settings `settingsSearch`) and the
   Library's path (`libraryPath`, bound to the Library's `NavigationStack`), the home's tab
   (`homeTab`: `showFavorites` selects Favorites, `showLibrary(at:)` Everything, `openLibrary`
   keeps it; stored under `library.homeTab`, the two-tab Bool key read once and removed; both close a page
@@ -66,7 +67,8 @@ changing the shell code.
   down.
 - **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
-  `ShellState`, the ⋯ panel (`MenuContext`, drawn by `MoreMenuPanel`: the item's rows from its
+  `ShellState`, the ⋯ panel (`MenuContext`, drawn by `MoreMenuPanel` where a ⋯ grows a panel, and as a
+  system menu by `MenuRows(blocks: context.blocks)` on compact title lines: the item's rows from its
   one menu definition, `PageMenu` / `FolderMenu`, then the screen's rows ending in `tail`, then
   the big buttons; the panel draws `MenuRow`s and knows no surface), the Now Playing bar on a
   surface (`NowPlayingBarView`, whose long press is the article's menu then *Stop Listening*).
@@ -75,8 +77,9 @@ changing the shell code.
   nudges the measurement each pass, and without the threshold the panel re-places itself forever
   (a layout loop at 100% CPU). The glass grows by frame and corner radius, never by scale.
 - **Compact width: one chrome host** (`Chrome/ChromeHost.swift`; `docs/NAVIGATION.md` "Bottom
-  chrome"). Two destinations (Library, Browser), at most two rows expanded and a text strip
-  folded, the Listen button ending row 1 (no play/pause in the chrome; Listen is a cover above it), glass inside one `GlassEffectContainer` on
+  chrome"). Three destinations (Library, Browser, Settings), at most two rows expanded and a text strip
+  folded, the Listen button ending row 1, the pill alone on row 2 (no ⋯ and no play/pause in the chrome;
+  Listen is a cover above it; menus are on title lines and the Browser field's leading glyph), glass inside one `GlassEffectContainer` on
   iOS 26 with a blur and glass tint as the fallback. Its translucent fade takes the colour of what is under it: a
   web page's `underPageBackgroundColor` (`WebViewStore.pageBackground`, KVO), paper, or the reading
   theme. The in-place reader (`ReaderSurface`) covers a web view that takes no touches, so it

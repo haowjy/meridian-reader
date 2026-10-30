@@ -43,7 +43,7 @@ struct ChromePieces: View, Animatable {
                 screen.editBar.frame(maxHeight: .infinity).chromeSurface(Capsule())
             }
             piece(layout.listen) { ChromeListenButton() }
-            piece(layout.more) { more }
+            piece(layout.cancel) { cancel }
             stripPiece(layout.strip, opacity: layout.stripOpacity)
         }
         .chromeGlassContainer()
@@ -146,26 +146,21 @@ struct ChromePieces: View, Animatable {
         }
     }
 
-    /// ⋯, or the word Cancel while a search is editing (a text button in the accent, as Clear All is).
-    @ViewBuilder
-    private var more: some View {
-        if state.keyboard {
-            Button(action: screen.onCancel) {
-                Text(Verbs.cancel)
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.accent)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .dynamicTypeSize(...Self.largestText)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .chromeLargeContent(Verbs.cancel, symbol: Icons.close)
-            }
-            .buttonStyle(.plain)
-                .accessibilityLabel(Verbs.cancel)
-                .accessibilityIdentifier(screen.cancelID)
-        } else {
-            screen.more
+    /// The word Cancel while a search is editing (a text button in the accent, as Clear All is).
+    private var cancel: some View {
+        Button(action: screen.onCancel) {
+            Text(Verbs.cancel)
+                .typeStyle(.row)
+                .foregroundStyle(Palette.accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .dynamicTypeSize(...Self.largestText)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .chromeLargeContent(Verbs.cancel, symbol: Icons.close)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Verbs.cancel)
+        .accessibilityIdentifier(screen.cancelID)
     }
 }
