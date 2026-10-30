@@ -25,33 +25,29 @@ enum ChromeMetrics {
     static let margin: CGFloat = 3 * unit
     /// Gap between the rows.
     static let gap: CGFloat = 2 * unit
-    /// Gap between two pieces on one row: ‹ › and the field, the field and Listen, the keyboard's field
-    /// and Cancel. About a quarter of the bar's height, the same between every pair. The one size here
-    /// that is not a multiple of the unit.
-    static let rowGap: CGFloat = 10
-    /// One segment of the pill (Library, Browser): one constant on every iPhone, never derived from the screen.
-    static let segmentWidth: CGFloat = 78
-    /// The two-segment pill's width. Row 2 is [pill] … [⋯], margin to margin; a wider screen only widens the gap.
-    static let pillWidth: CGFloat = 2 * segmentWidth
+    /// Gap between two pieces on one row: ‹ › and the field, the field and Listen, the pill and ⋯, the
+    /// keyboard's field and Cancel. Safari's (measured on an iPhone 17 Pro, iOS 26), the same between every pair.
+    static let rowGap: CGFloat = 2 * unit
     /// Cancel's width while a search is editing: a word, not a circle. The keyboard's row is
     /// [field][Cancel] from margin to margin on every phone, the field taking what Cancel leaves.
     static let cancelWidth: CGFloat = 72
     /// The space above the top row.
     static let topPadding: CGFloat = unit
-    /// From the bottom row's lower edge (and the strip's) to the screen's bottom edge: the rows use the
-    /// home indicator's strip, as Brave's do. Not a multiple of the unit.
-    static let edgeClearance: CGFloat = 14
+    /// From the bottom row's lower edge (and the strip's) to the screen's bottom edge: Safari's (measured on
+    /// an iPhone 17 Pro, iOS 26), so the rows sit on the home indicator's strip, not in it. Not a multiple of the unit.
+    static let edgeClearance: CGFloat = 34
     /// The home indicator's strip on a phone that has one; what `ChromeState.homeInset` assumes until
     /// the host has measured it.
     static let homeIndicatorStrip: CGFloat = 34
 
-    /// The one height of every piece, in every row and state: thin, and still tapped in `minTapTarget`.
-    static let barHeight: CGFloat = 9 * unit
+    /// The one height of every piece, in every row and state: Safari's address bar and buttons (measured on
+    /// an iPhone 17 Pro, iOS 26).
+    static let barHeight: CGFloat = 12 * unit
     /// Hit areas never go below this, whatever they look like.
     static let minTapTarget: CGFloat = 44
-    /// How far a piece's hit area reaches past its glass on every side: 4 pt, so the rows' hit areas
-    /// meet in the 8 pt gap between them and never overlap; neighbours on a row keep `rowGap - 2 * hitOutset` apart.
-    static let hitOutset: CGFloat = (minTapTarget - barHeight) / 2
+    /// How far a piece's hit area reaches past its glass: none while the glass is itself at least
+    /// `minTapTarget` tall, so neighbouring hit areas never overlap.
+    static let hitOutset: CGFloat = max(0, (minTapTarget - barHeight) / 2)
     /// The glyph slot at each end of a capsule, and its inset from the capsule's end, top and bottom
     /// (concentric: the slot's corners follow the end cap's, `barHeight / 2 - endInset`).
     static let endGlyphSlot: CGFloat = 6 * unit

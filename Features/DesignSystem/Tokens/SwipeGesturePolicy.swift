@@ -30,9 +30,11 @@ enum SwipeGesturePolicy {
         t >= 0 ? t : -pow(-t, 0.7)
     }
 
-    /// Release of a drag already locked to the vertical axis: far enough down, or flung down.
+    /// Release of a drag already locked to the vertical axis: far enough down, or flung down, and still
+    /// heading down at the release. A drag pulled down and then pushed back up before letting go keeps the
+    /// surface (Apple Music's player): what decides is where the finger is heading, not how far it went.
     static func shouldCommitDownwardDismiss(translation: CGFloat, predicted: CGFloat) -> Bool {
-        translation > verticalCommitDistance || predicted > verticalCommitPrediction
+        predicted > verticalCommitDistance && (translation > verticalCommitDistance || predicted > verticalCommitPrediction)
     }
 
     /// Where a drag released at `velocity` (points per second) is heading, for a UIKit pan that

@@ -40,7 +40,7 @@ struct ChromePill: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let slot = ChromeMetrics.segmentWidth
+            let slot = size.width / CGFloat(ChromeDestination.allCases.count)
             ZStack(alignment: .topLeading) {
                 // The wash is inset equally on all four sides; its radius is the pill's minus the inset.
                 Capsule()

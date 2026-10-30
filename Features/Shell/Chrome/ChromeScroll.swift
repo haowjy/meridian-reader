@@ -5,14 +5,13 @@ import QuartzCore
 /// The one owner of how far the compact chrome has folded, and its scroll controller, fed by the
 /// Library, the Browser and the Reader alike. Scroll views report their offset; this keeps a
 /// continuous `progress` (0 expanded, 1 collapsed) that follows the finger on the way down only:
-/// `progress += dy / travel` for a scroll down, and a scroll up never gives a row back (decided:
-/// the rows are too big to pop out on every reverse flick, and a button is what brings them
-/// back). It folds in two steps: 0 to 0.5 takes row 2 away (one row left), 0.5 to 1 takes the
+/// `progress += dy / travel` for a scroll down; a scroll up of `revealDistance` brings both rows back
+/// at once, as Safari does (the owner's call). It folds in two steps: 0 to 0.5 takes row 2 away (one row left), 0.5 to 1 takes the
 /// field into the domain strip. The chrome comes back by a tap on the strip (the next `refoldGrace`
 /// of scrolling down is ignored, then it folds again: no pin), the very top of the text (0 at the
-/// top), a new page or screen, and opening the search. Once the finger has been still for
+/// top), a scroll up, a new page or screen, and opening the search. Once the finger has been still for
 /// `settleDelay` a fold between steps finishes the step it is in. It is the
-/// mockups' `bindScroll` without its reverse follow, and
+/// mockups' `bindScroll` with a reveal in place of its reverse follow, and
 /// `displayed` is its per-frame smoothing: an exponential filter with a `smoothing` time constant,
 /// stepped by a display link while it still has ground to cover. What is drawn follows `displayed`;
 /// rules (`isCollapsed`, the swipe) read `progress`.
@@ -50,6 +49,8 @@ final class ChromeScroll {
 
     /// Points of scrolling that fold the chrome all the way.
     static let travel: CGFloat = 120
+    /// Points of scrolling up, with no scroll down between, that bring the rows back.
+    static let revealDistance: CGFloat = 24
     /// Scrolling down after the strip's tap brought the rows back that folds nothing.
     static let refoldGrace: CGFloat = 24
     /// After the strip's tap, scroll reports this soon are a fling already under way and move nothing.
@@ -72,6 +73,8 @@ final class ChromeScroll {
     }
 
     @ObservationIgnored private var last: CGFloat = 0
+    /// Points scrolled up since the last scroll down.
+    @ObservationIgnored private var upward: CGFloat = 0
     @ObservationIgnored private var settling: Task<Void, Never>?
     @ObservationIgnored private var ticker: FrameTicker?
     @ObservationIgnored private var lastFrame: CFTimeInterval = 0
@@ -89,7 +92,12 @@ final class ChromeScroll {
             return
         }
         guard delta != 0, abs(delta) <= Self.jump else { return }
-        guard delta > 0 else { return }
+        guard delta > 0 else {
+            upward -= delta
+            if upward >= Self.revealDistance, progress > 0 { expand() }
+            return
+        }
+        upward = 0
         var down = delta
         if grace > 0 {
             guard CACurrentMediaTime() - tappedAt >= Self.tapQuiet else { return }
@@ -113,7 +121,7 @@ final class ChromeScroll {
         }
     }
 
-    /// Finishes the step the finger stopped partway through: scrolling only ever folds.
+    /// Finishes the step the finger stopped partway through.
     func settle() {
         settling?.cancel()
         set(Self.stepEnd(progress))

@@ -3,7 +3,7 @@ import SwiftUI
 /// Now Playing, Listen: what you hear, opened up (`NowPlayingSheet`). The Reader's page in the
 /// same reading theme and type: the spoken paragraph highlighted in full ink like the rest, on the
 /// highlight. Presented over everything by the shell: on compact width a cover that slides up over
-/// the chrome too, with the player card at its foot, ⌄ at the top left and ⋯ at the top right; on
+/// the chrome too, with the player card at its foot and ⋯ at the top right; on
 /// regular width a sheet. It holds no article of its own: it shows `speech.nowPlaying` and the
 /// playing page's content, looked up in the library by its key.
 ///
@@ -26,7 +26,7 @@ import SwiftUI
 /// - A tap in the middle of the text reads full screen, as in the Reader (`ReadingPage`,
 ///   `ReadingChrome`): the text still follows the audio, a page turn by a tap stops following as a drag does, and a link
 ///   in the text opens in the browser.
-/// - ⌄ or a pull down closes it, back to exactly what was under it (on regular width the pill or a
+/// - A pull down closes it, back to exactly what was under it (on regular width the pill or a
 ///   pull down shrinks it back into the bar). Its full screen is its own: the chrome under it keeps
 ///   its fold and full screen.
 struct NowPlayingScreen: View {
@@ -78,7 +78,7 @@ struct NowPlayingScreen: View {
         }
         return NowPlayingSheet(
             showing: regular ? .sheet(close: .collapse(playingFromName(now, saved: actions.isSaved)), onClose: onClose)
-                : .cover(closeLabel: String(localized: "Close Listen"), onClose: onClose),
+                : .cover(onClose: onClose),
             playState: speech.playState(of: .article(now.articleKey)),
             showsJumpToAudio: !following && !now.isFinished,
             jumpDirection: spotSide,
@@ -273,7 +273,7 @@ struct NowPlayingScreen: View {
     private func text(_ now: NowPlaying, readerArticle: ReaderArticle?) -> some View {
         if let html = readingHTML(now, readerArticle: readerArticle) {
             SpokenText(speech: speech, html: html,
-                       heading: ReaderHeading(title: readerArticle?.title ?? now.title, detail: [], titleHidden: true),
+                       heading: ReaderHeading(title: readerArticle?.title ?? now.title, detail: [], titleHidden: false),
                        spoken: true, document: speech.document,
                        finished: now.isFinished, isChapter: now.isChapter, scrubMap: scrubMap,
                        scrubPreview: scrubPreview,

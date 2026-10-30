@@ -100,7 +100,8 @@ struct ChromeLayout: Equatable {
         more = ChromePiece(rect: moreRect, isShown: row2)
         editBar = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar),
                               isShown: s.editing && hold)
-        pill = ChromePiece(rect: CGRect(x: margin, y: rowY, width: K.pillWidth, height: bar), isShown: row2 && !typing)
+        // The pill runs from the left margin to one gap before ⋯, so its right end lines up with the field's above (Listen over ⋯).
+        pill = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin - rowGap - bar, height: bar), isShown: row2 && !typing)
 
         // ‹ ›. In the Browser: the pair whenever either way is open, the one that isn't dimmed (so ›
         // never hides behind a lone ‹ after going back to the first page). Elsewhere (a Library page

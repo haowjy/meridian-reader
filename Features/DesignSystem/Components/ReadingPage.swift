@@ -6,9 +6,9 @@ enum ReadingShowing {
     /// pill (`close`), grabber and pull down call `onClose` once it has gone.
     case sheet(close: SheetClosePill.Kind, onClose: () -> Void)
     /// Compact width's Listen: a `Sheet` that covers the screen, chrome and all (`Sheet`'s `covers`).
-    /// ⌄ at the top left (VoiceOver: `closeLabel`) or a pull down closes it, then `onClose`. Its band
-    /// is the player card on glass at the foot, with what it was over left as it was.
-    case cover(closeLabel: String, onClose: () -> Void)
+    /// A pull down (VoiceOver: the escape gesture) closes it, then `onClose`. Its band is the player card
+    /// on glass at the foot, with what it was over left as it was.
+    case cover(onClose: () -> Void)
     /// Compact width's in-place readers (the Library's Read, the Browser's reader mode): under the
     /// bottom chrome. No sheet, pill, grabber or pull down.
     case inPlace(ReadingInPlace)
@@ -73,10 +73,10 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
             } overText: {
                 overText
             }
-        case .cover(let closeLabel, let onClose):
+        case .cover(let onClose):
             Sheet(onDismiss: onClose, palette: palette, chrome: chrome, covers: true) {
                 VStack(spacing: 0) {
-                    SheetTopBar { SheetCloseButton(label: closeLabel) } trailing: { trailing }
+                    SheetTopBar { EmptyView() } trailing: { trailing }
                         .environment(\.chromeSkin, ChromeSkin.current)
                     banner
                 }
