@@ -41,9 +41,9 @@ struct LibraryChrome {
         return menu
     }
 
-    /// What the folded chrome's strip names: the article being read in place, else the folder on top, else the
+    /// What the folded chrome's bubble names: the article being read in place, else the folder on top, else the
     /// home's tab (Library, Favorites, Recent).
-    var stripTitle: String {
+    var bubbleTitle: String {
         let name: String?
         if let article = shell.libraryReader { name = article.title ?? article.sourceLabel } else { name = screenMenu.topFolder?.name }
         return name.flatMap { $0.isEmpty ? nil : $0 } ?? shell.homeTab.title
@@ -68,7 +68,7 @@ struct LibraryChrome {
                 return AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt,
                                     focus: focus, fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard))
             },
-            stripTitle: stripTitle,
+            bubbleTitle: bubbleTitle,
             editBar: screen.isEditing ? AnyView(LibraryEditBar()) : nil
         )
     }

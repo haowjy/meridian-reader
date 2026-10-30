@@ -33,7 +33,7 @@ extension View {
 }
 
 /// Where a screen's scroll position goes: the chrome folds a step at a time as it scrolls down (a tap on
-/// the strip opens it).
+/// the bubble opens it).
 extension View {
     /// Reports this view's scroll views' offset to `chrome`, past the rubber band at both ends.
     func chromeScrollSource(_ chrome: ChromeScroll) -> some View {

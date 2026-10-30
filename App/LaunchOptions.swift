@@ -68,6 +68,9 @@ struct LaunchOptions: Equatable {
     /// `-chromeFallback`: draw the compact bottom chrome in its pre-iOS 26 skin (the blur and
     /// glass tint) on a new OS, since no older simulator runtime is installed to look at it.
     var forcesChromeFallback = false
+    /// `-chromeFold P`: hold the compact chrome's fold at P (0.5 one row, 1 the bubble) wherever it may fold,
+    /// to look at a folded form without a finger on the screen.
+    var chromeFold: CGFloat?
     /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
     /// saved articles and bookmarks again.
     var rerunsLibraryMigration = false
@@ -165,6 +168,7 @@ struct LaunchOptions: Equatable {
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
         forcesChromeFallback = flags.contains("-chromeFallback")
+        chromeFold = value(after: "-chromeFold").flatMap(Double.init).map { CGFloat($0) }
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
         seedsDemoBook = flags.contains("-seedDemoBook")
         demoBookPlace = value(after: "-seedDemoBookPlace").flatMap(Int.init)

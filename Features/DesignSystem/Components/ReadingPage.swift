@@ -29,7 +29,7 @@ struct ReadingInPlace {
     /// The room the chrome keeps at the bottom, folded or not: the text keeps clear of it.
     var bottomClearance: CGFloat
     /// How far above the bottom what floats over the text sits: above the card while the chrome is
-    /// expanded, above the strip once folded.
+    /// expanded, above the bubble once folded.
     var overTextClearance: CGFloat
     /// The text, scrolled by a finger, to this offset from its top.
     var scrolled: (CGFloat) -> Void

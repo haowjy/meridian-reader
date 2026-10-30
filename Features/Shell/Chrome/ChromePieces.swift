@@ -9,6 +9,7 @@ import SwiftUI
 /// A piece is in the tree only while `ChromePiece.isShown`.
 struct ChromePieces: View, Animatable {
     @Environment(ShellState.self) private var shell
+    @Environment(\.readingPalette) private var reading
     var state: ChromeState
     let width: CGFloat
     let screen: ChromeScreen
@@ -44,12 +45,12 @@ struct ChromePieces: View, Animatable {
             }
             piece(layout.listen) { ChromeListenButton() }
             piece(layout.cancel) { cancel }
-            stripPiece(layout.strip, opacity: layout.stripOpacity)
+            bubblePiece(layout)
         }
         .chromeGlassContainer()
         .frame(width: width, height: K.footprint, alignment: .topLeading)
         .background(alignment: .bottom) {
-            if let top = layout.top { ChromeFade(top: top, underColor: underColor, strip: layout.stripOpacity) }
+            if let top = layout.top { ChromeFade(top: top, underColor: underColor) }
         }
         .background(alignment: .bottom) {
             // While a row is up, the whole footprint is the chrome's: a tap between the rows, beside
@@ -85,35 +86,34 @@ struct ChromePieces: View, Animatable {
     private func piece(_ piece: ChromePiece, @ViewBuilder _ content: () -> some View) -> some View {
         if piece.isShown {
             content()
-                .frame(width: piece.fullWidth, height: piece.fullHeight)
-                .scaleEffect(piece.scale, anchor: .topLeading)
-                // Labels and glyphs go early, so what is left to shrink away is bare glass (and no
-                // glyph drifts over the page once its glass has gone).
-                .opacity(K.ramp(piece.scale, 0.8...0.95))
-                .frame(width: piece.rect.width, height: piece.rect.height, alignment: .topLeading)
+                .frame(width: piece.rect.width, height: piece.rect.height)
+                // Labels and glyphs go before their glass.
+                .opacity(piece.opacity)
                 .offset(x: piece.rect.minX, y: piece.rect.minY)
                 .transition(.opacity)
         }
     }
 
-    /// The folded chrome: the page's name as one line of text over the home indicator, no glass
-    /// (Brave's), whose tap brings both rows back. Its hit area is `minTapTarget` tall,
-    /// `stripHitOutset` past the text box above and below and `stripSidePadding` past the text each side.
+    /// The folded chrome: a small glass capsule naming the page, the field shrunk (Safari's), whose tap
+    /// brings both rows back. Its hit area is `bubbleHitOutset` past its glass above and below, `minTapTarget` tall.
     @ViewBuilder
-    private func stripPiece(_ piece: ChromePiece, opacity: CGFloat) -> some View {
+    private func bubblePiece(_ layout: ChromeLayout) -> some View {
+        let piece = layout.bubble
         if piece.isShown {
-            let outset = K.stripHitOutset, title = screen.stripTitle
+            let outset = K.bubbleHitOutset, title = screen.bubbleTitle
             Button(action: onExpand) {
+                // The name starts where the field's text was and glides to the centre (`ChromeLayout`).
                 Text(title)
-                    .font(.system(size: K.stripFontSize, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
+                    .font(.system(size: K.bubbleFontSize, weight: .semibold))
+                    .foregroundStyle(reading?.ink ?? Palette.ink)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .padding(.horizontal, K.stripSidePadding)
-                    .frame(width: piece.rect.width, height: piece.rect.height)
-                    // It rises the last few points into place as it fades in.
-                    .offset(y: (1 - opacity) * K.unit)
-                    .opacity(opacity)
+                    .frame(maxWidth: max(0, piece.rect.width - layout.bubbleTextX - K.bubbleSidePadding), alignment: .leading)
+                    .scaleEffect(layout.bubbleTextScale, anchor: .leading)
+                    .opacity(piece.opacity)
+                    .padding(.leading, layout.bubbleTextX)
+                    .frame(width: piece.rect.width, height: piece.rect.height, alignment: .leading)
+                    .chromeSurface(Capsule(), fill: BottomChrome.fieldFill(reading))
                     .padding(.vertical, outset)
                     .contentShape(Rectangle())
                     .chromeLargeContent(title, symbol: state.destination.symbol)
@@ -123,7 +123,7 @@ struct ChromePieces: View, Animatable {
             .offset(x: piece.rect.minX, y: piece.rect.minY - outset)
             .accessibilityLabel(title)
             .accessibilityHint(String(localized: "Shows the bar"))
-            .accessibilityIdentifier("chromeStrip")
+            .accessibilityIdentifier("chromeBubble")
             .transition(.opacity)
         }
     }
@@ -137,7 +137,7 @@ struct ChromePieces: View, Animatable {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("bandField")
                 .environment(\.isChromeField, true)
-                .environment(\.chromeFieldWidth, field.fullWidth)
+                .environment(\.chromeFieldWidth, field.rect.width)
                 .overlay {
                     if state.destination == .browse {
                         LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())

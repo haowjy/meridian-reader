@@ -7,10 +7,10 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
 - **Compact width draws one chrome host** (`Chrome/ChromeHost.swift`) over three destinations (Library,
   Browser, Settings: `docs/NAVIGATION.md`, "Bottom chrome"). Row 1 is the screen's field and the Listen button
   (`ChromeListenButton`), row 2 the pill alone; there is no ⋯ or ▶ in the chrome. Each destination hands the
-  host a `ChromeScreen` (field, arrows, strip title). A screen's ⋯ is on its title line (`TitleMenuButton`,
+  host a `ChromeScreen` (field, arrows, bubble title). A screen's ⋯ is on its title line (`TitleMenuButton`,
   `LibraryTitleMenu`, drawing `MenuContext.blocks`); the Browser's is `AddressField`'s `holdMenu`. One state (`ChromeState`), one pure layout (`ChromeLayout`, from
   `ChromeMetrics`, Safari's sizes: `barHeight` 48, footprint 142) and one scroll controller (`ChromeScroll`: a
-  scroll down folds it; a scroll up of `revealDistance`, the strip's tap or the top of the text expand it); Library Read and Browse reader
+  scroll down folds it; a scroll up of `revealDistance`, the bubble's tap or the top of the text expand it); Library Read and Browse reader
   mode open in place via `ReaderSurface` and feed it. The host draws translucent glass (`ChromeSkin`; App
   sets `ChromeSkin.forcesMaterial` for `-chromeFallback`) with only a gradient fade behind. Screens reserve
   `ChromeMetrics.footprint` at the bottom (`CompactChromeInsets`) and report their scroll with

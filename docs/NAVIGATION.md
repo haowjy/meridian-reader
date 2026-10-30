@@ -75,15 +75,17 @@ Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular 
 expanded    [‹ ›][ address / Search Library     ][🎧]     row 1: the screen's own, Listen at its end
             [ ▤  |  🌐  |  ⚙︎                  ]     row 2: where you are (icons only), margin to margin
 one row     [‹ ›][ address / Search Library     ][🎧]     first step of a scroll down: row 2 gone, row 1 in its place
-folded                       example.com                  second step: a text strip that names the page; a tap brings both rows back
-searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no pill or Listen, no strip
+folded                     ( example.com )                second step: the field shrunk to a small glass bubble naming the page; a tap brings both rows back
+searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no pill or Listen, no bubble
 Listen      slides up over everything                     a pull down closes it, back to what was under it
 ```
 
 Every piece is a pure function of one layout (`ChromeLayout`, the mockups' `rectsFor`) and a progress. The fold
-has **steps**: 0 is two rows, 0.5 one row, 1 the strip. From 0 to 0.5 row 2 shrinks away about its centre while
-row 1 drops one row (bar + gap) into its place; from 0.5 to 1 row 1 shrinks toward the strip's centre while the
-strip's text fades and rises in (`ChromeLayout.stripOpacity`). The sizes are Safari's (measured on an iPhone 17 Pro,
+has **steps**: 0 is two rows, 0.5 one row, 1 the bubble. **Every piece goes straight down, never sideways.** From
+0 to 0.5 row 2 slides down off the screen's edge while row 1 drops one row (bar + gap) into its place; from 0.5 to 1
+‹ › and Listen slide down off the edge while the field becomes the bubble: its text fades as the bubble's name fades
+in where it was, at its size (to 0.6), then the field's glass, handed to the bubble's as one shape, shrinks to the
+bubble while the name glides to its centre and down to 13 pt (`ChromeLayout.bubble`, `bubbleTextX`, `bubbleTextScale`). The sizes are Safari's (measured on an iPhone 17 Pro,
 iOS 26). Both rows run **margin to margin with identical leading and trailing edges** on every phone: the field
 and the pill start at the left margin, Listen and the pill end at the right one. A wider phone widens the field and
 the pill.
@@ -91,18 +93,20 @@ the pill.
 **Placement is measured from the screen's edge.** The bottom row's bottom sits 34 pt above the screen's edge
 (`ChromeMetrics.edgeClearance`), on the home-indicator strip rather than in it, on every phone (a Home button phone
 too). Every footprint is from the edge: 142 expanded (4 + 48 + 8 + 48 + 34), 86 one row (and the keyboard's row), 58
-the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
+the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
 `ChromeHome.above(x)` = max(0, x - home indicator inset); the web view uses max(footprint, home inset).
 
-- **The strip** (`ChromeLayout.strip`, `ChromePieces.stripPiece`, id `chromeStrip`): what the second fold step
+- **The bubble** (`ChromeLayout.bubble`, `ChromePieces.bubblePiece`, id `chromeBubble`): what the second fold step
   ends in, on every screen that folds (the Browser's page, the Library and its folders and books, Library Read,
-  the Browser's reader mode in Scroll mode). Brave-style: **text only, no glass**, 13 pt semibold ink
-  (`stripFontSize`) in a 20 pt line (`stripHeight`), 10 pt side padding (`stripSidePadding`), as wide as its
-  text up to 260 pt (`stripMaxWidth`), centred, its bottom 34 pt above the screen's edge. The hit area is the
-  text's width and 44 pt tall (`stripHitOutset` 12 above and below). It names where you are: the page's domain
-  on the Browser (no `www.`, no path), the screen's title in the Library, the article's title in Library Read,
-  the source in the Browser's reader mode, *Settings* in Settings (`ChromeScreen.stripTitle`). Audio keeps playing
-  while folded; the strip's tap and a scroll up bring both rows back. Sheets have no strip.
+  the Browser's reader mode in Scroll mode, Settings and its pages). Safari's minimized address bar: a **glass
+  capsule** on the field's surface (`chromeSurface`, `BottomChrome.fieldFill`), 36 pt tall (`bubbleHeight`),
+  13 pt semibold ink (`bubbleFontSize`), 16 pt padding each side (`bubbleSidePadding`), as wide as its text and
+  padding, at most margin to margin, centred, its bottom 18 pt above the screen's edge (`bubbleClearance`, just over
+  the home indicator). The hit area is its width and 44 pt tall (`bubbleHitOutset` 4 above and below). It names
+  where you are: the page's domain on the Browser (no `www.`, no path), the screen's title in the Library, the
+  article's title in Library Read, the source in the Browser's reader mode, *Settings* in Settings
+  (`ChromeScreen.bubbleTitle`). Audio keeps playing while folded; the bubble's tap and a scroll up bring both rows
+  back. Sheets have no bubble. `-chromeFold P` (Debug) holds the fold at P wherever it may fold, to look at a step.
 
 - **The pill** `[Library | Browser | Settings]`: three equal segments, a third of the pill each (117 pt on the
   SE's 375), **icons only** (each keeps its accessibility label: Library, Browser, Settings; ids `chromeLibrary`,
@@ -157,15 +161,15 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
 - **Row 2** is the pill alone, margin to margin; it never moves or resizes across destinations and states. There is no play / pause in the chrome: Listen, the row's tap in
   the Library and the readers' ▶ Listen start and control playback.
 - **Collapse follows the finger down, in steps; a scroll up brings it back at once.** One progress value
-  (`ChromeScroll`), 0 two rows, 0.5 one row, 1 the strip: `progress += dy / 120` for a scroll down (60 pt a
+  (`ChromeScroll`), 0 two rows, 0.5 one row, 1 the bubble: `progress += dy / 120` for a scroll down (60 pt a
   step), ignored while the keyboard or the ⋯ panel is up, and 150 ms after the finger stops a part-way step
   settles forward to its end (`ChromeScroll.stepEnd`: 0, 0.5 or 1). **A scroll up of 24 pt with no scroll down
   between (`ChromeScroll.revealDistance`) brings both rows back, as Safari does, on every screen that folds.**
-  The rows also come back by a tap on the strip, by reaching the top of the content (offset <= 4, which resets
+  The rows also come back by a tap on the bubble, by reaching the top of the content (offset <= 4, which resets
   progress to 0) (invariant 12), and by what is not a scroll: a new page or screen loading, opening the address
   or search field, VoiceOver being on. The Library, the Browser and the in-place readers feed it; **Listen does not**
   (it has no chrome), the Browser's start page does not fold, and an in-place reader folds only in Scroll mode.
-  **The strip's tap does not pin.** `ChromeScroll.expandByHand` brings both rows back and grants a short grace:
+  **The bubble's tap does not pin.** `ChromeScroll.expandByHand` brings both rows back and grants a short grace:
   scroll reports within 0.35 s (`tapQuiet`, a fling already under way) move nothing, then the next 24 pt of
   scrolling down (`refoldGrace`) folds nothing, and past it the fold follows the finger again. The tap-swallow
   shield stays: while folded (fold < 0.75) a touch on the rows' area does not reach the page under it.
@@ -174,7 +178,7 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   the field (🔍 left, the text, a round ⊗ inside at the right while there is text, 🎤 at its end) and a **Cancel**
   text button (accent, 72 pt) at the right margin. It is not the fixed 351 pt block (the one exception to it): the
   field runs from the left margin (12) to Cancel, one 8 pt gap between, so it is 375 − 24 − 8 − 72 = 271 pt on the
-  SE and 298 pt on a 402 pt phone (`testTypingIsTheFieldAndCancelMarginToMargin`). The pill, Listen, the strip and any globe
+  SE and 298 pt on a 402 pt phone (`testTypingIsTheFieldAndCancelMarginToMargin`). The pill, Listen, the bubble and any globe
   are not drawn while typing. Above the field the search layer is **opaque paper from under the safe area down to the
   keyboard**, and at its top, 12 pt under the safe area and 12 pt from each side, one **rounded card** of rows
   (`SearchSessionOverlay`): untouched (or empty), *Recent Searches* (header + Clear All, a 🔍 row each); typing, first
@@ -185,7 +189,7 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   footprint as its bottom `obscuredContentInsets` (plus min/max viewport insets), so a page's
   `position:fixed; bottom:0` banner (cookie bars, Reddit's "open in app"), sticky footers and `dvh`/`svh`/`lvh` sit
   above the glass instead of under it. The inset follows the drawn step (`ChromeScroll.drawnStep`): 142 pt two rows,
-  86 one row (and the keyboard's row while a search is open), 58 the strip, each at least the home-indicator
+  86 one row (and the keyboard's row while a search is open), 58 the bubble, each at least the home-indicator
   inset (the web view extends under it, so its own inset reads 0). The Library's lists and the readers keep one
   constant inset (142, less the home inset above the safe area). The switch happens **once per step**, not per
   frame: the page's fixed elements jump at each step's midpoint while the glass folds, and the page text reflows once, instead of the
@@ -241,7 +245,7 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   there; *Paste Text…* saves, then opens the new article in Library Read; *Import from…* and a shared book
   file close the import sheet on the new book's screen.
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
-  `ReaderSurface`): the chrome folds on scroll in Scroll mode like a page (to a strip naming the source) and stays expanded in Pages mode, the address keeps the
+  `ReaderSurface`): the chrome folds on scroll in Scroll mode like a page (to a bubble naming the source) and stays expanded in Pages mode, the address keeps the
   URL (narrower by one round control), the reader icon sits in a lit capsule and toggles back. The
   text is a reading page like the Reader's (`ReadingPage`, in place): Pages or Scroll as the
   Appearance setting says, the footer, a tap in the middle for full screen, *Play from Here* on a
@@ -255,7 +259,7 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   what ‹ does (back, which closes the reader).
 - **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
   a row's ⋯ → Read shows the article's text over the Library, which stays the lit segment and under it
-  with its scroll; the chrome folds to a strip naming the article on a scroll down in Scroll mode and stays expanded in Pages mode (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
+  with its scroll; the chrome folds to a bubble naming the article on a scroll down in Scroll mode and stays expanded in Pages mode (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
   or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][Aa  site][Listen]`, as the
   Browser's reader mode: Aa opens the text appearance panel. The Library's ⋯ is a round glass face at the
   top right, on the title's line, gone in full screen. The heading's ▶ Listen starts it, as in the
@@ -1108,7 +1112,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
   doesn't move the text, so following goes on). On compact Listen the player card's Jump turns into an
   arrow toward the spoken sentence ("Bottom chrome", above). Elsewhere a round *Jump to Audio* button floats over the text at the
-  right edge, 12 pt above the player card of an in-place reader (level with the card's right edge; the strip when it folds;
+  right edge, 12 pt above the player card of an in-place reader (level with the card's right edge; the bubble when it folds;
   on regular width above the band): a 48 pt glass circle on the round buttons' shared face (`ChromeCircleFace`), with an arrow
   that points to the spoken sentence, ↑ when it is above the visible text and ↓ when below (Pages: on an earlier or a later page).
   VoiceOver: "Jump to Audio", hint "Scrolls up / down to the sentence being read". Tap it (or start another page) and
@@ -1175,7 +1179,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
 The Reader and Now Playing read full screen the same way (`ReadingChrome`); Follow's chapter preview doesn't.
 
 - **Full screen is a tap in the middle of the text, in and out, and nothing else.** In a compact
-  in-place reader it removes the whole bottom chrome: its rows (or strip), the fade and the status bar
+  in-place reader it removes the whole bottom chrome: its rows (or bubble), the fade and the status bar
   go (fade only under Reduce Motion), the home indicator dims, and the text shows alone, never
   moving. In compact Listen the top bar and the player card slide off and the status bar hides; the
   chrome under Listen keeps its state. **Scrolling does nothing to the chrome in full screen, and

@@ -42,7 +42,7 @@ struct BrowseStartView: View {
     private var hasPage: Bool { webStore.hasPage }
 
     /// What the chrome covers at the bottom of the page, from the screen's edge: two rows, one row or the
-    /// strip as it folds (a step at a time, as drawn), one row
+    /// bubble as it folds (a step at a time, as drawn), one row
     /// while a search is open (the field's), nothing at regular width, where the chrome has its own bar below the page.
     private var obscuredBottom: CGFloat {
         guard !isRegular else { return 0 }
@@ -351,7 +351,7 @@ struct BrowseStartView: View {
                                            holdMenu: holdMenu(actions), onReload: reloadOrStop,
                                            onSubmit: { submit(search.text) }, onMic: toggleDictation, focus: focus))
             },
-            stripTitle: stripTitle
+            bubbleTitle: bubbleTitle
         )
     }
 
@@ -368,12 +368,12 @@ struct BrowseStartView: View {
                                     prompt: String(localized: "Search Settings"), focus: focus,
                                     fieldIdentifier: "settingsSearchField", onSubmit: search.lowerKeyboard))
             },
-            stripTitle: Verbs.settings
+            bubbleTitle: Verbs.settings
         )
     }
 
-    /// What the folded chrome's strip names: the page's domain (no `www.`, no path), or in reader mode its source.
-    private var stripTitle: String {
+    /// What the folded chrome's bubble names: the page's domain (no `www.`, no path), or in reader mode its source.
+    private var bubbleTitle: String {
         let host = shell.pageReader?.sourceLabel ?? webStore.currentURL?.host() ?? ""
         let name = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
         return name.isEmpty ? String(localized: "Browser") : name

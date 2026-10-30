@@ -6,8 +6,8 @@ import QuartzCore
 /// Library, the Browser and the Reader alike. Scroll views report their offset; this keeps a
 /// continuous `progress` (0 expanded, 1 collapsed) that follows the finger on the way down only:
 /// `progress += dy / travel` for a scroll down; a scroll up of `revealDistance` brings both rows back
-/// at once, as Safari does (the owner's call). It folds in two steps: 0 to 0.5 takes row 2 away (one row left), 0.5 to 1 takes the
-/// field into the domain strip. The chrome comes back by a tap on the strip (the next `refoldGrace`
+/// at once, as Safari does (the owner's call). It folds in two steps: 0 to 0.5 takes row 2 away (one row left), 0.5 to 1 shrinks the
+/// field into the bubble. The chrome comes back by a tap on the bubble (the next `refoldGrace`
 /// of scrolling down is ignored, then it folds again: no pin), the very top of the text (0 at the
 /// top), a scroll up, a new page or screen, and opening the search. Once the finger has been still for
 /// `settleDelay` a fold between steps finishes the step it is in. It is the
@@ -21,11 +21,11 @@ import QuartzCore
 @MainActor
 @Observable
 final class ChromeScroll {
-    /// 0 two rows, 0.5 one row, 1 the strip, anywhere between while a finger is on the scroll view.
+    /// 0 two rows, 0.5 one row, 1 the bubble, anywhere between while a finger is on the scroll view.
     private(set) var progress: CGFloat = 0
     /// `progress` as drawn: it chases `progress` a frame at a time (`smoothing`).
     private(set) var displayed: CGFloat = 0
-    /// Past the first step: row 2 is gone (one row or the strip). Its own property so a screen that only needs to know (the
+    /// Past the first step: row 2 is gone (one row or the bubble). Its own property so a screen that only needs to know (the
     /// reading page's floating controls) is not redrawn by every step of `progress`.
     private(set) var isCollapsed = false
     /// `isCollapsed` as drawn: past half in `displayed`, so what keeps clear of the chrome (the web
@@ -35,25 +35,35 @@ final class ChromeScroll {
     private(set) var fullScreen = false
     /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
     var isLocked = false
-    /// What is drawn, by step: 0 two rows, 1 one row, 2 the strip (nearest end of `displayed`), so
+    /// What is drawn, by step: 0 two rows, 1 one row, 2 the bubble (nearest end of `displayed`), so
     /// what keeps clear of the chrome moves a step at a time with it (`ChromeMetrics.footprint(step:)`).
     private(set) var drawnStep = 0
-    /// Points of scrolling down still ignored after the strip's tap: the rows stay for a short
+    /// Points of scrolling down still ignored after the bubble's tap: the rows stay for a short
     /// scroll (and the tail of a fling already under way), then fold again. Never a lasting pin.
     private(set) var grace: CGFloat = 0
     /// The destination keeps its chrome expanded whatever the scroll (Listen, a reader in Pages mode):
     /// scroll reports move nothing, and turning it on expands.
     var holdsExpanded = false {
-        didSet { if holdsExpanded { expand() } }
+        didSet {
+            if holdsExpanded { expand() }
+            #if DEBUG
+            if !holdsExpanded, Self.forcedFold != nil { set(0) }
+            #endif
+        }
     }
+
+    #if DEBUG
+    /// `-chromeFold`: every fold is this one, but where the chrome is held expanded. Set by the launch (`AppMain`).
+    static var forcedFold: CGFloat?
+    #endif
 
     /// Points of scrolling that fold the chrome all the way.
     static let travel: CGFloat = 120
     /// Points of scrolling up, with no scroll down between, that bring the rows back.
     static let revealDistance: CGFloat = 24
-    /// Scrolling down after the strip's tap brought the rows back that folds nothing.
+    /// Scrolling down after the bubble's tap brought the rows back that folds nothing.
     static let refoldGrace: CGFloat = 24
-    /// After the strip's tap, scroll reports this soon are a fling already under way and move nothing.
+    /// After the bubble's tap, scroll reports this soon are a fling already under way and move nothing.
     static let tapQuiet: CFTimeInterval = 0.35
     /// At or above this offset the chrome is expanded.
     static let topEdge: CGFloat = 4
@@ -132,7 +142,7 @@ final class ChromeScroll {
         progress <= 0 ? 0 : progress <= 0.5 ? 0.5 : 1
     }
 
-    /// The step `value` is nearest: 0 two rows, 1 one row, 2 the strip.
+    /// The step `value` is nearest: 0 two rows, 1 one row, 2 the bubble.
     nonisolated static func step(_ value: CGFloat) -> Int { value < 0.25 ? 0 : value < 0.75 ? 1 : 2 }
 
     /// Back to two rows because a screen or page changed (a new screen, a page reader opening): scrolling
@@ -143,7 +153,7 @@ final class ChromeScroll {
         set(0)
     }
 
-    /// Back to two rows by the user's hand (the strip's tap): they stay for the next `refoldGrace` of
+    /// Back to two rows by the user's hand (the bubble's tap): they stay for the next `refoldGrace` of
     /// scrolling down (a fling already under way moves nothing for `tapQuiet`), then fold again.
     func expandByHand() {
         expand()
@@ -173,6 +183,9 @@ final class ChromeScroll {
     }
 
     private func set(_ value: CGFloat) {
+        #if DEBUG
+        let value = Self.forcedFold.map { holdsExpanded ? 0 : $0 } ?? value
+        #endif
         if progress != value { progress = value }
         if isCollapsed != (value >= 0.5) { isCollapsed = value >= 0.5 }
         if displayed != value, ticker == nil { startSmoothing() }

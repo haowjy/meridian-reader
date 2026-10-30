@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// The compact bottom chrome, one view above the three destinations (Library, Browser, Settings): two rows
-/// expanded, then one, then a domain strip as it folds, none in an in-place reader's full screen.
+/// expanded, then one, then a small bubble naming the page as it folds, none in an in-place reader's full screen.
 /// `ChromeState` says what is drawn, `ChromeLayout` where, `ChromePieces` draws it; this view only
 /// wires them to the app. Listen is not under it: it slides up over everything, chrome included.
 ///
@@ -10,14 +10,14 @@ import UIKit
 /// expanded    [‹][›][ address / Search Library     ][🎧]     row 1, Listen at its end
 ///             [ Library  |  Browser  |  Settings      ]     row 2: where you are, margin to margin
 /// one row     [‹][›][ address / Search Library     ][🎧]     a scroll down's first step: row 2 goes, row 1 drops into its place
-/// folded                       example.com                   the second step: text naming the page over the home indicator
+/// folded                     ( example.com )                 the second step: the field shrunk to a bubble naming the page
 /// keyboard    [ 🔍 field                      ⊗ 🎤 ][Cancel]    the keyboard is up (or its session open): margin to margin
 /// full screen (nothing)                                     an in-place reader's middle tap
 /// ```
 ///
 /// Scrolling down folds it a step at a time (never in a reader's Pages mode, on the Browser's
 /// start page, or with VoiceOver on: those stay expanded). Scrolling up never unfolds it
-/// (`ChromeScroll`): a tap on the strip does (until the next short scroll down), and so does the top
+/// (`ChromeScroll`): a tap on the bubble does (until the next short scroll down), and so does the top
 /// of the text, a new page and opening the search (while searching, a swipe up on the row lowers the
 /// keyboard). The host never changes the size of what is under it, but for the Browser's page, which
 /// keeps clear of the step drawn (`ChromeMetrics.footprint(step:)`): screens reserve
@@ -69,11 +69,11 @@ struct ChromeHost: View {
             || (destination == .browse && !readerMode && !shell.web.hasPage)
     }
 
-    /// The strip's width: its title at the fixed size, or its maximum.
-    private var stripWidth: CGFloat {
-        let font = UIFont.systemFont(ofSize: ChromeMetrics.stripFontSize, weight: .semibold)
-        let text = (screen.stripTitle as NSString).size(withAttributes: [.font: font]).width
-        return ChromeMetrics.stripWidth(forTextWidth: ceil(text))
+    /// The bubble's width: its title at the fixed size and its padding (the layout caps it to the margins).
+    private var bubbleWidth: CGFloat {
+        let font = UIFont.systemFont(ofSize: ChromeMetrics.bubbleFontSize, weight: .semibold)
+        let text = (screen.bubbleTitle as NSString).size(withAttributes: [.font: font]).width
+        return ChromeMetrics.bubbleWidth(forTextWidth: ceil(text))
     }
 
     /// What the app says the chrome is now. Its `progress` is the fold's end under Reduce Motion
@@ -82,7 +82,7 @@ struct ChromeHost: View {
     private var live: ChromeState {
         ChromeState(destination: destination, progress: reduceMotion ? ChromeScroll.stepEnd(scroll.progress) : 0, fullScreen: scroll.fullScreen,
                     canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, keyboard: isSearching,
-                    readerMode: readerMode, editing: screen.editBar != nil, stripWidth: stripWidth,
+                    readerMode: readerMode, editing: screen.editBar != nil, bubbleWidth: bubbleWidth,
                     homeInset: ChromeHome.inset)
     }
 
@@ -162,7 +162,7 @@ struct ChromeHost: View {
 
     // MARK: - Actions
 
-    /// The strip's tap, the only way back to two rows by hand: they stay for a short scroll down, then fold again.
+    /// The bubble's tap, the only way back to two rows by hand: they stay for a short scroll down, then fold again.
     private func expandTapped() { scroll.expandByHand() }
 
     /// While searching the row is the keyboard's: a swipe up on it lowers the keyboard.

@@ -45,7 +45,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   the running app (Simulator, one device; the phone for anything that needs real hardware): save
   and play a browsed article (open a page, save it, play, pause, stop); the compact chrome (scroll
   down folds the bottom chrome into its capsule on Browse web, Browse reader, Library Read and
-  Library home; a scroll up of 24 pt or a tap on the strip brings both rows back; Pages mode never
+  Library home; a scroll up of 24 pt or a tap on the bubble brings both rows back; Pages mode never
   folds; Library Edit stays expanded; Listen slides up over the chrome and a pull down closes it back to where you were (a pull pushed back
   up before release keeps it);
   the floating pause pauses in full screen), with a
@@ -65,7 +65,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
   pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
   `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openDemoInBrowseReader` (the Browser's reader mode on the demo article), `-tapListen` (what a tap on the chrome's Listen does; `-closeListenAfter N` closes Listen N s later), `-tapLibraryRow TITLE` (what a tap on that Library row does), `-pasteText TEXT` (*Paste Text…*'s Save), `-importBook` (*Import from…*; with `-importTestEPUB` the test book), `-openSettings` (the pill's Settings; `-searchSettings TEXT` types in Search Settings, `-openSettingsPage voice` pushes a page), `-readDemoInLibrary` (Library Read on the demo article), `-restoreSurface` (a relaunch reopens where
-  the last launch left), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
+  the last launch left), `-chromeFold P` (the compact chrome held at fold P: 0.5 one row, 1 the bubble), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
   on-device test voice for prepared audio; `-selectEngine test.voice`). Keep probes and tests offline;
   use the test pages, not live sites. `LaunchOptions` parses every launch argument, the
   diagnostics' too (`-engineProbe`, `-KokoroStress`, `-kokoroUnits`; `docs/LISTEN_PLAYBACK.md` →
@@ -138,11 +138,11 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   (`Features/Shell/Chrome/ChromeHost.swift`) over three destinations (Library, Browser, Settings): row 1 the
   screen's field ending in the round Listen button, row 2 the `[Library | Browser | Settings]` pill alone, margin
   to margin; no ⋯ and no ▶ in it (a screen's ⋯ is on its title line, a system menu of its `MenuContext`; the
-  Browser's is a press and hold on the field's leading glyph); two rows expanded, one, then a text strip folded;
+  Browser's is a press and hold on the field's leading glyph); two rows expanded, one, then a small glass bubble naming the page folded (the field shrunk; every piece folds straight down);
   no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; later
   redesign PRs are under "Planned"). Regular width keeps `SurfaceBand`, the dock (with its ⋯) and the Settings sheet. Every piece is a capsule
-  or circle (radius = height / 2; Safari's sizes: one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, one 8 pt gap between rows and between pieces, footprints 142, 86 (one row and the keyboard) and 58 (the strip), hit areas at least 44; the pill runs margin to margin, as row 1 does), every control glyph
-  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`: a scroll down folds it, a scroll up of 24 pt (`revealDistance`) brings both rows back, as do the strip's tap and the top of the text, offset <= 4). Listen is not a destination: it slides up over everything, chrome included, as a `Sheet` over the screen with a grabber and no close button, the screen behind dimmed above its rounded top (a pull down on the grabber or the card, still heading down at release closes it, back to what was under it; VoiceOver: escape), the article's title at the top of its text and its player card at its foot; the in-place readers start it from "▶ Listen" in their heading. The compact address pill ends
+  or circle (radius = height / 2; Safari's sizes: one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, one 8 pt gap between rows and between pieces, footprints 142, 86 (one row and the keyboard) and 58 (the bubble), hit areas at least 44; the pill runs margin to margin, as row 1 does), every control glyph
+  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`: a scroll down folds it, a scroll up of 24 pt (`revealDistance`) brings both rows back, as do the bubble's tap and the top of the text, offset <= 4). Listen is not a destination: it slides up over everything, chrome included, as a `Sheet` over the screen with a grabber and no close button, the screen behind dimmed above its rounded top (a pull down on the grabber or the card, still heading down at release closes it, back to what was under it; VoiceOver: escape), the article's title at the top of its text and its player card at its foot; the in-place readers start it from "▶ Listen" in their heading. The compact address pill ends
   in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
   `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts

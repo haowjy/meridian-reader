@@ -11,7 +11,7 @@ enum ChromeDestination: CaseIterable, Equatable {
 /// the app's state.
 struct ChromeState: Equatable {
     var destination: ChromeDestination
-    /// How far a scroll down has folded the rows: 0 two rows, 0.5 one row, 1 the domain strip.
+    /// How far a scroll down has folded the rows: 0 two rows, 0.5 one row, 1 the bubble.
     /// Continuous, driven by scrolling (`ChromeScroll`); scrolling up never brings a row back.
     var progress: CGFloat = 0
     /// An in-place reader's full screen: nothing is drawn.
@@ -26,8 +26,8 @@ struct ChromeState: Equatable {
     var readerMode = false
     /// A Library selection's action bar is row 2: the chrome stays expanded.
     var editing = false
-    /// The strip's width once folded (`ChromeMetrics.stripWidth`): the host measures its title.
-    var stripWidth: CGFloat = ChromeMetrics.stripHeight
+    /// The bubble's width once folded (`ChromeMetrics.bubbleWidth`): the host measures its title.
+    var bubbleWidth: CGFloat = ChromeMetrics.bubbleHeight
     /// The home indicator's strip under the safe area (0 on a phone with a Home button): the rows
     /// reach down into it, to `ChromeMetrics.edgeClearance` above the screen's edge.
     var homeInset: CGFloat = ChromeMetrics.homeIndicatorStrip

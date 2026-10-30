@@ -5,39 +5,28 @@ import CoreGraphics
 struct ChromePiece: Equatable {
     var rect: CGRect
     var isShown: Bool
-    /// How far the fold has shrunk it: its content is laid out at `fullWidth` by `fullHeight` and scaled by
-    /// this, so a label is drawn smaller as the piece shrinks and never reflowed (clipped, truncated) into it.
-    var scale: CGFloat = 1
+    /// How much of its content (labels, glyphs) is drawn. Inside the glass container an opacity never
+    /// fades glass, so a piece at 0 is bare glass.
+    var opacity: CGFloat = 1
 
-    var fullWidth: CGFloat { scale > 0 ? rect.width / scale : rect.width }
-    var fullHeight: CGFloat { scale > 0 ? rect.height / scale : rect.height }
-
-    /// Capsules and circles: half the bar's height.
-    var radius: CGFloat { fullHeight / 2 }
-    /// A piece shown in only one of two forms stays through the move between them (its rect
-    /// shrinks away where it should); the ends are the forms themselves.
-    static func mix(_ a: ChromePiece, _ b: ChromePiece, _ t: CGFloat) -> ChromePiece {
-        ChromePiece(rect: CGRect(x: lerp(a.rect.minX, b.rect.minX, t), y: lerp(a.rect.minY, b.rect.minY, t),
-                                 width: lerp(a.rect.width, b.rect.width, t), height: lerp(a.rect.height, b.rect.height, t)),
-                    isShown: t <= 0 ? a.isShown : t >= 1 ? b.isShown : a.isShown || b.isShown)
-    }
-
-    private static func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat { a + (b - a) * t }
+    /// Capsules and circles: half the height.
+    var radius: CGFloat { rect.height / 2 }
 }
 
 /// Where each piece of the chrome sits, in a box `width` wide and `ChromeMetrics.footprint`
 /// high whose bottom edge is the safe area's. The rows reach below the box, into the home
 /// indicator's strip: the bottom row ends `edgeClearance` above the screen's edge (`state.homeInset`
 /// below the box). Pure: the same state always gives the same frames, so the widths are checkable
-/// without a screen. A scroll down (`state.fold`) folds in two steps: row 2 shrinks away while row 1
-/// drops into its place (0 to 0.5), then row 1 shrinks toward the strip, whose text comes up where it
-/// went (0.5 to 1). The keyboard's form (`state.keyboard`) is its own one row.
+/// without a screen. A scroll down (`state.fold`) folds in two steps, every piece going straight down,
+/// never sideways: row 2 slides off the bottom while row 1 drops into its place (0 to 0.5), then ‹ › and
+/// Listen slide off the bottom while the field's capsule shrinks into the bubble and its text turns into
+/// the bubble's name (0.5 to 1). The keyboard's form (`state.keyboard`) is its own one row.
 ///
 /// ```
 /// expanded    [‹][›][ address / search             ][🎧]     row 1: Listen ends it on every destination
 ///             [ Library  |  Browser  |  Settings      ]     row 2: the pill alone, margin to margin
 /// one row     [‹][›][ address / search             ][🎧]     the fold's first step: row 1 in row 2's place
-/// folded                       example.com                   the strip: text over the home indicator
+/// folded                     ( example.com )                 the bubble: the field shrunk, over the home indicator
 /// reader mode [‹][›][ address                      ][🎧]     the Browser's page as the Reader draws it
 ///             [‹][ Aa  site                         ][🎧]     the Library's Read
 /// editing     [‹][ search                                ]   no Listen
@@ -64,15 +53,18 @@ struct ChromeLayout: Equatable {
     var editBar: ChromePiece
     /// Listen, the round button at the end of row 1: opens Listen over everything.
     var listen: ChromePiece
-    /// What a scroll down folds the rows into: a name for the page, its lower edge where row 2's is.
-    /// The rect is the strip's text box (20 pt tall); its hit area is `ChromeMetrics.stripHitOutset` more each side.
-    var strip: ChromePiece
-    /// How far the strip's text has come up (0 to 1): it fades and rises in, it does not grow.
-    var stripOpacity: CGFloat = 0
+    /// What a scroll down folds the rows into: a small glass capsule naming the page, centred at the foot.
+    /// It takes over from the field's glass at the field's rect and shrinks to its own; its hit area is
+    /// `ChromeMetrics.bubbleHitOutset` more above and below. Its `opacity` is its name's.
+    var bubble: ChromePiece
+    /// The bubble's name: its leading edge from the bubble's, and its scale (anchored there) on
+    /// `ChromeMetrics.bubbleFontSize`. It starts where the field's text is, at its size, and ends centred.
+    var bubbleTextX: CGFloat = 0
+    var bubbleTextScale: CGFloat = 1
 
     /// The top edge of the highest piece, nil when nothing shows (full screen).
     var top: CGFloat? {
-        [pill, field, nav, cancel, editBar, listen, strip].filter(\.isShown).map(\.rect.minY).min()
+        [pill, field, nav, cancel, editBar, listen, bubble].filter(\.isShown).map(\.rect.minY).min()
     }
 
     init(width w: CGFloat, state s: ChromeState) {
@@ -125,33 +117,43 @@ struct ChromeLayout: Equatable {
         // Where it ends row 1 it stays through the keyboard's move (its rect doesn't move; it only goes).
         let listenForm = ChromePiece(rect: CGRect(x: w - margin - bar, y: row1Y, width: bar, height: bar), isShown: listens)
 
-        // The fold, in two steps. First (0 to 0.5) row 2 shrinks about its own middle and goes, while
-        // row 1 drops into its place. Then (0.5 to 1) row 1 shrinks toward the strip's middle and goes,
-        // while the strip's text comes up. A piece at zero size leaves the tree, which nobody sees.
+        // The fold, in two steps, everything going down. First (0 to 0.5) row 2 slides off the bottom while
+        // row 1 drops into its place. Then (0.5 to 1) ‹ › and Listen slide off the bottom, and the field's
+        // text fades as the bubble's name fades in where it was, at its size; the field's glass hands over to
+        // the bubble's (one shape all the way), which shrinks from the field's rect to its own while the
+        // name glides to its centre and shrinks to the bubble's size. Labels and glyphs fade before their
+        // glass goes; a piece leaves the tree once it is below the screen's edge.
         let f = s.fold
-        let first = K.ramp(f, 0...0.5), second = K.ramp(f, 0.5...1)
-        let row2Centre = CGPoint(x: w / 2, y: rowY + bar / 2)
-        let centre = CGPoint(x: w / 2, y: bottom - K.stripHeight / 2)
-        let row2Away = 1 - K.ramp(f, 0...0.35), row1Away = 1 - K.ramp(f, 0.5...0.85), grown = K.ramp(f, 0.7...1)
+        let first = K.ramp(f, 0...0.5)
+        let bubbleWidth = min(w - 2 * margin, s.bubbleWidth)
+        let bubbleBottom = K.footprint + s.homeInset - K.bubbleClearance
+        let bubbleRect = CGRect(x: (w - bubbleWidth) / 2, y: bubbleBottom - K.bubbleHeight, width: bubbleWidth, height: K.bubbleHeight)
+        // From a row's place in the bottom row to below the screen's edge.
+        let offScreen = bar + K.edgeClearance
+        let row2Gone = K.ramp(f, 0...0.5), row1Gone = K.ramp(f, 0.5...0.85)
+        // The field hands its glass to the bubble at `handOver`; the bubble shrinks after it.
+        let handOver: CGFloat = 0.6
+        let shrink = K.ramp(f, handOver...1)
         let drop = first * (bar + gap)
-        func scaled(_ r: CGRect, about c: CGPoint, _ k: CGFloat) -> CGRect {
-            CGRect(x: c.x + (r.minX - c.x) * k, y: c.y + (r.minY - c.y) * k, width: r.width * k, height: r.height * k)
-        }
-        func foldRow2(_ p: ChromePiece) -> ChromePiece {
-            f > 0 ? ChromePiece(rect: scaled(p.rect, about: row2Centre, row2Away), isShown: p.isShown && row2Away > 0, scale: row2Away) : p
-        }
-        func foldRow1(_ p: ChromePiece) -> ChromePiece {
+        func down(_ p: ChromePiece, by gone: CGFloat, from y: CGFloat = 0) -> ChromePiece {
             guard f > 0 else { return p }
-            let r = p.rect.offsetBy(dx: 0, dy: drop)
-            return ChromePiece(rect: scaled(r, about: centre, row1Away), isShown: p.isShown && row1Away > 0 && second < 1, scale: row1Away)
+            return ChromePiece(rect: p.rect.offsetBy(dx: 0, dy: y + gone * offScreen), isShown: p.isShown && gone < 1,
+                               opacity: 1 - K.ramp(gone, 0...0.6))
         }
-        let stripFull = CGRect(x: centre.x - s.stripWidth / 2, y: centre.y - K.stripHeight / 2,
-                               width: s.stripWidth, height: K.stripHeight)
-        strip = ChromePiece(rect: stripFull, isShown: hold && grown > 0)
-        stripOpacity = grown
-        pill = foldRow2(pill)
-        nav = foldRow1(navForm)
-        listen = foldRow1(listenForm)
-        field = foldRow1(fieldForm)
+        pill = down(pill, by: row2Gone)
+        nav = down(navForm, by: row1Gone, from: drop)
+        listen = down(listenForm, by: row1Gone, from: drop)
+
+        let fieldDropped = fieldForm.rect.offsetBy(dx: 0, dy: drop)
+        field = ChromePiece(rect: fieldDropped, isShown: fieldForm.isShown && f < handOver,
+                            opacity: 1 - K.ramp(f, 0.5...handOver))
+        func lerp(_ a: CGFloat, _ b: CGFloat) -> CGFloat { a + (b - a) * shrink }
+        let shrinking = CGRect(x: lerp(fieldDropped.minX, bubbleRect.minX), y: lerp(fieldDropped.minY, bubbleRect.minY),
+                               width: lerp(fieldDropped.width, bubbleRect.width), height: lerp(fieldDropped.height, bubbleRect.height))
+        bubble = ChromePiece(rect: shrinking, isShown: hold && f > 0.5, opacity: K.ramp(f, 0.5...handOver))
+        // The name: from the field's text (its inset, its size) to centred at the bubble's own size.
+        let nameWidth = max(0, bubbleWidth - 2 * K.bubbleSidePadding)
+        bubbleTextX = lerp(K.fieldTextInset, (shrinking.width - nameWidth) / 2)
+        bubbleTextScale = lerp(K.fieldTextSize / K.bubbleFontSize, 1)
     }
 }

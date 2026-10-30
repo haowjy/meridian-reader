@@ -22,9 +22,9 @@ struct ChromeScreen {
     /// The field (a `SearchField`, an `AddressField`): the host passes the focus binding it keeps in
     /// sync with `session.isFocused`.
     var field: (FocusState<Bool>.Binding) -> AnyView = { _ in AnyView(EmptyView()) }
-    /// What the strip names once a scroll down has folded both rows: the page's domain in the Browser, a
-    /// screen, folder or article's title in the Library, the source in the Browser's reader mode.
-    var stripTitle = ""
+    /// What the bubble names once a scroll down has folded both rows: the page's domain in the Browser, a
+    /// screen, folder or article's title in the Library, the source in the Browser's reader mode, Settings.
+    var bubbleTitle = ""
     /// Library Edit: replaces the pill on row 2 with the selection's actions.
     var editBar: AnyView?
 }

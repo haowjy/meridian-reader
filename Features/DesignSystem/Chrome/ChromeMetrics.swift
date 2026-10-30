@@ -9,8 +9,8 @@ import CoreGraphics
 /// corner radius is half that, and every one is at least `minTapTarget` to tap.
 /// The bottom row ends `edgeClearance` above the screen's edge, on the home indicator's strip as
 /// Safari's does. Scrolling down folds in steps: row 2 goes (the field drops to its place), then
-/// the field goes into the domain strip (`stripHeight`), a line of text above the home indicator; a
-/// tap on it, or a scroll up, brings both rows back. Changing `barHeight` changes every piece and every footprint.
+/// the field shrinks into the bubble (`bubbleHeight`), a small glass capsule naming the page just above
+/// the home indicator; a tap on it, or a scroll up, brings both rows back. Changing `barHeight` changes every piece and every footprint.
 ///
 /// Footprints are measured from the screen's bottom edge (the home indicator's strip included);
 /// `aboveSafeArea` turns one into what a view laid out above the safe area keeps clear.
@@ -33,7 +33,7 @@ enum ChromeMetrics {
     static let cancelWidth: CGFloat = 72
     /// The space above the top row.
     static let topPadding: CGFloat = unit
-    /// From the bottom row's lower edge (and the strip's) to the screen's bottom edge: Safari's (measured on
+    /// From the bottom row's lower edge to the screen's bottom edge: Safari's (measured on
     /// an iPhone 17 Pro, iOS 26), so the rows sit on the home indicator's strip, not in it. Not a multiple of the unit.
     static let edgeClearance: CGFloat = 34
     /// The home indicator's strip on a phone that has one; what `ChromeState.homeInset` assumes until
@@ -66,24 +66,34 @@ enum ChromeMetrics {
     /// The playing bars in Listen's circle: smaller than a glyph, so four bars read as a level meter.
     static let playingBarsHeight: CGFloat = 4 * unit
 
-    // MARK: - The strip (the folded chrome)
+    // MARK: - The bubble (the folded chrome)
 
-    /// What both rows fold into once a scroll down has taken them: the page's name (a domain, a title)
-    /// in one line of text just above the home indicator, no glass (Brave's). A tap on it brings the
-    /// rows back. Its box is `stripHeight` tall, its lower edge `edgeClearance` above the screen's edge.
-    static let stripHeight: CGFloat = 5 * unit
+    /// What both rows fold into once a scroll down has taken them, as Safari's address bar does: a small
+    /// glass capsule centred at the foot naming the page (a domain, a title), the field shrunk. A tap on it
+    /// brings the rows back. It is `bubbleHeight` tall, its lower edge `bubbleClearance` above the screen's
+    /// edge (just over the home indicator), as wide as its text and `bubbleSidePadding` each side, at most
+    /// margin to margin.
+    static let bubbleHeight: CGFloat = 9 * unit
+    /// From the bubble's lower edge to the screen's edge: lower than the rows' `edgeClearance`, so the
+    /// folded chrome keeps a 58 pt footprint.
+    static let bubbleClearance: CGFloat = 18
     /// Fixed like every glyph and label here: it never grows with text size (a long press shows it large).
-    static let stripFontSize: CGFloat = 13
-    /// Between the strip's text and the end of its hit area, each side.
-    static let stripSidePadding: CGFloat = 10
-    /// The longest the text runs; longer is cut with an ellipsis.
-    static let stripMaxWidth: CGFloat = 260
-    /// How far the hit area reaches past the strip above and below: `minTapTarget` tall.
-    static let stripHitOutset: CGFloat = (minTapTarget - stripHeight) / 2
+    static let bubbleFontSize: CGFloat = 13
+    /// Between the bubble's text and its ends.
+    static let bubbleSidePadding: CGFloat = 4 * unit
+    /// How far the hit area reaches past the bubble above and below: `minTapTarget` tall.
+    static let bubbleHitOutset: CGFloat = max(0, (minTapTarget - bubbleHeight) / 2)
 
-    /// The strip's width for text `textWidth` wide: the text and its side padding, at most `stripMaxWidth`.
-    static func stripWidth(forTextWidth textWidth: CGFloat) -> CGFloat {
-        min(stripMaxWidth, max(stripHeight, textWidth + 2 * stripSidePadding))
+    /// Where a chrome field's text starts, from the capsule's leading end (its glyph slot, then `Spacing.xs`),
+    /// and its size at the default text size (`TypeStyle.row`): the bubble's name starts there, at that size,
+    /// so the field's text reads as becoming it.
+    static let fieldTextInset: CGFloat = endInset + endGlyphSlot + 2 * unit
+    static let fieldTextSize: CGFloat = 16
+
+    /// The bubble's width for text `textWidth` wide: the text and its side padding, never narrower than a
+    /// circle. `ChromeLayout` caps it to the margins.
+    static func bubbleWidth(forTextWidth textWidth: CGFloat) -> CGFloat {
+        max(bubbleHeight, textWidth + 2 * bubbleSidePadding)
     }
 
     /// How far above the top piece the fade behind the chrome starts.
@@ -97,11 +107,11 @@ enum ChromeMetrics {
     static let footprint: CGFloat = topPadding + barHeight + gap + barHeight + edgeClearance
     /// One row: the keyboard's form, and the fold's first step (86 pt).
     static let collapsedFootprint: CGFloat = topPadding + barHeight + edgeClearance
-    /// The fold's end: the strip (58 pt).
-    static let stripFootprint: CGFloat = topPadding + stripHeight + edgeClearance
-    /// What the chrome covers at a fold step (`ChromeScroll.drawnStep`): 0 two rows, 1 one row, 2 the strip.
+    /// The fold's end: the bubble (58 pt).
+    static let bubbleFootprint: CGFloat = topPadding + bubbleHeight + bubbleClearance
+    /// What the chrome covers at a fold step (`ChromeScroll.drawnStep`): 0 two rows, 1 one row, 2 the bubble.
     static func footprint(step: Int) -> CGFloat {
-        step <= 0 ? footprint : step == 1 ? collapsedFootprint : stripFootprint
+        step <= 0 ? footprint : step == 1 ? collapsedFootprint : bubbleFootprint
     }
 
     /// A footprint (from the screen's edge) as what a view laid out above a safe area `home` deep keeps clear.

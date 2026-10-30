@@ -77,7 +77,7 @@ changing the shell code.
   nudges the measurement each pass, and without the threshold the panel re-places itself forever
   (a layout loop at 100% CPU). The glass grows by frame and corner radius, never by scale.
 - **Compact width: one chrome host** (`Chrome/ChromeHost.swift`; `docs/NAVIGATION.md` "Bottom
-  chrome"). Three destinations (Library, Browser, Settings), at most two rows expanded and a text strip
+  chrome"). Three destinations (Library, Browser, Settings), at most two rows expanded and a glass bubble
   folded, the Listen button ending row 1, the pill alone on row 2 (no ⋯ and no play/pause in the chrome;
   Listen is a cover above it; menus are on title lines and the Browser field's leading glyph), glass inside one `GlassEffectContainer` on
   iOS 26 with a blur and glass tint as the fallback. Its translucent fade takes the colour of what is under it: a

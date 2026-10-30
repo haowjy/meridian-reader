@@ -14,7 +14,7 @@ final class ChromeTests: XCTestCase {
 
     // MARK: State
 
-    func testEditHoldsTheChromeExpandedAndTheKeyboardHidesTheStrip() {
+    func testEditHoldsTheChromeExpandedAndTheKeyboardHidesTheBubble() {
         var state = ChromeState(destination: .browse, progress: 1)
         XCTAssertEqual(state.collapse, 1)
         XCTAssertEqual(state.fold, 1)
@@ -23,15 +23,15 @@ final class ChromeTests: XCTestCase {
         state = ChromeState(destination: .library, progress: 1, editing: true)
         XCTAssertEqual(state.collapse, 0)
         let typing = ChromeState(destination: .library, progress: 1, keyboard: true)
-        XCTAssertEqual(typing.fold, 0, "no strip while typing: the field's row is the only row")
+        XCTAssertEqual(typing.fold, 0, "no bubble while typing: the field's row is the only row")
     }
 
     func testEditKeepsBothRowsWhateverTheScroll() {
         let scrolled = ChromeLayout(width: 393, state: ChromeState(destination: .browse, progress: 1))
         let edit = ChromeLayout(width: 393, state: ChromeState(destination: .library, progress: 1, editing: true))
-        XCTAssertTrue(scrolled.strip.isShown)
-        XCTAssertFalse(scrolled.pill.isShown, "scrolled: the rows are the strip")
-        XCTAssertFalse(edit.strip.isShown, "Edit: row 2 stays")
+        XCTAssertTrue(scrolled.bubble.isShown)
+        XCTAssertFalse(scrolled.pill.isShown, "scrolled: the rows are the bubble")
+        XCTAssertFalse(edit.bubble.isShown, "Edit: row 2 stays")
         XCTAssertTrue(edit.editBar.isShown)
     }
 
@@ -66,22 +66,22 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(M.edgeClearance, 34, "the bottom row ends where Safari's does")
         XCTAssertEqual(M.footprint, 142, "4 + 48 + 8 + 48 + 34, from the screen's edge")
         XCTAssertEqual(M.collapsedFootprint, 86, "one row: the keyboard's and the fold's first step")
-        XCTAssertEqual(M.stripFootprint, 58, "the strip: 4 + 20 + 34")
+        XCTAssertEqual(M.bubbleFootprint, 58, "the bubble: 4 + 36 + 18")
         XCTAssertEqual([M.footprint(step: 0), M.footprint(step: 1), M.footprint(step: 2)], [142, 86, 58])
         XCTAssertEqual(M.aboveSafeArea(M.footprint, home: 34), 108)
-        XCTAssertEqual(M.aboveSafeArea(M.stripFootprint, home: 34), 24)
+        XCTAssertEqual(M.aboveSafeArea(M.bubbleFootprint, home: 34), 24)
         XCTAssertEqual(M.aboveSafeArea(M.footprint, home: 0), 142, "a Home button phone: all of it")
         XCTAssertEqual(M.navSingleWidth, 48)
         XCTAssertEqual(M.navPairWidth, 96)
-        XCTAssertEqual([M.stripHeight, M.stripFontSize, M.stripSidePadding, M.stripMaxWidth], [20, 13, 10, 260])
-        XCTAssertEqual(M.stripHitOutset, 12, "20 + 2 * 12 = the 44 pt hit area")
+        XCTAssertEqual([M.bubbleHeight, M.bubbleClearance, M.bubbleFontSize, M.bubbleSidePadding], [36, 18, 13, 16])
+        XCTAssertEqual(M.bubbleHitOutset, 4, "36 + 2 * 4 = the 44 pt hit area")
         XCTAssertEqual(M.hitOutset, 0, "48 is already past the 44 pt hit area")
         XCTAssertGreaterThanOrEqual(M.gap, 2 * M.hitOutset, "the rows' hit areas never overlap")
         XCTAssertEqual([M.endGlyphSlot, M.endInset], [24, 12], "concentric: a 24 slot 12 in from a 48 pill's end")
         XCTAssertEqual(M.barHeight / 2 - M.endInset, M.endGlyphSlot / 2, "inner radius = outer - inset")
         XCTAssertEqual(M.barHeight - 2 * M.litInset, 40, "the lit segment")
         XCTAssertGreaterThanOrEqual(M.minTapTarget, 44)
-        XCTAssertEqual([M.margin, M.gap, M.topPadding, M.barHeight, M.litInset, M.stripHeight]
+        XCTAssertEqual([M.margin, M.gap, M.topPadding, M.barHeight, M.litInset, M.bubbleHeight]
                            .map { $0.truncatingRemainder(dividingBy: M.unit) },
                        Array(repeating: 0, count: 6), "every size is a multiple of the unit")
     }
@@ -221,67 +221,98 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(se.top, M.topPadding)
     }
 
-    /// The fold's steps: two rows, then one (row 2 gone, row 1 in its place), then the strip.
-    func testFoldingGoesTwoRowsThenOneThenTheStrip() {
+    /// The fold's steps: two rows, then one (row 2 gone, row 1 in its place), then the bubble.
+    func testFoldingGoesTwoRowsThenOneThenTheBubble() {
         let expanded = layout(.browse, progress: 0, back: true)
         let one = layout(.browse, progress: 0.5, back: true)
         let folded = layout(.browse, progress: 1, back: true)
-        XCTAssertFalse(expanded.strip.isShown)
+        XCTAssertFalse(expanded.bubble.isShown)
         XCTAssertFalse(one.pill.isShown, "one row: row 2 gone")
         XCTAssertTrue(one.field.isShown && one.nav.isShown && one.listen.isShown)
-        XCTAssertFalse(one.strip.isShown)
+        XCTAssertFalse(one.bubble.isShown)
         XCTAssertEqual(one.field.rect, expanded.field.rect.offsetBy(dx: 0, dy: M.barHeight + M.gap), "row 1 drops into row 2's place")
         XCTAssertEqual(one.listen.rect, expanded.listen.rect.offsetBy(dx: 0, dy: M.barHeight + M.gap), "Listen with it")
         XCTAssertEqual(one.field.rect.minY, expanded.pill.rect.minY)
         XCTAssertEqual(one.top, expanded.pill.rect.minY)
         XCTAssertEqual([folded.pill, folded.field, folded.nav, folded.cancel, folded.listen].map(\.isShown),
-                       Array(repeating: false, count: 5), "folded: nothing but the strip")
-        XCTAssertTrue(folded.strip.isShown)
-        XCTAssertEqual(folded.stripOpacity, 1)
+                       Array(repeating: false, count: 5), "folded: nothing but the bubble")
+        XCTAssertTrue(folded.bubble.isShown)
+        XCTAssertEqual(folded.bubble.opacity, 1)
         let first = layout(.browse, progress: 0.2, back: true)
-        XCTAssertLessThan(first.pill.rect.width, expanded.pill.rect.width, "row 2 shrinks away")
+        XCTAssertGreaterThan(first.pill.rect.minY, expanded.pill.rect.minY, "row 2 slides down")
         XCTAssertGreaterThan(first.field.rect.minY, expanded.field.rect.minY, "while row 1 drops")
         XCTAssertEqual(first.field.rect.width, expanded.field.rect.width, "row 1 keeps its size in the first step")
         var last: CGFloat = -1
         for step in 0...20 {
-            let o = layout(.browse, progress: CGFloat(step) / 20).stripOpacity
-            XCTAssertGreaterThanOrEqual(o, last, "the strip only comes up as the rows fold")
-            last = o
+            let o = layout(.browse, progress: CGFloat(step) / 20).bubble.opacity
+            if layout(.browse, progress: CGFloat(step) / 20).bubble.isShown {
+                XCTAssertGreaterThanOrEqual(o, last, "the bubble's name only comes up as the rows fold")
+                last = o
+            }
         }
     }
 
-    /// The strip at the two phones that matter (the 17 Pro's 402, the SE's 375): a 20 pt text box as wide
-    /// as its name (to 260), centred, ending 14 above the screen's edge, a 44 pt hit area, nothing else on screen.
-    func testTheStripIsTextAboveTheHomeIndicatorWithA44HitAreaAndTheRowsAreGone() {
+    /// Every piece folds straight down, never sideways, and the field shrinks into the bubble: the bubble's
+    /// glass takes over at the field's rect (one shape, no jump) and shrinks to its own, its name starting
+    /// where the field's text is, at its size, and ending centred at the bubble's.
+    func testTheRowsGoDownAndTheFieldShrinksIntoTheBubble() {
+        let expanded = layout(.browse, progress: 0, back: true, forward: true)
+        let one = layout(.browse, progress: 0.5, back: true, forward: true)
+        var lastWidth = CGFloat.infinity
+        for step in 1...20 {
+            let l = layout(.browse, progress: CGFloat(step) / 20, back: true, forward: true)
+            for (piece, start) in [(l.pill, expanded.pill), (l.nav, expanded.nav), (l.listen, expanded.listen)] where piece.isShown {
+                XCTAssertEqual(piece.rect.minX, start.rect.minX, "no sideways travel at step \(step)")
+                XCTAssertEqual(piece.rect.size, start.rect.size, "no shrinking at step \(step)")
+                XCTAssertGreaterThanOrEqual(piece.rect.minY, start.rect.minY, "down at step \(step)")
+            }
+            guard l.bubble.isShown else { continue }
+            XCTAssertLessThanOrEqual(l.bubble.rect.width, lastWidth, "step \(step)")
+            lastWidth = l.bubble.rect.width
+            if l.field.isShown {
+                XCTAssertEqual(l.bubble.rect, one.field.rect, "while the field is there the bubble is under it, its shape")
+                XCTAssertEqual(l.bubbleTextX, M.fieldTextInset, "the name is where the field's text is")
+                XCTAssertEqual(l.bubbleTextScale * M.bubbleFontSize, M.fieldTextSize, accuracy: 0.001, "at its size")
+            }
+        }
+        let folded = layout(.browse, progress: 1, back: true, forward: true)
+        XCTAssertEqual(folded.bubbleTextX, M.bubbleSidePadding, "centred in the bubble")
+        XCTAssertEqual(folded.bubbleTextScale, 1)
+        XCTAssertFalse(layout(.browse, progress: 0.7).field.isShown, "the field has handed its glass over")
+    }
+
+    /// The bubble at the two phones that matter (the 17 Pro's 402, the SE's 375): 36 pt of glass as wide as its
+    /// name and padding (to the margins), centred, ending 18 above the screen's edge, a 44 pt hit area, nothing else on screen.
+    func testTheBubbleIsASmallCapsuleAboveTheHomeIndicatorWithA44HitArea() {
         for width in [375.0, 402].map({ CGFloat($0) }) {
             for destination in ChromeDestination.allCases {
-                for (text, expected) in [(0.0, 20.0), (60.0, 80), (110, 130), (300, 260)] {
-                    let stripWidth = M.stripWidth(forTextWidth: CGFloat(text))
-                    XCTAssertEqual(stripWidth, CGFloat(expected), "\(text) pt of title")
+                for (text, expected) in [(0.0, 36.0), (60.0, 92), (110, 142), (500, Double(width) - 2 * Double(M.margin))] {
+                    let bubbleWidth = M.bubbleWidth(forTextWidth: CGFloat(text))
                     let l = ChromeLayout(width: width, state: ChromeState(destination: destination, progress: 1,
-                                                                          canGoBack: true, canGoForward: true, stripWidth: stripWidth))
+                                                                          canGoBack: true, canGoForward: true, bubbleWidth: bubbleWidth))
                     let tag = "\(width) \(destination) \(text)"
-                    XCTAssertTrue(l.strip.isShown, tag)
-                    XCTAssertEqual(l.strip.rect.height, 20, tag)
-                    XCTAssertEqual(l.strip.rect.width, stripWidth, tag)
-                    XCTAssertEqual(l.strip.rect.midX, width / 2, tag)
-                    XCTAssertEqual(l.strip.rect.maxY, M.footprint + 34 - M.edgeClearance, "edgeClearance above the screen's edge: \(tag)")
-                    XCTAssertEqual(M.footprint + 34 - l.strip.rect.midY, 44, "centred 44 above the edge: \(tag)")
-                    let hit = l.strip.rect.insetBy(dx: 0, dy: -M.stripHitOutset)
+                    XCTAssertTrue(l.bubble.isShown, tag)
+                    XCTAssertEqual(l.bubble.rect.height, 36, tag)
+                    XCTAssertEqual(l.bubble.rect.width, CGFloat(expected), tag)
+                    XCTAssertEqual(l.bubble.radius, 18, "a capsule: \(tag)")
+                    XCTAssertEqual(l.bubble.rect.midX, width / 2, tag)
+                    XCTAssertEqual(l.bubble.rect.maxY, M.footprint + 34 - M.bubbleClearance, "bubbleClearance above the screen's edge: \(tag)")
+                    XCTAssertEqual(M.footprint + 34 - l.bubble.rect.minY, M.bubbleFootprint - M.topPadding, "inside the 58 pt footprint: \(tag)")
+                    let hit = l.bubble.rect.insetBy(dx: 0, dy: -M.bubbleHitOutset)
                     XCTAssertEqual(hit.height, 44, tag)
-                    XCTAssertEqual(l.top, l.strip.rect.minY, "nothing else is on screen: \(tag)")
+                    XCTAssertEqual(l.top, l.bubble.rect.minY, "nothing else is on screen: \(tag)")
                 }
             }
         }
     }
 
-    func testTheStripIsOnlyThereFoldedAndNeverTypingOrEditing() {
+    func testTheBubbleIsOnlyThereFoldedAndNeverTypingOrEditing() {
         for width in [375.0, 402].map({ CGFloat($0) }) {
-            XCTAssertFalse(layout(.browse, width: width, progress: 0).strip.isShown, "expanded")
-            XCTAssertFalse(layout(.browse, width: width, progress: 0.5).strip.isShown, "one row")
-            XCTAssertFalse(layout(.library, width: width, progress: 1, keyboard: true).strip.isShown, "typing")
-            XCTAssertFalse(ChromeLayout(width: width, state: ChromeState(destination: .library, progress: 1, editing: true)).strip.isShown, "Edit")
-            XCTAssertFalse(ChromeLayout(width: width, state: ChromeState(destination: .browse, progress: 1, fullScreen: true)).strip.isShown, "full screen")
+            XCTAssertFalse(layout(.browse, width: width, progress: 0).bubble.isShown, "expanded")
+            XCTAssertFalse(layout(.browse, width: width, progress: 0.5).bubble.isShown, "one row")
+            XCTAssertFalse(layout(.library, width: width, progress: 1, keyboard: true).bubble.isShown, "typing")
+            XCTAssertFalse(ChromeLayout(width: width, state: ChromeState(destination: .library, progress: 1, editing: true)).bubble.isShown, "Edit")
+            XCTAssertFalse(ChromeLayout(width: width, state: ChromeState(destination: .browse, progress: 1, fullScreen: true)).bubble.isShown, "full screen")
         }
     }
 
@@ -314,7 +345,7 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "60 pt: one row")
         XCTAssertTrue(chrome.isCollapsed)
         scroll(chrome, to: [200])
-        XCTAssertEqual(chrome.progress, 1, "clamped: the strip")
+        XCTAssertEqual(chrome.progress, 1, "clamped: the bubble")
         scroll(chrome, to: [180])
         XCTAssertEqual(chrome.progress, 1, "a short scroll up gives nothing back")
         scroll(chrome, to: [175])
@@ -333,7 +364,7 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(down.progress, 0.5, "a first step stopped partway ends at one row")
         scroll(down, to: [60])
         down.settle()
-        XCTAssertEqual(down.progress, 1, "a second step stopped partway ends at the strip")
+        XCTAssertEqual(down.progress, 1, "a second step stopped partway ends at the bubble")
         let reverse = ChromeScroll()
         reverse.anchor(at: 10)
         scroll(reverse, to: [40, 30, 20, 12, 10])
@@ -343,7 +374,7 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual([0, 0.2, 0.5, 0.74, 0.8, 1].map { ChromeScroll.step(CGFloat($0)) }, [0, 0, 1, 1, 2, 2])
     }
 
-    /// The strip's tap brings both rows back for a short scroll down only: past `refoldGrace` they fold
+    /// The bubble's tap brings both rows back for a short scroll down only: past `refoldGrace` they fold
     /// again (no lasting pin); a fling under way at the tap moves nothing for `tapQuiet`.
     @MainActor
     func testATapExpandFoldsAgainAfterAShortScrollDown() async throws {
