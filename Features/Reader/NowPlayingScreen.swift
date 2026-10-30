@@ -324,7 +324,6 @@ struct NowPlayingScreen: View {
         if let html = readingHTML(now, readerArticle: readerArticle) {
             SpokenText(speech: speech, html: html,
                        heading: ReaderHeading(title: readerArticle?.title ?? now.title, detail: [], titleHidden: false),
-                       spoken: true, document: speech.document,
                        finished: now.isFinished, isChapter: now.isChapter, scrubMap: scrubMap,
                        scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,

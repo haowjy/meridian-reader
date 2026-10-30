@@ -69,13 +69,16 @@ struct ReaderSurface: View {
 
     /// The page's text; while it is what you hear, without the saved spot's underline (the spot moves as it plays).
     private func text(_ listen: QuickListen, hearing: Bool) -> some View {
-        SpokenText(
-            speech: speech, html: article.readingHTML,
+        HTMLReadingView(
+            html: article.readingHTML,
             heading: ReaderHeading(title: article.title, detail: detail(listen), listens: !listen.isDisabled),
-            spoken: false, document: article.document,
-            savedSentence: hearing ? nil : savedSentence(listen.start), opensAtSentence: !hearing,
-            onTap: { _ in }, onOpenLink: { shell.navigate(to: $0) }, onListen: listen.press,
-            onPlaySelection: { playFromSelection(listen, hearing: hearing, paragraph: $0, offset: $1) })
+            activeParagraphIndex: nil, sentence: hearing ? nil : savedSentence(listen.start), opensAtSentence: !hearing,
+            onOpenLink: { shell.navigate(to: $0) }, onListen: listen.press,
+            pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in
+                ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate, chapter: false)
+            },
+            onPlaySelection: { playFromSelection(listen, hearing: hearing, paragraph: $0, offset: $1) },
+            onTapParagraph: { _ in })
     }
 
     /// The source, then the length before a start ("9 min") or the time left part-way ("6 min left"), as a row's second line says.
