@@ -40,8 +40,9 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   the running app (Simulator, one device; the phone for anything that needs real hardware): save
   and play a browsed article (open a page, save it, play, pause, stop); the compact chrome (scroll
   down folds the bottom chrome into its capsule on Browse web, Browse reader, Library Read and
-  Library home; scrolling up never restores it, only a tap on the strip does; Pages mode never
-  folds; Library Edit stays expanded; Listen slides up over the chrome and closes back to where you were;
+  Library home; a scroll up of 24 pt or a tap on the strip brings both rows back; Pages mode never
+  folds; Library Edit stays expanded; Listen slides up over the chrome and a pull down closes it back to where you were (a pull pushed back
+  up before release keeps it);
   the floating pause pauses in full screen), with a
   recorded video and frames for the motion. Launch with the arguments below.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
@@ -77,7 +78,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
 | `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `PDF` (PDFKit text extract into pages), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import for EPUB/PDF), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
-| `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock; the three-destination chrome is being built here), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
+| `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock, the compact chrome host), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
 | `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); models download at runtime |
@@ -132,8 +133,8 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   field ending in the round Listen button, row 2 the `[Library | Browser]` pill and ⋯, no ▶; two rows
   expanded, one, then a text strip folded; no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; later
   redesign PRs are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
-  or circle (radius = height / 2; one 36 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, footprints 98, 54 (one row and the keyboard) and 38 (the strip), hit areas 44), every control glyph
-  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, scroll down only: scrolling up never gives a row back; the strip's tap or the top of the text, offset <= 4, expands it). Listen is not a destination: it slides up over everything, chrome included, as a `Sheet` that covers the screen (⌄ or a pull down closes it, back to what was under it), its player card at its foot; the in-place readers start it from "▶ Listen" in their heading. The compact address pill ends
+  or circle (radius = height / 2; Safari's sizes: one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, one 8 pt gap between rows and between pieces, footprints 142, 86 (one row and the keyboard) and 58 (the strip), hit areas at least 44; the pill runs from the left margin to one gap before ⋯, lined up with the field above), every control glyph
+  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`: a scroll down folds it, a scroll up of 24 pt (`revealDistance`) brings both rows back, as do the strip's tap and the top of the text, offset <= 4). Listen is not a destination: it slides up over everything, chrome included, as a `Sheet` that covers the screen with no close button (a pull down still heading down at release closes it, back to what was under it; VoiceOver: escape), the article's title at the top of its text and its player card at its foot; the in-place readers start it from "▶ Listen" in their heading. The compact address pill ends
   in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
   `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts

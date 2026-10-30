@@ -8,8 +8,8 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   Browser: `docs/NAVIGATION.md`, "Bottom chrome"). Row 1 is the screen's field and the Listen button
   (`ChromeListenButton`), row 2 the pill and ⋯; there is no ▶ in the chrome. Each destination hands the
   host a `ChromeScreen` (field, arrows, ⋯). One state (`ChromeState`), one pure layout (`ChromeLayout`, from
-  `ChromeMetrics`: `barHeight` 36, footprint 98) and one scroll controller (`ChromeScroll`, scroll down only:
-  scrolling up never expands it, the strip's tap or the top of the text do); Library Read and Browse reader
+  `ChromeMetrics`, Safari's sizes: `barHeight` 48, footprint 142) and one scroll controller (`ChromeScroll`: a
+  scroll down folds it; a scroll up of `revealDistance`, the strip's tap or the top of the text expand it); Library Read and Browse reader
   mode open in place via `ReaderSurface` and feed it. The host draws translucent glass (`ChromeSkin`; App
   sets `ChromeSkin.forcesMaterial` for `-chromeFallback`) with only a gradient fade behind. Screens reserve
   `ChromeMetrics.footprint` at the bottom (`CompactChromeInsets`) and report their scroll with
@@ -17,8 +17,9 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
 - **Listen is not under the chrome.** `isNowPlayingPresented` draws `NowPlayingScreen` above the chrome
   in `BrowseStartView.layers`, as a `Sheet` that covers the screen (`ReadingShowing.cover`), below the ⋯
   menu overlay and the sheet presenters so Voice, Save to Folder, ⋯ and the debug panel open over it.
-  Its full screen is its own `ReadingChrome`; never wire it to `chromeScroll`. Closing it must leave
-  whatever was under it (surface, reader, search, fold) untouched: that is the only "back".
+  Its full screen is its own `ReadingChrome`; never wire it to `chromeScroll`. It has no close button:
+  a pull down closes it (VoiceOver: escape). Closing it must leave whatever was under it (surface,
+  reader, search, fold) untouched: that is the only "back".
   Idle Listen binds the page played last paused (`SpeechController.prepare`), never a second "current
   article".
 - **Two size classes.** iPad layout is gated on `horizontalSizeClass == .regular` and compact (iPhone,

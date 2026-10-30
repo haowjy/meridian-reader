@@ -6,7 +6,8 @@ changing the shell code.
 - **`ShellState` is the navigation model** (what you see). Surface (browser or library) and the
   Library's path (`libraryPath`, bound to the Library's `NavigationStack`), the home's tab
   (`homeTab`: `showFavorites` selects Favorites, `showLibrary(at:)` Everything, `openLibrary`
-  keeps it; stored under `library.homeTab`, the two-tab Bool key read once and removed), the Reader sheet and
+  keeps it; stored under `library.homeTab`, the two-tab Bool key read once and removed; both close a page
+  open in Library Read, since a place asked for by name must show), the Reader sheet and
   its `ReaderOrigin` (derived from the surface), Now Playing, the one other sheet and the toast.
   Add a screen by adding a case here, not a presentation flag in a view. The surface,
   path and tab are written to `SurfaceMemoryStore` on every change and restored at launch (D10); a UI-test
@@ -79,7 +80,7 @@ changing the shell code.
   iOS 26 with a blur and glass tint as the fallback. Its translucent fade takes the colour of what is under it: a
   web page's `underPageBackgroundColor` (`WebViewStore.pageBackground`, KVO), paper, or the reading
   theme. The in-place reader (`ReaderSurface`) covers a web view that takes no touches, so it
-  carries its own left-edge swipe for ‹. The rest of design 5e (PR2 to PR4) is under "Planned"
+  carries its own left-edge swipe for ‹. The rest of design 5e is under "Planned"
   there. Regular width is untouched.
 - **Regular width: the browser and the Library share the field band** (`SurfaceBand`: the field and its ✕),
   over the clustered dock; the dock's toolbar is a `BottomToolbarLayout` whose items name their slots
