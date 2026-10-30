@@ -116,7 +116,7 @@ struct LibraryHomeView: View {
 
     /// An empty Library: the two ways something gets in, as two tiles side by side.
     private var emptyCard: some View {
-        VStack(spacing: Spacing.l) {
+        VStack(spacing: Spacing.m) {
             Text("Start Your Library")
                 .typeStyle(.heading, weight: .semibold)
                 .foregroundStyle(Palette.ink)

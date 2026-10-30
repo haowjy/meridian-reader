@@ -9,7 +9,7 @@ import SwiftUI
 /// beside it while every word of the message still fits there; when one wouldn't (the largest
 /// text sizes), the action goes under the message, and then the symbol goes, so no word is
 /// broken while one could fit the toast. One line draws as a capsule; taller, its corners stay at
-/// `Radius.pill`, as a pill button's do. Over the Reader and Now Playing it takes the reading
+/// `Radius.surface`, as every floating surface's do. Over the Reader and Now Playing it takes the reading
 /// theme's card and inks, as everything floating on the reading page does.
 struct Toast: View {
     let message: String
@@ -56,7 +56,7 @@ struct Toast: View {
 
     @ViewBuilder
     private var background: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.pill, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.surface, style: .continuous)
         if let reading {
             shape.fill(reading.card)
         } else {

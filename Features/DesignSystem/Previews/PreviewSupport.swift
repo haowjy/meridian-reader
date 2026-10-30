@@ -46,7 +46,7 @@ struct PreviewGallery<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.l) { content }
+        VStack(alignment: .leading, spacing: Spacing.m) { content }
             .padding(Spacing.pageMargin)
             .frame(width: Self.width, alignment: .leading)
             .background(Palette.paper)

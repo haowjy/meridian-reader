@@ -31,6 +31,12 @@ enum ChromeMetrics {
     /// The home indicator's strip on a phone that has one; what `ChromeState.homeInset` assumes until
     /// the host has measured it.
     static let homeIndicatorStrip: CGFloat = 34
+    /// From the home indicator's strip (the bottom safe area) up to the foot of a surface floating
+    /// there that is not the chrome: Listen's player card (51 pt above the screen's edge on an iPhone
+    /// 17 Pro). More than the chrome's rows keep, so the card's corners and its bottom row stand
+    /// well clear of the display's rounded corners, which a phone's case covers more of than a
+    /// screenshot shows.
+    static let homeClearance: CGFloat = Spacing.m
 
     /// How far a piece's hit area reaches past its glass: none while the glass is itself at least
     /// `Control.tap` tall, so neighbouring hit areas never overlap.
@@ -68,9 +74,6 @@ enum ChromeMetrics {
 
     /// How far above the top piece the fade behind the chrome starts.
     static let fadeRise: CGFloat = 50
-
-    /// Listen's player card, at the foot of Listen: its corner radius (not a bar's). It sizes to its rows.
-    static let cardRadius: CGFloat = 24
 
     /// What the chrome covers at the bottom of a scrolling screen, from the screen's edge: two rows,
     /// the same on every destination, so a screen never resizes when the chrome folds (142 pt).

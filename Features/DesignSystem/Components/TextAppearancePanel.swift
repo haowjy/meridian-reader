@@ -206,7 +206,7 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
         }
         .padding(Spacing.xxs)
         .background(ChoicePickerTrack.fill(reading),
-                    in: rows.count == 1 ? AnyShape(Capsule()) : AnyShape(RoundedRectangle(cornerRadius: Radius.pill,
+                    in: rows.count == 1 ? AnyShape(Capsule()) : AnyShape(RoundedRectangle(cornerRadius: Radius.surface,
                                                                                            style: .continuous)))
     }
 

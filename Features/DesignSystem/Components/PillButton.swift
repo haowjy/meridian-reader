@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A labelled capsule button: a sheet's close pill ("‹ Browser", "⌄ Library") and Listen, a book's Continue. `Control.bar` tall (`Control.small` compact) at the default text size, growing with
-/// Dynamic Type up to `Control.maxTextGrowth` like the rest of the band; radius `Radius.pill`.
+/// Dynamic Type up to `Control.maxTextGrowth` like the rest of the band; a true capsule at every size.
 ///
 /// A `detail` follows the title in regular weight, set apart by space rather than a separator:
 /// *▶ **Listen**  9 min*, *▶ **Continue**  Ch 24*. When the pill is short of room (large text)
@@ -63,7 +63,7 @@ struct PillButton<Leading: View>: View {
             .padding(.horizontal, fit == .icon ? 0 : Spacing.m)
             // Icon only: a circle the pill's height, or a capsule when it stretches.
             .frame(minWidth: fit == .icon ? height : nil, maxWidth: expands ? .infinity : nil, minHeight: height)
-            .background(background, in: RoundedRectangle(cornerRadius: Radius.pill, style: .continuous))
+            .background(background, in: Capsule(style: .continuous))
             .opacity(isEnabled ? 1 : Palette.disabledOpacity)
             .tapTarget(size.height)
         }
@@ -193,7 +193,7 @@ struct SheetBarButton: ToolbarContent {
 struct PillPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(configuration.isPressed ? Palette.pressedOpacity : 1)
             .animation(Motion.snappy, value: configuration.isPressed)
     }
 }

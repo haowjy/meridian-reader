@@ -436,7 +436,7 @@ private struct MorphMenuSamplePanel: View {
                 Label(title, systemImage: icon)
                     .typeStyle(.row)
                     .foregroundStyle(Palette.ink)
-                    .padding(.horizontal, Spacing.l)
+                    .padding(.horizontal, Spacing.m)
                     .padding(.vertical, Spacing.s)
             }
             Divider().padding(.horizontal, Spacing.m)

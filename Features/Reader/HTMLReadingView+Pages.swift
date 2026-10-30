@@ -524,7 +524,7 @@ struct ReadingPageFrame: View {
                 Text(shown.map { "\(Int((Double($0.index + 1) / Double(max($0.count, 1)) * 100).rounded()))%" } ?? "")
             }
                 .typeStyle(.caption)
-                .padding(.horizontal, Spacing.l)
+                .padding(.horizontal, Spacing.m)
                 .frame(maxWidth: .infinity)
                 .padding(.top, Spacing.xs)
                 .padding(.bottom, Spacing.xxs)

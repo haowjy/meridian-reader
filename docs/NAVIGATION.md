@@ -205,7 +205,8 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   text. A pull down on the grabber or the player card (a UIKit pan, `SheetPullPan`, so a drag that starts on a control pulls too; the scrubber keeps its drag), or on the text when it is at its top, follows the finger and closes it when let go far enough or
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
   its scroll, a reader in place and its fold or full screen, a search (its keyboard lowered when Listen
-  opened). Audio keeps playing. At the foot a glass player card at the chrome's margins (`cardRadius` 24),
+  opened). Audio keeps playing. At the foot a glass player card at the chrome's side margins (`Radius.surface` 24), 16 pt above the home
+  indicator's strip (`ChromeMetrics.homeClearance`, clear of the display's rounded corners),
   as tall as its rows, floating over the text, which runs on under it to the screen's foot (`ReaderPlayerCard`). No artwork and no divider: its
   groups are set apart by space alone.
 

@@ -86,7 +86,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     }
 
     private func actionControls(_ actions: FolderHeaderActions, captions: Bool) -> some View {
-        CentredSidesLayout(spacing: Spacing.l, minSide: sideWidth) {
+        CentredSidesLayout(spacing: Spacing.m, minSide: sideWidth) {
             Button(action: actions.onPrepare) {
                 sideLabel(actions.prepareCaption ?? actions.prepare.label, shown: captions) {
                     PrepareMark(state: actions.prepare)

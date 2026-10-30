@@ -25,8 +25,8 @@ struct ActionTile: View {
             .padding(Spacing.m)
             .frame(maxWidth: .infinity, minHeight: ActionTile.minHeight)
             .background(prominent ? Palette.lit : Palette.chrome,
-                        in: RoundedRectangle(cornerRadius: Radius.pill, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: Radius.pill, style: .continuous))
+                        in: RoundedRectangle(cornerRadius: Radius.surface, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Radius.surface, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier ?? title)

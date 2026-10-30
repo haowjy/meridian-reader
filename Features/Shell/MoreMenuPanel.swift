@@ -83,7 +83,7 @@ struct MoreMenuPanel: View {
                     .foregroundStyle(secondaryInk)
             }
         }
-        .padding(.horizontal, Spacing.l)
+        .padding(.horizontal, Spacing.m)
     }
 
     private var divider: some View {

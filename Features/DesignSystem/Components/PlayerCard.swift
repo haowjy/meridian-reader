@@ -229,7 +229,7 @@ struct ReaderPlayerCardGallery: View {
                 .playerCardTool()
             Image(systemName: Icons.more).toolbarIconFrame().playerCardTool()
         }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ChromeMetrics.cardRadius, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.surface, style: .continuous))
     }
 }
 

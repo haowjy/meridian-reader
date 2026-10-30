@@ -13,10 +13,9 @@ struct TokensGallery: View {
         ]
     }
     private let spacing: [(String, CGFloat)] = [
-        ("xxs", Spacing.xxs), ("xs", Spacing.xs), ("s", Spacing.s), ("m", Spacing.m), ("l", Spacing.l),
-        ("xl", Spacing.xl),
+        ("xxs", Spacing.xxs), ("xs", Spacing.xs), ("s", Spacing.s), ("m", Spacing.m), ("xl", Spacing.xl),
     ]
-    private let radii: [(String, CGFloat)] = [("card", Radius.card), ("pill", Radius.pill)]
+    private let radii: [(String, CGFloat)] = [("card", Radius.card), ("surface", Radius.surface)]
 
     var body: some View {
         PreviewGallery {

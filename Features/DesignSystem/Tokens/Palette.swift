@@ -91,15 +91,15 @@ enum Palette {
     /// composited on what is under it.
     static let washOpacity = 0.15
     /// The lit part of a chrome control (the pill's current segment, the reader icon while the
-    /// reader view shows): the accent at this strength, behind ink text and an accent glyph.
-    static let litOpacity = 0.2
-    static var lit: Color { accent.opacity(litOpacity) }
+    /// reader view shows), a prominent action tile: the accent wash, behind ink text and an accent glyph.
+    static var lit: Color { accent.opacity(washOpacity) }
 
     /// A control drawn in its own colour that has nothing to do: as faint as the system dims a
     /// disabled toolbar button (‹ / › with no history), so a dimmed 🔖 or ▶ matches them.
     static let disabledOpacity = 0.3
-    /// A glyph button under the finger.
-    static let pressedOpacity = 0.5
+    /// A button under the finger (a pill, a disc, the bookmark, the reading page's Listen pill):
+    /// dimmed a little, like a system button.
+    static let pressedOpacity = 0.7
     /// A Library row drawn lighter: a page skipped in playback, a link whose text isn't in.
     static let lighterRowOpacity = 0.6
 }

@@ -118,7 +118,7 @@ struct MoveTreeList: View {
                         .accessibilityHidden(true)
                 }
             }
-            .padding(.leading, Spacing.l * CGFloat(depth))
+            .padding(.leading, Spacing.m * CGFloat(depth))
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)

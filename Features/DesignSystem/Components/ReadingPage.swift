@@ -153,7 +153,7 @@ private struct CoverBand<Content: View, Floating: View>: View {
     @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: ChromeMetrics.cardRadius, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.surface, style: .continuous)
         content
             // The card stays compact: its text grows only so far (its glyphs offer the large content viewer).
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -161,7 +161,7 @@ private struct CoverBand<Content: View, Floating: View>: View {
             .chromeSurface(shape, fill: BottomChrome.fieldFill(reading), interactive: false)
             .environment(\.chromeSkin, ChromeSkin.current)
             .padding(.horizontal, Spacing.bandMargin)
-            .padding(.bottom, Spacing.xs)
+            .padding(.bottom, ChromeMetrics.homeClearance)
             .overlay(alignment: .top) { floating }
     }
 }

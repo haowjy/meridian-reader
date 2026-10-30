@@ -123,7 +123,7 @@ enum ReadingStyle {
         html.reader-paged body { box-sizing: border-box; height: var(--page-h); padding-top: var(--page-top);
                padding-bottom: 0; column-width: calc(100vw - \(2 * margin)px); column-gap: \(2 * margin)px; column-fill: auto; }
         html.reader-paged img, html.reader-paged svg, html.reader-paged video, html.reader-paged iframe {
-               max-height: calc(var(--page-h) - var(--page-top) - \(Int(Spacing.l))px); object-fit: contain;
+               max-height: calc(var(--page-h) - var(--page-top) - \(Int(Spacing.m))px); object-fit: contain;
                break-inside: avoid; }
         h1, h2, h3, h4, h5, h6 { line-height: 1.25; }
         h1 { font-size: calc(var(--title) * var(--scale) * 0.9); }
@@ -155,7 +155,7 @@ enum ReadingStyle {
         .reader-detail:has(.reader-listen) { padding-top: \(Int(Spacing.xs))px; }
         .reader-listen::after { content: ""; position: absolute; left: 0; right: 0; top: 50%;
                          height: max(100%, \(Int(Control.tap))px); transform: translateY(-50%); }
-        .reader-listen:active { opacity: 0.7; }
+        .reader-listen:active { opacity: \(Palette.pressedOpacity); }
         .reader-listen svg { width: 0.7em; height: 0.8em; fill: currentColor; }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
