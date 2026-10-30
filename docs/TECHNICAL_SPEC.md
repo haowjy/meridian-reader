@@ -97,7 +97,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   (Listen, which opens what plays or the page played last), `ChromeFade` (the translucent gradient under
   the pieces), `ChromeControls` (pill, navigation), `ChromeSkin` (glass, or blur and tint before iOS
   26, and the round buttons' `ChromeCircleFace`). Listen is not under the chrome: it is a `Sheet` that
-  covers the screen (`ReadingShowing.cover`), with no close button (a pull down, or VoiceOver's escape,
+  covers the screen (`ReadingShowing.cover`), with a ⌄ at its top left (it, a pull down on it or the card (`SheetPullPan`), or VoiceOver's escape,
   closes it), the article's title at the top of its text and its player card (`ReaderPlayerCard`) at its foot.
 - **Reading pages.** The Reader and Now Playing are one `ReadingPage` (`ReaderSheet` and
   `NowPlayingSheet` supply their bands): `ReadingBars` lays out the text between the top bar and

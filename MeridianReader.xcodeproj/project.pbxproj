@@ -338,6 +338,7 @@
 		D6F7EAC89FF3AD12E0798CC8 /* EngineCrashGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF68D2D7BB100C810FECE952 /* EngineCrashGuardTests.swift */; };
 		D7873A1223337CDB585F9D48 /* ChromeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54F98E7F9DFE3D17EE651593 /* ChromeHost.swift */; };
 		D7C022B12D446754F2DECC34 /* ReadingPagination.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67DE239E333051B09D3E6BC /* ReadingPagination.swift */; };
+		D9618A2D259EF19F71AE2AA0 /* SheetPullPan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56AF658C568943F2692AAF95 /* SheetPullPan.swift */; };
 		D9DD77AF091F9EB7F751E5EC /* SystemBars.swift in Sources */ = {isa = PBXBuildFile; fileRef = 526BBFF20A689960CBD8A475 /* SystemBars.swift */; };
 		D9F32BC84B8B1401C69C5EC0 /* PhononModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E8B73537492457896C6BAB9 /* PhononModelStore.swift */; };
 		DAE552B8E2F9BCCE10B441EF /* ChromeInsets.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4D9597E4EB219F67F464AE /* ChromeInsets.swift */; };
@@ -564,6 +565,7 @@
 		53B8B971800F9C1A2D8256AD /* NowPlayingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingController.swift; sourceTree = "<group>"; };
 		54F98E7F9DFE3D17EE651593 /* ChromeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeHost.swift; sourceTree = "<group>"; };
 		55C217D0D987907488261F23 /* IconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconButton.swift; sourceTree = "<group>"; };
+		56AF658C568943F2692AAF95 /* SheetPullPan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetPullPan.swift; sourceTree = "<group>"; };
 		57FE553F262B6BA134259973 /* LibraryStore+Marks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryStore+Marks.swift"; sourceTree = "<group>"; };
 		586B1063EC25129B9FA917E7 /* ArticleAudioCache+PreparedAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ArticleAudioCache+PreparedAudio.swift"; sourceTree = "<group>"; };
 		58A64466059BA1017F1DE3DC /* Sheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sheet.swift; sourceTree = "<group>"; };
@@ -966,6 +968,7 @@
 				4A7C03D4520A1482F385C1C1 /* SectionHeader.swift */,
 				58A64466059BA1017F1DE3DC /* Sheet.swift */,
 				1F968C0F18E9D51BBA4E89AD /* SheetPullHandoff.swift */,
+				56AF658C568943F2692AAF95 /* SheetPullPan.swift */,
 				124893343B0FE2C3040D7289 /* SymbolRow.swift */,
 				91376A2DBF383B9E05CA1EDC /* TextAppearancePanel.swift */,
 				9713870ED925DC06F2F5E042 /* TitleMenuButton.swift */,
@@ -2154,6 +2157,7 @@
 				B71BF71C4B55EF7F7F393D01 /* SharedInbox.swift in Sources */,
 				0727841C55A970070F764F49 /* Sheet.swift in Sources */,
 				1466BE2F35AC652D1490CD1D /* SheetPullHandoff.swift in Sources */,
+				D9618A2D259EF19F71AE2AA0 /* SheetPullPan.swift in Sources */,
 				B511D153A8F41D29AB51D844 /* ShellSheetView.swift in Sources */,
 				B796C4AB0F3DACF30D45986A /* ShellState.swift in Sources */,
 				BB8ED6490EDDC7F6CD156973 /* ShellToastLayer.swift in Sources */,

@@ -54,7 +54,8 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     @State private var risen = false
     @State private var closed = false
     @State private var pull: CGFloat = 0
-    @State private var pullAxis: Axis?
+    /// A pull on the header or the band is under way (the body's handoff then stays out).
+    @State private var panning = false
     @State private var height: CGFloat = 0
     /// The status bar's height (the top safe area), for the player's status bar scrim.
     @State private var statusBarHeight: CGFloat = 0
@@ -126,10 +127,25 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         }
     }
 
-    /// The grabber and the header: pulled down, they pull the sheet.
+    /// The grabber and the header: pulled down, they pull the sheet. A cover has no grabber but a
+    /// ⌄ in a glass circle at its top left: a tap closes it, and it is the obvious thing to pull.
     private var headerBlock: some View {
         VStack(spacing: 0) {
-            SheetGrabber()
+            if covers {
+                Button(action: close) {
+                    ChromeCircleFace(label: Verbs.closeListen, symbol: Icons.collapse) { Image(systemName: Icons.collapse) }
+                        .frame(width: ChromeMetrics.barHeight, height: ChromeMetrics.barHeight)
+                        .environment(\.chromeSkin, ChromeSkin.current)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Verbs.closeListen)
+                .accessibilityIdentifier("sheetCollapse")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, ChromeMetrics.margin)
+                .padding(.vertical, Spacing.xxs)
+            } else {
+                SheetGrabber()
+            }
             header
         }
         .contentShape(Rectangle())
@@ -143,28 +159,23 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                                                              style: .continuous).fill(palette.background),
                     headerSlide: statusBarHeight + gap, header: headerBlock, content: content,
                     // A cover's band (Listen's card) is its handle too: the grabber alone is too small to find.
-                    band: band.gesture(pullDown, including: covers ? .all : .subviews),
+                    band: band.pullHandle(covers ? pullDown : nil),
                     overText: overText)
             .environment(\.sheetPullHandoff, pullHandoff)
     }
 
-    /// Follows a vertical pull (down freely, up with rubber-band resistance); released far enough
-    /// or flung, it carries on off the screen at the finger's speed, then closes.
-    private var pullDown: some Gesture {
-        DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance, coordinateSpace: .global)
-            .onChanged { value in
-                let axis = pullAxis ?? SwipeGesturePolicy.axis(ofFirstMovement: value.translation)
-                pullAxis = axis
-                guard axis == .vertical else { return }
-                pull = SwipeGesturePolicy.dismissOffset(forVerticalTranslation: value.translation.height)
-            }
-            .onEnded { value in
-                let vertical = pullAxis == .vertical
-                pullAxis = nil
-                guard vertical else { return withAnimation(Motion.settle) { pull = 0 } }
-                release(translation: value.translation.height, predicted: value.predictedEndTranslation.height,
-                        velocity: value.velocity.height)
-            }
+    /// Follows a pull down (`SheetPullPan`, which starts only on a downward drag, on controls too);
+    /// released far enough or flung, it carries on off the screen at the finger's speed, then closes.
+    private var pullDown: SheetPullPan {
+        SheetPullPan { translation in
+            panning = true
+            pull = SwipeGesturePolicy.dismissOffset(forVerticalTranslation: translation)
+        } ended: { translation, velocity in
+            panning = false
+            release(translation: translation,
+                    predicted: SwipeGesturePolicy.projectedTranslation(translation, velocity: velocity),
+                    velocity: velocity)
+        }
     }
 
     /// The scrolling body's pull, handed over at its top: the same follow and release as the
@@ -172,11 +183,11 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     /// Rewired on each pass so the release sees this pass's values (Reduce Motion, `onDismiss`).
     private func wire(_ handoff: SheetPullHandoff) {
         handoff.changed = { offset in
-            guard !dismissed, pullAxis == nil else { return }
+            guard !dismissed, !panning else { return }
             pull = offset
         }
         handoff.ended = { offset, velocity in
-            guard !dismissed, pullAxis == nil else { return }
+            guard !dismissed, !panning else { return }
             release(translation: offset,
                     predicted: SwipeGesturePolicy.projectedTranslation(offset, velocity: velocity),
                     velocity: velocity)

@@ -197,8 +197,8 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   untouched. Fixture: `reader-test://pages/popup`, `testAFixedBottomPopupSitsAboveTheChrome`.
 - **Listen slides up over everything** (`NowPlayingScreen`, `ReadingShowing.cover`, a `Sheet` that covers):
   from the bottom, edge to edge and under the status bar, over the chrome, with nothing behind it. At its
-  top a grabber and nothing else; there is no close button. The article's title is the first thing in its
-  text. A pull down on the grabber or the player card, or on the text when it is at its top, follows the finger and closes it when let go far enough or
+  top a ⌄ in a glass circle at the top left (it closes Listen), no grabber. The article's title is the first thing in its
+  text. A pull down on the ⌄ or the player card (a UIKit pan, `SheetPullPan`, so a drag that starts on a control pulls too; the scrubber keeps its drag), or on the text when it is at its top, follows the finger and closes it when let go far enough or
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
   its scroll, a reader in place and its fold or full screen, a search (its keyboard lowered when Listen
   opened). Audio keeps playing. At the foot a glass player card at the chrome's margins (`cardRadius` 24),

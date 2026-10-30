@@ -18,8 +18,8 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
 - **Listen is not under the chrome.** `isNowPlayingPresented` draws `NowPlayingScreen` above the chrome
   in `BrowseStartView.layers`, as a `Sheet` that covers the screen (`ReadingShowing.cover`), below the ⋯
   menu overlay and the sheet presenters so Voice, Save to Folder, ⋯ and the debug panel open over it.
-  Its full screen is its own `ReadingChrome`; never wire it to `chromeScroll`. It has no close button:
-  a pull down closes it (VoiceOver: escape). Closing it must leave whatever was under it (surface,
+  Its full screen is its own `ReadingChrome`; never wire it to `chromeScroll`. Its ⌄ (top left)
+  or a pull down closes it (VoiceOver: escape). Closing it must leave whatever was under it (surface,
   reader, search, fold) untouched: that is the only "back".
   Idle Listen binds the page played last paused (`SpeechController.prepare`), never a second "current
   article"; with nothing to bind it opens on *Nothing Playing* (`NowPlayingScreen`), and a showing that
