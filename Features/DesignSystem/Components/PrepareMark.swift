@@ -153,7 +153,7 @@ struct QueuedIndicator: View {
     var body: some View {
         Group {
             if reduceMotion {
-                Image(systemName: Icons.prepareQueued)
+                Image(systemName: Icons.waiting)
                     .font(.system(size: size * 0.85, weight: .medium))
                     .foregroundStyle(Palette.accent)
             } else {

@@ -11,8 +11,6 @@ enum Glyph {
     static let listeningColumn: CGFloat = 20
     /// The stroke of a ring, a drop target's outline and a chosen swatch's ring.
     static let stroke: CGFloat = 2
-    /// Playing bars beside a row's status; the empty slot beside the address field's text.
-    static let indicator: CGFloat = 16
     /// A book preview's chapter row's empty leading mark (`ListRow`); the playing bars inside a
     /// play button; a Settings choice's ✓ or spinner.
     static let mark: CGFloat = 20

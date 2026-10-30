@@ -35,8 +35,6 @@ enum Icons {
     static let readerShowing = "doc.plaintext.fill"
     /// History (the browser's: pages visited).
     static let history = "clock"
-    /// Recent (the Library's tab: pages listened to without saving).
-    static let recent = "clock.arrow.circlepath"
     static let search = "magnifyingglass"
     /// Puts a suggestion into the field to keep typing.
     static let fillField = "arrow.up.backward"
@@ -78,8 +76,6 @@ enum Icons {
     static let sort = "arrow.up.arrow.down"
     /// ≡ Drag handle for reorder in Edit (C148).
     static let reorder = "line.3.horizontal"
-    /// Select (Edit's check circles).
-    static let select = "checkmark.circle"
     /// Checked: the chosen option in a list or menu (where the system draws the same ✓ in its own
     /// pickers). Not Select's circle, nor the filled circle that means prepared, nor a finished
     /// page (that is the listening ring, full).
@@ -111,7 +107,7 @@ enum Icons {
     static let excluded = "square"
     /// Some of a list kept: Review's *Select All* between all and none.
     static let partlyIncluded = "minus.square.fill"
-    /// Waiting on a site that asked to slow down.
+    /// Waiting: on a site that asked to slow down; a prepare queued with Reduce Motion on, in place of the spinner (C93).
     static let waiting = "hourglass"
 
     // MARK: Listening
@@ -147,8 +143,6 @@ enum Icons {
     static let prepareArrow = "arrow.down"
     /// Prepared: the grey badge before a row's second line, a folder header's control, a voice
     /// model in Settings.
-    /// Waiting to prepare with Reduce Motion on, in place of the spinner (C93).
-    static let prepareQueued = "hourglass"
     /// A filled ↓, not a ✓ (C89): ✓ means only selection and a picked option.
     static let prepared = "arrow.down.circle.fill"
     /// The Prepared Audio list.
@@ -156,15 +150,10 @@ enum Icons {
     /// *Remove Prepare* (a page) and *Remove Prepared audio* (a folder), in their menus and the
     /// Prepared Audio list: the audio deleted.
     static let removePrepare = "trash.circle"
-    static let removeModelDownload = "trash.circle"
     /// Turning a folder's Prepare off (its audio stays).
     static let turnOffPrepare = "arrow.down.circle.dotted"
     /// *Prepare Again*: down again (not the browser's Reload arrow).
     static let reprepare = "arrow.uturn.down.circle"
-    /// *Resume* a paused prepare (not Prepare's arrow, nor listening's ▶).
-    static let resume = "playpause.fill"
-    /// Keep (a design-system preview's pill).
-    static let keep = "pin"
     /// *Voice: Heart*, an article's or a book's voice (C138).
     static let voice = "person.wave.2"
 

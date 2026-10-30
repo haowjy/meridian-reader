@@ -102,8 +102,6 @@ enum Palette {
     static let pressedOpacity = 0.5
     /// A Library row drawn lighter: a page skipped in playback, a link whose text isn't in.
     static let lighterRowOpacity = 0.6
-    /// A Library row's thumbnail while its page prepared audio, under the jade ↓.
-    static let preparingOpacity = 0.45
 }
 
 extension Color {

@@ -27,14 +27,13 @@ import Foundation
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
 /// | Mark All Above as Finished | `Icons.markAllAboveFinished` |
 /// | Share | `Icons.share` |
-/// | Select | `Icons.select` |
 /// | Save to Library / Remove from Library | `Icons.save` / `Icons.unsave` |
 /// | Remove from Recent | `Icons.removeFromRecent` |
 /// | Rename…, Edit Details… | `Icons.rename`, `Icons.editDetails` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
-/// | Pause / Resume (a prepare), Prepare Again, Keep | `Icons.pause` / `Icons.resume`, `Icons.reprepare`, `Icons.keep` |
+/// | Pause (a prepare), Prepare Again | `Icons.pause`, `Icons.reprepare` |
 /// | New Folder…, Import from…, Paste Text…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.paste`, `Icons.follow` |
-/// | Prepared audio, Settings | `Icons.prepared audio`, `Icons.settings` |
+/// | Prepared audio, Settings | `Icons.preparedAudio`, `Icons.settings` |
 enum Verbs {
     // MARK: A page
 
@@ -111,8 +110,6 @@ enum Verbs {
     static let pauseAll = String(localized: "Pause All")
     static let resumeAll = String(localized: "Resume All")
     static let reprepare = String(localized: "Prepare Again")
-    /// Keep a prepare made in another voice.
-    static let keep = String(localized: "Keep")
 
     // MARK: Screens
 

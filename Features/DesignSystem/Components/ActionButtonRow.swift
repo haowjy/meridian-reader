@@ -65,7 +65,7 @@ struct ActionButtonRowGallery: View {
                 ActionButtonRow(spacing: Spacing.xs) { fit in
                     PillButton("Prepare Again", shortTitle: "Redo", systemImage: Icons.reprepare, size: .compact,
                                fit: fit) {}
-                    PillButton("Keep", systemImage: Icons.keep, style: .neutral, size: .compact, fit: fit) {}
+                    PillButton(Verbs.pause, systemImage: Icons.pause, style: .neutral, size: .compact, fit: fit) {}
                 }
             }
         }
