@@ -3,7 +3,7 @@ import SwiftUI
 /// Now Playing, Listen: what you hear, opened up (`NowPlayingSheet`). The Reader's page in the
 /// same reading theme and type: the spoken paragraph highlighted in full ink like the rest, on the
 /// highlight. Presented over everything by the shell: on compact width a cover that slides up over
-/// the chrome too, with the player card at its foot and ⋯ at the top right; on
+/// the chrome too, with the player card at its foot (its last row: Aa, speed, Voice, ⋯); on
 /// regular width a sheet. It holds no article of its own: it shows `speech.nowPlaying` and the
 /// playing page's content, looked up in the library by its key.
 ///
@@ -36,7 +36,6 @@ struct NowPlayingScreen: View {
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
     @Environment(PrepareCenter.self) private var preparedAudio
-    @Environment(DeveloperSettings.self) private var developer
     @Environment(\.readingAppearance) private var appearance
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -86,16 +85,11 @@ struct NowPlayingScreen: View {
             onJumpToAudio: { following = true },
             palette: palette
         ) {
-            if regular { TextAppearanceControl() }
+            // The top bar is regular width's; compact Listen's has only the grabber (Aa, ⋯ and ☝︎ are in the card).
+            TextAppearanceControl()
         } accessory: {
-            if regular {
-                JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
-                    .disabled(speech.document.isEmpty)
-            } else {
-                // Compact: ☝︎ is a row of ⋯ (Aa is in the card).
-                ReadingPageMoreButton(id: "listenMore", chrome: true, extraRows: [jumpRow])
-                    .frame(width: ChromeMetrics.barHeight, height: ChromeMetrics.barHeight)
-            }
+            JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
+                .disabled(speech.document.isEmpty)
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
         } text: {
@@ -137,24 +131,24 @@ struct NowPlayingScreen: View {
                 title: now.lineOne,
                 detail: note.map { [$0] } ?? (now.isFinished ? [String(localized: "Finished")]
                     : [source, left > 0 ? ListeningTime.leftLabel(minutes: left) : nil].compactMap { $0 }),
-                artwork: artwork, artworkLetter: now.artworkLetter, playState: speech.playState(of: .article(now.articleKey)),
-                canSkip: speech.canSkipToPreviousParagraph || speech.canSkipToNextParagraph,
-                onSkipBack: speech.skipToPreviousParagraph, onSkipForward: speech.skipToNextParagraph,
-                onPlayPause: speech.pressNowPlaying,
-                onPlayLongPress: developer.isEnabled ? { shell.present(.listenDebug) } : nil,
+                artwork: artwork, artworkLetter: now.artworkLetter,
                 origin: actions.cardOrigin(title: now.lineOne)
             ) {
-                VoiceChromeButton(identifier: "nowPlayingVoice") { shell.present(.voice(.article(now.articleKey))) }
-            } save: {
                 SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                  onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder, round: true)
                     .disabled(actions.readerArticle == nil)
             } scrub: {
                 playerScrub(spot: spot) { EmptyView() }
-            } appearance: {
-                TextAppearanceControl(arrowEdge: .bottom)
-            } speed: {
-                SpeedButton(speech: speech, round: true)
+            } transport: {
+                ListenTransportView(speech: speech)
+            } tools: {
+                TextAppearanceControl(arrowEdge: .bottom, round: false)
+                SpeedButton(speech: speech)
+                    .frame(maxWidth: .infinity)
+                VoiceChromeButton(identifier: "nowPlayingVoice", round: false) {
+                    shell.present(.voice(.article(now.articleKey)))
+                }
+                ReadingPageMoreButton(id: "listenMore", compact: true, extraRows: [jumpRow])
             }
         }
     }

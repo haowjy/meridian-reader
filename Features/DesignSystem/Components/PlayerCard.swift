@@ -39,50 +39,34 @@ struct CardOrigin {
     let open: () -> Void
 }
 
-private enum CardLayout {
-    static let art: CGFloat = 36
-    /// The scrubber row is `fieldControlSize` high with its track in the middle: pulled up so
-    /// the track sits 64 pt from the card's top. (Its touch area stops 2 pt short of the row's top
-    /// and bottom, `ReaderScrubRow`: the title row above and the transport below keep their taps.)
-    static let scrubTop: CGFloat = 46
-    static let scrubInset: CGFloat = 14
-    static let transportTop: CGFloat = 80
-}
-
-/// The Reader's and Now Playing's player card on compact width: one glass card above the chrome's
-/// row 2 (`ChromeLayout`'s `card` high; the chrome host supplies the glass; Listen never folds). Plain values and slots, so both pages build the same card.
+/// The Listen player card on compact width: one glass card at the foot of Listen (the cover band
+/// supplies the glass; Listen never folds). Plain values and slots. It sizes to its rows.
 ///
 /// ```
-/// [art]  Notes on Tides             (Voice) (Save)    art, title, site and time left, then two round controls
+/// [art]  Notes on Tides…                  (🔖)    art, title (one line), site and time left; Save
 ///        example.org   9 min left
-/// [━━━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━]     scrubber, nothing under it (no times)
-///  Aa      ⏮        (▶)        ⏭         1×        transport: five equal slots
+/// [━━━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━]   scrubber, no times
+///            ⏮          (▶)          ⏭           transport (`NowPlayingTransport`'s grid)
+/// ─────────────────────────────────────────────
+///    Aa         1×         ♫          ⋯          tools: glyphs, no labels, equal shares
 /// ```
-///
-/// Positions come from the mockup's card layer (`chrome.js`): it is a fixed 140 pt, not a flow
-/// layout, so the scrubber's track sits 64 pt from the top and the disc 80 pt.
-struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, Speed: View>: View {
+struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Tools: View>: View {
     let title: String
     /// Under the title, set apart by space (never a separator character): the site, then the time left,
     /// or one status note. The first part truncates first; the others never do.
     var detail: [String] = []
     var artwork: Image?
     var artworkLetter: String
-    let playState: PlayState
-    var canSkip = true
-    let onSkipBack: () -> Void
-    let onSkipForward: () -> Void
-    let onPlayPause: () -> Void
-    /// Long-press on play / pause (developer options: the listen debug panel); nil = none.
-    var onPlayLongPress: (() -> Void)?
     /// The title block's tap (art, title, site): nil leaves it inert. It never seeks.
     var origin: CardOrigin?
-    @ViewBuilder var voice: Voice
+    /// Save, at the title row's trailing end (`SaveToggleButton`'s round face).
     @ViewBuilder var save: Save
     /// The bare scrubber (`ReaderScrubRow` with `isCapsule: false`).
     @ViewBuilder var scrub: Scrub
-    @ViewBuilder var appearance: Appearance
-    @ViewBuilder var speed: Speed
+    /// Previous paragraph, play / pause, next paragraph (`ListenTransportView`).
+    @ViewBuilder var transport: Transport
+    /// The last row's small buttons, each in a `toolbarIconFrame` cell, so they share the row evenly.
+    @ViewBuilder var tools: Tools
 
     @Environment(\.readingPalette) private var reading
     /// The gap between the site and the time left: `Spacing.s` (12 pt), growing with the caption as `DetailLine`'s does.
@@ -91,16 +75,19 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
     private var palette: ReadingPalette { reading ?? .app }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        VStack(spacing: 0) {
             header
                 .padding(.horizontal, Spacing.s)
                 .padding(.top, Spacing.s)
             scrub
-                .padding(.horizontal, CardLayout.scrubInset)
-                .padding(.top, CardLayout.scrubTop)
+                .padding(.horizontal, Spacing.s)
             transport
                 .padding(.horizontal, Spacing.s)
-                .padding(.top, CardLayout.transportTop)
+            Divider()
+                .overlay(palette.hairline)
+                .padding(.horizontal, Spacing.s)
+            HStack(spacing: 0) { tools }
+                .padding(.horizontal, Spacing.xxs)
         }
         // The whole card takes a tap, so one on its title block or its blank corners never reaches the
         // page behind it (a tap there hides the chrome) and nothing in it seeks.
@@ -115,22 +102,17 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
     private var header: some View {
         HStack(spacing: Spacing.xs) {
             titleBlock
-            // Two round controls (36 pt each, the app's one round icon face) flush right.
-            HStack(spacing: Spacing.xs) {
-                voice
-                save
-            }
-            .fixedSize()
+            save.fixedSize()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: CardLayout.art)
+        .frame(minHeight: PlayerCard.artworkSize)
     }
 
     /// Art, title and detail: one Button (44 pt high, inside the block only) when the article has an origin.
     @ViewBuilder
     private var titleBlock: some View {
         let block = HStack(spacing: Spacing.xs) {
-            ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: CardLayout.art)
+            ArtworkTile(image: artwork, letter: artworkLetter.isEmpty ? title : artworkLetter, size: PlayerCard.artworkSize)
             VStack(alignment: .leading, spacing: 0) {
                 Text(title)
                     .typeStyle(.row, weight: .semibold)
@@ -169,41 +151,27 @@ struct ReaderPlayerCard<Voice: View, Save: View, Scrub: View, Appearance: View, 
             block
         }
     }
-
-    private var transport: some View {
-        HStack(spacing: 0) {
-            appearance.frame(maxWidth: .infinity)
-            Button(action: onSkipBack) { Image(systemName: Icons.previous).font(BottomChrome.chromeGlyph) }
-                .disabled(!canSkip)
-                .accessibilityLabel("Previous paragraph")
-                .frame(maxWidth: .infinity)
-            PlayStateButton(state: playState, look: .disc, action: onPlayPause)
-                .accessibilityLabel(playState == .playing ? Verbs.pause : Verbs.play)
-                .accessibilityIdentifier("listenPlayPause")
-                .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in onPlayLongPress?() },
-                                     including: onPlayLongPress == nil ? .subviews : .all)
-                .frame(maxWidth: .infinity)
-            Button(action: onSkipForward) { Image(systemName: Icons.next).font(BottomChrome.chromeGlyph) }
-                .disabled(!canSkip)
-                .accessibilityLabel("Next paragraph")
-                .frame(maxWidth: .infinity)
-            speed.frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-        .frame(height: BottomChrome.transportDiscSize)
-    }
 }
 
-/// Voice in the Reader's and Now Playing's bottom player title row: a round field control (36 pt,
-/// 44 pt to tap) trailing the title, on the card fill. Opens the article's or book's Voice picker
-/// (`VoicePickerSheet` / `VoiceSelectionList`), the same list as Settings › Voice and ⋯ › Voice.
+/// Voice: opens the article's or book's Voice picker (`VoicePickerSheet` / `VoiceSelectionList`), the
+/// same list as Settings › Voice and ⋯ › Voice. Its label is always "Voice", never a voice's name.
+/// Round (36 pt, 44 pt to tap) trailing the title on regular width; a bare glyph cell
+/// (`toolbarIconFrame`) in the compact player card's tools row.
 struct VoiceChromeButton: View {
     /// `readerVoice` or `nowPlayingVoice`.
     var identifier = "voiceChrome"
+    var round = true
     let action: () -> Void
 
     var body: some View {
-        RoundIconButton(symbol: Icons.voice, label: Verbs.voice, identifier: identifier, action: action)
+        if round {
+            RoundIconButton(symbol: Icons.voice, label: Verbs.voice, identifier: identifier, action: action)
+        } else {
+            Button(action: action) { Image(systemName: Icons.voice).toolbarIconFrame() }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Verbs.voice)
+                .accessibilityIdentifier(identifier)
+        }
     }
 }
 
@@ -211,7 +179,7 @@ struct VoiceChromeButton: View {
 struct ReaderPlayerCardGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("Reader: not started") { card(state: .idle, detail: ["example.org", "9 min"]) }
+            PreviewState("Not started") { card(state: .idle, detail: ["example.org", "9 min"]) }
             PreviewState("Now Playing, saved") {
                 card(state: .playing, detail: ["example.org", "6 min left"], saved: true)
                     .onReadingPreview(.sepia)
@@ -224,20 +192,24 @@ struct ReaderPlayerCardGallery: View {
 
     private func card(state: PlayState, detail: [String], saved: Bool = false) -> some View {
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
-        return ReaderPlayerCard(title: "Notes on Tides", detail: detail, artworkLetter: "N", playState: state,
-                                onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
-            VoiceChromeButton(identifier: "previewVoice") {}
-        } save: {
-            SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {})
+        return ReaderPlayerCard(title: "Notes on Tides, and Why the Moon Pulls Twice a Day", detail: detail,
+                                artworkLetter: "N") {
+            SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {}, round: true)
         } scrub: {
             ReaderScrubRow(map: map, position: 0.3, onScrubPreview: { _ in }, onScrubCommit: { _ in },
                            isCapsule: false) { EmptyView() }
-        } appearance: {
-            TextAppearanceButton(isOpen: false) {}
-        } speed: {
-            Text("1×").foregroundStyle(Palette.ink).roundFieldText(fill: Palette.chrome)
+        } transport: {
+            NowPlayingTransport(state: state, onSkipBack: {}, onSkipForward: {}, onPlayPause: {}) {
+                EmptyView()
+            } more: {
+                EmptyView()
+            }
+        } tools: {
+            TextAppearanceButton(isOpen: false, round: false) {}
+            Text("1×").fieldTextFrame().frame(maxWidth: .infinity)
+            VoiceChromeButton(identifier: "previewVoice", round: false) {}
+            Image(systemName: Icons.more).toolbarIconFrame()
         }
-        .frame(height: ChromeMetrics.card)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ChromeMetrics.cardRadius, style: .continuous))
     }
 }

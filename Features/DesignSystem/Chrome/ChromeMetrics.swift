@@ -89,8 +89,7 @@ enum ChromeMetrics {
     /// How far above the top piece the fade behind the chrome starts.
     static let fadeRise: CGFloat = 50
 
-    /// Listen's player card, at the foot of Listen: its own height and corner radius (not a bar's).
-    static let card: CGFloat = 140
+    /// Listen's player card, at the foot of Listen: its corner radius (not a bar's). It sizes to its rows.
     static let cardRadius: CGFloat = 6 * unit
 
     /// What the chrome covers at the bottom of a scrolling screen, from the screen's edge: two rows,

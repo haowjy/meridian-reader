@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Aa in the Reader's and Now Playing's top bars: opens the text appearance panel pointing at it,
+/// Aa in the Reader's and Now Playing's top bars and the compact player card: opens the text appearance panel pointing at it,
 /// bound to the app's `ReadingAppearance`, the same store and `ReadingAppearancePanel` as
 /// Settings › Reading. The page under it changes as you choose. The panel is drawn on the reading
 /// page's card colour and sized to `Panel.width` like the ⋯ menu.
@@ -9,9 +9,11 @@ struct TextAppearanceControl: View {
     /// Which edge of Aa the popover's arrow is on: `.top` under a top bar's Aa, `.bottom` for the
     /// player card's, which sits at the screen's foot and has no room below it.
     var arrowEdge: Edge = .top
+    /// `TextAppearanceButton`'s round face; false in the compact player card's tools row.
+    var round = true
 
     var body: some View {
-        TextAppearanceButton(isOpen: isOpen) { isOpen.toggle() }
+        TextAppearanceButton(isOpen: isOpen, round: round) { isOpen.toggle() }
             .textAppearancePopover(isPresented: $isOpen, arrowEdge: arrowEdge)
     }
 }

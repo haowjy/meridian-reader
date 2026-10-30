@@ -126,7 +126,7 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   drawn while typing or in Library Edit (row 1 is then the field alone).
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **48 pt**
   (`ChromeMetrics.barHeight`, Safari's address bar and buttons), for every piece in every row and state (pill,
-  fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, Jump to Audio, Listen's ⋯, Library Read's ⋯), on every screen. The round
+  fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, Jump to Audio, Library Read's ⋯), on every screen. The round
   buttons share one face (`ChromeCircleFace`).
   **Concentric:** a 48 pt end holds a 24 pt glyph slot inset 12 (`endGlyphSlot`, `endInset`), so the slot's
   radius is the end cap's less the inset. **Every hit area is at least 44 pt** (`minTapTarget`): the glass is
@@ -196,18 +196,21 @@ the strip (4 + 20 + 34). Consumers that inset from the safe area convert with
   inset); the in-place Reader is SwiftUI, not a web view, and has its own bottom inset; iPad regular layout is
   untouched. Fixture: `reader-test://pages/popup`, `testAFixedBottomPopupSitsAboveTheChrome`.
 - **Listen slides up over everything** (`NowPlayingScreen`, `ReadingShowing.cover`, a `Sheet` that covers):
-  from the bottom, edge to edge and under the status bar, over the chrome, with nothing behind it. A grabber
-  and ⋯ at the top right (`listenMore`: the page's menu, first *Play from a Paragraph*), a 48 pt glass
-  circle; there is no close button. The article's title is the first thing in its text. A pull down on the
-  top bar, or on the text when it is at its top, follows the finger and closes it when let go far enough or
+  from the bottom, edge to edge and under the status bar, over the chrome, with nothing behind it. At its
+  top a grabber and nothing else; there is no close button. The article's title is the first thing in its
+  text. A pull down on the grabber, or on the text when it is at its top, follows the finger and closes it when let go far enough or
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
   its scroll, a reader in place and its fold or full screen, a search (its keyboard lowered when Listen
-  opened). Audio keeps playing. At the foot a glass player card, 140 pt tall at the chrome's margins
-  (`cardRadius` 24), over a fade into the page: artwork, title, site and time left (two parts set apart by
-  a 12 pt gap; the site truncates first), Voice and Save at the right, the full-width scrubber (the title
-  block opens the article's own place in the Library or its page, and never seeks; only the track does),
-  and the transport Aa, ⏮, ▶, ⏭, speed. The page's status note (preparing, voice and language notes) takes
-  the card's second line. **Full screen** is a tap in the middle of the text, in and out: the top bar and
+  opened). Audio keeps playing. At the foot a glass player card at the chrome's margins (`cardRadius` 24),
+  as tall as its four rows, over a fade into the page. Row 1: artwork, the title on one line (cut with …),
+  under it the site and time left one text step smaller (two parts set apart by a 12 pt gap; the site
+  truncates first), and Save at the right. The title block opens the article's own place in the Library
+  or its page, and never seeks; only the track does. Row 2: the full-width scrubber, no times. Row 3:
+  ⏮, ▶ / ⏸, ⏭ in the middle three slots of the five-slot grid (`NowPlayingTransport`). Under a hairline,
+  row 4: small glyphs with no labels sharing the row evenly: Aa, the speed (1×), Voice (VoiceOver:
+  "Voice", never a voice's name) and ⋯ (`listenMore`: the page's menu, first *Play from a Paragraph*).
+  There is no sleep timer. The page's status note (preparing, voice and language notes) takes the card's
+  second line. **Full screen** is a tap in the middle of the text, in and out: the top bar and
   the card slide off and the status bar hides; a ▶ / ⏸ floats for 3 s. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
@@ -914,7 +917,7 @@ The two widths present them differently:
 | | Compact width | Regular width |
 |---|---|---|
 | Reader | In place, under the bottom chrome (`ReaderSurface`): the Browser's reader mode and Library Read ("Bottom chrome", above). No sheet, grabber, pill, top bar or bottom band: Aa is in the chrome's field, ‹ starts row 1, and the heading reads the title, then "site  length  ▶ Listen" | A `Sheet` over the surface that opened it (`ReaderSheetScreen`): grabber, close pill, top bar, bottom band |
-| Now Playing | Listen: a `Sheet` that covers the screen and the chrome, with a grabber, ⋯ at the top right, the article's title at the top of its text and the player card at its foot; a pull down closes it ("Bottom chrome", above) | A `Sheet` over everything that shrinks back into the Now Playing bar; its close pill names where it plays from |
+| Now Playing | Listen: a `Sheet` that covers the screen and the chrome, with a grabber, the article's title at the top of its text and the player card at its foot; a pull down closes it ("Bottom chrome", above) | A `Sheet` over everything that shrinks back into the Now Playing bar; its close pill names where it plays from |
 | Into Now Playing | The chrome's round Listen, a reader's ▶ Listen, a Library row | The Now Playing bar (tap, swipe up), the Reader's ▶ |
 
 The rest of this section describes the regular-width sheets unless it names compact width; the
@@ -1086,10 +1089,10 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   says "Finished" where the time left was (the Reader shows the article's length), and ▶
   plays the article again.
 - **Controls** (the band): optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the five-slot
-  grid, then the scrub row and speed. (Compact width's Listen has the player card instead, and its ⋯ at
-  the top right: "Bottom chrome", above.) ▶︎ / ⏸ is a 52 pt round button (accent fill, dark glyph; fixed size,
-  like the toolbar glyphs). The row stays 44 pt, so every slot sits where it does on the other
-  surfaces; the disc overhangs it. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
+  grid, then the scrub row and speed. (Compact width's Listen has the player card instead, its ⋯ in
+  the card's last row: "Bottom chrome", above.) ▶︎ / ⏸ is a 44 pt round button (accent fill, dark glyph; fixed size,
+  like the toolbar glyphs), as tall as the row, so every slot sits where it does on the other
+  surfaces. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
   (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", Apple-fallback / language notes, the
   developer-only Debug chip) sit **above** the transport row so appearing text never pushes it.

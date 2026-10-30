@@ -38,7 +38,7 @@ struct ReadingInPlace {
 /// (`ReaderSheet`) and Now Playing (`NowPlayingSheet`) are the same page with different bands.
 ///
 /// Regular width puts it in a `Sheet` with a grabber and a close pill. Compact width's Listen is
-/// the same sheet as a cover, ⌄ in the close pill's place and its band a card on glass. Compact
+/// the same sheet as a cover, the grabber alone at its top and its band a card on glass. Compact
 /// width's in-place readers draw it edge to edge with nothing but the text: the top bar, the
 /// `band` and `floating` are the sheet's, and what is around the text is the chrome's.
 struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floating: View,
@@ -46,7 +46,7 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
     let showing: ReadingShowing
     let chrome: ReadingChrome
     let palette: ReadingPalette
-    /// The top bar's trailing controls: Aa, then ☝︎.
+    /// The top bar's trailing controls: Aa, then ☝︎. A cover has no top bar.
     @ViewBuilder var trailing: Trailing
     /// Under the top bar, in the header (the ☝︎ hint): the text's top inset grows with it.
     @ViewBuilder var banner: Banner
@@ -74,12 +74,9 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
                 overText
             }
         case .cover(let onClose):
+            // No top bar: the grabber alone (its controls are in the player card).
             Sheet(onDismiss: onClose, palette: palette, chrome: chrome, covers: true) {
-                VStack(spacing: 0) {
-                    SheetTopBar { EmptyView() } trailing: { trailing }
-                        .environment(\.chromeSkin, ChromeSkin.current)
-                    banner
-                }
+                banner
             } content: {
                 text
             } band: {
@@ -151,8 +148,7 @@ private struct CoverBand<Content: View, Floating: View>: View {
         let shape = RoundedRectangle(cornerRadius: ChromeMetrics.cardRadius, style: .continuous)
         let background = (reading ?? .app).background
         content
-            .frame(height: ChromeMetrics.card, alignment: .top)
-            // The card is a fixed height: larger text would clip (its glyphs offer the large content viewer).
+            // The card stays compact: its text grows only so far (its glyphs offer the large content viewer).
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .clipShape(shape)
             .chromeSurface(shape, fill: BottomChrome.fieldFill(reading), interactive: false)
@@ -160,9 +156,10 @@ private struct CoverBand<Content: View, Floating: View>: View {
             .padding(.horizontal, ChromeMetrics.margin)
             .padding(.bottom, ChromeMetrics.gap)
             .background(alignment: .bottom) {
+                // The card and its gap, and `fadeRise` above them.
                 LinearGradient(stops: [.init(color: background.opacity(0), location: 0), .init(color: background, location: 0.7)],
                                startPoint: .top, endPoint: .bottom)
-                    .frame(height: ChromeMetrics.card + ChromeMetrics.gap + ChromeMetrics.fadeRise)
+                    .padding(.top, -ChromeMetrics.fadeRise)
                     .ignoresSafeArea(edges: .bottom)
                     .allowsHitTesting(false)
             }

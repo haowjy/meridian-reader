@@ -146,14 +146,12 @@ extension ArticleSort {
     }
 }
 
-/// The ⋯ toolbar button (browser, library, reader listen bar): opens
+/// The ⋯ toolbar button (the Library, the regular-width toolbars, the Reader, Listen's card): opens
 /// `menu()` in the shell's morph panel, grown from this button's frame. Its glyph fades while a
 /// menu is open, so the button reads as turning
 /// into the panel.
 struct MoreMenuButton: View {
     let id: String
-    /// The compact bottom chrome's ⋯: a round surface filling the frame it is given.
-    var chrome = false
     let menu: () -> MenuContext
 
     @Environment(ShellState.self) private var shell
@@ -162,23 +160,11 @@ struct MoreMenuButton: View {
     private var isOpen: Bool { shell.menu != nil }
 
     var body: some View {
-        if chrome {
-            button.buttonStyle(.plain)
-        } else {
-            button
-        }
-    }
-
-    private var button: some View {
         Button {
             shell.openMenu(menu(), from: frame)
         } label: {
-            if chrome {
-                ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
-            } else {
-                Image(systemName: Icons.more)
-                    .toolbarIconFrame()
-            }
+            Image(systemName: Icons.more)
+                .toolbarIconFrame()
         }
         .accessibilityLabel(Verbs.more)
         .accessibilityIdentifier(id)

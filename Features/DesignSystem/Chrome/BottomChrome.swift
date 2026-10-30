@@ -22,8 +22,6 @@ enum BottomChrome {
     /// How far a 24 pt field glyph slot (🔍, 🎤, ⊗) sits in from the capsule's end while
     /// searching: equal top, bottom and end, so the slot is concentric with the end cap.
     static let fieldEndInset: CGFloat = ChromeMetrics.endInset
-    /// Text on a round control's face (the speed): the same weight, even-width digits.
-    static let roundText = Font.system(size: 15, weight: .medium).monospacedDigit()
     /// Text standing in for a field control (the speed). Like the glyphs it keeps its size at
     /// large text sizes, so the controls never crowd.
     static let toolbarTextSize: CGFloat = 17
@@ -31,12 +29,11 @@ enum BottomChrome {
     static let fieldControlSize: CGFloat = 36
     /// The smallest tap area of a control (`tapTarget`), whatever it looks like.
     static let minTapTarget = ChromeMetrics.minTapTarget
-    /// Now Playing's round play / pause in the transport's centre slot. Fixed like the toolbar
-    /// glyphs (the large content viewer shows it at large text sizes). The row stays
-    /// `rowHeight`; the disc reaches past it above and below by half the difference.
-    static let transportDiscSize: CGFloat = 52
+    /// Now Playing's round play / pause in the transport's centre slot: the row's height. Fixed like the
+    /// toolbar glyphs (the large content viewer shows it at large text sizes).
+    static let transportDiscSize: CGFloat = rowHeight
     /// The glyph inside the transport disc.
-    static let transportDiscGlyph: CGFloat = 21
+    static let transportDiscGlyph: CGFloat = 18
     /// A folder header's play / pause between Prepare and More (C124): smaller than the
     /// transport's, its glyph in the same proportion.
     static let headerDiscSize: CGFloat = 56
@@ -87,13 +84,7 @@ extension View {
     /// player card and in a sheet's top bar, ✕ beside the search field. Use `RoundIconButton` for
     /// a plain symbol button.
     func roundFieldControl(fill: Color) -> some View {
-        modifier(RoundFieldFace(fill: fill, isText: false))
-    }
-
-    /// The same face for a short text instead of a glyph (the playback speed): a circle, or a
-    /// capsule as wide as the text needs.
-    func roundFieldText(fill: Color) -> some View {
-        modifier(RoundFieldFace(fill: fill, isText: true))
+        modifier(RoundFieldFace(fill: fill))
     }
 
     /// Text standing in for a field control (the speed in Now Playing's scrub capsule): as tall
@@ -153,20 +144,16 @@ private struct FieldControlFrame: ViewModifier {
 
 private struct RoundFieldFace: ViewModifier {
     let fill: Color
-    let isText: Bool
     @Environment(\.readingPalette) private var reading
 
     func body(content: Content) -> some View {
         let side = BottomChrome.fieldControlSize
         let edge = reading?.hairline ?? Palette.hairline
         content
-            .font(isText ? BottomChrome.roundText : BottomChrome.roundGlyph)
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, isText ? Spacing.xxs : 0)
-            .frame(minWidth: isText ? BottomChrome.minTapTarget : side, minHeight: side, maxHeight: side)
-            .background { Capsule().fill(fill) }
-            .overlay { Capsule().strokeBorder(edge, lineWidth: 0.5) }
+            .font(BottomChrome.roundGlyph)
+            .frame(width: side, height: side)
+            .background { Circle().fill(fill) }
+            .overlay { Circle().strokeBorder(edge, lineWidth: 0.5) }
             .tapTarget(side)
             .accessibilityShowsLargeContentViewer()
     }

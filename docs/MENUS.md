@@ -279,13 +279,13 @@ The names for the chrome that runs along the bottom of every screen.
 | `PlayerCard` | enum | Shared constants (artwork size, progress height) and the flat card surface for `NowPlayingBar`. |
 | `NowPlayingBar` | view | The compact flat card (artwork, title, groove progress line, play/pause) on the `PlayerCard` surface (no shadow), in `SurfaceBand`'s top row. |
 | `NowPlayingBarView` | view | The same card in the Reader's band; hides on Now Playing and while sheets are up. |
-| `ReaderPlayerCard` | view | The compact Reader's and Now Playing's 140 pt card (art, title, Voice, Save, scrubber, transport), drawn by the chrome host on its glass. |
+| `ReaderPlayerCard` | view | Compact Listen's player card, sized to its rows: art, title and Save; scrubber; transport; Aa, speed, Voice and ⋯. Drawn on glass by the cover band. |
 | `ReadingBottomBand` | view | The bottom band of the Reader and Now Playing: integrated controls flat on the page background, separated by a hairline divider. |
 | `ReadingPage` | view | A reading page in place (compact) or in a `Sheet` (regular), laid out by `ReadingBars`. |
 | `ReaderSheet` | view | The Reader's page: its band and Listen over `ReadingPage`. |
 | `NowPlayingSheet` | view | Now Playing's page over `ReadingPage`. |
 | `NowPlayingControls` | view | Status notes (buffering, language, debug) in Now Playing's band. |
 | `ListenTransportView` | view | Speech-bound wrapper for `NowPlayingTransport` (skips, play/pause disc) with swipe gesture. |
-| `NowPlayingTransport` | view | The 5-slot transport row component: skip-back, play/pause disc (52 pt), skip-forward. |
+| `NowPlayingTransport` | view | The 5-slot transport row component: skip-back, play/pause disc (44 pt), skip-forward. |
 | `ReaderScrubRow` | view | The scrub bar in the bottom band (Now Playing: live; Reader: position 0). |
 | `RoundIconButton` | view | The app's one round icon button (36 pt, field fill, hairline, 18 pt medium glyph via `roundFieldControl`): Voice, Aa, ☝︎. The card's bookmark (`SaveToggleButton(round:)`) and speed (`SpeedButton(round:)`) use the same face. |

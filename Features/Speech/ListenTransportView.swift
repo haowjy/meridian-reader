@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Now Playing's transport row: [leading] [⏮] (⏸) [⏭] [trailing], in the five-slot
 /// grid (`NowPlayingTransport`). It always acts on the session, which is what Now Playing shows.
-/// `leading` is Now Playing's 🔖 and `trailing` its ⋯, in the Reader's slots. A sideways swipe on
+/// On regular width `leading` is 🔖 and `trailing` ⋯, in the Reader's slots; the compact player card
+/// leaves both empty, so ⏮ ▶ ⏭ sit in the middle. A sideways swipe on
 /// the row skips a paragraph; with developer options on, a long-press on play / pause opens
 /// Listen debug.
 struct ListenTransportView: View {
@@ -61,13 +62,10 @@ struct ListenTransportView: View {
     }
 }
 
-/// The playback speed ("1×", "1.25×") at the trailing end of Now Playing's scrub capsule; a tap
-/// opens the speed list, pointing at it.
+/// The playback speed ("1×", "1.25×"): at the trailing end of the regular-width scrub capsule, and
+/// in the compact player card's tools row. A tap opens the speed list, pointing at it.
 struct SpeedButton: View {
     @Bindable var speech: SpeechController
-    /// On the round control face of the player card's transport (as Aa across from it), not bare
-    /// text in a scrub capsule.
-    var round = false
     @State private var showsPicker = false
     @Environment(\.readingPalette) private var reading
 
@@ -75,15 +73,9 @@ struct SpeedButton: View {
 
     var body: some View {
         Button { showsPicker = true } label: {
-            if round {
-                Text(ListenRate.label(speech.rateMultiplier))
-                    .foregroundStyle(palette.ink)
-                    .roundFieldText(fill: BottomChrome.fieldFill(reading))
-            } else {
-                Text(ListenRate.label(speech.rateMultiplier))
-                    .foregroundStyle(palette.ink)
-                    .fieldTextFrame()
-            }
+            Text(ListenRate.label(speech.rateMultiplier))
+                .foregroundStyle(palette.ink)
+                .fieldTextFrame()
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(Verbs.speed) \(ListenRate.label(speech.rateMultiplier))")

@@ -135,9 +135,8 @@ struct JumpToAudioButton: View {
 
 /// Transport row in the five-slot grid: `[leading] [⏮] (⏸) [⏭] [more]`. Now Playing puts 🔖
 /// first and ⋯ last; the Reader puts speed (`1×`) first and ⋯ last. The play button is the big round disc
-/// and reads "Play" / "Pause" like any player's. The row keeps the grid's 44 pt height, so every slot (and ⋯) sits where it does on the other surfaces; the
-/// disc reaches past it by half the difference. The row keeps that room above it, and below it
-/// too where the home indicator's inset doesn't already give it (a phone with a Home button).
+/// and reads "Play" / "Pause" like any player's. The disc is as tall as the grid's 44 pt row, so every slot (and ⋯) sits where
+/// it does on the other surfaces.
 struct NowPlayingTransport<Leading: View, More: View>: View {
     let state: PlayState
     var canSkipBack = true
@@ -153,11 +152,6 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
     @ViewBuilder var more: More
 
     @Environment(\.readingPalette) private var reading
-    @State private var bottomInset: CGFloat = 0
-
-    private static var discOverhang: CGFloat {
-        (BottomChrome.transportDiscSize - BottomChrome.rowHeight) / 2
-    }
 
     var body: some View {
         BottomToolbarLayout {
@@ -181,9 +175,6 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
             more
                 .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
-        .padding(.top, Self.discOverhang)
-        .padding(.bottom, max(0, Self.discOverhang - bottomInset))
-        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
         .tint(reading?.ink ?? Palette.ink)
     }
 }
