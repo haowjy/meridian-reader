@@ -91,3 +91,6 @@ mars.lock
 *.cer
 *.xcarchive
 ExportOptions.local.plist
+
+# Personal local notes (App Store listing drafts), kept out of git on purpose
+.meridian-local/
