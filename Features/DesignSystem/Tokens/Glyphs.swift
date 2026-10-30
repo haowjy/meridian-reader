@@ -23,7 +23,7 @@ enum Glyph {
     static let modelDownload: CGFloat = 24
     /// The leading slot of every band field (Library search and the browser's address): 🔍, or
     /// on a loaded page its 📄 / spinner, always this square so the text starts at one place.
-    static let fieldLeading: CGFloat = 30
+    static let fieldLeading: CGFloat = ChromeMetrics.endGlyphSlot
     /// The leading column of a `SymbolRow` (Settings, the ⋯ panel, the Move tree, search
     /// suggestions, Following's actions): one width for a symbol or a small site tile, so every
     /// such row's text starts at one place. It grows with the text like the row.

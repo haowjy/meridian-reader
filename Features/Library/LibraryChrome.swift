@@ -43,7 +43,7 @@ struct LibraryChrome {
 
     /// What the folded chrome's capsule names: the article being read in place, else the folder on top, else the
     /// home's tab (Library, Favorites, Recent).
-    var capsuleTitle: String {
+    var stripTitle: String {
         let name: String?
         if let article = shell.libraryReader { name = article.title ?? article.sourceLabel } else { name = screenMenu.topFolder?.name }
         return name.flatMap { $0.isEmpty ? nil : $0 } ?? shell.homeTab.title
@@ -70,7 +70,7 @@ struct LibraryChrome {
             },
             more: AnyView(MoreMenuButton(id: "libraryMore", chrome: true) { compactMenu }
                 .turnOffPrepareQuestion(turningOff)),
-            capsuleTitle: capsuleTitle,
+            stripTitle: stripTitle,
             editBar: screen.isEditing ? AnyView(LibraryEditBar()) : nil
         )
     }

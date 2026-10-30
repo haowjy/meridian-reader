@@ -112,7 +112,7 @@ struct AddressField<Field: View, Accessory: View>: View {
             }
             accessory
         }
-        // In the chrome a 30 pt glyph slot (📄, 🔍, 🎤, ⊗) sits `fieldEndInset` in from the capsule's end, so it
+        // In the chrome a 24 pt glyph slot (📄, 🔍, 🎤, ⊗) sits `fieldEndInset` in from the capsule's end, so it
         // is concentric with the end cap; a 44 pt button (↻ / ✕, 🎧) sits 2 pt in, which centres it the same way.
         .bottomChromeField(leading: reader == .showing ? leadingInset * (1 - readerReveal) : leadingInset,
                            trailing: reload != nil || appearance != nil || listen != nil

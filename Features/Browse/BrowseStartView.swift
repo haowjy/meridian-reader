@@ -40,12 +40,13 @@ struct BrowseStartView: View {
 
     private var hasPage: Bool { webStore.hasPage }
 
-    /// What the chrome covers at the bottom of the page: two rows, the capsule once it has folded, one row
+    /// What the chrome covers at the bottom of the page, from the screen's edge: two rows, one row or the
+    /// strip as it folds (a step at a time, as drawn), one row
     /// while a search is open (the field's), nothing at regular width, where the chrome has its own bar below the page.
     private var obscuredBottom: CGFloat {
         guard !isRegular else { return 0 }
         if search.isActive { return ChromeMetrics.collapsedFootprint }
-        return shell.chromeScroll.isDrawnCollapsed ? ChromeMetrics.capsuleFootprint : ChromeMetrics.footprint
+        return ChromeMetrics.footprint(step: shell.chromeScroll.drawnStep)
     }
 
     /// Create the browse WKWebView only after the first non-start navigation; keep it thereafter.
@@ -113,7 +114,7 @@ struct BrowseStartView: View {
                 ZStack {
                     if showsBrowseWebView {
                         WebView(store: webStore,
-                                bottomInset: isRegular ? 0 : ChromeMetrics.footprint,
+                                bottomInset: isRegular ? 0 : ChromeHome.above(ChromeMetrics.footprint),
                                 obscuredBottom: obscuredBottom,
                                 onScroll: isRegular ? nil : { [chrome = shell.chromeScroll] in chrome.scrolled(to: $0) })
                             .opacity(hasPage ? 1 : 0)
@@ -144,7 +145,7 @@ struct BrowseStartView: View {
                         // the chrome's row, but the page must never show through the strip under it.
                         Palette.paper.ignoresSafeArea(edges: .bottom)
                         searchLayer
-                            .padding(.bottom, isRegular ? 0 : ChromeMetrics.collapsedFootprint)
+                            .padding(.bottom, isRegular ? 0 : ChromeHome.above(ChromeMetrics.collapsedFootprint))
                     }
                 }
             }
@@ -361,12 +362,12 @@ struct BrowseStartView: View {
             },
             more: AnyView(MoreMenuButton(id: "browseMore", chrome: true) { menu(actions) }),
             listen: shell.pageReader.map { AnyView(ReaderListenButton(article: $0)) },
-            capsuleTitle: capsuleTitle
+            stripTitle: stripTitle
         )
     }
 
     /// What the folded chrome's capsule names: the page's domain (no `www.`, no path), or in reader mode its source.
-    private var capsuleTitle: String {
+    private var stripTitle: String {
         let host = shell.pageReader?.sourceLabel ?? webStore.currentURL?.host() ?? ""
         let name = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
         return name.isEmpty ? String(localized: "Browser") : name

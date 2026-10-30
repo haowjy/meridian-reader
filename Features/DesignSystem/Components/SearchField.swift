@@ -47,7 +47,7 @@ struct SearchField: View {
                 .accessibilityLabel("Clear search")
             }
         }
-        // In the chrome 🔍 and ⊗ are 30 pt slots concentric with the end caps (`fieldEndInset`).
+        // In the chrome 🔍 and ⊗ are 24 pt slots concentric with the end caps (`fieldEndInset`).
         .bottomChromeField(leading: isChromeField ? BottomChrome.fieldEndInset : Spacing.s,
                            trailing: clearable ? (isChromeField ? BottomChrome.fieldEndInset : Spacing.xxs) : Spacing.s)
     }

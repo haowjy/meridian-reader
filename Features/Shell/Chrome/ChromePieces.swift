@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Draws the compact chrome's pieces where `ChromeLayout` puts them. Animatable in the fold
 /// (`ChromeState.progress`): while a finger scrolls, the host feeds it the smoothed progress
-/// (`ChromeScroll.displayed`) and this body runs every frame, so the pieces shrink into the capsule
-/// as the finger moves. Anything else that changes (the keyboard, the arrows, ▶) is a discrete
+/// (`ChromeScroll.displayed`) and this body runs every frame, so the pieces fold away
+/// as the finger moves (one step, then the other). Anything else that changes (the keyboard, the arrows, ▶) is a discrete
 /// step the host animates as the frames move.
 ///
 /// A piece is in the tree only while `ChromePiece.isShown`.
@@ -48,7 +48,7 @@ struct ChromePieces: View, Animatable {
             }
             piece(layout.listen) { screen.listen }
             piece(layout.more) { more }
-            capsulePiece(layout.capsule)
+            stripPiece(layout.strip, opacity: layout.stripOpacity)
         }
         .chromeGlassContainer()
         .frame(width: width, height: K.readerFootprint, alignment: .topLeading)
@@ -56,9 +56,9 @@ struct ChromePieces: View, Animatable {
             if let top = layout.top { ChromeFade(top: top, underColor: underColor) }
         }
         .background(alignment: .bottom) {
-            // While the rows are up, the whole footprint is the chrome's: a tap between the rows, beside
+            // While a row is up, the whole footprint is the chrome's: a tap between the rows, beside
             // them, or in the home indicator's strip under them never reaches the page behind.
-            if let top = layout.top, state.collapse < 0.5 {
+            if let top = layout.top, state.fold < 0.75 {
                 Color.clear
                     .contentShape(Rectangle())
                     .frame(height: K.readerFootprint - top + K.topPadding)
@@ -91,7 +91,7 @@ struct ChromePieces: View, Animatable {
             content()
                 .frame(width: piece.fullWidth, height: piece.fullHeight)
                 .scaleEffect(piece.scale, anchor: .topLeading)
-                // Labels and glyphs go early, so what is left to converge on the capsule is bare glass.
+                // Labels and glyphs go early, so what is left to shrink away is bare glass.
                 .opacity(K.ramp(piece.scale, 0.5...0.9))
                 .frame(width: piece.rect.width, height: piece.rect.height, alignment: .topLeading)
                 .offset(x: piece.rect.minX, y: piece.rect.minY)
@@ -99,38 +99,34 @@ struct ChromePieces: View, Animatable {
         }
     }
 
-    /// The folded chrome: the page's name in a small capsule whose tap brings both rows back. Its
-    /// hit area is `minTapTarget` tall, `capsuleHitOutset` past the capsule on every side, down to
-    /// the safe area's edge.
+    /// The folded chrome: the page's name as one line of text over the home indicator, no glass
+    /// (Brave's), whose tap brings both rows back. Its hit area is `minTapTarget` tall,
+    /// `stripHitOutset` past the text box above and below and `stripSidePadding` past the text each side.
     @ViewBuilder
-    private func capsulePiece(_ piece: ChromePiece) -> some View {
+    private func stripPiece(_ piece: ChromePiece, opacity: CGFloat) -> some View {
         if piece.isShown {
-            let outset = K.capsuleHitOutset, title = screen.capsuleTitle
+            let outset = K.stripHitOutset, title = screen.stripTitle
             Button(action: onExpand) {
-                // The title is laid out at the capsule's final width and clipped by the growing glass, so it
-                // never reflows through "p…", "pa…" on its way.
                 Text(title)
-                    .font(.system(size: K.capsuleFontSize, weight: .semibold))
+                    .font(.system(size: K.stripFontSize, weight: .semibold))
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .padding(.horizontal, K.capsuleSidePadding)
-                    .frame(width: state.capsuleWidth)
-                    .opacity(K.ramp(piece.rect.height, K.capsuleHeight * 0.7...K.capsuleHeight))
+                    .padding(.horizontal, K.stripSidePadding)
                     .frame(width: piece.rect.width, height: piece.rect.height)
-                    .clipped()
-                    .background(Palette.capsuleFill, in: Capsule())
-                    .chromeSurface(Capsule())
-                    .padding(outset)
+                    // It rises the last few points into place as it fades in.
+                    .offset(y: (1 - opacity) * K.unit)
+                    .opacity(opacity)
+                    .padding(.vertical, outset)
                     .contentShape(Rectangle())
                     .chromeLargeContent(title, symbol: state.destination.symbol)
             }
             .buttonStyle(.plain)
-            .frame(width: piece.rect.width + 2 * outset, height: piece.rect.height + 2 * outset)
-            .offset(x: piece.rect.minX - outset, y: piece.rect.minY - outset)
+            .frame(width: piece.rect.width, height: piece.rect.height + 2 * outset)
+            .offset(x: piece.rect.minX, y: piece.rect.minY - outset)
             .accessibilityLabel(title)
             .accessibilityHint(String(localized: "Shows the bar"))
-            .accessibilityIdentifier("chromeCapsule")
+            .accessibilityIdentifier("chromeStrip")
             .transition(.opacity)
         }
     }

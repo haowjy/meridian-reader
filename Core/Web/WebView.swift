@@ -19,14 +19,15 @@ final class ObscuredWebView: WKWebView {
         // The window's, not the view's: SwiftUI lets the page run under the home indicator, and the view's
         // own safe area can read 0 there.
         let home = max(safeAreaInsets.bottom, window?.safeAreaInsets.bottom ?? 0)
-        let bottom = obscuredBottom > 0 ? obscuredBottom + home : 0
+        // The footprints are measured from the screen's edge, the home indicator's strip included.
+        let bottom = obscuredBottom > 0 ? max(obscuredBottom, home) : 0
         let insets = UIEdgeInsets(top: 0, left: 0, bottom: bottom, right: 0)
         if obscuredContentInsets != insets { obscuredContentInsets = insets }
-        // What `lvh` (the large viewport) and `svh` (the small one) measure: the capsule's footprint and the
+        // What `lvh` (the large viewport) and `svh` (the small one) measure: the strip's footprint and the
         // expanded one's, as in Safari with its bar folded and unfolded (`dvh` follows the obscured inset). Both
         // zero where nothing covers the page. (`100vh` itself stays the whole frame: WebKit ties it to neither.)
-        let folded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: ChromeMetrics.capsuleFootprint + home, right: 0) : .zero
-        let expanded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: ChromeMetrics.footprint + home, right: 0) : .zero
+        let folded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: max(ChromeMetrics.stripFootprint, home), right: 0) : .zero
+        let expanded = obscuredBottom > 0 ? UIEdgeInsets(top: 0, left: 0, bottom: max(ChromeMetrics.footprint, home), right: 0) : .zero
         if minimumViewportInset != folded || maximumViewportInset != expanded {
             setMinimumViewportInset(folded, maximumViewportInset: expanded)
         }

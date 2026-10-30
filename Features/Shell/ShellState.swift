@@ -505,15 +505,16 @@ final class ShellState {
     }
 
     private var readingInPlace: ReadingInPlace {
-        readingInPlace(bottomClearance: ChromeMetrics.readerFootprint, overTextClearance: ChromeMetrics.readerFootprint)
+        readingInPlace(bottomClearance: ChromeHome.above(ChromeMetrics.readerFootprint),
+                       overTextClearance: ChromeHome.above(ChromeMetrics.readerFootprint))
     }
 
     /// The Library's Read and the Browser's reader mode in place: the chrome there has no card, so the
-    /// text keeps clear of its two rows (it scrolls under the capsule just the same once folded) and
-    /// what floats over it sits above them, or above the capsule once the rows have folded.
+    /// text keeps clear of its two rows (it scrolls under them just the same as they fold) and
+    /// what floats over it sits above them, a step lower as each row folds away.
     var pageReadingInPlace: ReadingInPlace {
-        readingInPlace(bottomClearance: ChromeMetrics.footprint,
-                       overTextClearance: chromeScroll.isDrawnCollapsed ? ChromeMetrics.capsuleFootprint : ChromeMetrics.footprint)
+        readingInPlace(bottomClearance: ChromeHome.above(ChromeMetrics.footprint),
+                       overTextClearance: ChromeHome.above(ChromeMetrics.footprint(step: chromeScroll.drawnStep)))
     }
 
     private func readingInPlace(bottomClearance: CGFloat, overTextClearance: CGFloat) -> ReadingInPlace {

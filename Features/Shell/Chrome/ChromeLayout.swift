@@ -12,9 +12,9 @@ struct ChromePiece: Equatable {
     var fullWidth: CGFloat { scale > 0 ? rect.width / scale : rect.width }
     var fullHeight: CGFloat { scale > 0 ? rect.height / scale : rect.height }
 
-    /// Capsules and circles: half the bar's height, so the Reader's card (taller than a bar) keeps a
-    /// bar's corners.
-    var radius: CGFloat { min(fullHeight, ChromeMetrics.barHeight) / 2 }
+    /// Capsules and circles: half the bar's height. The Reader's card (taller than a bar) keeps its own
+    /// corners (`ChromeMetrics.cardRadius`): it is not resized with the bars.
+    var radius: CGFloat { fullHeight > ChromeMetrics.barHeight ? ChromeMetrics.cardRadius : fullHeight / 2 }
     /// A piece shown in only one of two forms stays through the move between them (its rect
     /// shrinks away where it should); the ends are the forms themselves.
     static func mix(_ a: ChromePiece, _ b: ChromePiece, _ t: CGFloat) -> ChromePiece {
@@ -27,15 +27,19 @@ struct ChromePiece: Equatable {
 }
 
 /// Where each piece of the chrome sits, in a box `width` wide and `ChromeMetrics.readerFootprint`
-/// high whose bottom edge is just above the home indicator. Pure: the same state always gives the
-/// same frames, so the widths in the mockups' `width-table.md` are checkable without a screen. It
-/// is the mockups' `rectsFor`. A scroll down (`state.capsule`) shrinks every piece toward the
-/// capsule, which grows where they were going; the keyboard's form (`state.keyboard`) is its own one row.
+/// high whose bottom edge is the safe area's. The rows reach below the box, into the home
+/// indicator's strip: the bottom row ends `edgeClearance` above the screen's edge (`state.homeInset`
+/// below the box). Pure: the same state always gives the same frames, so the widths in the mockups'
+/// `width-table.md` are checkable without a screen. It is the mockups' `rectsFor`. A scroll down
+/// (`state.fold`) folds in two steps: row 2 shrinks away while row 1 drops into its place (0 to 0.5),
+/// then row 1 shrinks toward the strip, whose text comes up where it went (0.5 to 1). The keyboard's
+/// form (`state.keyboard`) is its own one row.
 ///
 /// ```
 /// expanded    [‹][›][ address / search                  ]        row 1; the Reader's is its card
 ///             [ Listen | Library | Browser ][▶][⋯]               row 2 (Listen: no ▶, the card has one)
-/// folded                     [ example.com ]                     the capsule: both rows gone; never on Listen, whose card stays
+/// one row     [‹][›][ address / search                  ]        the fold's first step: row 1 in row 2's place
+/// folded                       example.com                       the strip: text over the home indicator; never on Listen, whose card stays
 /// reader mode [‹][›][ address                       ][🎧]     the Browser's page as the Reader draws it: Listen ends row 1
 ///             [‹][ Aa | ▶ Listen · 9 min               ]         the Library's Read: the Listen field is the field
 /// editing     [ the selection's actions                 ]       row 2 whole: no pill, ▶ or ⋯
@@ -61,21 +65,24 @@ struct ChromeLayout: Equatable {
     var editBar: ChromePiece
     /// The Browser's reader mode: the round control that listens to the page, at the end of row 1.
     var listen: ChromePiece
-    /// What a scroll down folds the rows into: a name for the page, bottom-aligned with row 2. The
-    /// rect is the capsule itself (28 pt tall); its hit area is `ChromeMetrics.capsuleHitOutset` more each side.
-    var capsule: ChromePiece
+    /// What a scroll down folds the rows into: a name for the page, its lower edge where row 2's is.
+    /// The rect is the strip's text box (20 pt tall); its hit area is `ChromeMetrics.stripHitOutset` more each side.
+    var strip: ChromePiece
+    /// How far the strip's text has come up (0 to 1): it fades and rises in, it does not grow.
+    var stripOpacity: CGFloat = 0
     /// The pill's width while expanded: its segments are laid out in it.
     var expandedPillWidth: CGFloat
 
     /// The top edge of the highest piece, nil when nothing shows (full screen).
     var top: CGFloat? {
-        [pill, field, nav, play, more, editBar, listen, capsule].filter(\.isShown).map(\.rect.minY).min()
+        [pill, field, nav, play, more, editBar, listen, strip].filter(\.isShown).map(\.rect.minY).min()
     }
 
     init(width w: CGFloat, state s: ChromeState) {
         typealias K = ChromeMetrics
         let bar = K.barHeight, gap = K.gap, rowGap = K.rowGap, margin = K.margin
-        let rowY = K.readerFootprint - K.bottomPadding - bar
+        let bottom = K.readerFootprint + s.homeInset - K.edgeClearance
+        let rowY = bottom - bar
         // Both rows share one pair of edges, the margins, on every width (Jimmy: "the 2 bars should be the
         // same length"). The pill keeps its fixed width at the left; ▶ and ⋯ end the row at the right, and a
         // wider screen only widens the gap between the pill and ▶ (exactly `rowGap` on the SE).
@@ -141,27 +148,36 @@ struct ChromeLayout: Equatable {
         let listenRect = CGRect(x: w - margin - bar, y: row1Y, width: bar, height: bar)
         let listenForm = ChromePiece(rect: listenRect, isShown: listens && hold && !s.keyboard)
 
-        // The fold: every piece scales down about the capsule's centre over the first 60% of it while the
-        // capsule grows from there over the last 60%, so the two overlap and the glass blends one into
-        // the other. A piece or the capsule at zero size leaves the tree, which nobody sees.
-        let c = s.capsule
-        let centre = CGPoint(x: w / 2, y: K.readerFootprint - K.bottomPadding - K.capsuleHeight / 2)
-        let away = 1 - K.ramp(c, 0...0.6), grown = K.ramp(c, 0.4...1)
-        func scaled(_ p: ChromePiece, _ f: CGFloat) -> CGRect {
-            CGRect(x: centre.x + (p.rect.minX - centre.x) * f, y: centre.y + (p.rect.minY - centre.y) * f,
-                   width: p.rect.width * f, height: p.rect.height * f)
+        // The fold, in two steps. First (0 to 0.5) row 2 shrinks about its own middle and goes, while
+        // row 1 drops into its place. Then (0.5 to 1) row 1 shrinks toward the strip's middle and goes,
+        // while the strip's text comes up. A piece at zero size leaves the tree, which nobody sees.
+        let f = s.fold
+        let first = K.ramp(f, 0...0.5), second = K.ramp(f, 0.5...1)
+        let row2Centre = CGPoint(x: w / 2, y: rowY + bar / 2)
+        let centre = CGPoint(x: w / 2, y: bottom - K.stripHeight / 2)
+        let row2Away = 1 - K.ramp(f, 0...0.35), row1Away = 1 - K.ramp(f, 0.5...0.85), grown = K.ramp(f, 0.7...1)
+        let drop = first * (bar + gap)
+        func scaled(_ r: CGRect, about c: CGPoint, _ k: CGFloat) -> CGRect {
+            CGRect(x: c.x + (r.minX - c.x) * k, y: c.y + (r.minY - c.y) * k, width: r.width * k, height: r.height * k)
         }
-        func receding(_ p: ChromePiece) -> ChromePiece {
-            c > 0 ? ChromePiece(rect: scaled(p, away), isShown: p.isShown && away > 0, scale: away) : p
+        func foldRow2(_ p: ChromePiece) -> ChromePiece {
+            f > 0 ? ChromePiece(rect: scaled(p.rect, about: row2Centre, row2Away), isShown: p.isShown && row2Away > 0, scale: row2Away) : p
         }
-        let capsuleFull = CGRect(x: centre.x - s.capsuleWidth / 2, y: centre.y - K.capsuleHeight / 2,
-                                 width: s.capsuleWidth, height: K.capsuleHeight)
-        capsule = ChromePiece(rect: scaled(ChromePiece(rect: capsuleFull, isShown: true), grown), isShown: hold && grown > 0)
-        pill = receding(pill)
-        play = receding(play)
-        more = receding(more)
-        nav = receding(navForm)
-        field = receding(fieldForm)
-        listen = receding(listenForm)
+        func foldRow1(_ p: ChromePiece) -> ChromePiece {
+            guard f > 0 else { return p }
+            let r = p.rect.offsetBy(dx: 0, dy: drop)
+            return ChromePiece(rect: scaled(r, about: centre, row1Away), isShown: p.isShown && row1Away > 0 && second < 1, scale: row1Away)
+        }
+        let stripFull = CGRect(x: centre.x - s.stripWidth / 2, y: centre.y - K.stripHeight / 2,
+                               width: s.stripWidth, height: K.stripHeight)
+        strip = ChromePiece(rect: stripFull, isShown: hold && grown > 0)
+        stripOpacity = grown
+        pill = foldRow2(pill)
+        play = foldRow2(play)
+        more = foldRow2(more)
+        nav = foldRow1(navForm)
+        listen = foldRow1(listenForm)
+        // The Reader's card never folds (`collapse` is 0 there).
+        field = foldRow1(fieldForm)
     }
 }

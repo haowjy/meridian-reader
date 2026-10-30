@@ -28,9 +28,10 @@ extension ChromeDestination {
     var segment: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
-/// `[ Listen | Library | Browser ]`: one capsule, each segment a button. Every segment has the same
-/// icon and label size and weight; lit differs by the glyph's tint and the wash only (labels stay
-/// ink, which holds 4.5:1 on the wash in every accent). The Listen segment (`.reader`, the
+/// `[ 🎧 | 📚 | 🧭 ]`: one capsule, each segment a button showing its glyph only (Listen, Library and
+/// Browser are their names for VoiceOver and the large content viewer). Every segment has the same
+/// glyph size and weight; lit differs by the glyph's tint and the wash only. Each segment is tapped
+/// `hitOutset` above and below the glass, `minTapTarget` tall. The Listen segment (`.reader`, the
 /// destination's internal name) is the headphones whether or not anything plays (▶ and the lit
 /// segment say what plays); it is dimmed when there is nothing to open and it is not lit.
 struct ChromePill: View {
@@ -49,8 +50,6 @@ struct ChromePill: View {
         GeometryReader { proxy in
             let size = proxy.size
             let slot = expandedWidth / CGFloat(ChromeDestination.allCases.count)
-            let blockHeight = K.segmentGlyphHeight + K.segmentGap + K.labelSize
-            let top = (size.height - blockHeight) / 2
             ZStack(alignment: .topLeading) {
                 // The wash is inset equally on all four sides; its radius is the pill's minus the inset.
                 Capsule()
@@ -62,14 +61,13 @@ struct ChromePill: View {
                     let isLit = destination == lit
                     let center = (CGFloat(destination.segment) + 0.5) * slot
                     segment(destination, lit: isLit)
-                        .position(x: center, y: top + K.segmentGlyphHeight / 2)
-                    label(destination)
-                        .position(x: center, y: top + K.segmentGlyphHeight + K.segmentGap + K.labelSize / 2)
+                        .position(x: center, y: size.height / 2)
                 }
-                controls(slot: slot, size: size)
             }
             .frame(width: size.width, height: size.height, alignment: .topLeading)
             .clipShape(Capsule())
+            // Outside the clip, so the taps reach past the glass.
+            .overlay(alignment: .topLeading) { controls(slot: slot, size: size) }
         }
         .chromeSurface(Capsule())
     }
@@ -83,24 +81,16 @@ struct ChromePill: View {
             .accessibilityHidden(true)
     }
 
-    private func label(_ destination: ChromeDestination) -> some View {
-        Text(destination.label)
-            .font(.system(size: K.labelSize, weight: .semibold))
-            .foregroundStyle(Palette.ink)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .opacity(dimmed(destination) ? K.segmentDimmedOpacity : 1)
-            .accessibilityHidden(true)
-    }
-
     private func dimmed(_ destination: ChromeDestination) -> Bool {
         destination == .reader && !hasReader && destination != lit
     }
 
-    /// The touch layer: one button per segment.
+    /// The touch layer: one button per segment, `hitOutset` past the glass above and below.
     private func controls(slot: CGFloat, size: CGSize) -> some View {
         ForEach(ChromeDestination.allCases, id: \.self) { destination in
-            Button { onSelect(destination) } label: { Color.clear.contentShape(Rectangle()) }
+            Button { onSelect(destination) } label: {
+                Color.clear.contentShape(Rectangle().inset(by: -K.hitOutset))
+            }
                 .buttonStyle(.plain)
                 .frame(width: slot, height: size.height)
                 .offset(x: slot * CGFloat(destination.segment))
@@ -143,7 +133,6 @@ struct ChromeNavigation: View {
                 }
             }
             .frame(width: proxy.size.width, alignment: .leading)
-            .clipShape(Capsule())
         }
         .chromeSurface(Capsule())
     }
@@ -156,7 +145,7 @@ struct ChromeNavigation: View {
                 .foregroundStyle(Palette.ink)
                 .opacity(enabled ? 1 : Self.disabledOpacity)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
+                .contentShape(Rectangle().inset(by: -ChromeMetrics.hitOutset))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -166,7 +155,7 @@ struct ChromeNavigation: View {
     }
 }
 
-/// ⋯'s button face in the chrome: the glyph on a round surface, the whole frame tappable.
+/// ⋯'s button face in the chrome: the glyph on a round surface, tapped `hitOutset` past it.
 struct ChromeRoundLabel: View {
     let symbol: String
     /// What the glyph is called, for the large content viewer.
@@ -177,14 +166,14 @@ struct ChromeRoundLabel: View {
             .font(BottomChrome.chromeGlyph)
             .foregroundStyle(Palette.ink)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Circle())
+            .contentShape(Rectangle().inset(by: -ChromeMetrics.hitOutset))
             .chromeSurface(Circle())
             .chromeLargeContent(label, symbol: symbol)
     }
 }
 
 /// Listen's ‹: a glass capsule floating at the top left, ‹ and the place it goes back to ("‹ reddit.com"),
-/// the Library ‹'s height (48 pt). The name truncates so it never reaches the middle of the screen.
+/// a bar high (36 pt), tapped in `minTapTarget`. The name truncates so it never reaches the middle of the screen.
 struct ListenBackButton: View {
     let place: String
     let action: () -> Void
@@ -192,8 +181,7 @@ struct ListenBackButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: ChromeMetrics.unit) {
-                // ‹ in a 30 pt slot `fieldEndInset` from the end: concentric with the capsule's end cap,
-                // where the Library's round ‹ draws it.
+                // ‹ in the end glyph slot, `fieldEndInset` from the end: concentric with the capsule's end cap.
                 Image(systemName: Icons.back).font(BottomChrome.chromeGlyph)
                     .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
                 Text(place).font(BottomChrome.originLabel).lineLimit(1).truncationMode(.tail)
@@ -204,7 +192,7 @@ struct ListenBackButton: View {
             .frame(height: ChromeMetrics.barHeight)
             .frame(maxWidth: ChromeMetrics.listenBackMaxWidth, alignment: .leading)
             .fixedSize(horizontal: true, vertical: false)
-            .contentShape(Capsule())
+            .contentShape(Rectangle().inset(by: -ChromeMetrics.hitOutset))
             .chromeSurface(Capsule())
             .chromeLargeContent(Verbs.back, symbol: Icons.back)
         }
@@ -244,7 +232,7 @@ struct ChromePlayButton: View {
             }
             .padding(ChromeMetrics.ringInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Circle())
+            .contentShape(Rectangle().inset(by: -ChromeMetrics.hitOutset))
         }
         .buttonStyle(.plain)
         .chromeSurface(Circle())
