@@ -1293,7 +1293,8 @@ control for control.
 
 **⋯ › Settings** (`SettingsView`; the last row of every ⋯ panel, and the sidebar's bottom row on
 iPad; titled *Settings*, *Done* closes it) is a `NavigationStack` of cards on paper (the Library's
-list style). Top to bottom:
+list style). Its rows are 48 pt at the default text size (`RowHeight.setting`) and none leads with
+a symbol. Top to bottom:
 
 - **Listening** (first; the audio settings):
   - *Voice ›* (`VoicePage`): the default voice for new articles and books, from the one voice
@@ -1303,7 +1304,9 @@ list style). Top to bottom:
     Apple lists the installed voices for the language, Premium first. A voice's download shows
     progress below the list (tap to cancel; on cellular or Low Data Mode it asks first, "Download
     on Cellular?"), a downloaded Kokoro pack is removed with a swipe, and a crash or failure
-    notice sits in the footer. The row's value names the voice.
+    notice sits in the footer. The row's value never names the voice: *Default* while the
+    built-in voice is the pick (Zoey, else Heart, else Apple's best), else its voice library
+    (*Kokoro*, *Apple*).
   - *Language ›* (`LanguagePage`) and *Speed ›* (the speeds Now Playing lists, 0.75× to 2×, the
     chosen one ✓).
 - **Appearance ›** and **Reading ›**, one card (nested pages, not inline rows):

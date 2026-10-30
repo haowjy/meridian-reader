@@ -120,12 +120,12 @@ struct SymbolRowGallery: View {
         PreviewGallery {
             PreviewState("a setting, a link, a switch") {
                 VStack(spacing: 0) {
-                    SymbolRow("Listening Audio", symbol: Icons.storage) { Text("12 MB").typeStyle(.row) }
+                    SymbolRow("Prepared Audio", symbol: Icons.preparedAudio) { Text("12").typeStyle(.row) }
                     SymbolRow("Language", symbol: Icons.browser) {
                         Text("Automatic").typeStyle(.row).foregroundStyle(Palette.secondaryInk)
                         Image(systemName: Icons.disclosure).disclosureSymbol().foregroundStyle(Palette.secondaryInk)
                     }
-                    Toggle(isOn: .constant(true)) { SymbolRow("Block Ads", symbol: Icons.blockAds) }
+                    Toggle(isOn: .constant(true)) { SymbolRow("Search Suggestions", symbol: Icons.search) }
                 }
             }
             PreviewState("with a subtitle, no symbol") {

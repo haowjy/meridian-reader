@@ -125,9 +125,8 @@ struct SettingsView: View {
                 .listRowBackground(Color.clear)
             }
         }
-        .cardListStyle()
-        // Tighter than Library cards: Settings root has many short sections.
-        .listSectionSpacing(Spacing.xs)
+        .cardListStyle(rowHeight: RowHeight.setting)
+        .listSectionSpacing(Spacing.m)
         .accessibilityIdentifier("settingsList")
     }
 
@@ -164,15 +163,15 @@ struct SettingsView: View {
         if search.shows(group) {
             Section {
                 if search.shows(group.rows[0], in: group) {
-                    SettingsLinkRow(title: group.rows[0], symbol: nil, value: AppAppearance.shared.mode.title,
+                    SettingsLinkRow(title: group.rows[0], value: AppAppearance.shared.mode.title,
                                     accessibilityID: "settingsAppearance", route: .appearance)
                 }
                 if search.shows(group.rows[1], in: group) {
-                    SettingsLinkRow(title: group.rows[1], symbol: nil, value: reading.theme.title,
+                    SettingsLinkRow(title: group.rows[1], value: reading.theme.title,
                                     accessibilityID: "settingsReading", route: .reading)
                 }
             }
-            .listCard()
+            .settingsCard()
         }
     }
 
@@ -220,28 +219,28 @@ private struct AboutSettingsSection: View {
         if search.shows(Self.group) {
             Section {
                 if search.shows(Self.privacy, in: Self.group) {
-                    link(Self.privacy, symbol: Icons.privacy, to: Self.privacyURL, id: "settingsPrivacyPolicy")
+                    link(Self.privacy, to: Self.privacyURL, id: "settingsPrivacyPolicy")
                 }
                 if search.shows(Self.support, in: Self.group) {
-                    link(Self.support, symbol: Icons.support, to: Self.supportURL, id: "settingsSupport")
+                    link(Self.support, to: Self.supportURL, id: "settingsSupport")
                 }
                 if search.shows(Self.acknowledgements, in: Self.group) {
-                    SettingsLinkRow(title: Self.acknowledgements, symbol: Icons.acknowledgements,
-                                    value: "", accessibilityID: "settingsAcknowledgements", route: .acknowledgements)
+                    SettingsLinkRow(title: Self.acknowledgements, value: "", accessibilityID: "settingsAcknowledgements", route: .acknowledgements)
                 }
             } header: {
                 SectionHeader(title: Self.group.title, size: .settings).listHeader()
             }
-            .listCard()
+            .settingsCard()
         }
     }
 
-    private func link(_ title: String, symbol: String, to url: URL, id: String) -> some View {
+    private func link(_ title: String, to url: URL, id: String) -> some View {
         Link(destination: url) {
-            SymbolRow(title, symbol: symbol) {
+            SymbolRow(title, symbol: nil) {
+                // The tint a NavigationLink's own › takes, so a card's chevrons match.
                 Image(systemName: Icons.disclosure)
-                    .foregroundStyle(Palette.secondaryInk)
-                    .fontWeight(.semibold)
+                    .disclosureSymbol()
+                    .foregroundStyle(Palette.tertiaryInk)
             }
         }
         .buttonStyle(.plain)
@@ -311,12 +310,10 @@ private struct BrowsingSettingsSection: View {
         if search.shows(Self.group) {
             Section {
                 if search.shows(Self.blockAds, in: Self.group) {
-                    SettingsToggleRow(title: Self.blockAds, symbol: Icons.blockAds,
-                                      isOn: $blocker.isEnabled, accessibilityID: "blockAdsToggle")
+                    SettingsToggleRow(title: Self.blockAds, isOn: $blocker.isEnabled, accessibilityID: "blockAdsToggle")
                 }
                 if search.shows(Self.suggestionsTitle, in: Self.group) {
-                    SettingsToggleRow(title: Self.suggestionsTitle, symbol: Icons.search,
-                                      isOn: $suggestions, accessibilityID: "searchSuggestionsToggle")
+                    SettingsToggleRow(title: Self.suggestionsTitle, isOn: $suggestions, accessibilityID: "searchSuggestionsToggle")
                 }
             } header: {
                 SectionHeader(title: Self.group.title, size: .settings).listHeader()
@@ -325,9 +322,9 @@ private struct BrowsingSettingsSection: View {
                     Text("Blocks ads and trackers on pages loaded after you change this.")
                     Text("Search Suggestions sends what you type in the address field to Google to suggest searches.")
                 }
-                .listFooter()
+                .listFooter(gap: Spacing.xs)
             }
-            .listCard()
+            .settingsCard()
         }
     }
 }
@@ -362,8 +359,7 @@ private struct StorageSettingsSection<VersionRow: View>: View {
         let group = Self.group
         return Section {
             if search.shows(Verbs.preparedAudio, in: group) {
-                SettingsLinkRow(title: Verbs.preparedAudio, symbol: Icons.preparedAudio,
-                                value: overview.isEmpty ? String(localized: "None") : "\(overview.done.count + overview.queued.count + overview.differentVoice.count)",
+                SettingsLinkRow(title: Verbs.preparedAudio, value: overview.isEmpty ? String(localized: "None") : "\(overview.done.count + overview.queued.count + overview.differentVoice.count)",
                                 accessibilityID: "settingsPreparedAudio", route: .preparedAudio)
             }
             if search.shows(Self.preparedSize, in: group) {
@@ -379,9 +375,9 @@ private struct StorageSettingsSection<VersionRow: View>: View {
             SectionHeader(title: group.title, size: .settings).listHeader()
         } footer: {
             Text("Prepared stays until you delete it. Listening audio clears when it leaves History.")
-                .listFooter()
+                .listFooter(gap: Spacing.xs)
         }
-        .listCard()
+        .settingsCard()
         .task {
             let cache = speech.localTTS.audioCache
             let held = Set(preparedAudio.heldArticleKeys)
@@ -398,7 +394,7 @@ private struct StorageSettingsSection<VersionRow: View>: View {
     }
 
     private func sizeRow(_ title: String, bytes: Int64?, id: String) -> some View {
-        SymbolRow(title, symbol: Icons.storage) {
+        SymbolRow(title, symbol: nil) {
             Text(bytes.map(FileSizes.label) ?? "…")
                 .typeStyle(.row)
                 .monospacedDigit()
@@ -432,12 +428,10 @@ private struct DeveloperSettingsSection: View {
         @Bindable var developer = developer
         return Section {
             if search.shows(Verbs.listenDebug, in: Self.group) {
-                SettingsToggleRow(title: Verbs.listenDebug, symbol: Icons.debug,
-                                  isOn: $developer.listenDebugEnabled, accessibilityID: "listenDebugEnabledToggle")
+                SettingsToggleRow(title: Verbs.listenDebug, isOn: $developer.listenDebugEnabled, accessibilityID: "listenDebugEnabledToggle")
             }
             if search.shows(Self.fakeFailure, in: Self.group) {
-                SettingsToggleRow(title: Self.fakeFailure, symbol: Icons.warning,
-                                  isOn: $developer.fakeExtractionFailure, accessibilityID: "fakeExtractionFailureToggle")
+                SettingsToggleRow(title: Self.fakeFailure, isOn: $developer.fakeExtractionFailure, accessibilityID: "fakeExtractionFailureToggle")
             }
             if search.shows(Self.panel, in: Self.group) {
                 Button {
@@ -445,10 +439,10 @@ private struct DeveloperSettingsSection: View {
                     // place has no sheet under it.
                     shell.present(.listenDebug)
                 } label: {
-                    SymbolRow(Self.panel, symbol: Icons.debug) {
+                    SymbolRow(Self.panel, symbol: nil) {
                         Image(systemName: Icons.disclosure)
                             .disclosureSymbol()
-                            .foregroundStyle(Palette.secondaryInk)
+                            .foregroundStyle(Palette.tertiaryInk)
                     }
                 }
                 .buttonStyle(.plain)
@@ -458,8 +452,8 @@ private struct DeveloperSettingsSection: View {
             SectionHeader(title: Self.group.title, size: .settings).listHeader()
         } footer: {
             Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes every extraction fail (Reader, Save, Follow, Prepared Audio) until the app quits.")
-                .listFooter()
+                .listFooter(gap: Spacing.xs)
         }
-        .listCard()
+        .settingsCard()
     }
 }

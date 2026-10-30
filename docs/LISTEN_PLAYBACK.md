@@ -655,7 +655,9 @@ check slots, min height 48), so state changes never move rows.
    curated pack is installed); the model's download progress below them, tap to cancel (on
    cellular or Low Data Mode it asks first); crash and failure notices in the footer. Apple lists
    "Best for <language>" and the installed voices for the language, Premium, then Enhanced, then
-   the rest. Picking a voice picks its engine. The row's value names it ("Zoey", "Heart", "Ava (Apple)").
+   the rest. Picking a voice picks its engine. The row's value never names the voice: "Default" while
+   the built-in voice is the pick (`builtInDefaultSelection`), else its voice library ("Kokoro",
+   "Apple").
 2. **Language ›** (`LanguagePage`), 3. **Speed**, the six speeds in one line.
 
 The version row at the bottom of Settings toggles developer options (a 2 s long-press); Settings

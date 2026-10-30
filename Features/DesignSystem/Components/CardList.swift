@@ -12,14 +12,15 @@ import SwiftUI
 /// On-device voices prepare once, …          `.listFooter()`
 /// ```
 extension View {
-    /// Grouped cards on paper, at the page margin, `Spacing.s` between sections (Settings density).
-    func cardListStyle() -> some View {
+    /// Grouped cards on paper, at the page margin, `Spacing.s` between sections. Rows are as tall
+    /// as their content unless `rowHeight` sets a minimum (Settings').
+    func cardListStyle(rowHeight: CGFloat = 0) -> some View {
         listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
             .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
             .listSectionSpacing(Spacing.s)
-            .environment(\.defaultMinListRowHeight, 0)
+            .environment(\.defaultMinListRowHeight, rowHeight)
     }
 
     /// A section's rows on the card's fill.
@@ -40,10 +41,11 @@ extension View {
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xxs, trailing: 0))
     }
 
-    /// A note under a card: a footnote in line with the card.
-    func listFooter() -> some View {
+    /// A note under a card: a footnote in line with the card, `gap` below it (Settings' notes
+    /// take `Spacing.xs`, clear of its taller rows).
+    func listFooter(gap: CGFloat = Spacing.xxs) -> some View {
         footnote()
             .textCase(nil)
-            .listRowInsets(EdgeInsets(top: Spacing.xxs, leading: 0, bottom: 0, trailing: 0))
+            .listRowInsets(EdgeInsets(top: gap, leading: 0, bottom: 0, trailing: 0))
     }
 }

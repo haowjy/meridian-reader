@@ -66,19 +66,17 @@ extension SettingsChoiceRow where Accessory == EmptyView {
     }
 }
 
-/// A row that opens a page of choices (`route`, pushed on Settings' stack): its symbol (nil: none,
-/// as the rest of its card), its name, the current choice in secondary ink, then ›. One line; the
-/// value truncates first.
+/// A row that opens a page of choices (`route`, pushed on Settings' stack): its name, the current
+/// choice in secondary ink, then ›. One line; the value truncates first.
 struct SettingsLinkRow: View {
     let title: String
-    let symbol: String?
     let value: String
     let accessibilityID: String
     let route: SettingsRoute
 
     var body: some View {
         NavigationLink(value: route) {
-            SymbolRow(title, symbol: symbol) {
+            SymbolRow(title, symbol: nil) {
                 Text(value)
                     .typeStyle(.row)
                     .foregroundStyle(Palette.secondaryInk)
@@ -89,19 +87,28 @@ struct SettingsLinkRow: View {
     }
 }
 
-/// A switch with a symbol and a name.
+/// A switch and its name.
 struct SettingsToggleRow: View {
     let title: String
-    let symbol: String
     @Binding var isOn: Bool
     let accessibilityID: String
 
     var body: some View {
         Toggle(isOn: $isOn) {
-            SymbolRow(title, symbol: symbol)
+            SymbolRow(title, symbol: nil)
         }
         .tint(Palette.accent)
         .accessibilityIdentifier(accessibilityID)
+    }
+}
+
+extension View {
+    /// A section of the Settings list's rows on the card. The List adds no vertical inset of its
+    /// own: a `SymbolRow` already holds the tap height, and the List's inset on top of it would
+    /// double it. The list's minimum row height (`RowHeight.setting`) sets the rest.
+    func settingsCard() -> some View {
+        listCard()
+            .listRowInsets(EdgeInsets(top: 0, leading: Spacing.m, bottom: 0, trailing: Spacing.m))
     }
 }
 

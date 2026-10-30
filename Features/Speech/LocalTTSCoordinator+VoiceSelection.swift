@@ -72,8 +72,16 @@ extension LocalTTSCoordinator {
         noteBakeMarksChanged()
     }
 
-    /// The stored default, else Phonon Zoey when supported (first launch / unset pick),
-    /// else Kokoro Heart (2nd default) when supported, else legacy engine/voices, else Apple.
+    /// The voice a fresh install starts with: Phonon Zoey when supported, else Kokoro Heart, else
+    /// Apple's best voice for the language. Settings shows "Default" while it is the pick.
+    var builtInDefaultSelection: VoiceSelection {
+        if engines.supports(.phonon) { return VoiceSelection(engine: .phonon, voice: PhononVoiceCatalog.defaultVoice) }
+        if engines.supports(.kokoro) { return VoiceSelection(engine: .kokoro, voice: KokoroVoiceCatalog.defaultVoice) }
+        return VoiceSelection(engine: .apple, voice: "")
+    }
+
+    /// The stored default, else the built-in one (`builtInDefaultSelection`, first launch / unset
+    /// pick), where an older install's engine/voices or Apple voice take Apple's place.
     /// Heart's bundled pack is always seeded when Kokoro is supported so switching engines
     /// does not wait on that voice download.
     func loadDefaultSelection(legacyEngine: SpeechEngineID, legacyAppleVoice: String?) {
@@ -88,13 +96,10 @@ extension LocalTTSCoordinator {
             KokoroAssets.installBundledHeartIfNeeded()
             setEngineVoice(.kokoro, KokoroVoiceCatalog.defaultVoice)
         }
-        if engines.supports(.phonon) {
-            let zoey = PhononVoiceCatalog.defaultVoice
-            defaultSelection = VoiceSelection(engine: .phonon, voice: zoey)
-            setEngineVoice(.phonon, zoey)
-        } else if engines.supports(.kokoro) {
-            let heart = KokoroVoiceCatalog.defaultVoice
-            defaultSelection = VoiceSelection(engine: .kokoro, voice: heart)
+        let builtIn = builtInDefaultSelection
+        if builtIn.engine == .phonon { setEngineVoice(.phonon, builtIn.voice) }
+        if !builtIn.isApple {
+            defaultSelection = builtIn
         } else if engines.isOnDevice(legacyEngine), let voice = engineVoices[legacyEngine] {
             defaultSelection = VoiceSelection(engine: legacyEngine, voice: voice)
         } else {

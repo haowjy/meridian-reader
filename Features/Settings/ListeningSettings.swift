@@ -21,31 +21,37 @@ struct ListeningSettingsSection: View {
         if search.shows(Self.group) {
             Section {
                 if search.shows(Verbs.voice, in: Self.group) {
-                    SettingsLinkRow(title: Verbs.voice, symbol: nil, value: voiceName,
+                    SettingsLinkRow(title: Verbs.voice, value: voiceValue,
                                     accessibilityID: "settingsVoice", route: .voice)
                 }
                 if search.shows(Verbs.language, in: Self.group) {
-                    SettingsLinkRow(title: Verbs.language, symbol: nil, value: languageName,
+                    SettingsLinkRow(title: Verbs.language, value: languageName,
                                     accessibilityID: "settingsLanguage", route: .language)
                 }
                 if search.shows(Verbs.speed, in: Self.group) {
-                    SettingsLinkRow(title: Verbs.speed, symbol: nil, value: ListenRate.label(speech.rateMultiplier),
+                    SettingsLinkRow(title: Verbs.speed, value: ListenRate.label(speech.rateMultiplier),
                                     accessibilityID: "settingsSpeed", route: .speed)
                 }
             } header: {
                 SectionHeader(title: Self.group.title, size: .settings).listHeader()
             } footer: {
                 if let notice = localTTS.engineCrashNotice {
-                    Text(notice).foregroundStyle(Palette.destructive).listFooter()
+                    Text(notice).foregroundStyle(Palette.destructive).listFooter(gap: Spacing.xs)
                 }
             }
-            .listCard()
+            .settingsCard()
         }
     }
 
     // MARK: - Values shown on the rows
 
-    private var voiceName: String { localTTS.voiceName(of: localTTS.defaultSelection) }
+    /// "Default" while the built-in voice is the pick, else its voice library ("Kokoro", "Apple"):
+    /// never a voice's name, which means nothing before you have heard it.
+    private var voiceValue: String {
+        let selection = localTTS.defaultSelection
+        return selection == localTTS.builtInDefaultSelection ? String(localized: "Default")
+            : localTTS.engines.shortName(selection.engine)
+    }
 
     private var languageName: String {
         speech.languageAutomatic ? String(localized: "Automatic")
