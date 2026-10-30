@@ -91,7 +91,7 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
         }
         .padding(.horizontal, Spacing.s)
         .padding(.top, Spacing.xs)
-        .padding(.bottom, Spacing.xxs)
+        .padding(.bottom, Spacing.xs)
         // The whole card takes a tap, so one on its title or its blank corners never reaches the
         // page behind it (a tap there hides the chrome) and nothing in it seeks.
         .contentShape(Rectangle())
