@@ -19,7 +19,7 @@ import SwiftUI
 ///   Prepare, Prepared Audio; then Settings / Saved / Reader, Reader disabled here, C140). Both act through
 ///   `ArticleActions`, as in Now Playing.
 /// - Aa changes how the page reads (`TextAppearanceControl`), live: left of ☝︎ in the sheet's top bar.
-/// - Voice (`VoiceChromeButton`), right of the title in the bottom band, opens the page's Voice
+/// - Voice (an `IconButton`), right of the title in the bottom band, opens the page's Voice
 ///   picker (same as ⋯ › Voice / Settings › Voice's list).
 /// - A tap in the middle of the text reads full screen, as in Now Playing (`ReadingPage`,
 ///   `ReadingChrome`); a link in the text opens in the browser.
@@ -70,7 +70,9 @@ struct ReaderSheetScreen: View {
         ) {
             TextAppearanceControl()
         } accessory: {
-            JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
+            IconButton(symbol: jumpMode ? Icons.jumpOn : Icons.jump,
+                       label: jumpMode ? Verbs.cancelPlayFromParagraph : Verbs.playFromParagraph,
+                       identifier: "listenJump", isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
                 .disabled(!sessionReady)
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
@@ -100,7 +102,7 @@ struct ReaderSheetScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // Voice, aligned right of the title (same picker as ⋯ › Voice / Settings › Voice).
-                    VoiceChromeButton(identifier: "readerVoice") {
+                    IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "readerVoice") {
                         shell.present(.voice(.article(readerArticle.id)))
                     }
                     SaveToggleButton(isSaved: actions.isSaved, identifier: "readerBookmark",

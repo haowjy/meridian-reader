@@ -4,7 +4,7 @@ import SwiftUI
 enum ReadingShowing {
     /// Regular width (the Reader, Now Playing): a `Sheet` over the surface that opened it; its close
     /// pill (`close`), grabber and pull down call `onClose` once it has gone.
-    case sheet(close: SheetClosePill.Kind, onClose: () -> Void)
+    case sheet(close: Close, onClose: () -> Void)
     /// Compact width's Listen: a `Sheet` that covers the screen, chrome and all (`Sheet`'s `covers`).
     /// A pull down (VoiceOver: the escape gesture) closes it, then `onClose`. Its band is the player card
     /// on glass at the foot, with what it was over left as it was.
@@ -12,6 +12,15 @@ enum ReadingShowing {
     /// Compact width's in-place readers (the Library's Read, the Browser's reader mode): under the
     /// bottom chrome. No sheet, pill, grabber or pull down.
     case inPlace(ReadingInPlace)
+
+    /// The sheet's close pill, at the leading edge of its top bar:
+    /// - `.back("Browser")`: "‹ Browser", the Reader; it names what is underneath.
+    /// - `.collapse("Pride and Prejudice")`: "⌄ Pride and Prejudice", Now Playing; it names where
+    ///   the page plays from and shrinks the sheet back into the bar.
+    enum Close: Equatable {
+        case back(String)
+        case collapse(String)
+    }
 }
 
 /// What a reading page shown in place needs from the compact chrome, as plain values and closures
@@ -63,7 +72,15 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
         case .sheet(let close, let onClose):
             Sheet(onDismiss: onClose, palette: palette, chrome: chrome) {
                 VStack(spacing: 0) {
-                    SheetTopBar { SheetClosePill(kind: close) } trailing: { trailing }
+                    // The same row in the Reader and Now Playing (decision D24): the close pill
+                    // leading, Aa then ☝︎ trailing, so they sit at the same place whichever is up.
+                    HStack(spacing: Spacing.s) {
+                        ClosePill(close: close)
+                        Spacer(minLength: 0)
+                        trailing
+                    }
+                    .padding(.horizontal, Spacing.pageMargin)
+                    .padding(.bottom, Spacing.xs)
                     banner
                 }
             } content: {
@@ -164,5 +181,54 @@ private struct CoverBand<Content: View, Floating: View>: View {
                     .allowsHitTesting(false)
             }
             .overlay(alignment: .top) { floating }
+    }
+}
+
+/// The pill that closes the sheet it sits in (`ReadingShowing.Close`).
+private struct ClosePill: View {
+    let close: ReadingShowing.Close
+    @Environment(\.dismissSheet) private var dismissSheet
+
+    var body: some View {
+        PillButton(title, systemImage: symbol, style: .neutral, size: .compact) { dismissSheet() }
+            .accessibilityLabel(label)
+            .accessibilityValue(value)
+            .accessibilityIdentifier(identifier)
+    }
+
+    /// The Reader's and Now Playing's pills sit at the same place (D24) but are told apart: a
+    /// Reader can stay under Now Playing.
+    private var identifier: String {
+        switch close {
+        case .back: "readerClose"
+        case .collapse: "nowPlayingClose"
+        }
+    }
+
+    private var title: String {
+        switch close {
+        case .back(let title), .collapse(let title): title
+        }
+    }
+
+    private var symbol: String {
+        switch close {
+        case .back: Icons.back
+        case .collapse: Icons.collapse
+        }
+    }
+
+    private var label: String {
+        switch close {
+        case .back(let title): String(localized: "Back to \(title)")
+        case .collapse: String(localized: "Close Now Playing")
+        }
+    }
+
+    private var value: String {
+        switch close {
+        case .back: ""
+        case .collapse(let from): String(localized: "Playing from \(from)")
+        }
     }
 }

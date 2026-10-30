@@ -81,8 +81,7 @@ extension View {
 
     /// The app's one round icon control: 36 pt, `fill` with a hairline edge, the glyph at
     /// `BottomChrome.roundGlyph`, taps anywhere in 44 pt. Voice, the bookmark, Aa and ☝︎ on the
-    /// player card and in a sheet's top bar, ✕ beside the search field. Use `RoundIconButton` for
-    /// a plain symbol button.
+    /// player card and in a sheet's top bar. `IconButton` and `SaveToggleButton` draw it (`iconButtonFace`).
     func roundFieldControl(fill: Color) -> some View {
         modifier(RoundFieldFace(fill: fill))
     }

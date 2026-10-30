@@ -255,43 +255,27 @@ struct ListRow: View {
         // Rendering now or paused: the small ↓ filling in the same slot (C102), never on the tile.
         let filling = prepare.isPreparing && !queued
         if !leads.isEmpty || status != nil || badged || queued || filling {
-            HStack(spacing: partSpacing) {
+            HStack(spacing: partSpacing / 2) {
                 if filling {
                     PrepareMark(state: prepare, size: statusMarkSize)
-                        .padding(.trailing, -partSpacing / 2)
                         .transition(.opacity)
                 } else if queued {
                     // Waiting its turn: a small spinner in the badge slot (C93).
                     QueuedIndicator()
-                        .padding(.trailing, -partSpacing / 2)
                         .transition(.opacity)
                 } else if badged {
                     // Prepared: the accent filled ↓ before the line, as tall as its text (C97).
                     Image(systemName: Icons.prepared)
                         .foregroundStyle(Palette.accent)
-                        .padding(.trailing, -partSpacing / 2)
                         .transition(.opacity)
                 }
-                ForEach(Array(leads.enumerated()), id: \.offset) { index, text in
-                    Text(text)
-                        .foregroundStyle(index == 0 ? Palette.secondaryInk : Palette.tertiaryInk)
-                        .layoutPriority(index == 0 ? 0 : 1)
-                }
-                if let status {
-                    statusView(status, isLead: leads.isEmpty)
-                        .layoutPriority(2)
-                }
+                DetailLine(parts: leads.map { DetailPart($0) }
+                           + [status.map { DetailPart($0, isLit: playState.isCurrent) }].compactMap { $0 },
+                           wraps: false)
+                    .monospacedDigit()
             }
-            .lineLimit(1)
             .typeStyle(.caption)
         }
-    }
-
-    private func statusView(_ status: String, isLead: Bool) -> some View {
-        Text(status)
-            .foregroundStyle(playState.isCurrent ? Palette.accent
-                             : isLead ? Palette.secondaryInk : Palette.tertiaryInk)
-            .monospacedDigit()
     }
 
     /// The trailing listening column: a page's, a chapter's, a book's whose pages play. Not a
@@ -434,28 +418,6 @@ struct ListRow: View {
     private var thumbnailSide: CGFloat {
         let base = TypeStyle.row.lineHeight + TypeStyle.caption.lineHeight
         return BottomChrome.grown(titleLineHeight + captionLineHeight, from: base)
-    }
-}
-
-/// A small progress ring: how far through a part-way page or chapter.
-struct ProgressRing: View {
-    let fraction: Double
-    var size: CGFloat = Glyph.ring
-
-    @Environment(\.readingPalette) private var reading
-
-    var body: some View {
-        ZStack {
-            Circle().stroke(reading?.track ?? Palette.track, lineWidth: Glyph.stroke)
-            Circle()
-                // Never a sliver: a few percent in reads as a spinner's arc (C102); the arc starts at
-                // a solid dot-sized wedge, and the full track always shows round it.
-                .trim(from: 0, to: fraction > 0 ? min(max(0.1, fraction), 1) : 0)
-                .stroke(reading?.accent ?? Palette.accent, style: StrokeStyle(lineWidth: Glyph.stroke, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-        }
-        .frame(width: size, height: size)
-        .accessibilityHidden(true)
     }
 }
 

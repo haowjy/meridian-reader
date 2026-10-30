@@ -8,7 +8,7 @@ import SwiftUI
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ <- grabber (the sheet's)
-/// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- `SheetTopBar`, as in the Reader: the pill (the sheet's)
+/// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- the top bar, as in the Reader: the pill (the sheet's)
 /// │ `banner` (the ^ hint, while on)      │   names where it plays from and shrinks it; Aa, `accessory`
 /// │ `text`: dimmed, SPOKEN in full ink   │   The text fills the page, under the header and the
 /// │         dimmed                  (↑)  │   band; it follows the audio. (↑) is Jump to Audio, right
@@ -40,9 +40,9 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     var onJumpToAudio: () -> Void = {}
     /// The reading theme's colours, as the Reader's.
     var palette: ReadingPalette = .app
-    /// Aa (`TextAppearanceButton` and its panel), just before `accessory`, as in the Reader.
+    /// Aa (`TextAppearanceControl`: its `IconButton` and panel), just before `accessory`, as in the Reader.
     @ViewBuilder var textAppearance: TextAppearance
-    /// The control at the trailing end of the top bar (☝︎, `JumpModeButton`).
+    /// The control at the trailing end of the top bar (☝︎, an `IconButton`).
     @ViewBuilder var accessory: Accessory
     /// Under the top bar, in the header (the ☝︎ hint), as in the Reader.
     @ViewBuilder var banner: Banner
@@ -197,9 +197,9 @@ struct NowPlayingSheetGallery: View {
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
         return NowPlayingSheet(showing: .sheet(close: .collapse("Pride and Prejudice"), onClose: {}), playState: state,
                                showsJumpToAudio: back, onPlayPause: {}, palette: palette) {
-            TextAppearanceButton(isOpen: false) {}
+            IconButton(symbol: Icons.textAppearance, label: Verbs.textAppearance, identifier: "previewAa") {}
         } accessory: {
-            JumpModeButton(isOn: false) {}
+            IconButton(symbol: Icons.jump, label: Verbs.playFromParagraph, identifier: "previewJump") {}
         } banner: {
             EmptyView()
         } text: {
@@ -213,7 +213,7 @@ struct NowPlayingSheetGallery: View {
                         Text("9 min left").typeStyle(.caption).foregroundStyle(palette.secondaryInk).lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    VoiceChromeButton(identifier: "previewVoice") {}
+                    IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "previewVoice") {}
                 }
                 ReaderScrubRow(map: map, position: 0.42, buffered: [0.42...0.6],
                                onScrubPreview: { _ in }, onScrubCommit: { _ in }, isCapsule: false) {

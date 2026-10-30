@@ -106,8 +106,9 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 - **Screens are built from `Features/DesignSystem/`**: no ad-hoc padding, colour, radius or font
   size in feature code. Spacing and margins come from `Spacing`, corners from `Radius`, text from
   `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), colour from `Palette` (light and dark), SF
-  Symbols from `Icons` (one per concept). Shared pieces (`PlayStateButton`, `PillButton`,
-  `ListRow`, `SymbolRow`, `ArtworkTile`, `NowPlayingBar`, `Sheet`, …) take plain values and
+  Symbols from `Icons` (one per concept). Shared pieces (`PlayStateButton`, `PillButton` (a sheet's bar
+  buttons are `SheetBarButton`, beside it), `IconButton` (every round or toolbar-cell icon control), `ListRow` (its second
+  line a `DetailLine`), `SymbolRow`, `ArtworkTile`, `NowPlayingBar`, `Sheet`, …) take plain values and
   closures, never `SpeechController`, SwiftData or `ShellState`, and carry previews in light, dark
   and the largest text size. A value the scale lacks is a token change, made there.
 - **Swipe actions**: one whose row can stay in the list (it asks first, deletes what the row

@@ -48,6 +48,8 @@ enum Verbs {
     static let playFromStart = String(localized: "Play from Start")
     /// The Reader's and Now Playing's ⋯ on compact width: the next tap on a paragraph plays from it.
     static let playFromParagraph = String(localized: "Play from a Paragraph")
+    /// ☝︎ while on: the next tap on a paragraph no longer plays from it.
+    static let cancelPlayFromParagraph = String(localized: "Cancel Play from a Paragraph")
     static let prepare = String(localized: "Prepare Audio")
     /// A page's, in its menu and in the Prepared Audio list: its audio deleted, and it stays out of
     /// every download (P8).

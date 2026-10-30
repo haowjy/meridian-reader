@@ -9,11 +9,12 @@ struct TextAppearanceControl: View {
     /// Which edge of Aa the popover's arrow is on: `.top` under a top bar's Aa, `.bottom` for the
     /// player card's, which sits at the screen's foot and has no room below it.
     var arrowEdge: Edge = .top
-    /// `TextAppearanceButton`'s round face; false in the compact player card's tools row.
+    /// Aa's round face; false in the compact player card's tools row (a toolbar cell).
     var round = true
 
     var body: some View {
-        TextAppearanceButton(isOpen: isOpen, round: round) { isOpen.toggle() }
+        IconButton(symbol: Icons.textAppearance, label: Verbs.textAppearance, identifier: "textAppearanceButton",
+                   isOn: isOpen, round: round) { isOpen.toggle() }
             .textAppearancePopover(isPresented: $isOpen, arrowEdge: arrowEdge)
     }
 }

@@ -1,35 +1,5 @@
 import SwiftUI
 
-/// Aa: opens the text appearance panel. A round field control (36 pt, 44 pt to tap) in both
-/// sheets' top bars, just left of ☝︎, on the card fill, the highlight while its panel is open; a
-/// bare glyph cell (`toolbarIconFrame`) in the compact player card's tools row (`round: false`).
-struct TextAppearanceButton: View {
-    let isOpen: Bool
-    var round = true
-    let action: () -> Void
-
-    @Environment(\.readingPalette) private var reading
-
-    var body: some View {
-        if round {
-            RoundIconButton(symbol: Icons.textAppearance, label: Self.label,
-                            identifier: Self.identifier, isOn: isOpen, action: action)
-        } else {
-            Button(action: action) {
-                Image(systemName: Icons.textAppearance)
-                    .foregroundStyle(isOpen ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink)
-                    .toolbarIconFrame()
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Self.label)
-            .accessibilityIdentifier(Self.identifier)
-        }
-    }
-
-    private static let label = String(localized: "Text Appearance")
-    private static let identifier = "textAppearanceButton"
-}
-
 /// How the page reads, changed live under it: the reading theme, the typeface, the text size, the
 /// line spacing and Scroll or Pages. Shown by Aa on the Reader and Now Playing, and by
 /// Settings › Reading, via the shared `ReadingAppearancePanel` wrapper (same store, same controls).

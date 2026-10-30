@@ -19,7 +19,7 @@ import SwiftUI
 /// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎
 ///   then a tap on a paragraph plays from there; 🔖 saves / removes (tap) or files the page
 ///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `ArticleActions`, as
-///   in the Reader. Voice (`VoiceChromeButton`) sits to the right of the title in the bottom band
+///   in the Reader. Voice (an `IconButton`) sits to the right of the title in the bottom band
 ///   and opens the same Voice picker as ⋯ › Voice.
 /// - At the end it stays: the text stays, all in full ink, the player card says "● Finished" (the ring, full)
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
@@ -124,7 +124,9 @@ struct NowPlayingScreen: View {
             // The top bar is regular width's; compact Listen's has only the grabber (Aa, ⋯ and ☝︎ are in the card).
             TextAppearanceControl()
         } accessory: {
-            JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
+            IconButton(symbol: jumpMode ? Icons.jumpOn : Icons.jump,
+                       label: jumpMode ? Verbs.cancelPlayFromParagraph : Verbs.playFromParagraph,
+                       identifier: "listenJump", isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
                 .disabled(speech.document.isEmpty)
         } banner: {
             if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
@@ -181,7 +183,7 @@ struct NowPlayingScreen: View {
                 TextAppearanceControl(arrowEdge: .bottom, round: false)
                 SpeedButton(speech: speech)
                     .frame(maxWidth: .infinity)
-                VoiceChromeButton(identifier: "nowPlayingVoice", round: false) {
+                IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "nowPlayingVoice", round: false) {
                     shell.present(.voice(.article(now.articleKey)))
                 }
                 ReadingPageMoreButton(id: "listenMore", compact: true, extraRows: [jumpRow])
@@ -222,7 +224,7 @@ struct NowPlayingScreen: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 // Voice, aligned right of the title (⋯ › Voice / Settings › Voice's same picker).
-                VoiceChromeButton(identifier: "nowPlayingVoice") {
+                IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "nowPlayingVoice") {
                     shell.present(.voice(.article(now.articleKey)))
                 }
             }

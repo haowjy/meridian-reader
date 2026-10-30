@@ -153,28 +153,6 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Tools: View>: 
     }
 }
 
-/// Voice: opens the article's or book's Voice picker (`VoicePickerSheet` / `VoiceSelectionList`), the
-/// same list as Settings › Voice and ⋯ › Voice. Its label is always "Voice", never a voice's name.
-/// Round (36 pt, 44 pt to tap) trailing the title on regular width; a bare glyph cell
-/// (`toolbarIconFrame`) in the compact player card's tools row.
-struct VoiceChromeButton: View {
-    /// `readerVoice` or `nowPlayingVoice`.
-    var identifier = "voiceChrome"
-    var round = true
-    let action: () -> Void
-
-    var body: some View {
-        if round {
-            RoundIconButton(symbol: Icons.voice, label: Verbs.voice, identifier: identifier, action: action)
-        } else {
-            Button(action: action) { Image(systemName: Icons.voice).toolbarIconFrame() }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Verbs.voice)
-                .accessibilityIdentifier(identifier)
-        }
-    }
-}
-
 #if DEBUG
 struct ReaderPlayerCardGallery: View {
     var body: some View {
@@ -205,9 +183,9 @@ struct ReaderPlayerCardGallery: View {
                 EmptyView()
             }
         } tools: {
-            TextAppearanceButton(isOpen: false, round: false) {}
+            IconButton(symbol: Icons.textAppearance, label: Verbs.textAppearance, identifier: "previewAa", round: false) {}
             Text("1×").fieldTextFrame().frame(maxWidth: .infinity)
-            VoiceChromeButton(identifier: "previewVoice", round: false) {}
+            IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "previewVoice", round: false) {}
             Image(systemName: Icons.more).toolbarIconFrame()
         }
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: ChromeMetrics.cardRadius, style: .continuous))
