@@ -500,10 +500,10 @@ commas.
   long-press) has *Save to Library*, which moves the article into the Library (it stays in History), *Save to Folder…*, and *Remove from History* (the same remove as *Remove from
   Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
-  isn't in History. Every empty list is the system's empty view with a symbol, a Title Case title and one
-  line (`EmptyState`): an empty Library says *No Articles or Books*, "Articles you save and books you import
-  show up here.", with two plain buttons stacked, *Browse the Web* (the Browser) and *Import a Book* (the
-  Files picker, as *Import from…*); History *No History*, "Articles you play without saving show up here for 7 days." (the
+  isn't in History. An empty Library says *Start Your Library* over two tiles side by side (`ActionTile`):
+  *Browse the Web* (the Browser, accent-tinted) and *Import a Book* (the Files picker, as *Import from…*).
+  Every other empty list is the system's empty view with a symbol, a Title Case title and one line
+  (`EmptyState`): History *No History*, "Articles you play without saving show up here for 7 days." (the
   browser's History sheet *No History Yet*, Prepared Audio *Nothing Prepared*).
   Search filters the tab on screen: on
   Everything the Library's folders and pages across the tree, on

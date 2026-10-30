@@ -60,9 +60,10 @@ enum Icons {
     static let add = "plus"
     static let folder = "folder"
     static let newFolder = "folder.badge.plus"
-    /// A book (a folder with details), Import Book.
     /// Import EPUB… (nothing is a book: an import is a folder, C100).
     static let importFile = "square.and.arrow.down"
+    /// A book: the empty Library's *Import a Book* tile.
+    static let book = "book"
     /// Move to… and Save to Folder…: into a folder (a folder itself is `folder`). The arrow-folder
     /// symbol is iOS 26's; before that the plain folder stands in.
     static var move: String {

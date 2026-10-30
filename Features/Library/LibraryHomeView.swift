@@ -114,21 +114,26 @@ struct LibraryHomeView: View {
 
     // MARK: - Empty
 
-    /// An empty Library: the two ways something gets in, as the system's plain buttons, stacked.
+    /// An empty Library: the two ways something gets in, as two tiles side by side.
     private var emptyCard: some View {
-        EmptyState(String(localized: "No Articles or Books"), symbol: Icons.library,
-                   description: Text("Articles you save and books you import show up here.")) {
-            VStack(spacing: Spacing.s) {
-                Button(String(localized: "Browse the Web")) { shell.showBrowser() }
-                    .accessibilityIdentifier("libraryEmptyBrowse")
-                Button(String(localized: "Import a Book")) {
+        VStack(spacing: Spacing.l) {
+            Text("Start Your Library")
+                .typeStyle(.heading, weight: .semibold)
+                .foregroundStyle(Palette.ink)
+                .multilineTextAlignment(.center)
+            HStack(spacing: Spacing.s) {
+                ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser, prominent: true,
+                           identifier: "libraryEmptyBrowse") { shell.showBrowser() }
+                ActionTile(title: String(localized: "Import a Book"), symbol: Icons.book,
+                           identifier: "libraryEmptyImport") {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }
-                .accessibilityIdentifier("libraryEmptyImport")
             }
-            .fontWeight(.semibold)
-            .tint(Palette.accent)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, Spacing.xl * 4)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("libraryEmpty")
     }

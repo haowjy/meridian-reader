@@ -236,6 +236,7 @@
 		9F8604B5B9C0CC81511A3894 /* ReadingBars.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44214246485A422C74DFC95 /* ReadingBars.swift */; };
 		A01D110F7524B4B9674EDFEC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2FF508ED7473AE80BB2A261D /* Assets.xcassets */; };
 		A020FF0BDE5F04A08F5FF9E2 /* SearchSessionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8CA18AF411C685E3212B464 /* SearchSessionOverlay.swift */; };
+		A17C20266BFEA99CD6718162 /* ActionTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 321BA3BCEF149586CF40A9EA /* ActionTile.swift */; };
 		A264E85279F0302CA22BF028 /* PlayedNotSavedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A5C9144F982FF6E57C49A9 /* PlayedNotSavedTests.swift */; };
 		A29580FD260C74CA3D8D6589 /* ContentBlocker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEEF76E6F8E780EDD8BF0645 /* ContentBlocker.swift */; };
 		A44A386FD8F66AA1EA4F2FCC /* BandToolbarButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B0D1CAA887084CCB666A75 /* BandToolbarButton.swift */; };
@@ -517,6 +518,7 @@
 		2FF508ED7473AE80BB2A261D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		314EDF2D242E06532C574191 /* ListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListRow.swift; sourceTree = "<group>"; };
 		3168F04034BB68E04693CF50 /* LibraryRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryRows.swift; sourceTree = "<group>"; };
+		321BA3BCEF149586CF40A9EA /* ActionTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionTile.swift; sourceTree = "<group>"; };
 		3250141D9478CA78F1BB693C /* SentenceStarts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentenceStarts.swift; sourceTree = "<group>"; };
 		32A4E1B66C47C948B9323CB0 /* KokoroONNXModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroONNXModelStore.swift; sourceTree = "<group>"; };
 		32C30CE7B066C137329930AD /* WhatsNewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewStore.swift; sourceTree = "<group>"; };
@@ -932,6 +934,7 @@
 			isa = PBXGroup;
 			children = (
 				01E5B85DA00F5782169B11B9 /* ActionButtonRow.swift */,
+				321BA3BCEF149586CF40A9EA /* ActionTile.swift */,
 				D0345CFD2DBF0433D5DFFDE5 /* AddressField.swift */,
 				A2032C2AD4815DE47AF7EE4B /* AddressLabel.swift */,
 				F7A594681F0B9CA492DB04B7 /* ArtworkTile.swift */,
@@ -1834,6 +1837,7 @@
 			files = (
 				39241A7B2779DF8714F4D893 /* AcknowledgementsView.swift in Sources */,
 				CF24C2B06297D64E9B49AB14 /* ActionButtonRow.swift in Sources */,
+				A17C20266BFEA99CD6718162 /* ActionTile.swift in Sources */,
 				94AF8151FA7F3C37016818E0 /* ActivityShareSheet.swift in Sources */,
 				8FF27EC80D103734F3CBCE56 /* AddressDictation.swift in Sources */,
 				9ABD40C5DFE19D7C8D4A1FDA /* AddressField.swift in Sources */,
