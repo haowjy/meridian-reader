@@ -55,6 +55,18 @@ struct ChromePieces: View, Animatable {
         .background(alignment: .bottom) {
             if let top = layout.top { ChromeFade(top: top, underColor: underColor) }
         }
+        .background(alignment: .bottom) {
+            // While the rows are up, the whole footprint is the chrome's: a tap between the rows, beside
+            // them, or in the home indicator's strip under them never reaches the page behind.
+            if let top = layout.top, state.collapse < 0.5 {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .frame(height: K.readerFootprint - top + K.topPadding)
+                    .ignoresSafeArea(.container, edges: .bottom)
+                    .frame(height: K.readerFootprint, alignment: .bottom)
+                    .onTapGesture {}
+            }
+        }
         .overlay(alignment: .top) {
             if let top = layout.top {
                 VStack(spacing: 0) {
