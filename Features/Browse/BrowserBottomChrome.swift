@@ -99,7 +99,7 @@ private struct TextFieldBox: View {
     }
 }
 
-/// What sits at the address field's end while searching: ⊗ (with text), then 🎤.
+/// What sits at the address field's end while searching, in one spot: ⊗ with text, 🎤 without.
 private struct AddressAccessories: View {
     @Binding var text: String
     let searching: Bool
@@ -109,8 +109,8 @@ private struct AddressAccessories: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            if searching { ClearBox(text: $text) }
-            MicBox(shown: searching, isDictating: isDictating, isListening: isListening, action: onMic)
+            if searching && !text.isEmpty { ClearBox(text: $text) }
+            MicBox(shown: searching && text.isEmpty, isDictating: isDictating, isListening: isListening, action: onMic)
         }
     }
 }
@@ -123,6 +123,7 @@ private struct ClearBox: View {
         if !text.isEmpty {
             Button { text = "" } label: {
                 Image(systemName: Icons.clearText)
+                    .font(BottomChrome.fieldAccessoryGlyph)
                     .foregroundStyle(Palette.secondaryInk)
                     .fieldControlFrame()
             }
@@ -144,6 +145,7 @@ private struct MicBox: View {
         if shown {
             Button(action: action) {
                 Image(systemName: isDictating ? Icons.dictating : Icons.dictate)
+                    .font(BottomChrome.fieldAccessoryGlyph)
                     .foregroundStyle(isDictating ? Palette.accent : Palette.secondaryInk)
                     .symbolEffect(.variableColor.iterative, isActive: isListening)
                     .fieldControlFrame()

@@ -17,6 +17,8 @@ enum BottomChrome {
     /// The glyph inside a round icon control (`roundFieldControl`): the chrome glyph's weight (medium),
     /// scaled to the 36 pt circle. Fixed, like every chrome glyph.
     static let roundGlyph = Font.system(size: 18, weight: .medium)
+    /// The address field's trailing 🎤 or ⊗ while searching: Safari's size and weight there.
+    static let fieldAccessoryGlyph = Font.system(size: 17, weight: .regular)
     /// Text on a round control's face (the speed): the same weight, even-width digits.
     static let roundText = Font.system(size: 15, weight: .medium).monospacedDigit()
     /// The place name on Listen's ‹ ("‹ reddit.com"): the chrome glyph's weight, fixed like it.
