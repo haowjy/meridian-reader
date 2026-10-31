@@ -300,6 +300,61 @@ happen; "Diagnostics").
 
 ## Rendering ahead (on-device engine)
 
+### How audio gets made
+
+Audio is rendered before it is heard, one model call at a time, on the CPU, for both engines.
+Three layers decide what renders next; the sections below have the detail.
+
+1. **Feeders put articles in the queue.** Each hands its article to `GlobalSynthQueue` through one
+   entry, `enqueue(at:)`, with a placement (front, back, or behind the playing chapter). Nothing
+   above the queue plans across the library:
+   - Opening an article in the Reader or Listen, or playing it (`LocalTTSCoordinator.openArticle`):
+     it goes to the front and renders from the resume point to its end, then the paragraphs above.
+   - A book or series: once the playing chapter has rendered to two paragraphs before its end, the
+     next chapter is staged behind it. Only its first 3 paragraphs render until it starts playing;
+     then it is the playing article and renders whole ("Render queue", item 4).
+   - Prepared Audio (`PrepareCenter`): every page whose text is already in the library goes in at
+     once, at the back. A link page (an address with no text yet) is fetched first, one at a time
+     and only with the app in front, and goes in when its text arrives.
+   - Follow: a new chapter's text lands in its story's folder and renders nothing on its own. With
+     the folder's Prepare toggle on, it joins the folder's prepare; otherwise it renders when played.
+   - An imported book (EPUB or PDF) becomes a folder of chapters and renders nothing until it is
+     opened, played or prepared.
+   - At launch, the unfinished jobs the last run left go back in by themselves once the launch's
+     maintenance is done. A voice change queues its article again.
+2. **The queue holds one job per article.** `TextChunker` cuts each paragraph into chunks of whole
+   sentences sized per engine ("Chunking"); a chunk is one model call. A paragraph has audio once
+   all its chunks are rendered and stitched into one file in the audio cache (publishing it). A job
+   keeps the list of its paragraphs that don't have audio yet, shortened as each one is published.
+3. **The policy picks one chunk per step.** Before every chunk the queue offers each job's next
+   chunk, labelled by demand, most urgent first: a chunk the player is waiting on (it is about to
+   play it and it isn't rendered), the rest of the playing article from its playhead, the staged
+   chapter, then the rest of the queue. `SingleCallPolicy` takes the most urgent; between equals, the
+   one queued first. It also sets the call's priority (`.userInitiated` only when the player waits,
+   `.utility` otherwise) and thread count. The worker loads that engine if it isn't resident,
+   renders, and asks again ("The render policy"). A seek moves the playing job's start to the new
+   paragraph; if that paragraph has no audio the player waits on it, so it renders next, as soon as
+   the call in flight ends. Audio already in the cache plays at once and renders nothing.
+
+On an iPhone 17 Pro Phonon renders about 22× real time on the CPU (21× on the Neural Engine, which
+sounds the same), and continuous rendering in the background ran at 9–13× without iOS ending the
+app. Running both at once roughly halved each one's speed, so the app uses one lane. Each engine's
+route names its lane, so another lane is a route plus a `RenderPolicy` ("Routes and lanes").
+
+**Switching article or voice.** Playing another article puts it at the front; the jobs already
+queued stay behind it, and at most the call in flight finishes first. Changing an article's voice
+stops its queued work in the old voice at the next step, discards a call in flight in it at
+publish, and renders the article again in the new voice; the two voices never mix in one article
+("One voice, never swapped", "Audio cache"). Only each article's own voice is ever rendered: no
+other voice is rendered ahead in case you switch.
+
+**Cost.** Audio is 24 kHz 16-bit mono PCM, about 2.9 MB a minute: a 10-hour book is about 1.7 GB
+and takes roughly 30–45 minutes of rendering. Prepared audio is kept until it is removed. At
+launch, unsaved pages' audio older than 7 days goes, and the oldest goes first past 2 GB
+(`ArticleAudioCache.pruneEphemeral`). Audio rendered while listening is also cleared for articles
+outside the last 50 played (Recent); prepared audio is never cleared by it ("Retention and
+Prepared Audio").
+
 ### Render queue
 
 One **`GlobalSynthQueue`** owns all on-device synthesis, live and ahead. A single worker renders
