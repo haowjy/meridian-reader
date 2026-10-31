@@ -305,6 +305,59 @@ happen; "Diagnostics").
 Audio is rendered before it is heard, one model call at a time, on the CPU, for both engines.
 Three layers decide what renders next; the sections below have the detail.
 
+```mermaid
+flowchart LR
+    subgraph Feeders
+        Open["Open or Play<br/>openArticle"]
+        Book["Book or series<br/>next chapter staged"]
+        Prep["Prepared Audio<br/>PrepareCenter"]
+        Follow["Follow<br/>folder's Prepare toggle"]
+        Launch["Launch<br/>unfinished jobs"]
+        Voice["Voice change"]
+    end
+    Follow --> Prep
+    Open & Book & Prep & Launch & Voice -->|"enqueue(at:)"| Queue
+    subgraph Queue["GlobalSynthQueue"]
+        Jobs["One job per article<br/>its missing paragraphs"]
+        Candidates["Each job's next chunk,<br/>labelled by demand"]
+        Jobs --> Candidates
+    end
+    Candidates -->|RenderSituation| Policy["RenderPolicy<br/>SingleCallPolicy"]
+    Policy -->|"RenderPlan:<br/>start, load, held or idle"| Worker["Worker<br/>one call on the CPU lane"]
+    Worker -->|"load if not resident"| Host["Engine host<br/>built for its route"]
+    Worker -->|chunk| Host
+    Host -->|PCM| Worker
+    Worker -->|"publish the paragraph"| Cache[("ArticleAudioCache")]
+    Cache --> Player["LocalListenPlayer"]
+    Player -.->|"waits on a chunk:<br/>listener demand"| Candidates
+    Cache -.->|"paragraph published"| Jobs
+```
+
+One step of the worker, for a Play of an article whose first paragraph has no audio yet:
+
+```mermaid
+sequenceDiagram
+    participant Engine as LocalListenEngine
+    participant Queue as GlobalSynthQueue
+    participant Policy as SingleCallPolicy
+    participant Host as Engine host
+    participant Cache as ArticleAudioCache
+    Engine->>Queue: expectListener(paragraph 0)
+    Engine->>Queue: openArticle: job to the front
+    Queue->>Policy: situation (candidates, lane, holds)
+    Policy-->>Queue: load the route, .userInitiated
+    Queue->>Host: load (first time only)
+    Queue->>Policy: situation
+    Policy-->>Queue: start chunk 0, .userInitiated
+    Queue->>Host: synthesize chunk 0
+    Host-->>Queue: PCM
+    Queue-->>Engine: chunk 0 plays
+    Queue->>Policy: situation
+    Policy-->>Queue: start chunk 1, .utility
+    Note over Queue,Cache: when all chunks of a paragraph exist, it is stitched and published
+    Queue->>Cache: publish paragraph 0
+```
+
 1. **Feeders put articles in the queue.** Each hands its article to `GlobalSynthQueue` through one
    entry, `enqueue(at:)`, with a placement (front, back, or behind the playing chapter). Nothing
    above the queue plans across the library:
