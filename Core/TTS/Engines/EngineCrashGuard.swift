@@ -177,16 +177,6 @@ final class EngineCrashGuard: @unchecked Sendable {
         return "\(size.intValue)-\(Int(date.timeIntervalSince1970))"
     }()
 
-    /// Last recorded crash (from `engine_crashes.json`), e.g. for a provider's launch step.
-    var lastCrash: CrashInfo? {
-        guard let data = try? Data(contentsOf: crashesURL),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let last = obj["last"] as? [String: Any], !last.isEmpty
-        else { return nil }
-        let engine = (last["engine"] as? String).map(SpeechEngineID.init(rawValue:))
-        return Self.crashInfo(from: last, engine: engine)
-    }
-
     var crashCount: Int {
         guard let data = try? Data(contentsOf: crashesURL),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
