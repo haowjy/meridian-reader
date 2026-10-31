@@ -20,8 +20,8 @@ import UIKit
 /// (`ChromeScroll`): a tap on the bubble does (until the next short scroll down), and so does the top
 /// of the text, a new page and opening the search (while searching, a swipe up on the row lowers the
 /// keyboard). The host never changes the size of what is under it, but for the Browser's page, which
-/// keeps clear of the step drawn (`ChromeMetrics.footprint(step:)`): screens reserve
-/// `ChromeMetrics.footprint` at the bottom and scroll under it. Reduce Motion: no travel, every
+/// keeps clear of the step drawn (`ChromeHome.footprint(step:)`): screens reserve
+/// `ChromeHome.clearance(step: 0)` above the safe area and scroll under it. Reduce Motion: no travel, every
 /// change of form (the fold, the keyboard, full screen) is a cross-fade.
 ///
 /// It owns the field's focus (kept in sync with the session); each destination supplies its field
@@ -118,7 +118,7 @@ struct ChromeHost: View {
                 .animation(reduceMotion ? nil : Motion.standard, value: state.discrete)
                 .animation(reduceMotion ? nil : Motion.snappy, value: destination)
         }
-        .frame(height: ChromeMetrics.footprint)
+        .frame(height: ChromeMetrics.rowsHeight)
         .environment(\.chromeSkin, skin)
         .readingSurface(readingPalette)
         .tint(Palette.ink)

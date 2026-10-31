@@ -48,19 +48,19 @@ struct ChromePieces: View, Animatable {
             bubblePiece(layout)
         }
         .chromeGlassContainer()
-        .frame(width: width, height: K.footprint, alignment: .topLeading)
+        .frame(width: width, height: K.rowsHeight, alignment: .topLeading)
         .background(alignment: .bottom) {
             if let top = layout.top { ChromeFade(top: top, underColor: underColor) }
         }
         .background(alignment: .bottom) {
-            // While a row is up, the whole footprint is the chrome's: a tap between the rows, beside
+            // While a row is up, the whole box is the chrome's: a tap between the rows, beside
             // them, or in the home indicator's strip under them never reaches the page behind.
             if let top = layout.top, state.fold < 0.75 {
                 Color.clear
                     .contentShape(Rectangle())
-                    .frame(height: K.footprint - top + Spacing.xxs)
+                    .frame(height: K.rowsHeight - top + Spacing.xxs)
                     .ignoresSafeArea(.container, edges: .bottom)
-                    .frame(height: K.footprint, alignment: .bottom)
+                    .frame(height: K.rowsHeight, alignment: .bottom)
                     .onTapGesture {}
             }
         }

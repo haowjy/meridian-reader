@@ -9,11 +9,11 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   (`ChromeListenButton`), row 2 the pill alone; there is no ⋯ or ▶ in the chrome. Each destination hands the
   host a `ChromeScreen` (field, arrows, bubble title). A screen's ⋯ is on its title line (`TitleMenuButton`,
   `LibraryTitleMenu`, drawing `MenuContext.blocks`); the Browser's is `AddressField`'s `holdMenu`. One state (`ChromeState`), one pure layout (`ChromeLayout`, from
-  `ChromeMetrics`, Safari's sizes: `Control.bar` 48, footprint 142) and one scroll controller (`ChromeScroll`: a
+  `ChromeMetrics`, Safari's sizes: `Control.bar` 48, 108 pt of rows ending on the home indicator's strip) and one scroll controller (`ChromeScroll`: a
   scroll down folds it; a scroll up of `revealDistance`, the bubble's tap or the top of the text expand it); Library Read and Browse reader
   mode open in place via `ReaderSurface` and feed it. The host draws translucent glass (`ChromeSkin`; App
   sets `ChromeSkin.forcesMaterial` for `-chromeFallback`) with only a gradient fade behind. Screens reserve
-  `ChromeMetrics.footprint` at the bottom (`CompactChromeInsets`) and report their scroll with
+  `ChromeHome.clearance(step: 0)` above the safe area (`CompactChromeInsets`) and report their scroll with
   `CompactChromeScroll`. The round buttons share `ChromeCircleFace`. Change the host, never one screen.
 - **Listen is not under the chrome.** `isNowPlayingPresented` draws `NowPlayingScreen` above the chrome
   in `BrowseStartView.layers`, as a `Sheet` that covers the screen (`ReadingShowing.cover`), below the ⋯

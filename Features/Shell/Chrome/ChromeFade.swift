@@ -18,11 +18,11 @@ struct ChromeFade: View {
         LinearGradient(stops: [.init(color: underColor.opacity(0), location: 0), .init(color: underColor, location: Self.solidAt)],
                        startPoint: .top, endPoint: .bottom)
             .opacity(Self.opacity)
-            .frame(height: ChromeMetrics.footprint - start + ChromeHome.inset)
-            // Down through the home indicator's strip (the rows and the bubble dip into it), and up
+            .frame(height: ChromeMetrics.rowsHeight - start + ChromeHome.inset)
+            // Down through the home indicator's strip (the bubble dips into it), and up
             // past the box's top by `fadeRise`.
             .offset(y: ChromeHome.inset)
-            .frame(height: ChromeMetrics.footprint, alignment: .bottom)
+            .frame(height: ChromeMetrics.rowsHeight, alignment: .bottom)
             .allowsHitTesting(false)
     }
 }

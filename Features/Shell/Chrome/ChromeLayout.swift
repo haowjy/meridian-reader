@@ -13,10 +13,10 @@ struct ChromePiece: Equatable {
     var radius: CGFloat { rect.height / 2 }
 }
 
-/// Where each piece of the chrome sits, in a box `width` wide and `ChromeMetrics.footprint`
-/// high whose bottom edge is the safe area's. The rows reach below the box, into the home
-/// indicator's strip: the bottom row ends `edgeClearance` above the screen's edge (`state.homeInset`
-/// below the box). Pure: the same state always gives the same frames, so the widths are checkable
+/// Where each piece of the chrome sits, in a box `width` wide and `ChromeMetrics.rowsHeight`
+/// high whose bottom edge is the safe area's: the bottom row ends on it, the top of the home
+/// indicator's strip (`ChromeMetrics.rowLift` above it on a phone without one). Only the bubble
+/// reaches into the strip, `bubbleClearance` above the screen's edge (`state.homeInset` below the box). Pure: the same state always gives the same frames, so the widths are checkable
 /// without a screen. A scroll down (`state.fold`) folds in two steps, every piece going straight down,
 /// never sideways: row 2 slides off the bottom while row 1 drops into its place (0 to 0.5), then ‹ › and
 /// Listen slide off the bottom while the field's capsule shrinks into the bubble and its text turns into
@@ -70,8 +70,9 @@ struct ChromeLayout: Equatable {
     init(width w: CGFloat, state s: ChromeState) {
         typealias K = ChromeMetrics
         let bar = Control.bar, gap = Spacing.xs, rowGap = Spacing.xs, margin = Spacing.bandMargin
-        // The rows dip into the home indicator's strip; the keyboard's form sits on the keyboard instead.
-        let bottom = K.footprint + (s.keyboard ? 0 : s.homeInset - K.edgeClearance)
+        // The box's foot is the safe area's bottom: the rows end on the home indicator's strip (`rowLift`
+        // above it where it is shallow); the keyboard's form sits on the keyboard.
+        let bottom = K.rowsHeight - (s.keyboard ? 0 : K.rowLift(home: s.homeInset))
         let rowY = bottom - bar
         // Both rows share one pair of edges, the margins, on every width.
         let row1Y = rowY - gap - bar
@@ -126,10 +127,11 @@ struct ChromeLayout: Equatable {
         let f = s.fold
         let first = K.ramp(f, 0...0.5)
         let bubbleWidth = min(w - 2 * margin, s.bubbleWidth)
-        let bubbleBottom = K.footprint + s.homeInset - K.bubbleClearance
+        // The bubble alone is placed from the screen's edge, inside the strip.
+        let bubbleBottom = K.rowsHeight + s.homeInset - K.bubbleClearance
         let bubbleRect = CGRect(x: (w - bubbleWidth) / 2, y: bubbleBottom - Control.small, width: bubbleWidth, height: Control.small)
         // From a row's place in the bottom row to below the screen's edge.
-        let offScreen = bar + K.edgeClearance
+        let offScreen = bar + K.rowsHeight + s.homeInset - bottom
         let row2Gone = K.ramp(f, 0...0.5), row1Gone = K.ramp(f, 0.5...0.85)
         // The field hands its glass to the bubble at `handOver`; the bubble shrinks after it.
         let handOver: CGFloat = 0.6

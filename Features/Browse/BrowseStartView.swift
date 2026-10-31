@@ -46,8 +46,8 @@ struct BrowseStartView: View {
     /// while a search is open (the field's), nothing at regular width, where the chrome has its own bar below the page.
     private var obscuredBottom: CGFloat {
         guard !isRegular else { return 0 }
-        if search.isActive { return ChromeMetrics.collapsedFootprint }
-        return ChromeMetrics.footprint(step: shell.chromeScroll.drawnStep)
+        if search.isActive { return ChromeMetrics.keyboardClearance + ChromeHome.inset }
+        return ChromeHome.footprint(step: shell.chromeScroll.drawnStep)
     }
 
     /// Create the browse WKWebView only after the first non-start navigation; keep it thereafter.
@@ -114,7 +114,7 @@ struct BrowseStartView: View {
                 ZStack {
                     if showsBrowseWebView {
                         WebView(store: webStore,
-                                bottomInset: isRegular ? 0 : ChromeHome.above(ChromeMetrics.footprint),
+                                bottomInset: isRegular ? 0 : ChromeHome.clearance(step: 0),
                                 obscuredBottom: obscuredBottom,
                                 onScroll: isRegular ? nil : { [chrome = shell.chromeScroll] in chrome.scrolled(to: $0) })
                             .opacity(hasPage ? 1 : 0)
@@ -145,7 +145,7 @@ struct BrowseStartView: View {
                         // the chrome's row, but the page must never show through the strip under it.
                         Palette.paper.ignoresSafeArea(edges: .bottom)
                         searchLayer
-                            .padding(.bottom, isRegular ? 0 : ChromeHome.above(ChromeMetrics.collapsedFootprint))
+                            .padding(.bottom, isRegular ? 0 : ChromeMetrics.keyboardClearance)
                     }
                 }
             }

@@ -28,8 +28,8 @@ struct ChromeState: Equatable {
     var editing = false
     /// The bubble's width once folded (`ChromeMetrics.bubbleWidth`): the host measures its title.
     var bubbleWidth: CGFloat = Control.small
-    /// The home indicator's strip under the safe area (0 on a phone with a Home button): the rows
-    /// reach down into it, to `ChromeMetrics.edgeClearance` above the screen's edge.
+    /// The home indicator's strip under the safe area (0 on a phone with a Home button): the rows end
+    /// on its top, the bubble inside it (`ChromeMetrics.bubbleClearance` above the screen's edge).
     var homeInset: CGFloat = ChromeMetrics.homeIndicatorStrip
 
     /// Edit holds the chrome expanded, whatever the scroll says (its bar is row 2). Reader mode in

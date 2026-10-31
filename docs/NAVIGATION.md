@@ -90,11 +90,13 @@ iOS 26). Both rows run **margin to margin with identical leading and trailing ed
 and the pill start at the left margin, Listen and the pill end at the right one. A wider phone widens the field and
 the pill.
 
-**Placement is measured from the screen's edge.** The bottom row's bottom sits 34 pt above the screen's edge
-(`ChromeMetrics.edgeClearance`), on the home-indicator strip rather than in it, on every phone (a Home button phone
-too). Every footprint is from the edge: 142 expanded (4 + 48 + 8 + 48 + 34), 86 one row (and the keyboard's row), 58
-the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
-`ChromeHome.above(x)` = max(0, x - home indicator inset); the web view uses max(footprint, home inset).
+**Placement is measured from the safe area.** The bottom row ends on the home-indicator strip's top, as measured
+(`ChromeHome`), not in it; on a phone whose strip is shallower than 18 pt (a Home button phone has none) it ends 18 pt
+above the screen's edge, as the bubble does (`ChromeMetrics.rowLift`). The keyboard's row sits on the keyboard. The
+bubble is the one piece placed from the screen's edge: 18 pt above it, inside the strip. What the chrome covers
+above the safe area is `ChromeMetrics.clearance(step:home:)`: over a 34 pt strip 108 expanded (4 + 48 + 8 + 48), 52
+one row (the keyboard's row too, over the keyboard), 24 the bubble (4 + 36 + 18 - 34); a view laid out to the
+screen's edge (the web view) adds the strip: 142, 86, 58.
 
 - **The bubble** (`ChromeLayout.bubble`, `ChromePieces.bubblePiece`, id `chromeBubble`): what the second fold step
   ends in, on every screen that folds (the Browser's page, the Library and its folders and books, Library Read,

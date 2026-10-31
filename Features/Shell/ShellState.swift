@@ -456,7 +456,7 @@ final class ShellState {
     /// and full screen are the chrome's.
     var pageReadingInPlace: ReadingInPlace {
         ReadingInPlace(
-            bottomClearance: ChromeHome.above(ChromeMetrics.footprint(step: chromeScroll.drawnStep)),
+            bottomClearance: ChromeHome.clearance(step: chromeScroll.drawnStep),
             homeIndicator: ChromeHome.inset,
             scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0) },
             anchored: { [chromeScroll] in chromeScroll.anchor(at: $0) },

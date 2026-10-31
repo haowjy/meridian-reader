@@ -81,7 +81,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   capsule's centre as `progress` goes to 1 while the capsule grows from there; the keyboard's form is one row
   with Cancel); it is sized by `ChromeMetrics`
   and the shared scales (Safari's sizes, measured on an iPhone 17 Pro: every piece `Control.bar` 48, one 8 pt
-  gap `Spacing.xs` between rows and between pieces, `edgeClearance` 34, `hitOutset` 0 since the glass is itself over 44 pt;
+  gap `Spacing.xs` between rows and between pieces, the rows ending on the home indicator's strip (`rowLift` above it where it is shallow), `hitOutset` 0 since the glass is itself over 44 pt;
   values those of the mockups' `SZ`). `ChromeScroll` (`ShellState.chromeScroll`) owns
   the progress and `fullScreen` and is the one scroll controller the Library, the Browser and the
   Reader feed (`progress += dy / 120` for a scroll down, snap 150 ms after the finger stops; a scroll up

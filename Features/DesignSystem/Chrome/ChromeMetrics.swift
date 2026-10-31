@@ -10,14 +10,16 @@ import CoreGraphics
 /// One shape language and one height: every floating piece is a Capsule or a Circle `Control.bar`
 /// high (the pill, the search and address fields, ‹ ›, Listen, ⋯, ✕, the keyboard's row), so its
 /// corner radius is half that, and every one is at least `Control.tap` to tap.
-/// The bottom row ends `edgeClearance` above the screen's edge, on the home indicator's strip as
-/// Safari's does. Scrolling down folds in steps: row 2 goes (the field drops to its place), then
+/// The bottom row ends on the home indicator's strip (the safe area's bottom, as measured), as Safari's
+/// does; the keyboard's row ends on the keyboard. Scrolling down folds in steps: row 2 goes (the field drops to its place), then
 /// the field shrinks into the bubble (`Control.small` tall), a small glass capsule naming the page just
 /// above the home indicator; a tap on it, or a scroll up, brings both rows back. Changing `Control.bar`
 /// changes every piece and every footprint.
 ///
-/// Footprints are measured from the screen's bottom edge (the home indicator's strip included);
-/// `aboveSafeArea` turns one into what a view laid out above the safe area keeps clear.
+/// The chrome's box is `rowsHeight` tall, its foot on the safe area's bottom. What it covers is measured
+/// from there (`clearance(step:home:)`, what a view laid out above the safe area keeps clear); a view laid
+/// out to the screen's edge adds the strip itself. The bubble is the one piece placed from the screen's
+/// edge (`bubbleClearance`), below the strip's top.
 ///
 /// The pill's lit segment is a capsule inset by `Spacing.xxs` on all four sides, so it is
 /// `Control.bar - 2 * Spacing.xxs` tall and its radius is the pill's minus the inset (concentric).
@@ -25,12 +27,16 @@ enum ChromeMetrics {
     /// Cancel's width while a search is editing: a word, not a circle. The keyboard's row is
     /// [field][Cancel] from margin to margin on every phone, the field taking what Cancel leaves.
     static let cancelWidth: CGFloat = 72
-    /// From the bottom row's lower edge to the screen's bottom edge: Safari's, so the rows sit on
-    /// the home indicator's strip, not in it.
-    static let edgeClearance: CGFloat = 34
     /// The home indicator's strip on a phone that has one; what `ChromeState.homeInset` assumes until
     /// the host has measured it.
     static let homeIndicatorStrip: CGFloat = 34
+    /// The chrome's box: the room above row 1, row 1, the gap and row 2 (108 pt), its foot on the safe area's
+    /// bottom.
+    static let rowsHeight: CGFloat = Spacing.xxs + Control.bar + Spacing.xs + Control.bar
+    /// How far above the safe area's bottom the rows end: on it, except where the strip is shallower than
+    /// `bubbleClearance` (a phone with a Home button has none), where they end that far above the screen's
+    /// edge, as the bubble does, so a row never sits on the edge. Not the keyboard's row: it sits on the keyboard.
+    static func rowLift(home: CGFloat) -> CGFloat { max(0, bubbleClearance - home) }
 
     /// How far a piece's hit area reaches past its glass: none while the glass is itself at least
     /// `Control.tap` tall, so neighbouring hit areas never overlap.
@@ -50,7 +56,8 @@ enum ChromeMetrics {
     /// glass capsule `Control.small` tall centred at the foot naming the page (a domain, a title, in
     /// `TypeStyle.caption`'s size, fixed: a long press shows it large), the field shrunk. A tap on it
     /// brings the rows back. Its lower edge is `bubbleClearance` above the screen's edge (just over the
-    /// home indicator), lower than the rows' `edgeClearance`, so the folded chrome keeps a 58 pt footprint.
+    /// home indicator), below the strip's top where the rows end: the one piece placed from the screen's edge,
+    /// so the folded chrome covers 58 pt from it on every phone.
     static let bubbleClearance: CGFloat = 18
     /// How far the hit area reaches past the bubble above and below: `Control.tap` tall.
     static let bubbleHitOutset: CGFloat = max(0, (Control.tap - Control.small) / 2)
@@ -69,20 +76,19 @@ enum ChromeMetrics {
     /// How far above the top piece the fade behind the chrome starts.
     static let fadeRise: CGFloat = 50
 
-    /// What the chrome covers at the bottom of a scrolling screen, from the screen's edge: two rows,
-    /// the same on every destination, so a screen never resizes when the chrome folds (142 pt).
-    static let footprint: CGFloat = Spacing.xxs + Control.bar + Spacing.xs + Control.bar + edgeClearance
-    /// One row: the keyboard's form, and the fold's first step (86 pt).
-    static let collapsedFootprint: CGFloat = Spacing.xxs + Control.bar + edgeClearance
-    /// The fold's end: the bubble (58 pt).
-    static let bubbleFootprint: CGFloat = Spacing.xxs + Control.small + bubbleClearance
-    /// What the chrome covers at a fold step (`ChromeScroll.drawnStep`): 0 two rows, 1 one row, 2 the bubble.
-    static func footprint(step: Int) -> CGFloat {
-        step <= 0 ? footprint : step == 1 ? collapsedFootprint : bubbleFootprint
+    /// What the chrome covers above the safe area's bottom at a fold step (`ChromeScroll.drawnStep`), a strip
+    /// `home` deep under it: 0 two rows (108 pt over a 34 pt strip), 1 one row (52), 2 the bubble (24). The
+    /// same at step 0 on every destination, so a screen never resizes when the chrome folds. From the
+    /// screen's edge, add `home` (142, 86, 58).
+    static func clearance(step: Int, home: CGFloat) -> CGFloat {
+        switch step {
+        case ...0: rowsHeight + rowLift(home: home)
+        case 1: Spacing.xxs + Control.bar + rowLift(home: home)
+        default: max(0, Spacing.xxs + Control.small + bubbleClearance - home)
+        }
     }
-
-    /// A footprint (from the screen's edge) as what a view laid out above a safe area `home` deep keeps clear.
-    static func aboveSafeArea(_ footprint: CGFloat, home: CGFloat) -> CGFloat { max(0, footprint - home) }
+    /// The keyboard's row and the room above it, over the keyboard (52 pt).
+    static let keyboardClearance: CGFloat = Spacing.xxs + Control.bar
 
     // MARK: - Fields
 

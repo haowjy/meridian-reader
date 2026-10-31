@@ -30,7 +30,7 @@ final class ChromeScroll {
     /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
     var isLocked = false
     /// What is drawn, by step: 0 two rows, 1 one row, 2 the bubble (nearest end of `displayed`), so
-    /// what keeps clear of the chrome moves a step at a time with it (`ChromeMetrics.footprint(step:)`).
+    /// what keeps clear of the chrome moves a step at a time with it (`ChromeMetrics.clearance(step:home:)`).
     private(set) var drawnStep = 0
     /// Points of scrolling down still ignored after the bubble's tap: the rows stay for a short
     /// scroll (and the tail of a fling already under way), then fold again. Never a lasting pin.

@@ -63,14 +63,14 @@ final class ChromeTests: XCTestCase {
 
     func testOneBarHeightDerivesEveryFootprintAndWidth() {
         XCTAssertEqual(Control.bar, 48, "Safari's")
-        XCTAssertEqual(M.edgeClearance, 34, "the bottom row ends where Safari's does")
-        XCTAssertEqual(M.footprint, 142, "4 + 48 + 8 + 48 + 34, from the screen's edge")
-        XCTAssertEqual(M.collapsedFootprint, 86, "one row: the keyboard's and the fold's first step")
-        XCTAssertEqual(M.bubbleFootprint, 58, "the bubble: 4 + 36 + 18")
-        XCTAssertEqual([M.footprint(step: 0), M.footprint(step: 1), M.footprint(step: 2)], [142, 86, 58])
-        XCTAssertEqual(M.aboveSafeArea(M.footprint, home: 34), 108)
-        XCTAssertEqual(M.aboveSafeArea(M.bubbleFootprint, home: 34), 24)
-        XCTAssertEqual(M.aboveSafeArea(M.footprint, home: 0), 142, "a Home button phone: all of it")
+        XCTAssertEqual(M.rowsHeight, 108, "4 + 48 + 8 + 48, its foot on the safe area")
+        let steps = [0, 1, 2]
+        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 34) }, [108, 52, 24], "above a 34 pt strip")
+        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 34) + 34 }, [142, 86, 58], "Safari's, from the screen's edge")
+        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 21) }, [108, 52, 37], "a 21 pt strip: the rows still end on it")
+        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 0) }, [126, 70, 58],
+                       "a Home button phone: the rows end 18 above the edge, as the bubble does")
+        XCTAssertEqual(M.keyboardClearance, 52, "the keyboard's row: 4 + 48 over the keyboard")
         XCTAssertEqual(M.navSingleWidth, 48)
         XCTAssertEqual(M.navPairWidth, 96)
         XCTAssertEqual([Control.small, M.bubbleClearance, TypeStyle.caption.size, Spacing.m], [36, 18, 13, 16])
@@ -123,7 +123,7 @@ final class ChromeTests: XCTestCase {
                 XCTAssertEqual(l.cancel.rect.minX - l.field.rect.maxX, Spacing.xs, tag)
                 XCTAssertEqual(l.field.rect.width, width - 2 * Spacing.bandMargin - Spacing.xs - M.cancelWidth, tag)
                 // On the keyboard, not dipped into the home indicator's strip: the row ends at the box's bottom.
-                XCTAssertEqual(l.field.rect.maxY, M.footprint, "the row sits on the keyboard: \(tag)")
+                XCTAssertEqual(l.field.rect.maxY, M.rowsHeight, "the row sits on the keyboard: \(tag)")
                 XCTAssertEqual(l.cancel.rect.minY, l.field.rect.minY, tag)
                 XCTAssertFalse(rest.cancel.isShown, "Cancel only while typing: \(tag)")
                 XCTAssertLessThanOrEqual(l.field.rect.minY, rest.pill.rect.minY, "never below the resting row 2: \(tag)")
@@ -206,16 +206,23 @@ final class ChromeTests: XCTestCase {
         }
     }
 
-    func testExpandedIsTwoRowsLowInTheBox() {
+    func testTheRowsEndOnTheHomeIndicatorStrip() {
         let browse = layout(.browse, back: true, forward: true)
         XCTAssertEqual(browse.field.rect.minY + Control.bar + Spacing.xs, browse.pill.rect.minY, "row 1 over row 2")
         XCTAssertEqual(browse.nav.rect.width, M.navPairWidth)
         XCTAssertEqual(browse.top, browse.field.rect.minY)
-        XCTAssertEqual(browse.field.rect.minY, Spacing.xxs + 34, "the room above row 1 is the home strip the rows reach into")
-        XCTAssertEqual(browse.pill.rect.maxY, M.footprint + 34 - M.edgeClearance, "row 2 ends 14 above the screen's edge")
-        let se = ChromeLayout(width: 375, state: { var s = ChromeState(destination: .library); s.homeInset = 0; return s }())
-        XCTAssertEqual(se.pill.rect.maxY, M.footprint - M.edgeClearance, "with a Home button: 14 above the edge too")
-        XCTAssertEqual(se.top, Spacing.xxs)
+        XCTAssertEqual(browse.field.rect.minY, Spacing.xxs, "row 1 at the top of the box")
+        func library(home: CGFloat) -> ChromeLayout {
+            ChromeLayout(width: 375, state: { var s = ChromeState(destination: .library); s.homeInset = home; return s }())
+        }
+        for home in [34.0, 21, 18].map({ CGFloat($0) }) {
+            let l = library(home: home)
+            XCTAssertEqual(l.pill.rect.maxY, M.rowsHeight, "row 2 ends on the \(home) pt strip's top, the box's foot")
+            XCTAssertEqual(M.rowsHeight - l.top!, M.clearance(step: 0, home: home), "what it covers is what screens reserve: \(home)")
+        }
+        let se = library(home: 0)
+        XCTAssertEqual(M.rowsHeight + 0 - se.pill.rect.maxY, M.bubbleClearance, "with a Home button: 18 above the edge, as the bubble")
+        XCTAssertEqual(M.rowsHeight - se.top!, M.clearance(step: 0, home: 0))
     }
 
     /// The fold's steps: two rows, then one (row 2 gone, row 1 in its place), then the bubble.
@@ -293,8 +300,8 @@ final class ChromeTests: XCTestCase {
                     XCTAssertEqual(l.bubble.rect.width, CGFloat(expected), tag)
                     XCTAssertEqual(l.bubble.radius, 18, "a capsule: \(tag)")
                     XCTAssertEqual(l.bubble.rect.midX, width / 2, tag)
-                    XCTAssertEqual(l.bubble.rect.maxY, M.footprint + 34 - M.bubbleClearance, "bubbleClearance above the screen's edge: \(tag)")
-                    XCTAssertEqual(M.footprint + 34 - l.bubble.rect.minY, M.bubbleFootprint - Spacing.xxs, "inside the 58 pt footprint: \(tag)")
+                    XCTAssertEqual(l.bubble.rect.maxY, M.rowsHeight + 34 - M.bubbleClearance, "bubbleClearance above the screen's edge: \(tag)")
+                    XCTAssertEqual(M.rowsHeight - l.bubble.rect.minY, M.clearance(step: 2, home: 34) - Spacing.xxs, "inside what it covers: \(tag)")
                     let hit = l.bubble.rect.insetBy(dx: 0, dy: -M.bubbleHitOutset)
                     XCTAssertEqual(hit.height, 44, tag)
                     XCTAssertEqual(l.top, l.bubble.rect.minY, "nothing else is on screen: \(tag)")
