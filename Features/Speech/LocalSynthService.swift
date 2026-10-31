@@ -3,8 +3,9 @@ import Observation
 
 /// The on-device engine's model side, owned by `LocalTTSCoordinator`: its lifecycle
 /// (`LocalEngineState`) and the one resident host behind the shared `LocalChunkRenderer`. The
-/// render queue renders through it
-/// (`SynthChunkRendering`); the listen player never touches the model, it plays rendered files.
+/// render queue's worker is the only one that loads a host (`makeResident`, through the
+/// coordinator) and renders through it (`SynthChunkRendering`); the listen player never touches
+/// the model, it plays rendered files.
 @MainActor
 @Observable
 final class LocalSynthService: SynthChunkRendering {
@@ -34,6 +35,8 @@ final class LocalSynthService: SynthChunkRendering {
     }
 
     var engineShortName: String { engines.shortName(engineID) }
+    /// The engine whose host is loaded (`ready`; nil while none is, or one is loading).
+    var residentEngineID: SpeechEngineID? { state.readyEngineID }
     /// Routing label of the live host (debug).
     var hostRoutingLabel: String? { renderer?.host.routingLabel }
     /// The live host keeps rendering in the background.
@@ -41,15 +44,32 @@ final class LocalSynthService: SynthChunkRendering {
 
     // MARK: - Lifecycle
 
+    /// Make `id`'s host the resident one: nothing to do when it is loaded, the load in flight
+    /// awaited when it is loading (never a second load of it), else loaded (`load`). Throws when
+    /// it ends anything but loaded: failed, cancelled (Settings' cancel), or replaced.
+    /// The load runs at `priority`'s task priority (a listener's: `.userInitiated`; a preload's or
+    /// bake-ahead's: `.utility`), and so does the host's load under it (`SingleFlightLoad`).
+    func makeResident(_ id: SpeechEngineID, voice: String?, priority: RenderPriority) async throws {
+        switch state {
+        case .ready(id): return
+        case .warming(id, _, let task): await task.value
+        default: await load(id, voice: voice, priority: priority).value
+        }
+        switch state {
+        case .ready(id): return
+        case .failed(id, let message): throw LocalSynthError.engineUnavailable(message)
+        default: throw LocalSynthError.engineUnavailable("\(engines.shortName(id)) didn’t load.")
+        }
+    }
+
     /// Load `id`'s host (cancelling any other load; the other engine's host is unloaded so only
     /// one model set is resident) and move to `.ready` / `.failed` when it settles. The returned
     /// task is the load; it is also held in `.warming`. A superseded load is cancelled by whoever
     /// replaced it and then leaves the state alone.
-    @discardableResult
-    func load(_ id: SpeechEngineID, voice: String?) -> Task<Void, Never> {
+    private func load(_ id: SpeechEngineID, voice: String?, priority: RenderPriority) -> Task<Void, Never> {
         cancelLoad()
         use(id, voice: voice)
-        let task = Task { @MainActor [weak self] in
+        let task = Task(priority: priority.taskPriority) { @MainActor [weak self] in
             guard let self else { return }
             do {
                 try await self.prepare()
@@ -65,25 +85,12 @@ final class LocalSynthService: SynthChunkRendering {
         return task
     }
 
-    /// Drop the live host and load `id` again (route or thread change). Cached audio stays.
-    @discardableResult
-    func reload(_ id: SpeechEngineID, voice: String?) -> Task<Void, Never> {
-        cancelLoad()
-        unloadHost()
-        return load(id, voice: voice)
-    }
-
-    /// The engine can't run here, or its model was deleted: stop any load and drop the host.
+    /// Stop any load and drop the host (its model deleted; the render queue's `dropHost`). The
+    /// next render that needs it loads a fresh one.
     func turnOff() {
         cancelLoad()
         setState(.off)
         unloadHost()
-    }
-
-    /// `id` can't run on this device.
-    func markUnavailable(_ id: SpeechEngineID) {
-        cancelLoad()
-        setState(.failed(id, message: engines.blockReason(id) ?? "\(engines.shortName(id)) isn’t available on this device."))
     }
 
     /// Settings: stop the model download / load in flight.
@@ -92,20 +99,6 @@ final class LocalSynthService: SynthChunkRendering {
         cancelLoad()
         unloadHost()
         setState(.off)
-    }
-
-    /// The live listen could not start on the engine: drop its host. Playback has paused there;
-    /// the next play loads it again.
-    func noteSpeakFailed(_ error: Error) {
-        guard let id = state.readyEngineID else { return }
-        unloadHost()
-        setState(.failed(id, message: friendlyError(error, engine: id)))
-    }
-
-    /// The selected voice of the loaded engine changed.
-    func setVoice(_ voice: String, for id: SpeechEngineID) {
-        guard id == engineID else { return }
-        use(id, voice: voice)
     }
 
     private func cancelLoad() {
@@ -148,9 +141,9 @@ final class LocalSynthService: SynthChunkRendering {
     }
 
     /// Let the live host go and wait until its models are released: for diagnostics that load
-    /// models of their own. The next render builds and loads a new host.
+    /// models of their own. The render queue's next work loads a new host.
     func releaseHost() async {
-        unloadHost()
+        turnOff()
         await waitForRetiredHosts()
     }
 
@@ -193,14 +186,18 @@ final class LocalSynthService: SynthChunkRendering {
 
     /// Build and load the host if needed (no-op once loaded), once every host let go has
     /// released its models.
-    func prepare() async throws {
+    private func prepare() async throws {
         await waitForRetiredHosts()
         try await currentRenderer().prepare()
     }
 
-    /// One synth chunk → CAF (render queue worker). Re-splits internally on overflow.
-    func renderChunkToFile(text: String, destination: URL, request: ChunkRenderRequest) async throws -> TimeInterval {
-        try await prepare()
-        return try await currentRenderer().renderChunk(text: text, to: destination, request: request)
+    /// One synth chunk → CAF (render queue worker), on the resident host of `engineID` only: a
+    /// render never loads a host or speaks in another engine. Re-splits internally on overflow.
+    func renderChunkToFile(text: String, destination: URL, engineID: String,
+                           request: ChunkRenderRequest) async throws -> TimeInterval {
+        guard state.readyEngineID?.rawValue == engineID, let renderer, renderer.engineID.rawValue == engineID else {
+            throw LocalSynthError.engineUnavailable("\(engines.shortName(SpeechEngineID(rawValue: engineID))) isn’t loaded.")
+        }
+        return try await renderer.renderChunk(text: text, to: destination, request: request)
     }
 }

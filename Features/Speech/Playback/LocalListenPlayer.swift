@@ -60,10 +60,11 @@ final class LocalListenPlayer {
     /// estimate; starting a hair early beats clipping the first word).
     static let subChunkLeadIn: TimeInterval = 0.25
 
-    /// The play (its epoch) waiting for the engine's model to load before its first audio.
-    private var waitingForVoice: Int?
-    /// The current play waits for the model to load: nothing at its start is rendered yet.
-    var isWaitingForVoice: Bool { waitingForVoice != nil && waitingForVoice == epoch }
+    /// The current play waits for its engine's model to load: it wants audio, has none queued,
+    /// and the engine isn't the loaded one (`ListenUnitSource.waitsForVoice`).
+    var isWaitingForVoice: Bool {
+        state == .playing && player.bufferedCount == 0 && source?.waitsForVoice == true
+    }
 
     /// Article whose audio is playing right now (nil when paused / stopped).
     var playingArticleID: UUID? { state == .playing ? source?.articleID : nil }
@@ -147,32 +148,13 @@ final class LocalListenPlayer {
     var debugStarveEventCount: Int { player.starveEventCount }
 
     /// Play `source` from synth chunk `chunk` of paragraph `index`, `fractionInChunk` (0…1) into
-    /// it (scrubbed to a sentence). Rendered there: it plays at once, and the model loads behind
-    /// it for what isn't rendered. Unrendered: the model loads (`isWaitingForVoice`), then that
-    /// chunk is rendered first. Returns without starting when another `play` or a `stop` arrives
-    /// while the model loads: that call owns the player now.
-    func play(_ source: ListenUnitSource, from index: Int, chunk: Int, fractionInChunk: Double) async throws {
+    /// it (scrubbed to a sentence). Rendered there: it plays at once. Unrendered: its chunk is
+    /// asked for, and the render queue's worker renders it first, loading the engine when it
+    /// isn't loaded (`isWaitingForVoice` meanwhile).
+    func play(_ source: ListenUnitSource, from index: Int, chunk: Int, fractionInChunk: Double) {
         stop()
-        let request = epoch
         let paragraphs = source.paragraphs
         let start = max(0, min(index, max(paragraphs.count - 1, 0)))
-        if source.renderedParagraph(start) != nil {
-            Task {
-                do { try await source.prepare() } catch {
-                    ListenDebugLog.shared.append("model load behind rendered audio failed: \(error.localizedDescription)")
-                }
-            }
-        } else {
-            waitingForVoice = request
-            let t0 = ListenTimingLog.now()
-            defer {
-                if waitingForVoice == request { waitingForVoice = nil }
-                ListenTimingLog.log("voice_wait", ["key": ListenTimingLog.shortKey(source.articleID),
-                                                   "ms": ListenTimingLog.ms(since: t0), "current": request == epoch])
-            }
-            try await source.prepare()
-            guard request == epoch else { return }
-        }
         self.source = source
         nextProduceIndex = start
         state = .playing

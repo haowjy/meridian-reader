@@ -699,15 +699,15 @@ protocol PrepareRendering {
     func queuePrepare(cacheKey: UUID, paragraphs: [String]) -> PrepareQueueing
     /// Paragraphs that still need audio in the prepare voice; a view reading it follows the render.
     func missingPrepareParagraphs(cacheKey: UUID, paragraphs: [String]) -> Int
-    /// `cacheKey`'s bake job has left the queue, done or not: it isn't queued, nor waiting for the
-    /// engine to load or the launch's hold to end.
+    /// `cacheKey`'s bake job has left the queue, done or not: it isn't queued, nor waiting on disk
+    /// for the launch's hold to end.
     func bakeJobEnded(cacheKey: UUID) -> Bool
     /// Takes `cacheKey`'s bake job out of the queue and the pending jobs; its audio stays.
     func removeBakeJob(cacheKey: UUID)
 }
 
 enum PrepareQueueing: Equatable {
-    /// Its bake job is queued (or waits for the engine to load); its end is a render-queue change.
+    /// Its bake job is queued; its end is a render-queue change.
     case rendering
     /// Every paragraph that has words is rendered in the prepare voice already.
     case ready

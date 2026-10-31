@@ -8,10 +8,8 @@ import Foundation
 /// | inactive | render | listener's chunks only; bake-ahead parks |
 /// | background | listener's chunks; bake-ahead of the playing article during a burst (`BackgroundRenderWatermarks`); a download's job on its turn (C94: audio playing, the playing article safely ahead); other articles park | no model call: a listener's chunk is deferred (playback pauses there), bake-ahead parks |
 ///
-/// While no engine is ready (no `RenderTarget`: a model loading, failed or deleted) no model call
-/// starts in any phase: a listener's chunk is deferred and bake-ahead parks until an engine is
-/// ready. Thermal / Low Power Mode holds on bake-ahead are separate
-/// (`BakeConditions`).
+/// Admission doesn't depend on what is loaded: the worker loads the engine of the work it takes.
+/// Thermal / Low Power Mode holds on bake-ahead are separate (`BakeConditions`).
 enum RenderAdmission: Equatable {
     /// Start the call.
     case render
@@ -22,7 +20,6 @@ enum RenderAdmission: Equatable {
     case deferred
 
     /// - Parameters:
-    ///   - engineReady: an on-device engine is loaded to render with.
     ///   - rendersInBackground: the active host keeps rendering while backgrounded (CPU only).
     ///   - isLiveRequest: a listener is waiting for audio.
     ///   - isPlayingArticle: the audio belongs to the article that is playing.
@@ -30,10 +27,10 @@ enum RenderAdmission: Equatable {
     ///     listening was ready ahead when it started, and it hasn't reached the high-water mark).
     ///   - isPrepareTurn: the audio is a prepare's, audio is playing, and the playing article
     ///     needs nothing rendered now (no burst, or nothing of it left to render) (C94).
-    static func decide(engineReady: Bool, phase: AppRunState.Phase, rendersInBackground: Bool,
+    static func decide(phase: AppRunState.Phase, rendersInBackground: Bool,
                        isLiveRequest: Bool, isPlayingArticle: Bool, inBackgroundBurst: Bool,
                        isPrepareTurn: Bool = false) -> RenderAdmission {
-        guard engineReady, modelCallsAllowed(phase: phase, rendersInBackground: rendersInBackground) else {
+        guard modelCallsAllowed(phase: phase, rendersInBackground: rendersInBackground) else {
             return isLiveRequest ? .deferred : .park
         }
         switch phase {

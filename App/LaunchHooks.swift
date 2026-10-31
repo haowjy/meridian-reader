@@ -142,9 +142,9 @@ enum LaunchHooks {
         }
         if options.playsTestEPUB {
             await importTestEPUB(in: library)
-            await playTestEPUB(library: library, speech: speech)
+            playTestEPUB(library: library, speech: speech)
         }
-        if options.chainsDemoChapters { await chainDemoChapters(library: library, speech: speech) }
+        if options.chainsDemoChapters { chainDemoChapters(library: library, speech: speech) }
     }
 
     /// `-playTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top
@@ -168,8 +168,8 @@ enum LaunchHooks {
     }
 
     /// `-playTestEPUB`: the imported test book plays from its place (chapter 1 the first time).
-    static func playTestEPUB(library: LibraryStore, speech: SpeechController) async {
-        guard let book = library.book(key: TestEPUB.bookKey), let start = await play(book, library: library, speech: speech) else {
+    static func playTestEPUB(library: LibraryStore, speech: SpeechController) {
+        guard let book = library.book(key: TestEPUB.bookKey), let start = play(book, library: library, speech: speech) else {
             ListenTimingLog.log("debug_play_test_epub", ["started": false], console: true)
             return
         }
@@ -255,10 +255,10 @@ enum LaunchHooks {
     }
 
     /// `-chainDemoChapters`: plays the demo book from where Continue would (chapter 1 the first
-    /// time), after waiting (≤ 20 s) for the on-device engine so it starts at once. Logged
+    /// time). Logged
     /// as `debug_chain_demo_chapters`; each boundary then logs `chapter_boundary`.
-    static func chainDemoChapters(library: LibraryStore, speech: SpeechController) async {
-        guard let book = demoBooks(in: library).first, let start = await play(book, library: library, speech: speech) else {
+    static func chainDemoChapters(library: LibraryStore, speech: SpeechController) {
+        guard let book = demoBooks(in: library).first, let start = play(book, library: library, speech: speech) else {
             ListenTimingLog.log("debug_chain_demo_chapters", ["started": false], console: true)
             return
         }
@@ -268,11 +268,10 @@ enum LaunchHooks {
         ], console: true)
     }
 
-    /// Plays `book` from where Continue would, unless something already plays, after waiting
-    /// (≤ 20 s) for the on-device engine so it starts at once. Returns where it started.
-    private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) async -> (article: Article, spot: ListenSpot)? {
+    /// Plays `book` from where Continue would, unless something already plays. Returns where it
+    /// started.
+    private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) -> (article: Article, spot: ListenSpot)? {
         guard speech.activeSessionID == nil, let start = library.continueStart(of: book) else { return nil }
-        await speech.localTTS.waitForEngineLoad(timeout: .seconds(20))
         speech.start(.article(start.article), at: start.spot)
         return start
     }

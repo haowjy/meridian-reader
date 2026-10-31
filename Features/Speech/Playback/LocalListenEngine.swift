@@ -25,9 +25,6 @@ final class LocalListenEngine {
     /// sub-paragraph start begins a hair early in the audio, see `LocalListenPlayer.subChunkLeadIn`).
     private var playStart = (paragraph: 0, utf16: 0)
     private var reported: (paragraph: Int, utf16: Int)?
-    private var playGeneration = 0
-    /// A paused play, or Pause while the model loads: hold the audio once the play starts.
-    private var holdsAtStart = false
     /// Playing or about to (not paused, not stopped): the clock runs while the app is in front.
     private var audioWanted = false
     private var clock: Task<Void, Never>?
@@ -88,8 +85,6 @@ final class LocalListenEngine {
     /// Start at `request.utf16Offset`. Paused: take the spot without sounding; `resume` or a new
     /// `play` sounds it.
     func play(_ request: ListenPlayRequest) {
-        playGeneration += 1
-        let generation = playGeneration
         document = request.document
         let source = QueueUnitSource(coordinator: coordinator, articleID: request.articleID,
                                      paragraphs: document.paragraphs, selection: request.selection)
@@ -103,7 +98,6 @@ final class LocalListenEngine {
         playStart = (start.paragraph, request.utf16Offset)
         reported = nil
         lastStatus = nil
-        holdsAtStart = request.startPaused
         ListenTimingLog.log("play", [
             "key": ListenTimingLog.shortKey(request.articleID), "p": start.paragraph, "paused": request.startPaused,
             "baked": source.isRenderedInThisVoice(paragraph: start.paragraph),
@@ -119,22 +113,9 @@ final class LocalListenEngine {
             isEphemeral: coordinator.audioCache.isEphemeral(request.articleID)
         )
         if !request.startPaused { startClock() }
-        Task { @MainActor in
-            guard generation == self.playGeneration else { return }
-            do {
-                try await self.player.play(source, from: start.paragraph, chunk: start.chunk,
-                                           fractionInChunk: start.fraction)
-                guard generation == self.playGeneration else { return }
-                // The producer hasn't run yet: pausing now holds the first unit unstarted.
-                if self.holdsAtStart { self.pause() }
-            } catch {
-                guard generation == self.playGeneration else { return }
-                // The host failed to load: the engine is marked failed, and playback pauses at
-                // the spot; a play loads it again.
-                self.coordinator.synth.noteSpeakFailed(error)
-                self.stall(.engineStopped)
-            }
-        }
+        player.play(source, from: start.paragraph, chunk: start.chunk, fractionInChunk: start.fraction)
+        // The producer hasn't run yet: pausing now holds the first unit unstarted.
+        if request.startPaused { pause() }
     }
 
     /// Playback reached audio the engine can't give now: it pauses there, and the controller says
@@ -146,7 +127,6 @@ final class LocalListenEngine {
 
     /// Confirmed with `becamePaused` once the audio holds.
     func pause() {
-        holdsAtStart = true
         player.pause()
         stopClock()
         reportPosition(force: false)
@@ -155,7 +135,6 @@ final class LocalListenEngine {
 
     /// Continue what `pause` held (no-op when nothing is held).
     func resume() {
-        holdsAtStart = false
         guard player.state == .paused else { return }
         player.resume()
         startClock()
@@ -164,9 +143,7 @@ final class LocalListenEngine {
     }
 
     func stop() {
-        playGeneration += 1
         source = nil
-        holdsAtStart = false
         stopClock()
         player.stop()
     }
@@ -191,12 +168,16 @@ final class LocalListenEngine {
 
     /// Playing (not held), and the first audio waits for the model to load: nothing at the start
     /// is rendered (`LocalListenPlayer.isWaitingForVoice`).
-    var isWaitingForVoice: Bool { !holdsAtStart && player.isWaitingForVoice }
+    var isWaitingForVoice: Bool { player.isWaitingForVoice }
 
     /// iOS restarted its media services: stop, and build new audio objects for the next `play`
     /// (the old ones are dead and fail silently). Each unit gets its own `AVAudioPlayer`, so
-    /// stopping drops every dead one.
-    func mediaServicesWereReset() { stop() }
+    /// stopping drops every dead one. The render queue drops the engine's host too (after the
+    /// call in flight); the next work loads a fresh one.
+    func mediaServicesWereReset() {
+        stop()
+        if let engine = coordinator.residentEngineID { coordinator.synthQueue.dropHost(engineID: engine) }
+    }
 
     var debug: ListenEngineDebug {
         ListenEngineDebug(

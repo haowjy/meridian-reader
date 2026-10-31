@@ -101,7 +101,6 @@ struct ArticleVoiceChange {
         case .folder(let f): library.setVoice(selection.stored, of: f)
         }
         tts.articleVoicesChanged()
-        tts.loadEngineIfNeeded(selection.engine)
         for key in keys {
             let prepared = preparedAudio.hasRecord(for: key)
             if !prepared, tts.audioCache.bytes(for: key) > 0 {

@@ -17,7 +17,6 @@ struct KokoroRouteDebugSection: View {
     let kokoro: FluidAudioProvider
     let tts: LocalTTSCoordinator
     @State private var threads: Int
-    @State private var busy = false
 
     init(kokoro: FluidAudioProvider, tts: LocalTTSCoordinator) {
         self.kokoro = kokoro
@@ -29,13 +28,8 @@ struct KokoroRouteDebugSection: View {
         Section {
             Stepper("ONNX threads: \(threads)\(threads == KokoroRouteSettings.defaultThreads ? " (default)" : "")",
                     value: $threads, in: KokoroRouteSettings.threadRange)
-                .disabled(busy)
                 .onChange(of: threads) { _, n in
-                    busy = true
-                    Task {
-                        if kokoro.setCPUThreads(n) { await tts.reloadEngine(.kokoro) }
-                        busy = false
-                    }
+                    if kokoro.setCPUThreads(n) { tts.reloadEngine(.kokoro) }
                 }
             LabeledContent("Live route", value: liveRoute)
             LabeledContent("Render speed", value: paceLabel)

@@ -56,12 +56,11 @@ extension LocalTTSCoordinator {
         engines.selection(forCacheVoice: voice)
     }
 
-    /// Settings picked a new default. Changes no article that already has a voice; loads its
-    /// engine so new articles render.
+    /// Settings picked a new default. Changes no article that already has a voice; queued work of
+    /// an article without one renders in it (the worker loads its engine for that work).
     func setDefaultSelection(_ selection: VoiceSelection) {
         defaultSelection = selection
         defaults.set(selection.stored, forKey: Self.defaultSelectionKey)
-        Task { await loadEngine(selection.engine) }
         synthQueue.renderTargetChanged()
         noteBakeMarksChanged()
     }
@@ -86,24 +85,6 @@ extension LocalTTSCoordinator {
         }
         defaultSelection = builtInDefaultSelection
         defaults.set(defaultSelection.stored, forKey: Self.defaultSelectionKey)
-    }
-
-    /// Load the engine an article needs (one is loaded at a time).
-    func loadEngineIfNeeded(_ id: SpeechEngineID) {
-        guard engines.contains(id), engines.supports(id) else { return }
-        switch synth.state {
-        case .warming(id, _, _), .ready(id): return
-        default: Task { await loadEngine(id) }
-        }
-    }
-
-    /// Wait until the engine the article with `key` speaks in is loaded; false when it can't be
-    /// (unsupported, failed).
-    func awaitEngine(for key: UUID) async -> Bool {
-        let engine = selection(for: key).engine
-        guard engines.contains(engine), engines.supports(engine) else { return false }
-        await loadEngine(engine)
-        return synth.state.readyEngineID == engine
     }
 
     /// Any library edit: selections are read again when next asked.

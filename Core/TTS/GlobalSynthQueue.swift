@@ -27,26 +27,22 @@ import Foundation
 ///
 /// Saved vs unsaved only changes the persistence key (`cacheKey`), not queue behavior.
 ///
-/// Background (`AppRunState`): which model calls may start is `RenderAdmission`. On a Core ML
-/// route nothing renders while the app is backgrounded: a live chunk request for audio that isn't
-/// rendered yet throws `LocalSynthError.deferredInBackground` at once (the player plays what is
-/// rendered and pauses there); bake-ahead waits until the app is active; while `inactive` only chunks a
-/// listener waits for render. A route that renders in the background (Kokoro's ONNX CPU route,
-/// `SynthQueueContext.activeRouteRendersInBackground`) treats `inactive` like `active`; in the
-/// background it renders live requests and bakes the playing article ahead, from its playhead
-/// on, in bursts (`BackgroundRenderBursts`), idle in between until playback wakes it
-/// (`playbackAdvanced`).
+/// Background (`AppRunState`): which model calls may start is `RenderAdmission`. The resident
+/// host renders live requests there and bakes the playing article ahead from its playhead, in
+/// bursts (`BackgroundRenderBursts`), idle in between until playback wakes it (`playbackAdvanced`).
 ///
 /// Priority: renders for an article someone is listening to (a chunk waiter, or its audio playing)
 /// run at `.listener` priority; everything else is bake-ahead — a cooler QoS, and held while the
 /// device is hot or in Low Power Mode (`BakeConditions`).
 ///
-/// What it renders for is the context's `renderTarget`: the loaded engine and its voice. Jobs carry
-/// no voice; every readiness check, chunk file and publish uses the target read at that step, so
-/// a voice switch can't file one voice's audio under another. While there is no target (a
-/// model loading, failed or deleted) the worker parks (`RenderAdmission`) and never
-/// loads a model itself; the coordinator restarts it once an engine is ready
-/// (`renderTargetChanged`).
+/// What it renders an article in is the context's `renderTarget(for:)`: the article's own engine
+/// and voice, whatever is loaded. Jobs carry no voice; every readiness check, chunk file and
+/// publish uses the target read at that step, so a voice switch can't file one voice's audio
+/// under another.
+///
+/// The worker is the only owner of engine loads: it takes the first unit and loads its engine
+/// when that isn't the resident one (`load`); with nothing to render, the engine it was asked to
+/// `preload`. Hosts are dropped between calls (`dropHost`), never under one.
 ///
 /// Depends only on `SynthQueueContext` (cache, render target, chunk limits, renderer), never on a
 /// concrete engine — the app passes `LocalTTSCoordinator`, tests pass a fake.
@@ -66,6 +62,13 @@ final class GlobalSynthQueue {
     /// (key|index|textHash) that failed the engine — skipped by the worker so a
     /// bad unit cannot spin forever. A live request for the unit clears its mark (fresh try).
     private var failedUnits: Set<String> = []
+    /// Engines whose load failed or was cancelled: their jobs wait rather than load again and
+    /// again, until a listener asks, a voice changes or the host is dropped (fresh try).
+    private var loadFailures: Set<String> = []
+    /// To load once nothing is left to render (`preload`); work picked first cancels it.
+    private var preloadEngineID: String?
+    /// Engines whose host goes before the worker's next call (`dropHost`).
+    private var hostDrops: Set<String> = []
 
     /// Foreground / background gate for Core ML (injectable for tests).
     var runState: AppRunState = .shared {
@@ -166,9 +169,6 @@ final class GlobalSynthQueue {
         playbackAdvanced()
     }
 
-    /// Whether `cacheKey`'s job is a prepare's.
-    func isPrepare(cacheKey: UUID) -> Bool { prepareKeys.contains(cacheKey) }
-
     /// Listening time ready ahead of the playhead, counted up to the high-water mark.
     private func readyAhead() -> TimeInterval {
         coordinator?.readyAheadSeconds(upTo: BackgroundRenderWatermarks.highWater) ?? 0
@@ -187,8 +187,7 @@ final class GlobalSynthQueue {
 
     /// `RenderAdmission` for audio of `cacheKey` now.
     private func admission(isLiveRequest: Bool, cacheKey: UUID?, isPrepareTurn: Bool = false) -> RenderAdmission {
-        RenderAdmission.decide(engineReady: coordinator?.engineReady == true,
-                               phase: runState.phase, rendersInBackground: rendersInBackground,
+        RenderAdmission.decide(phase: runState.phase, rendersInBackground: rendersInBackground,
                                isLiveRequest: isLiveRequest,
                                isPlayingArticle: cacheKey.map(playingCacheKeys.contains) ?? false,
                                inBackgroundBurst: backgroundBursts.isBursting,
@@ -375,16 +374,40 @@ final class GlobalSynthQueue {
         return coordinator.chunkPlans.chunks(for: text, engineID: engineID) ?? []
     }
 
-    /// The render target changed (an engine loaded or went away, another voice): failure marks
-    /// were the old target's, and once an engine is ready the worker renders what is queued, in
-    /// the new voice. Nothing else is retargeted: jobs carry no voice. Paragraph CAFs are keyed
-    /// by engine+voice in `index.json`: old-voice ones stay playable until each paragraph is
-    /// replaced (`playableAudioURL`) but never count as ready. Chunk scratch is filed by voice
-    /// and stays (the launch clears it).
+    /// An article's render target changed (its voice, or the default an unvoiced one takes):
+    /// failure marks were the old target's, and the worker renders what is queued in the new
+    /// voice, loading its engine. Nothing else is retargeted: jobs carry no voice, and a job's
+    /// missing paragraphs are worked out again for the new target. Paragraph CAFs are keyed by
+    /// engine+voice in `index.json`: old-voice ones never count as ready. Chunk scratch is filed
+    /// by voice and stays (the launch clears it).
     func renderTargetChanged() {
         failedUnits.removeAll()
-        guard coordinator?.engineReady == true, !stack.isEmpty else { return }
+        loadFailures.removeAll()
+        guard !stack.isEmpty else { return }
         kickWorker()
+    }
+
+    /// Load `engineID` once nothing is queued to render (the launch, with no saved work: the first
+    /// Play then finds its engine loaded). Work picked before it cancels it.
+    func preload(engineID: String) {
+        preloadEngineID = engineID
+        kickWorker()
+    }
+
+    /// Let `engineID`'s host go (Retry, a thread setting change, a media services reset). A model
+    /// call in flight finishes on it first: the worker drops it between calls, or now when idle.
+    /// The next work for the engine loads a fresh host.
+    func dropHost(engineID: String) {
+        hostDrops.insert(engineID)
+        loadFailures.remove(engineID)
+        if worker == nil { applyHostDrops() }
+        if !stack.isEmpty { kickWorker() }
+    }
+
+    private func applyHostDrops() {
+        guard let coordinator, !hostDrops.isEmpty else { return }
+        for engineID in hostDrops { coordinator.dropHost(engineID) }
+        hostDrops.removeAll()
     }
 
     /// Await a playable URL for chunk `chunk` of `paragraphIndex`. Moves the playhead cursor
@@ -401,18 +424,17 @@ final class GlobalSynthQueue {
             throw NSError(domain: "GlobalSynthQueue", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "Coordinator not attached"])
         }
-        // C138a: the article's own engine, loaded for it if another is (or none). Can't load
-        // (crashed, failed): nothing renders it; the player fills the gap (C129, never saved).
-        var resolved = coordinator.lockedRenderTarget(for: cacheKey)
-        if resolved == nil, await coordinator.awaitEngine(for: cacheKey) {
-            resolved = coordinator.lockedRenderTarget(for: cacheKey)
-        }
-        guard let target = resolved else { throw Self.noEngine }
+        // C138a: the article's own engine and voice. A listener's chunk is demand: the worker
+        // loads that engine for it first. Its load fails: the waiter is told, and the player
+        // pauses there (C129, never another voice).
+        guard let target = coordinator.lockedRenderTarget(for: cacheKey) else { throw Self.noEngine }
         let cache = coordinator.audioCache
         let hash = ArticleIdentity.paragraphHash(text)
         let unit = ParagraphKey(cacheKey: cacheKey, index: paragraphIndex)
         liveChunkParagraphs.insert(unit)
-        failedUnits.remove(failedID(cacheKey, paragraphIndex, hash)) // live request = fresh try
+        // A live request is a fresh try, of the unit and of its engine's load.
+        failedUnits.remove(failedID(cacheKey, paragraphIndex, hash))
+        loadFailures.remove(target.engineID)
 
         let chunkURL = cache.chunkURL(articleID: cacheKey, paragraphIndex: paragraphIndex, textHash: hash,
                                       voice: target.cacheVoice, chunk: chunk)
@@ -509,8 +531,8 @@ final class GlobalSynthQueue {
     var isWorkerRunning: Bool { worker != nil }
 
     func pendingUnitCount(for cacheKey: UUID) -> Int {
-        guard let job = jobs[cacheKey], let target = coordinator?.renderTarget(for: cacheKey) else { return 0 }
-        return missingParagraphs(of: job, in: target).count
+        guard let target = coordinator?.renderTarget(for: cacheKey) else { return 0 }
+        return missingParagraphs(of: cacheKey, in: target).count
     }
 
     func planDescription(for cacheKey: UUID) -> String? {
@@ -526,18 +548,21 @@ final class GlobalSynthQueue {
     func nextMissingIndex(for cacheKey: UUID? = nil) -> Int? {
         let key = cacheKey ?? stack.first
         guard let key, let job = jobs[key], let target = coordinator?.renderTarget(for: key) else { return nil }
-        return job.plan.orderedWork(missing: missingParagraphs(of: job, in: target)).first
+        return job.plan.orderedWork(missing: missingParagraphs(of: key, in: target)).first
     }
 
     // MARK: - Private
 
-    /// Paragraphs of `job` that still need audio in the target's voice
-    /// (`ArticleAudioCache.missingParagraphs`).
-    private func missingParagraphs(of job: ArticleJob, in target: RenderTarget) -> [Int] {
+    /// Paragraphs of `cacheKey`'s job that still need audio in the target's voice: the job's kept
+    /// list (`ArticleJob.missing`), worked out again (`ArticleAudioCache.missingParagraphs`) only
+    /// when its text, its target or its article's audio changed since. Not per chunk.
+    private func missingParagraphs(of cacheKey: UUID, in target: RenderTarget) -> [Int] {
         guard let coordinator else { return [] }
-        return coordinator.audioCache.missingParagraphs(articleID: job.cacheKey, paragraphs: job.paragraphs,
-                                                        engineID: target.engineID, voiceID: target.cacheVoice,
-                                                        plans: coordinator.chunkPlans)
+        let cache = coordinator.audioCache
+        return jobs[cacheKey]?.missing(in: target, changes: cache.indexChanges(of: cacheKey)) {
+            cache.missingParagraphs(articleID: cacheKey, paragraphs: $0, engineID: target.engineID,
+                                    voiceID: target.cacheVoice, plans: coordinator.chunkPlans)
+        } ?? []
     }
 
     /// Debug engine probe: hold the worker between chunks so probe timings aren't interleaved.
@@ -580,19 +605,19 @@ final class GlobalSynthQueue {
         }
     }
 
-    /// One step of the worker: pick the next unit and do one piece of it (`renderOrStitch`).
-    /// Returns why the worker stops (a background burst's stop line), or nil to go on.
+    /// One step of the worker: drop the hosts asked for, pick the next unit, load its engine when
+    /// it isn't resident, else do one piece of it (`renderOrStitch`). With nothing to render, the
+    /// preload. Returns why the worker stops (a background burst's stop line), or nil to go on.
     private func renderStep() async -> String? {
         guard let coordinator else { return "queue_empty" }
-        guard coordinator.engineReady else {
-            // No engine loaded (`RenderAdmission`): `renderTargetChanged` restarts the worker
-            // once one is. Nothing here may load a model.
-            failAllLiveWaiters(Self.noEngine)
-            lastBakeEvent = "no on-device voice loaded: rendering waits"
-            ListenTimingLog.log("synth_queue_parked", ["phase": runState.phase.rawValue, "reason": "no_engine"])
-            return "no_engine"
+        applyHostDrops()
+        guard var next = nextWorkUnit() else {
+            guard let engineID = preloadEngineID else { return "queue_empty" }
+            preloadEngineID = nil
+            if coordinator.residentEngineID != engineID { await load(engineID, reason: "preload", priority: .bakeAhead) }
+            return nil
         }
-        guard var next = nextWorkUnit() else { return "queue_empty" }
+        preloadEngineID = nil
         #if canImport(UIKit)
         drainGrace.end() // the chunk in flight at backgrounding is done; playing audio keeps the app alive
         #endif
@@ -640,15 +665,23 @@ final class GlobalSynthQueue {
         }
         if coordinator.audioCache.audioURL(articleID: job.cacheKey, paragraphIndex: index,
                                            engineID: target.engineID, voiceID: target.cacheVoice) != nil {
+            jobs[job.cacheKey]?.missing?.paragraphs.removeAll { $0 == index }
             resumeChunkWaitersWithParagraph(cacheKey: job.cacheKey, index: index)
             return nil
         }
         guard job.paragraphs.indices.contains(index) else { return nil }
+        // Working on this unit (the player's starve watch reads it) from its engine's load on.
         activeBakeCacheKey = job.cacheKey
         activeBakeIndex = index
         defer {
             activeBakeCacheKey = nil
             activeBakeIndex = nil
+        }
+        // The worker owns loads: this unit's engine is loaded now if it isn't the resident one,
+        // and the next step picks again (the queue may have moved during the load).
+        if coordinator.residentEngineID != target.engineID {
+            await load(target.engineID, reason: priority == .listener ? "listener" : "work", priority: priority)
+            return nil
         }
         do {
             try Task.checkCancellation()
@@ -734,6 +767,7 @@ final class GlobalSynthQueue {
             ListenTimingLog.log("paragraph_discarded", ["key": ListenTimingLog.shortKey(job.cacheKey), "p": index])
             return
         }
+        let changesBefore = cache.indexChanges(of: job.cacheKey)
         try cache.publishParagraph(
             staged: stitching,
             articleID: job.cacheKey,
@@ -744,6 +778,8 @@ final class GlobalSynthQueue {
             textHash: hash,
             chunkDurations: chunks.count > 1 ? stitched.chunkDurations : nil
         )
+        jobs[job.cacheKey]?.noteRendered(index, in: target, changes: changesBefore,
+                                         after: cache.indexChanges(of: job.cacheKey))
         coordinator.noteBakeMarksChanged()
         if job.isEphemeral {
             cache.markEphemeral(cacheKey: job.cacheKey, lastAccess: Date())
@@ -764,8 +800,33 @@ final class GlobalSynthQueue {
         ])
     }
 
-    /// What a listener waiting on a chunk gets while no engine is loaded: the player pauses there.
-    private static let noEngine = LocalSynthError.engineUnavailable("No on-device voice is loaded.")
+    /// What a listener waiting on a chunk gets when no registered engine speaks the article's voice.
+    private static let noEngine = LocalSynthError.engineUnavailable("No on-device voice speaks this article.")
+
+    /// Load `engineID` (the worker's alone; see the type's notes). A load that fails or is cancelled
+    /// fails the chunks listeners wait for in it, and its jobs wait (`loadFailures`).
+    private func load(_ engineID: String, reason: String, priority: RenderPriority) async {
+        guard let coordinator else { return }
+        let t0 = ListenTimingLog.now()
+        ListenTimingLog.log("engine_load", ["engine": engineID, "reason": reason, "op": "start",
+                                            "qos": priority == .listener ? "userInitiated" : "utility",
+                                            "replaces": coordinator.residentEngineID ?? "-"])
+        do {
+            try await coordinator.makeResident(engineID, priority: priority)
+            ListenTimingLog.log("engine_load", ["engine": engineID, "reason": reason, "op": "ready",
+                                                "ms": ListenTimingLog.ms(since: t0)])
+        } catch {
+            loadFailures.insert(engineID)
+            lastBakeEvent = "\(engineID) didn’t load: \(error.localizedDescription)"
+            ListenDebugLog.shared.append(lastBakeEvent)
+            ListenTimingLog.log("engine_load", ["engine": engineID, "reason": reason, "op": "failed",
+                                                "ms": ListenTimingLog.ms(since: t0), "err": error.localizedDescription])
+            for key in Set(chunkWaiters.keys.map(\.cacheKey))
+            where coordinator.renderTarget(for: key)?.engineID == engineID {
+                failWaiters(cacheKey: key, error: error)
+            }
+        }
+    }
 
     /// The worker stopped before a chunk (`RenderAdmission` said not now). Returns the reason
     /// (a background burst's stop line).
@@ -811,7 +872,8 @@ final class GlobalSynthQueue {
             isPrimary: stack.first == job.cacheKey, voice: target.engineVoice)
         let ctx = request.logFields
         do {
-            let duration = try await engine.renderChunkToFile(text: text, destination: url, request: request)
+            let duration = try await engine.renderChunkToFile(text: text, destination: url, engineID: target.engineID,
+                                                              request: request)
             ListenTimingLog.log("chunk_ready", ctx.merging([
                 "n": count, "chars": text.count, "ms": ListenTimingLog.ms(since: t0),
                 "audio_s": (duration * 100).rounded() / 100, "engine": engine.engineShortName,
@@ -854,12 +916,13 @@ final class GlobalSynthQueue {
                 stack.remove(at: position)
                 continue
             }
-            // C138a: an article in an engine that isn't loaded waits (its own engine loads on play).
-            guard !skipping.contains(key), let target = coordinator?.renderTarget(for: key) else {
+            // C138a: its own target, loaded or not. One whose engine failed to load waits.
+            guard !skipping.contains(key), let target = coordinator?.renderTarget(for: key),
+                  !loadFailures.contains(target.engineID) else {
                 position += 1
                 continue
             }
-            let missing = missingParagraphs(of: job, in: target)
+            let missing = missingParagraphs(of: key, in: target)
             let work = remainingWork(of: job, missing: missing)
             let cap = staged?.cacheKey == key ? staged?.cap : nil
             if let index = job.renderable(work, cap: cap, aheadOnly: aheadOnly).first {
@@ -894,8 +957,9 @@ final class GlobalSynthQueue {
     /// The staged chapter's next paragraph under its cap (nil: its opening is rendered).
     private func stagedOpening() -> (ArticleJob, Int)? {
         guard let staged, let job = jobs[staged.cacheKey],
-              let target = coordinator?.renderTarget(for: staged.cacheKey) else { return nil }
-        let work = remainingWork(of: job, missing: missingParagraphs(of: job, in: target))
+              let target = coordinator?.renderTarget(for: staged.cacheKey),
+              !loadFailures.contains(target.engineID) else { return nil }
+        let work = remainingWork(of: job, missing: missingParagraphs(of: staged.cacheKey, in: target))
         return job.renderable(work, cap: staged.cap, aheadOnly: false).first.map { (job, $0) }
     }
 

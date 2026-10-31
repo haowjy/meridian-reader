@@ -35,7 +35,7 @@ enum AppLaunch {
         LaunchHooks.runAfterMigrations(.current, library: library, speech: speech, shell: shell)
         #endif
 
-        await resumeAfterCrash(library: library, speech: speech, shell: shell)
+        resumeAfterCrash(library: library, speech: speech, shell: shell)
 
         #if DEBUG
         await LaunchHooks.runAfterLaunch(.current, library: library, speech: speech, shell: shell, follow: follow)
@@ -78,7 +78,7 @@ enum AppLaunch {
     /// marker's, or a resume file an older build wrote) counts only when it is the page's own
     /// stored paragraph. Otherwise the page opens paused at its own stored spot and keeps its own
     /// position. The position is the recorder's to store, from the session this binds.
-    private static func resumeAfterCrash(library: LibraryStore, speech: SpeechController, shell: ShellState) async {
+    private static func resumeAfterCrash(library: LibraryStore, speech: SpeechController, shell: ShellState) {
         let tts = speech.localTTS
         if tts.isPausedForRetry, let engine = tts.launchCrash?.engine { speech.tellStopped(engine) }
         guard let target = tts.takePendingResume() else { return }
@@ -91,8 +91,6 @@ enum AppLaunch {
         let p = inText ? min(max(0, target.paragraph), max(0, session.document.count - 1)) : article.positionParagraph
         let autoPlay = inText && target.autoPlay && !tts.isPausedForRetry
         if autoPlay {
-            // The engine loads first, so the resume starts at once.
-            await tts.waitForEngineLoad(timeout: .seconds(20))
             speech.start(session, at: ListenSpot(paragraph: p))
         } else {
             speech.prepare(session, at: ListenSpot(paragraph: p, utf16Offset: article.positionUTF16))
@@ -100,7 +98,7 @@ enum AppLaunch {
         shell.showNowPlaying()
         ListenTimingLog.log("kokoro_resume", [
             "ok": true, "key": ListenTimingLog.shortKey(article.listenKey), "p": p, "auto_play": autoPlay,
-            "text": inText ? "same" : target.text == nil ? "unknown" : "other", "local": tts.usesLocalEngine,
+            "text": inText ? "same" : target.text == nil ? "unknown" : "other",
         ])
     }
 }

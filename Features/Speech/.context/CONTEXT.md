@@ -63,12 +63,17 @@ provider owns its host, model store, voice catalog and chunk limits.
   (`Article.voiceID`, its book's `Folder.voiceID`), resolved by `LocalTTSCoordinator.selection(for:)`
   (brand new: the Settings default, locked then). It is passed explicitly to playback
   (`ListenPlayRequest.selection`, `QueueUnitSource`) and the render queue reads
-  `renderTarget(for: key)`, which is non-nil only when the article's own engine is the loaded one.
-  Playback reads rendered audio by the selection's cache voice, loaded or not: never gate a cache
-  read on `renderTarget` (cached audio must play while the model loads).
-  Never read `engineVoices`, `activeLocalEngineID` or `defaultSelection` to decide what an
-  existing article plays or renders. A job whose engine isn't loaded waits in the queue;
-  `ensureChunk` loads it (`awaitEngine`).
+  `renderTarget(for: key)`, the article's own selection whatever is loaded. Playback reads
+  rendered audio by the selection's cache voice, loaded or not (cached audio plays while the model
+  loads). Never read `engineVoices`, `activeLocalEngineID` or `defaultSelection` to decide what
+  an existing article plays or renders.
+- **Only the render queue's worker loads an engine** (`GlobalSynthQueue.load` →
+  `LocalTTSCoordinator.makeResident`), for the first unit it takes (a listener's chunk first) or
+  the launch's `preload`. Don't load at an enqueue, a play, a voice pick or launch, and don't add
+  an "is an engine loaded" gate in front of the queue: queue the work and let the worker load.
+  Anything that must rebuild a host (Retry, a setting, a reset) asks the worker to `dropHost`;
+  never unload a host under a call. A render (`LocalSynthService.renderChunkToFile`) runs only on
+  the resident host of its own engine and never loads one.
 - **Never another voice.** Playback never changes the voice on its own (AGENTS.md;
   `docs/LISTEN_PLAYBACK.md` → "One voice, never swapped"). Audio the player can't get stops it
   there (`LocalListenPlayer.hold` → `stalled`), and the controller tells why
@@ -131,7 +136,8 @@ provider owns its host, model store, voice catalog and chunk limits.
   `ListenHTMLBlocks.version`; library pages rebuild once and positions / audio must be remapped
   like `LibraryStore.migrateParagraphLayout` does.
 - **Engine loads never re-route playback.** Views call `setDefaultSelection` (Settings),
-  `ArticleVoiceChange.apply` (a picker) or `deleteModel`; they never restart playback.
+  `ArticleVoiceChange.apply` (a picker) or `deleteModel`; they never restart playback or load an
+  engine.
 - **Persisted ids and keys** never change (AGENTS.md); review any diff that touches one.
 
 ## Verifying here

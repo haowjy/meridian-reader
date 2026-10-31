@@ -32,6 +32,9 @@ extension LocalTTSCoordinator: LibraryAudioEffects {
         synthQueue.setEphemeral(cacheKey: key, true)
     }
 
+    /// The saved bake jobs of audio the work let go are adopted now, not at the next launch.
+    func heldAudioChanged() { drainPendingIntoQueue() }
+
     /// The target was read at init, before the launch maintenance rebuilt the page's paragraphs
     /// or merged it into another page.
     func remapPendingResume(article: UUID, _ move: (ListenResumeTarget) -> ListenResumeTarget) {

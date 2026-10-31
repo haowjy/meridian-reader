@@ -22,8 +22,9 @@ Listen UI  →  SpeechController  →  LocalListenEngine (bound per play, one vo
 ```
 
 The engine reports events (`PlaybackEngineEvent`: audible, paused, position, finished, stalled);
-the session decides. What binds, and what happens while the voice's engine loads or stops, is in
-`LISTEN_PLAYBACK.md` → "Engine binding".
+the session decides. Only the render queue's worker loads an engine, for the work it takes
+(`LISTEN_PLAYBACK.md` → "Render queue", "Loads"). What binds, and what happens while the voice's
+engine loads or stops, is in `LISTEN_PLAYBACK.md` → "Engine binding".
 
 ## Kokoro
 
@@ -144,7 +145,8 @@ ML stages it downloaded, off the main thread, whenever they are found), and in D
 The route settings (`KokoroRouteSettings`) belong to `FluidAudioProvider`. Its Listen debug panel
 section (`KokoroRouteDebugSection`, from the provider's `debugSections`) changes them through it
 (`setCPUThreads`), then asks the coordinator to rebuild the live host
-(`LocalTTSCoordinator.reloadEngine`, which knows no engine).
+(`LocalTTSCoordinator.reloadEngine`, which knows no engine): the render queue's worker drops it
+after the call in flight, and its next Kokoro work loads one built the new way.
 
 
 ## Phonon

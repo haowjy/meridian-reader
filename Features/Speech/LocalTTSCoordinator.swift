@@ -18,7 +18,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Engine selection, voices and launch-step flags (a suite in tests).
     let defaults: UserDefaults
     let crashGuard: EngineCrashGuard
-    /// Bake jobs waiting for the engine to load, kept across launches.
+    /// Saved and prepared articles' bake jobs, kept across launches until they are done.
     let pendingBakes: PendingBakeJobStore
     /// What was playing, written as it plays: launch reads it to resume after a crash.
     let resumePoints: ListenResumePointStore
@@ -72,7 +72,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     private(set) var voicePacksRevision: UInt64 = 0
     private var voiceChoiceToken = 0
 
-    /// Loads the default's engine (`selecting`'s, when given) after crash recovery. `selecting` is a Debug launch's `-selectEngine` (`LaunchOptions`).
+    /// Loads no engine: the render queue's worker loads the engine of the work it takes, and at the
+    /// end of the launch's hold the default's (`endLaunchHold`). `selecting` is a Debug launch's
+    /// `-selectEngine` (`LaunchOptions`): the default takes that engine's voice.
     /// One-time launch steps are `LaunchMigration`s, run by `AppComposition`, which builds the
     /// files and settings it works over (tests: `LibraryTestEnvironment`).
     init(
@@ -109,18 +111,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         let playing = resumePoints.load()
         launchCrash = crashGuard.consumeCrashInfo(lastActivity: playing?.at)
         if let launchCrash { recover(from: launchCrash, playing: playing) }
-        // The default's engine loads at launch; an article in another engine loads its own on play.
-        start(defaultSelection.engine)
-    }
-
-    /// Start loading `id`, or mark it unavailable when it can't run here.
-    private func start(_ id: SpeechEngineID) {
-        guard engines.contains(id) else { return }
-        guard engines.supports(id) else {
-            synth.markUnavailable(id)
-            return
-        }
-        beginWarm(id)
     }
 
     /// The previous process died inside `crash.engine`. Its provider decides (Kokoro: resume on the
@@ -149,37 +139,37 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// The engine loaded or loading, for logs ("—" when none).
     var engineLabel: String { activeLocalEngineID?.rawValue ?? "—" }
-    /// The on-device engine is loaded and serves listening and bake-ahead.
-    var usesLocalEngine: Bool { synth.state.readyEngineID != nil }
 
-    /// Retry, or any play while paused for it (`SpeechController.userPerform`): a fresh engine
-    /// session with the same engine and voice, then rendering and prepared audio go on.
+    /// Retry, or any play while paused for it (`SpeechController.userPerform`): the render queue
+    /// drops the engine's host, and its next work loads a fresh one, same engine and voice; then
+    /// rendering and prepared audio go on.
     func retryAfterEngineStop() {
         guard isPausedForRetry else { return }
         isPausedForRetry = false
         ListenTimingLog.log("engine_retry", ["engine": engineLabel])
-        let id = activeLocalEngineID
-        Task { [weak self] in
-            if let id { await self?.reloadEngine(id) }
-            self?.synthQueue.isPausedForRetry = false
-        }
+        if let id = activeLocalEngineID { synthQueue.dropHost(engineID: id.rawValue) }
+        synthQueue.isPausedForRetry = false
     }
 
-    /// Launch: until `endLaunchHold`, the render queue adopts no saved bake job and renders
-    /// nothing, so nothing renders on paragraphs the launch's maintenance (left audio work, the
-    /// layout pass, dedupe, the prune) is about to rebuild, merge or delete, and the jobs it
-    /// remaps are adopted as it leaves them. The engine still loads meanwhile.
+    /// Launch: until `endLaunchHold`, the render queue adopts no saved bake job, renders nothing
+    /// and loads no engine, so nothing renders on paragraphs the launch's maintenance (left audio
+    /// work, the layout pass, dedupe, the prune) is about to rebuild, merge or delete, and the
+    /// jobs it remaps are adopted as it leaves them.
     func holdRenderingForLaunch() {
         isHeldForLaunch = true
         synthQueue.isHeldForLaunch = true
     }
 
-    /// The launch's maintenance has finished: adopt the saved bake jobs if the engine is loaded
-    /// (else when it is), and render.
+    /// The launch's maintenance has finished: adopt the saved bake jobs and render, the worker
+    /// loading the first job's engine. With nothing queued, the worker preloads the Settings
+    /// default's engine, so the first Play doesn't wait for its load.
     func endLaunchHold() {
         guard isHeldForLaunch else { return }
         isHeldForLaunch = false
         drainPendingIntoQueue()
+        if synthQueue.primaryCacheKey == nil, engines.supports(defaultSelection.engine) {
+            synthQueue.preload(engineID: defaultSelection.engine.rawValue)
+        }
         synthQueue.isHeldForLaunch = false
     }
 
@@ -189,24 +179,14 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return pendingResume
     }
 
-    // MARK: - Waiting for the engine (launch, diagnostics)
+    // MARK: - Diagnostics
 
-    /// Waits while a model loads (`LocalEngineState.warming`) until the load settles (loaded,
-    /// failed, cancelled), or `timeout` passes.
-    func waitForEngineLoad(timeout: Duration) async {
-        let deadline = ContinuousClock.now + timeout
-        while synth.state.warmingEngineID != nil, ContinuousClock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(200))
-        }
-    }
-
-    /// Runs `work` with the model to itself: a load in flight settled, the render queue paused
-    /// with its worker stopped (it finishes the chunk in flight) and the live host let go, so the
-    /// models `work` loads are the only ones resident. Each wait gives up after `timeout`. The
-    /// queue resumes afterwards; its next render loads the engine again.
+    /// Runs `work` with the model to itself: the render queue paused with its worker stopped (it
+    /// finishes the load or chunk in flight) and the live host let go, so the models `work` loads
+    /// are the only ones resident. The wait gives up after `timeout`. The queue resumes
+    /// afterwards; its next work loads the engine again.
     func withRenderingQuiet<T>(timeout: Duration = .seconds(15 * 60), _ work: () async throws -> T) async rethrows -> T {
         let deadline = ContinuousClock.now + timeout
-        await waitForEngineLoad(timeout: timeout)
         synthQueue.isPausedForProbe = true
         defer { synthQueue.isPausedForProbe = false }
         while synthQueue.isWorkerRunning, ContinuousClock.now < deadline {
@@ -216,12 +196,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return try await work()
     }
 
-    /// `id`'s provider changed how it renders (a route or thread setting): rebuild its live host
-    /// when it is the engine in use. Cached audio stays; the render pace starts over.
-    func reloadEngine(_ id: SpeechEngineID) async {
+    /// `id`'s provider changed how it renders (a route or thread setting): the render queue drops
+    /// its host, and its next work for it loads one built the new way. Cached audio stays; the
+    /// render pace starts over.
+    func reloadEngine(_ id: SpeechEngineID) {
         RenderPace.shared.reset()
-        guard activeLocalEngineID == id else { return }
-        await synth.reload(id, voice: engineVoices[id]).value
+        synthQueue.dropHost(engineID: id.rawValue)
     }
 
     // MARK: - SynthQueueContext (route-aware background)
@@ -241,6 +221,18 @@ final class LocalTTSCoordinator: SynthQueueContext {
     var cacheEngineID: String { (activeLocalEngineID ?? engines.defaultEngine.id).rawValue }
 
     var synthRenderer: SynthChunkRendering { synth }
+
+    var residentEngineID: String? { synth.residentEngineID?.rawValue }
+
+    func makeResident(_ engineID: String, priority: RenderPriority) async throws {
+        let id = SpeechEngineID(rawValue: engineID)
+        try await synth.makeResident(id, voice: engineVoices[id], priority: priority)
+    }
+
+    func dropHost(_ engineID: String) {
+        guard synth.engineID.rawValue == engineID else { return }
+        synth.turnOff()
+    }
 
     /// Voice selected for a multi-voice engine (nil for single-voice engines).
     func voice(for id: SpeechEngineID) -> String? { engineVoices[id] }
@@ -262,10 +254,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Cache voice key of the active local engine (loaded or loading): what bake marks count.
     var activeCacheVoice: String? { activeLocalEngineID.flatMap(cacheVoice(of:)) }
 
-    /// C138a: what renders for the article with `cacheKey`: its own selection, when that is an
-    /// on-device engine and that engine is loaded. Unlocked articles render in the default (which
-    /// they then lock: `lockedRenderTarget`). nil renders nothing; no other engine or voice is
-    /// ever substituted.
+    /// C138a: what renders for the article with `cacheKey`: its own selection, loaded or not (the
+    /// render queue's worker loads it). Unlocked articles render in the default (which they then
+    /// lock: `lockedRenderTarget`). nil: no registered engine speaks it, and nothing renders; no
+    /// other engine or voice is ever substituted.
     func renderTarget(for cacheKey: UUID) -> RenderTarget? {
         target(for: storedSelection(of: cacheKey) ?? defaultSelection)
     }
@@ -275,18 +267,14 @@ final class LocalTTSCoordinator: SynthQueueContext {
         target(for: selection(for: cacheKey))
     }
 
-    var engineReady: Bool { synth.state.readyEngineID != nil }
-
-    /// The render target for `selection`; nil when its engine isn't loaded.
-
-    func target(for selection: VoiceSelection) -> RenderTarget? {
-        guard synth.state.readyEngineID == selection.engine,
-              let voice = cacheVoice(of: selection) else { return nil }
+    /// The render target for `selection`; nil when no registered engine speaks it.
+    private func target(for selection: VoiceSelection) -> RenderTarget? {
+        guard let voice = cacheVoice(of: selection) else { return nil }
         return RenderTarget(engineID: selection.engine.rawValue, cacheVoice: voice, engineVoice: selection.voice)
     }
 
-    /// Paragraphs of `cacheKey` that still need audio in what renders now
-    /// (`ArticleAudioCache.missingParagraphs`); nil while no engine is loaded.
+    /// Paragraphs of `cacheKey` that still need audio in its voice
+    /// (`ArticleAudioCache.missingParagraphs`); nil when no registered engine speaks it.
     func missingParagraphs(of cacheKey: UUID, paragraphs: [String]) -> [Int]? {
         guard let target = renderTarget(for: cacheKey) else { return nil }
         return audioCache.missingParagraphs(articleID: cacheKey, paragraphs: paragraphs, engineID: target.engineID,
@@ -330,41 +318,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return true
     }
 
-    /// Load an on-device engine (C138a: only to speak an article in it, or the Settings default; never
-    /// to choose what an article speaks in). Local engines download on first load + warm, and only one
-    /// local engine's models stay loaded (the other host is dropped). Returns once the choice has
-    /// settled (loaded, failed, or replaced by another pick).
-    func loadEngine(_ id: SpeechEngineID) async {
-        guard engines.contains(id) else { return }
-        guard engines.supports(id) else {
-            synth.markUnavailable(id)
-            return
-        }
-        switch synth.state {
-        case .ready(id):
-            return
-        case .warming(id, _, let task):
-            await task.value
-        default:
-            await beginWarm(id).value
-        }
-    }
-
-    /// Load `id` (see `LocalSynthService.load`).
-    @discardableResult
-    private func beginWarm(_ id: SpeechEngineID) -> Task<Void, Never> {
-        synth.load(id, voice: engineVoices[id])
-    }
-
-    /// Tell the render queue what renders now (nothing unless an engine is loaded), and once a
-    /// load finishes fold the waiting bake jobs into the queue.
+    /// What shows the engine's state (Settings' progress, the debug panel, Prepared Audio) looks
+    /// again. Loads are the render queue's worker's (`makeResident`); nothing here starts one.
     private func engineStateChanged() {
-        let state = synth.state
-        synthQueue.renderTargetChanged()
-        if case .ready = state {
-            noteBakeMarksChanged()
-            drainPendingIntoQueue()
-        }
         onRenderStateChange?()
     }
 
@@ -400,13 +356,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
         let fallback = fallbackVoiceAfterDeleting(voice, for: id)
         if engineVoices[id] == voice {
             setEngineVoice(id, fallback)
-            switch synth.state {
-            case .warming(id, _, _), .ready(id), .failed(id, _):
-                synth.turnOff()
-                Task { await loadEngine(id) }
-            default:
-                break
-            }
+            // Its host goes after the call in flight; the next work for it loads a fresh one.
+            synthQueue.dropHost(engineID: id.rawValue)
         }
         if defaultSelection.engine == id, defaultSelection.voice == voice {
             defaultSelection = VoiceSelection(engine: id, voice: fallback)
@@ -441,16 +392,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
     // MARK: - Queue reshuffle (Reader, listening, Save)
 
     /// The Reader opened `cacheKey`, or listening starts or jumps there: its job becomes #1 and
-    /// renders from paragraph `start` to the end, then the paragraphs above. While the engine
-    /// loads, the job waits on disk and joins the queue when the load finishes. An ephemeral
-    /// page's audio starts its TTL again; Save is what marks audio saved.
+    /// renders from paragraph `start` to the end, then the paragraphs above, the worker loading
+    /// its engine. An ephemeral page's audio starts its TTL again; Save is what marks audio saved.
     func openArticle(cacheKey: UUID, paragraphs: [String], from start: Int, isEphemeral: Bool) {
         guard !paragraphs.isEmpty, rendersAhead(cacheKey, paragraphs: paragraphs) else { return }
         focusCacheKey = cacheKey
-        guard usesLocalEngine else {
-            pendingBakes.enqueuePending(articleID: cacheKey, paragraphs: paragraphs, priorityStart: max(0, start))
-            return
-        }
         if isEphemeral { audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date()) }
         synthQueue.enqueue(cacheKey: cacheKey, paragraphs: paragraphs, from: start, isEphemeral: isEphemeral,
                            at: .front)
@@ -461,12 +407,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// The next chapter of the book or series playing (`playing`) renders its opening before its
     /// turn (`GlobalSynthQueue.stageNext`), so it starts without waiting for the model. False when
-    /// nothing renders ahead (a model still loading, a language the engine doesn't speak),
+    /// nothing renders ahead (a voice that can't run here, a language the engine doesn't speak),
     /// and for audio held for unfinished library work (`ArticleAudioCache.held`), which a render
     /// would overwrite before that work reads it.
     @discardableResult
     func stageNextChapter(cacheKey: UUID, after playing: UUID, paragraphs: [String]) -> Bool {
-        guard !paragraphs.isEmpty, usesLocalEngine, rendersAhead(cacheKey, paragraphs: paragraphs),
+        guard !paragraphs.isEmpty, rendersAhead(cacheKey, paragraphs: paragraphs),
               !audioCache.held.contains(cacheKey) else { return false }
         synthQueue.stageNext(cacheKey: cacheKey, after: playing, paragraphs: paragraphs,
                              upTo: Self.stagedChapterParagraphs,
@@ -479,11 +425,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// included, keeps its place and plan and just turns saved.
     func startBakeIfNeeded(articleID: UUID, paragraphs: [String]) {
         guard !paragraphs.isEmpty, rendersAhead(articleID, paragraphs: paragraphs) else { return }
-        loadEngineIfNeeded(effectiveSelection(of: articleID).engine)
         audioCache.markSaved(cacheKey: articleID)
         pendingBakes.enqueuePending(articleID: articleID, paragraphs: paragraphs, priorityStart: 0)
-        // Still loading: the job joins the queue when the load finishes.
-        guard usesLocalEngine else { return }
         synthQueue.enqueue(cacheKey: articleID, paragraphs: paragraphs, isEphemeral: false, at: .back)
     }
 
@@ -567,11 +510,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// can't run here renders nothing: `rendersAhead`).
     var wantsLocalBake: Bool { engines.descriptors.contains { engines.supports($0.id) } }
 
-    /// Persisted pending jobs → queue, once the engine is loaded and the launch hold is over. The
-    /// focused (active) article stays #1; see `GlobalSynthQueue.adoptPending`. A job for audio
-    /// held for unfinished library work (`ArticleAudioCache.held`) waits on disk.
-    private func drainPendingIntoQueue() {
-        guard usesLocalEngine, !isHeldForLaunch else { return }
+    /// Persisted pending jobs → queue, once the launch hold is over (no engine needs to be
+    /// loaded: the worker loads the first job's). The focused (active) article stays #1; see
+    /// `GlobalSynthQueue.adoptPending`. A job for audio held for unfinished library work
+    /// (`ArticleAudioCache.held`) waits on disk until that work lets it go (`heldAudioChanged`).
+    func drainPendingIntoQueue() {
+        guard !isHeldForLaunch else { return }
         let pending = pendingBakes.pendingJobs()
             .filter { rendersAhead($0.articleID, paragraphs: $0.paragraphs) && !audioCache.held.contains($0.articleID) }
         guard !pending.isEmpty else { return }

@@ -13,9 +13,10 @@ protocol ListenUnitSource: AnyObject {
     /// The engine keeps rendering while the app is in the background (Kokoro ONNX CPU route).
     var rendersInBackground: Bool { get }
 
-    /// Load the engine's model if needed. Throws when it can't load. Rendered audio plays
-    /// without it (`renderedParagraph`).
-    func prepare() async throws
+    /// The engine of this play isn't the loaded one: audio still to render waits for the render
+    /// queue's worker to load it ("Preparing the voice"). Rendered audio plays without it
+    /// (`renderedParagraph`).
+    var waitsForVoice: Bool { get }
     /// The whole paragraph's audio when it is rendered (in this voice, or in the previous voice
     /// until it is re-rendered).
     func renderedParagraph(_ paragraph: Int) -> RenderedParagraph?
@@ -56,7 +57,7 @@ final class QueueUnitSource: ListenUnitSource {
     let paragraphs: [String]
     /// C138a: the article's engine and voice. Every file this play reads or asks for is in it.
     /// Audio already rendered in it plays whether its engine is loaded or not; only audio still
-    /// to render waits for the engine.
+    /// to render waits for the render queue's worker to load it.
     let selection: VoiceSelection
     /// The cache voice key of `selection` (nil: no registered engine speaks it).
     private let cacheVoice: String?
@@ -78,10 +79,7 @@ final class QueueUnitSource: ListenUnitSource {
     var engineName: String { coordinator.synth.engineShortName }
     var rendersInBackground: Bool { coordinator.synth.rendersInBackground }
 
-    func prepare() async throws {
-        _ = await coordinator.awaitEngine(for: articleID)
-        try await coordinator.synth.prepare()
-    }
+    var waitsForVoice: Bool { coordinator.synth.residentEngineID != selection.engine }
 
     func renderedParagraph(_ paragraph: Int) -> RenderedParagraph? {
         guard let cacheVoice,

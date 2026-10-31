@@ -139,33 +139,36 @@ player and the lock screen agree. The engine reports facts; it owns no bake poli
   still reports its paragraph, and the player running dry (or a play or resume waiting for audio)
   holds `ReaderListenGap` until a unit starts, it pauses or stops. Back in front the clock starts
   again and catches up. Speed is a pitch-preserving time-stretch on the
-  player (`AVAudioPlayer.enableRate` / `rate`; everything is rendered at 1×). If the host fails
-  to load it calls `LocalSynthService.noteSpeakFailed` and pauses at the spot (`stalled`,
-  `.engineStopped`).
+  player (`AVAudioPlayer.enableRate` / `rate`; everything is rendered at 1×). If the engine fails
+  to load, the render queue fails the chunk the player waits for, and it pauses at the spot
+  (`stalled`, `.engineStopped`).
 
 ### Engine binding
 
 - `LocalSynthService` (`LocalTTSCoordinator.synth`) holds the on-device model: the one resident
-  host behind `LocalChunkRenderer`, and the lifecycle `state` (`LocalEngineState`). A reload, an engine switch, a voice pack's swipe *Remove Download*, Settings'
-  cancel or a failed start lets the host go: its load in flight stops, its models are released and
-  the model call in flight on it finishes, and only then does the next host load, so two hosts'
-  models (two ORT sessions, ≈1 GB) are never resident together. The states: `off` (nothing
-  loaded), `warming(id, progress, task)` (prepare / load in flight; `task` is the single load,
-  cancelling it abandons the load), `ready(id)`, `failed(id, message)` (Settings shows the message;
-  a play waiting on it pauses). On every change the coordinator calls `onEngineChange` and tells
-  the render queue what renders now (`renderTarget`, Render queue).
-- `speak` takes the article's selection once (C138a, `SpeechController.selection(forPlaying:)`)
-  and binds a `LocalListenEngine` in it. Pause, resume, the play icon, "Preparing next…" and stop
-  go to the bound engine until stop or the next `speak`. An on-device
-  engine that isn't loaded loads for the article (`loadEngineIfNeeded`; one is loaded at a time).
-  Audio already rendered in the article's voice plays without it: the player looks the cache up by
-  the article's selection, loaded or not (`QueueUnitSource`), starts at once when the start is
-  rendered and loads the model behind it. Only audio still to render waits for the model
-  (`awaitEngine`).
+  host behind `LocalChunkRenderer`, and the lifecycle `state` (`LocalEngineState`). Only the
+  render queue's worker loads a host (`makeResident`, Render queue → "Loads"); a render never
+  loads one and runs only on the resident host of its own engine. An engine switch, a dropped host
+  (Retry, a thread setting, a media services reset, a voice pack's swipe *Remove Download*),
+  Settings' cancel or a failed load lets the host go: its load in flight stops, its models are
+  released and the model call in flight on it finishes, and only then does the next host load, so
+  two hosts' models (two ORT sessions, ≈1 GB) are never resident together. The states: `off`
+  (nothing loaded), `warming(id, progress, task)` (prepare / load in flight; `task` is the single
+  load, cancelling it abandons the load), `ready(id)`, `failed(id, message)` (Settings shows the
+  message; a play waiting on it pauses). On every change the coordinator calls
+  `onRenderStateChange`.
+- `speak` takes the article's selection once (C138a, `LocalTTSCoordinator.selection(for:)`) and
+  binds a `LocalListenEngine` in it. Pause, resume, the play icon, "Preparing next…" and stop go
+  to the bound engine until stop or the next `speak`. Binding loads nothing: the first chunk the
+  player asks for is the render queue's demand, and its worker loads the article's engine for it
+  first. Audio already rendered in the article's voice plays without the model: the player looks
+  the cache up by the article's selection, loaded or not (`QueueUnitSource`), and starts at once
+  when the start is rendered.
 - Nothing moves a live play to another engine or voice: engine state changes don't re-route.
   Changing an article's voice stops its playback (`ArticleVoiceChange`).
 - Views only call `setDefaultSelection` (Settings), `ArticleVoiceChange.apply` (an article's or a
-  book's picker), `deleteModel` or `synth.cancelDownload`; they never restart playback themselves.
+  book's picker), `deleteModel` or `synth.cancelDownload`; they never restart playback or load
+  an engine themselves.
 
 ### UI binding
 
@@ -177,12 +180,12 @@ follows the spoken sentence until you scroll (`NAVIGATION.md`).
 
 While the phase is playing but nothing is audible and more units remain (`isBufferingNext`), the
 listen bar shows a spinner and "Preparing next…". That is not paused. When that wait is the model
-loading for a play whose start isn't rendered (`isPreparingVoice`: on a fresh launch the default
-voice takes about 10 s to load), its play buttons show `PlayState.preparingVoice` (a spinner;
+loading for a play with nothing queued yet (`isPreparingVoice`: the article's engine isn't the
+loaded one, `ListenUnitSource.waitsForVoice`), its play buttons show `PlayState.preparingVoice` (a spinner;
 VoiceOver "Preparing the voice") and Listen's status line and the Now Playing bar say "Preparing
 the voice". It starts by itself once the model is loaded. Pause holds it (it starts paused), another
 play replaces it, and a load that fails pauses it with "<voice library> stopped." and Retry
-(`noteSpeakFailed`). Extracting or
+(the render queue fails the chunk it waits for). Extracting or
 fetching a page stays `.preparing`, and playback of rendered audio never shows it.
 
 The listening position is saved from the session, whatever is on screen, by
@@ -309,16 +312,32 @@ upsert, `enqueue(at:)` with a placement (`.front`, `.back`, `.behind` the playin
 `focusPlayhead`; nothing builds its own render loop. The coordinator's one entry for the Reader
 opening an article and for listening starting or jumping is `LocalTTSCoordinator.openArticle`.
 
-**What it renders for.** The coordinator owns one render target
-(`LocalTTSCoordinator.renderTarget`, `RenderTarget`): the loaded on-device engine in its selected
-voice, as the audio cache's engine and voice keys. Jobs and pending jobs carry no voice; every
-readiness check, chunk file and publish reads the target at that step. While no engine is loaded
-(a model loading or failed, every voice pack removed / model cleared, a cancelled download) there is no
-target and nothing renders: the worker parks before its next chunk (the call in flight finishes
-and files nothing), a listener waits for its chunk ("Preparing the voice"; a load that fails
-pauses it), and the queue never loads a model itself.
-Once an engine is ready the coordinator restarts it (`GlobalSynthQueue.renderTargetChanged`) and
-the queued jobs, prepared audio and saves included, render in that engine's voice.
+**What it renders for.** Each article renders in its own selection, whatever is loaded
+(`LocalTTSCoordinator.renderTarget(for:)`, `RenderTarget`: the article's engine and voice, as the
+audio cache's engine and voice keys; an article with none takes the Settings default, locked at
+its first render). Jobs and pending jobs carry no voice; every readiness check, chunk file and
+publish reads the target at that step, so a voice change stops queued work in the old voice at
+the next step, and a call in flight in it is discarded at publish. A voice change, or a new
+default, restarts the worker (`GlobalSynthQueue.renderTargetChanged`).
+
+**Loads.** The worker is the only owner of engine loads. It takes the first unit and, when the
+unit's engine isn't the resident one, loads it (the other host goes first) and picks again; a
+listener's chunk is demand, so its engine loads first, at `.userInitiated`, other work's at
+`.utility`. A load in flight is awaited, never started twice. Nothing else loads: not the launch,
+not an enqueue, not the player. At the end of the launch's hold, with nothing queued, the worker
+preloads the Settings default's engine (`preload`), so the first Play doesn't wait for the load;
+work picked before it cancels the preload. An engine that fails to load (or whose load is
+cancelled in Settings) fails the chunks listeners wait for in it, and its jobs wait until a
+listener asks again, Retry, a voice change or a dropped host (`loadFailures`). Retry, the Kokoro
+thread setting (`reloadEngine`) and a media services reset ask the worker to drop the host
+(`dropHost`): the call in flight finishes on it first, and the next work for the engine loads a
+fresh one. Each load logs `engine_load` (`op` start / ready / failed, `reason` preload / listener /
+work, `qos`, `ms`).
+
+**What's missing.** Each job keeps its list of paragraphs still missing audio
+(`ArticleJob.missing`), worked out by `ArticleAudioCache.missingParagraphs` when the job is queued
+or its text, voice or article's audio changes (`ArticleAudioCache.indexChanges(of:)`), and
+shortened by the queue's own publish; not rescanned per chunk.
 
 1. Open an article → it becomes #1; render from the resume point to the end, then fill gaps
    above it.
@@ -336,8 +355,9 @@ the queued jobs, prepared audio and saves included, render in that engine's voic
    prepared audio). A later stage replaces it; another article playing, or the end of the book, unstages
    it (a job that was queued before stays). It counts as playing for admission (`playingCacheKeys`: the
    article playing and the staged chapter).
-5. Pending jobs fold in once the engine is ready and the launch's maintenance has finished
-   (`adoptPending`; Audio cache, Pending jobs): the article being listened to stays #1; any
+5. Pending jobs fold in once the launch's maintenance has finished, and when library audio work
+   lets go of held audio (`adoptPending`; Audio cache, Pending jobs): the article being listened
+   to stays #1; any
    other job is #1 only if the queue is empty; the rest keep their plans, demoted.
 
 `BakePriorityPlan(resume:count:)` is the explicit cursor: from its start to the end, then the
@@ -358,8 +378,8 @@ saved (`.back` keeps a queued job where it is).
 fetched through Follow's one fetch queue (`FollowCenter.fill` → `FetchQueue`, one fetch at a time,
 paced per site) and stored in place, then the article's paragraphs go
 to the queue as an ordinary bake job (`LocalTTSCoordinator.queuePrepare` → `startBakeIfNeeded`, a
-plan from paragraph 0, queued at the back (#1 when nothing else is), kept in the pending jobs while the
-engine loads). When the job leaves the queue (`bakeCompleted`, through
+plan from paragraph 0, queued at the back (#1 when nothing else is), and kept in the pending
+jobs until it is done). When the job leaves the queue (`bakeCompleted`, through
 `LocalTTSCoordinator.onRenderStateChange`) the article is done once no paragraph needs audio in the
 prepare voice (the one rule, `ArticleAudioCache.missingParagraphs`); a job that left unfinished goes back once, then
 the article is marked failed. So the article playing and the staged chapter always go first, the
@@ -398,8 +418,8 @@ Mode is on (`BakeConditions`) and resumes on the change notification. Before eve
 | inactive | render | listener's chunks only; bake-ahead parks |
 | background | listener's chunks; bake-ahead of the playing article and the staged next chapter during a burst (below); other articles park | no model call (`.deferred`): playback plays what is rendered, then pauses; bake-ahead parks |
 
-With no engine loaded (no render target) no model call starts in any phase: a listener waits for
-the engine, bake-ahead parks.
+Admission doesn't wait for an engine: it reads the resident host (with none loaded, the right-hand
+column), and the worker loads the unit's engine before its call (Render queue → "Loads").
 
 The renderer checks it again right before each model call (`LocalChunkRenderer`,
 `RenderAdmission.modelCallsAllowed`). Both engines render on the CPU alone (Phonon on Core ML's
@@ -585,15 +605,18 @@ highlight and the paragraph picker stay fine-grained.
   stored in an Apple voice has none again and takes the Settings default at its next first use;
   audio filed under Apple is deleted (`TTS_ENGINES.md` → "Retired engines").
 
-**Pending jobs.** Articles saved or opened while the engine was cold are kept as pending bake
-jobs in `Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`: the paragraphs and the
-paragraph to start from; they render in the voice selected when they do) and fold into the queue
-once the engine is ready. At launch the queue is held from the first audio-cache step
+**Pending jobs.** Saved and prepared articles' bake jobs are kept until done in
+`Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`: the paragraphs and the
+paragraph to start from; they render in the voice selected when they do), so a relaunch picks
+them up. At launch the queue is held from the first audio-cache step
 (`AppComposition.prepareAudioCache`, before the first frame) until the library's launch
 maintenance has finished (`AppLaunch.maintainLibrary`: left audio work, layout pass, dedupe,
-prune): it adopts no pending job and renders nothing, though the engine loads meanwhile
+prune): it adopts no pending job, renders nothing and loads no engine
 (`LocalTTSCoordinator.holdRenderingForLaunch`). So nothing renders on paragraphs that maintenance
-rebuilds or merges, and the jobs it remaps are adopted as it leaves them.
+rebuilds or merges, and the jobs it remaps are adopted as it leaves them (`endLaunchHold`; the
+worker then loads the first job's engine, or with none preloads the default's). A job whose audio
+is held for unfinished library work waits on disk until a run of that work lets it go
+(`LibraryAudioEffects.heldAudioChanged`), then is adopted in the same session.
 Nothing bakes while the app is suspended: the app registers no
 background task, and full-article rendering in the background is not promised.
 
@@ -748,7 +771,7 @@ Developer options on (`NAVIGATION.md` → "Developer options"):
   lines of `ListenDebugLog`; Debug builds add the engine probe and Kokoro's CPU route benchmark.
 
 **Timing log.** `Application Support/ListenTiming/timing.jsonl` (rotates at 2 MB to
-`timing.1.jsonl`): launch, open, play, model load, every `synth` call (chars, wall ms, audio s,
+`timing.1.jsonl`): launch, open, play, model load (`engine_load`), every `synth` call (chars, wall ms, audio s,
 phonemes, `mem_mb`), chunk / paragraph ready and failed, waits, first audio, buffering, a hold
 before a pause (`playback_held`), a refusal (`listen_refused`), app phase and background events, remote commands, interruptions, migrations,
 cache prunes, chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`), a

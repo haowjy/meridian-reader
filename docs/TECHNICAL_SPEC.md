@@ -570,9 +570,10 @@ The button is a thin accent pill (`OverTextPill`: its label in `TypeStyle.row` s
   says "<voice library> stopped." with *Retry*. In a live play `LocalListenPlayer`'s producer stops
   at the first chunk not ready (`playback_held`), lets the buffer drain, then the engine pauses and
   reports `stalled(.engineStopped)`, which shows the same toast. Retry, or any play
-  (`SpeechController.userPerform`), runs `retryAfterEngineStop`: a fresh host via `reloadEngine`,
-  then the queue resumes. Each Kokoro ONNX crash steps `cpuThreads` down one (minimum 2). No crash
-  changes the engine or voice.
+  (`SpeechController.userPerform`), runs `retryAfterEngineStop`: the render queue drops the
+  engine's host (`GlobalSynthQueue.dropHost`) and resumes, and its next work loads a fresh one.
+  Each Kokoro ONNX crash steps `cpuThreads` down one (minimum 2). No crash changes the engine or
+  voice.
 
 ## Tests (C133)
 

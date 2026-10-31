@@ -63,6 +63,10 @@ final class ArticleAudioCache {
     /// checked when the index is loaded and when a unit is stored — so reads never touch the
     /// disk; they run on every scrubber redraw and per synth chunk. `.some(nil)`: no index.
     @ObservationIgnored private var indexes: [UUID: IndexFile?] = [:]
+    /// How many times each article's index changed in this process (every write, delete, rekey,
+    /// and a rewrite on disk that the next read reloads): the render queue keeps a job's missing
+    /// paragraphs until its article's count moves (`indexChanges(of:)`).
+    @ObservationIgnored private var indexChangeCounts: [UUID: UInt64] = [:]
     /// Each article's `meta.json` kind, read once and kept current by every meta write (all of
     /// them go through this class): asked per chunk request. `.some(nil)`: no meta.
     @ObservationIgnored private var kinds: [UUID: CacheMeta.Kind?] = [:]
@@ -138,10 +142,20 @@ final class ArticleAudioCache {
         return loaded
     }
 
+    /// How many times `articleID`'s index changed in this process.
+    func indexChanges(of articleID: UUID) -> UInt64 { indexChangeCounts[articleID, default: 0] }
+
+    /// Every change of an article's index goes through here (a first read from disk doesn't
+    /// change it). nil: the article has no index.
+    private func setIndex(_ index: IndexFile?, for articleID: UUID) {
+        indexes[articleID] = .some(index)
+        indexChangeCounts[articleID, default: 0] &+= 1
+    }
+
     /// Make `index` the article's index: in memory first (it describes the files as they are
     /// now, even if the write below fails), then `index.json`.
     func saveIndex(_ index: IndexFile, for articleID: UUID) throws {
-        indexes[articleID] = .some(index)
+        setIndex(index, for: articleID)
         try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
     }
 
@@ -150,12 +164,13 @@ final class ArticleAudioCache {
     /// matches the disk.
     func publishIndex(_ index: IndexFile, for articleID: UUID) throws {
         try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
-        indexes[articleID] = .some(index)
+        setIndex(index, for: articleID)
     }
 
     /// Forget the in-memory copy (after rewriting the directory on disk); the next read reloads it.
     private func dropIndex(for articleID: UUID) {
         indexes.removeValue(forKey: articleID)
+        indexChangeCounts[articleID, default: 0] &+= 1
     }
 
     func readIndexFile(for articleID: UUID) -> IndexFile? {
@@ -234,7 +249,7 @@ final class ArticleAudioCache {
         if fileManager.fileExists(atPath: dir.path) {
             try fileManager.removeItem(at: dir)
         }
-        indexes[articleID] = .some(nil)
+        setIndex(nil, for: articleID)
         kinds[articleID] = .some(nil)
         bumpContentRevision()
     }
@@ -468,7 +483,7 @@ extension ArticleAudioCache {
         if !fileManager.fileExists(atPath: dst.path) {
             try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
             try fileManager.moveItem(at: src, to: dst)
-            indexes[oldKey] = .some(nil)
+            setIndex(nil, for: oldKey)
             kinds[oldKey] = .some(nil)
             kinds[newKey] = nil
             dropIndex(for: newKey)

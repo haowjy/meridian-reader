@@ -9,7 +9,7 @@ protocol LibraryAudioEffects: AnyObject {
     var audioCache: ArticleAudioCache { get }
     /// Chunk plans by engine: what aligning audio with rebuilt paragraphs cuts them by.
     var chunkPlans: ChunkPlans { get }
-    /// Bake jobs waiting for the engine: a rebuilt page's job follows its paragraphs.
+    /// Bake jobs kept across launches: a rebuilt page's job follows its paragraphs.
     var pendingBakes: PendingBakeJobStore { get }
     /// The crash-resume file: library work moves the point it names along with the page.
     var resumePoints: ListenResumePointStore { get }
@@ -28,6 +28,9 @@ protocol LibraryAudioEffects: AnyObject {
     func markListenCacheEphemeral(_ key: UUID, canonicalURL: String?)
     /// Audio changed outside the render queue: what shows rendered audio redraws.
     func noteBakeMarksChanged()
+    /// A run of library audio work changed what `audioCache.held` holds: saved bake jobs of the
+    /// audio it let go may render now.
+    func heldAudioChanged()
     /// The library moved the page the crash-resume target names (read at launch, before the
     /// library's maintenance): the target follows, as `move` places it.
     func remapPendingResume(article: UUID, _ move: (ListenResumeTarget) -> ListenResumeTarget)

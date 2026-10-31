@@ -136,7 +136,11 @@ extension LibraryStore {
     @discardableResult
     private func performStoredWork(planned: Set<ObjectIdentifier>) -> LibraryAudioWorkOutcome {
         var outcome = LibraryAudioWorkOutcome()
-        defer { audio.audioCache.held = outcome.held }
+        let heldBefore = audio.audioCache.held
+        defer {
+            audio.audioCache.held = outcome.held
+            if outcome.held != heldBefore { audio.heldAudioChanged() }
+        }
         let rows: [LibraryAudioWork]
         do {
             rows = try fetchAudioWork(context)

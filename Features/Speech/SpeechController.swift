@@ -123,15 +123,6 @@ final class SpeechController {
     /// What the shell shows next as a toast (`noticeShown` once it has).
     private(set) var notice: ListenNotice?
 
-    /// C138a: the voice of the article with `articleID`: its own selection (locked now if it is
-    /// brand new). Its engine starts loading if it isn't; the player waits for it. Never another
-    /// voice.
-    func selection(forPlaying articleID: UUID) -> VoiceSelection {
-        let selection = localTTS.selection(for: articleID)
-        localTTS.loadEngineIfNeeded(selection.engine)
-        return selection
-    }
-
     /// The shell showed `notice` (`RootView`).
     func noticeShown(_ id: UUID) {
         if notice?.id == id { notice = nil }
@@ -232,7 +223,7 @@ final class SpeechController {
     /// What you hear waits for its on-device voice to load: playing, and nothing at its start is
     /// rendered yet (audio already rendered plays without the model). It starts by itself once
     /// the model is loaded; Pause holds it, another play replaces it, and a load that fails
-    /// pauses it with a notice (`noteSpeakFailed`).
+    /// pauses it with a notice (the render queue fails the chunk it waits for).
     var isPreparingVoice: Bool {
         _ = listenStatusRevision
         return engineIsPreparingVoice()
@@ -642,7 +633,7 @@ final class SpeechController {
         speak(fromUTF16Offset: playback.utf16Offset, startPaused: playback.phase == .paused)
     }
 
-    /// Binds the article's voice (`selection(forPlaying:)`) and plays from `offset`. A page bound
+    /// Binds the article's voice and plays from `offset`. A page bound
     /// that can't be read (`cantReadNotice`; one bound paused, then played) stays bound and
     /// unplayed, with the notice.
     func speak(fromUTF16Offset offset: Int, startPaused: Bool) {
@@ -658,7 +649,9 @@ final class SpeechController {
             return
         }
         if !startPaused { audioSession.activate() }
-        let selection = selection(forPlaying: articleID)
+        // C138a: its own selection (locked now if it is brand new). The render queue's worker
+        // loads its engine for the first chunk the player asks for. Never another voice.
+        let selection = localTTS.selection(for: articleID)
         boundSelection = selection
         // The phase already says playing or paused (the intent that led here set it); the engine
         // confirms with its own events.

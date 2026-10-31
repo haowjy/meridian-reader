@@ -36,10 +36,10 @@ extension LocalTTSCoordinator: PrepareRendering {
     /// C138a: the cache voice `key`'s audio is in: its own selection's, else the default's.
     func prepareVoice(of key: UUID) -> String? { cacheVoice(of: effectiveSelection(of: key)) }
 
-    /// The engine is loaded and the launch's hold over (so no job waits for either), and
-    /// `cacheKey`'s job is neither in the queue nor in the pending jobs on disk.
+    /// The launch's hold is over (so no job waits for it), and `cacheKey`'s job is neither in the
+    /// queue nor in the pending jobs on disk.
     func bakeJobEnded(cacheKey: UUID) -> Bool {
-        usesLocalEngine && !isHeldForLaunch && !synthQueue.hasJob(cacheKey: cacheKey)
+        !isHeldForLaunch && !synthQueue.hasJob(cacheKey: cacheKey)
             && !pendingBakes.pendingJobs().contains { $0.articleID == cacheKey }
     }
 
