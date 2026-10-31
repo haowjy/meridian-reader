@@ -7,9 +7,9 @@ import SwiftUI
 /// `rows`, so nothing here runs on a row's redraw.
 ///
 /// The row's one prepare option: *Prepare* (the toggle off, nothing prepared), *Turn Off
-/// Prepare* (toggle on, still to finish), *Remove Prepared audio* (all prepared, red). *Turn Off
+/// Prepare* (toggle on, still to finish), *Remove Prepared Audio* (all prepared, red). *Turn Off
 /// Prepare* asks first (`onTurnOffPrepare`, by the control the menu opened from), then turns it
-/// off and keeps what is prepared. *Remove Prepared audio* deletes its pages' audio and keeps them
+/// off and keeps what is prepared. *Remove Prepared Audio* deletes its pages' audio and keeps them
 /// out of its prepare (P8). *Edit Details…* holds the name too (no *Rename…*). Delete asks
 /// through `LibraryScreenState`'s dialogs, which the screen hosts.
 struct FolderMenu: View {

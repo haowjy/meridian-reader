@@ -153,7 +153,7 @@ final class PrepareCenter {
     }
 
     /// Where `article`'s prepare stands, the one answer its row's mark and the *Prepare* /
-    /// *Remove Prepare* rows (its row's menu, the Reader's and Now Playing's ⋯) read: while any
+    /// *Remove Prepared Audio* rows (its row's menu, the Reader's and Now Playing's ⋯) read: while any
     /// prepare (its own or its folder's) has it queued, preparing with its real progress
     /// (paragraphs rendered of its total) when it is the page rendering now, waiting its turn
     /// (`queued`) otherwise, paused when every prepare holding it is (C90); that wins over
@@ -195,7 +195,7 @@ final class PrepareCenter {
         }
     }
 
-    /// Something of `folder` is preparing or has audio kept: its *Remove Prepared audio* can run.
+    /// Something of `folder` is preparing or has audio kept: its *Remove Prepared Audio* can run.
     func hasPreparedAudio(_ folder: Folder, articles: [Article]) -> Bool {
         if isQueued(.folder(folder.id)) { return true }
         // Read fresh (C134): audio from listening appears without the list changing, so a memo
@@ -430,8 +430,8 @@ final class PrepareCenter {
         advance()
     }
 
-    /// The Prepared Audio list's *Remove Prepare* / *Remove Prepared audio*: the page's or folder's own
-    /// action, the one its menu runs (`deletePrepared audio(of:)`). When what was prepared has left
+    /// The Prepared Audio list's *Remove Prepared Audio*: the page's or folder's own action, the one
+    /// its menu runs (`deletePreparedAudio(of:)`). When what was prepared has left
     /// the library, only the prepare goes, with the audio no other prepare holds (except what
     /// listening needs, `purgeAudio`).
     func remove(_ id: UUID) {
@@ -476,7 +476,7 @@ final class PrepareCenter {
         advance()
     }
 
-    /// *Remove Prepare* in a page's menu: the page leaves every prepare (`forget`) and its audio
+    /// *Remove Prepared Audio* in a page's menu: the page leaves every prepare (`forget`) and its audio
     /// goes (unless listening needs it, `purgeAudio`). It stays deleted: a folder's prepare no
     /// longer lists it, so the folder shows as not all prepared, and nothing renders it again
     /// until it is played or Prepare is tapped (the page's, or the folder's, which lists the
@@ -490,7 +490,7 @@ final class PrepareCenter {
         advance()
     }
 
-    /// *Remove Prepared audio* on a folder: its prepare goes (its toggle off), its pages leave every
+    /// *Remove Prepared Audio* on a folder: its prepare goes (its toggle off), its pages leave every
     /// other prepare (`forget`), and their audio goes (unless listening needs it, `purgeAudio`).
     func deletePreparedAudio(of folder: Folder) {
         if let record = record(for: .folder(folder.id)) { stop { $0.recordID == record.id } }

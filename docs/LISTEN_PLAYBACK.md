@@ -512,13 +512,13 @@ the article is marked failed. So the article playing and the staged chapter alwa
 thermal / Low Power hold applies, and in the background prepares render on after them, chunk
 after chunk, while audio plays. Paused or stopped in the background, nothing renders. Nothing renders for prepared audio while
 the device can run no voice (`wantsLocalBake`). Pause and *Remove* take the article's job out of the queue
-(`removeBakeJob`), and *Remove Prepared Audio* and *Remove Prepared Audio* delete audio (`PrepareCenter.purgeAudio`),
+(`removeBakeJob`), and *Remove Prepared Audio* deletes audio (`PrepareCenter.purgeAudio`),
 never for what listening needs (`needsAudio`: the article bound to the session, playing, paused or
-finished, and the chapter staged after it): its job and its audio stay. *Remove Prepared Audio* (an article, in its menu or the Prepared Audio list) or *Remove Prepared Audio* (a folder, the same) takes
+finished, and the chapter staged after it): its job and its audio stay. *Remove Prepared Audio* (an article's or a folder's, in its menu or the Prepared Audio list) takes
 the article out of every prepare (a folder's prepare drops it, never queues it again), the article
 playing too, whose audio stays for the session, saved or ephemeral as the library keeps the article. The voice a prepare is shown in is read
 from its audio (`ArticleAudioCache.renderedVoice`: its live directory's voice), so a
-voice change shows at once; finished prepared audio aren't re-rendered by it (*Prepare Again* does that).
+voice change shows at once. A new default voice in Settings doesn't re-render finished prepared audio; an article's or book's *Voice* change, or *Prepare Again*, does.
 A folder's prepare is its Prepare toggle (the header's Prepare control): while it is on, pages added to the folder later join
 it after each stored library edit (`PrepareCenter.takeInNewArticles`), except pages whose prepared audio
 were deleted (`PrepareRecord.deleted`); turned off, its waiting pages leave it and its done ones

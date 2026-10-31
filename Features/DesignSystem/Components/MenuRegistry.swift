@@ -5,7 +5,7 @@ import Foundation
 /// no state change in that place undoes) and when it can run now (`enabled`). Outside where it
 /// applies it is hidden; where it applies but can't run now it is greyed out (DR-09 as refined
 /// by C98: grey when some other state could make it usable there, hidden when nothing could).
-/// Every menu (a row's ⋯ and long press, a folder header's *More*, the ⋯ panels, the Prepared audio
+/// Every menu (a row's ⋯ and long press, a folder header's *More*, the ⋯ panels, the Prepared Audio
 /// rows, the Now Playing bar, History) is assembled from here by kind and place; the renderer
 /// only adds each option's title, symbol and action (`MenuRegistry.rows`). Pure values, so the
 /// table test (`MenuRegistryTests`) checks every kind × place × state.
@@ -160,7 +160,7 @@ enum MenuRegistry {
         // A folder. Its row's tap opens it; its header has ▶ and Prepare beside *More*.
         Spec(option: .continueFolder, kind: .folder, places: [.row], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
         Spec(option: .playFromStart, kind: .folder, places: [.header], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
-        // One row: Prepare, Stop Preparing while on, Remove Prepared audio once all is prepared.
+        // One row: Prepare, Stop Preparing while on, Remove Prepared Audio once all is prepared.
         Spec(option: .folderPrepare, kind: .folder, places: [.row],
              enabled: { $0.prepareIsOn || $0.hasPreparedAudio || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
         Spec(option: .removePreparedAudio, kind: .folder, places: [.header], enabled: { $0.hasPreparedAudio }, greyIf: "nothing downloaded or downloading"),

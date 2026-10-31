@@ -8,7 +8,7 @@ import SwiftUI
 /// Listening    Voice ›, Language ›, Speed ›
 /// Appearance / Reading   Appearance ›, Reading › (one card; drill-ins)
 /// Browsing     Block Ads (on)
-/// Prepared Audio & Storage   Prepared audio ›, sizes, Version (long-press: developer options)
+/// Prepared Audio & Storage   Prepared Audio ›, sizes, Version (long-press: developer options)
 /// About        Privacy Policy, Support, Acknowledgements
 /// Developer    (developer options only) listen debug, fake extraction failure, the panel
 /// ```

@@ -73,7 +73,7 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
         get { target.isFolder && folderToggle }
         set { folderToggle = newValue }
     }
-    /// Pages of the folder whose prepared audio were deleted (*Remove Prepare* on one, decision P8):
+    /// Pages of the folder whose prepared audio were deleted (*Remove Prepared Audio* on one, decision P8):
     /// they don't join again while the toggle stays on, until Prepare is asked for again.
     var deleted: [UUID] = []
 

@@ -30,7 +30,7 @@ extension LibraryStore {
         try edit(skips ? "skip in playback" : "play in playback") { article.skipsInPlayback = skips }
     }
 
-    /// Whether `article` has audio on disk for any voice (*Remove Prepared audio* is offered).
+    /// Whether `article` has audio on disk for any voice (*Remove Prepared Audio* is offered).
     func hasPreparedAudio(_ article: Article) -> Bool {
         guard let key = article.key else { return false }
         return audio.audioCache.hasCache(for: key)

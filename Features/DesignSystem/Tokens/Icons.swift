@@ -143,7 +143,7 @@ enum Icons {
     static let prepared = "arrow.down.circle.fill"
     /// The Prepared Audio list.
     static let preparedAudio = "tray.and.arrow.down"
-    /// *Remove Prepare* (a page) and *Remove Prepared audio* (a folder), in their menus and the
+    /// *Remove Prepared Audio* (a page or a folder), in their menus and the
     /// Prepared Audio list: the audio deleted.
     static let removePrepare = "trash.circle"
     /// Turning a folder's Prepare off (its audio stays).

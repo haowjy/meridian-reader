@@ -7,8 +7,8 @@ import SwiftUI
 /// row's ↓ mark does that.
 ///
 /// Every row is a page (C110): *Prepare Again* renders that page again, *Keep* keeps the voice of the
-/// prepare it came from, and *Remove Prepare* (the row's swipe too) is the page's own, as in its
-/// menu (`PrepareCenter.deletePrepared audio(of:)`). A folder's prepare is turned off on its screen.
+/// prepare it came from, and *Remove Prepared Audio* (the row's swipe too) is the page's own, as in its
+/// menu (`PrepareCenter.deletePreparedAudio(of:)`). A folder's prepare is turned off on its screen.
 struct PrepareMenu: View {
     let item: PrepareArticles.Item
     let preparedAudio: PrepareCenter
@@ -37,7 +37,7 @@ struct PrepareMenu: View {
         }
     }
 
-    /// *Remove Prepare* for a page, *Remove Prepared audio* for a folder, as their own menus say; the
+    /// *Remove Prepared Audio*, for a page or a folder, as their own menus say; the
     /// row's swipe too.
     var removeRow: MenuRow {
         MenuRow(id: "menuDeleteAudio", title: Verbs.deleteAudio, icon: Icons.delete, isDestructive: true) {

@@ -65,7 +65,7 @@ struct ArticleActions {
         return url
     }
     /// Where its prepare stands (`PrepareCenter.state(of:)`): preparing or prepared, its
-    /// menu offers *Remove Prepare*.
+    /// menu offers *Remove Prepared Audio*.
     var hasPrepare: Bool { article.map { preparedAudio.state(of: $0) != .notPrepared } == true }
     /// There is text to save: the article's, the page's own (not a link's), or the browser's page
     /// once extracted.
@@ -127,8 +127,8 @@ struct ArticleActions {
         }))
     }
 
-    /// *Prepare* / *Remove Prepare*: *Remove Prepare* takes the page out of every prepare and
-    /// keeps it out (`PrepareCenter.deletePrepared audio(of:)`, P8).
+    /// *Prepare* / *Remove Prepared Audio*: *Remove Prepared Audio* takes the page out of every prepare and
+    /// keeps it out (`PrepareCenter.deletePreparedAudio(of:)`, P8).
     func togglePrepare() {
         guard let article else { return }
         // Preparing saves it (C104): a page played without saving goes into the Library first.

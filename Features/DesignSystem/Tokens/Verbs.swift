@@ -22,7 +22,7 @@ import Foundation
 /// | Play from Here, Play from Start | `Icons.play`, `Icons.previous` |
 /// | Prepare / Remove Prepare (a page, its menu and its prepare in the list) | `Icons.prepare` / `Icons.removePrepare` |
 /// | Prepare / Stop Preparing (a folder) | `Icons.prepare` / `Icons.turnOffPrepare` |
-/// | Remove Prepared audio (a folder, its menu and its prepare in the list) | `Icons.removePrepare` |
+/// | Remove Prepared Audio (a folder, its menu and its prepare in the list) | `Icons.removePrepare` |
 /// | Move to… / Save to Folder… | `Icons.move` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
 /// | Mark All Above as Finished | `Icons.markAllAboveFinished` |
@@ -33,7 +33,7 @@ import Foundation
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
 /// | Pause (a prepare), Prepare Again | `Icons.pause`, `Icons.reprepare` |
 /// | New Folder…, Import from…, Paste Text…, Add Link…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.paste`, `Icons.link`, `Icons.follow` |
-/// | Prepared audio, Settings | `Icons.preparedAudio`, `Icons.settings` |
+/// | Prepared Audio, Settings | `Icons.preparedAudio`, `Icons.settings` |
 enum Verbs {
     // MARK: A page
 
@@ -60,7 +60,7 @@ enum Verbs {
     static let deleteAllPrepared = String(localized: "Delete All…")
     static let clearListeningAudio = String(localized: "Clear Audio from Listening…")
     /// A folder's, in its menu and in the Prepared Audio list: its prepare off and gone, and
-    /// *Remove Prepare* for each of its pages.
+    /// *Remove Prepared Audio* for each of its pages.
     static let removePreparedAudio = String(localized: "Remove Prepared Audio")
     /// A prepare done: the Prepared Audio list's section, a folder header's control, the ↓ VoiceOver
     /// reads before a prepared row's line two.

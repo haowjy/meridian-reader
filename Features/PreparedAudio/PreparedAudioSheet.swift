@@ -26,7 +26,7 @@ import SwiftUI
 /// Every row is a `ListRow`: a tap opens what was prepared (the Reader for a page, the Library
 /// at a folder); a queued one has its pause / resume control before the ⋯; ⋯ and the long press
 /// are the prepare's menu (`PrepareMenu`, the same in every section); swipe left is its
-/// *Remove Prepare* (*Remove Prepared audio* on a folder).
+/// *Remove Prepared Audio* (a page or a folder).
 struct PreparedAudioSheet: View {
     @Environment(ShellState.self) private var shell
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Where a page's or folder's prepare stands (`PrepareCenter.state(of:)`): what its row's mark,
-/// its menu's *Prepare* / *Remove Prepare* and a folder header's Prepare control show.
+/// its menu's *Prepare* / *Remove Prepared Audio* and a folder header's Prepare control show.
 enum PrepareState: Equatable {
     /// Not prepared and not queued.
     case notPrepared

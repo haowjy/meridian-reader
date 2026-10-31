@@ -262,7 +262,7 @@ extension LibraryStore {
         try edit("delete all prepared") { for article in articles { deleteWithoutSaving(article) } }
     }
 
-    /// *Remove Prepared audio*, *Clear Audio from Listening*: the page's audio only, its old
+    /// *Remove Prepared Audio*, *Clear Audio from Listening*: the page's audio only, its old
     /// voices too; the page stays saved.
     func deletePreparedAudio(_ article: Article) {
         guard let key = article.key else { return }
