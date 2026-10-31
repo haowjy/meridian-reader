@@ -9,7 +9,10 @@ import SwiftUI
 /// `Radius.card`. Used by Follow's chapter preview and, on regular width, the Reader and Now
 /// Playing. Compact width's Listen (and its *Nothing Playing*) is the same sheet, over the chrome too, as
 /// Apple Music's player: the screen behind shows dimmed above it, and with `largePullTargets` its
-/// grabber strip is a full tap target tall and its band (the player card) pulls it as well.
+/// top is a handle (`Control.bar` tall, full width, opaque in the page's colour, the grabber centred,
+/// the text starting below it) and its band (the player card) pulls it too, whatever the text's scroll
+/// position. The dimmed gap above it can't: a drag that starts within about 78 pt of the screen's top is
+/// the system's (Notification Center) and never reaches the app.
 ///
 /// It is drawn in `palette` (the reading theme's colours for the Reader and Now Playing, the same
 /// for both), which it sets on what it holds (`readingSurface`). A dark theme over a light app
@@ -31,7 +34,7 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     let palette: ReadingPalette
     /// The reading sheets' bars and full screen; nil: the header above the content, no band.
     private let chrome: ReadingChrome?
-    /// Compact Listen: the grabber strip is a full tap target tall and the band pulls the sheet too.
+    /// Compact Listen: the top band is a `Control.bar` handle, and the band pulls it too.
     private let largePullTargets: Bool
     private let header: Header
     private let content: Content
@@ -136,13 +139,20 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     }
 
     /// The grabber and the header: pulled down, they pull the sheet. With `largePullTargets` the
-    /// grabber strip is a full tap target tall, so there is something to take hold of. A reading
-    /// sheet's header starts `gap` lower than its text (the text runs up under the gap, out of
-    /// sight until full screen).
+    /// grabber is centred in a band `Control.bar` tall, so there is something to take hold of. A
+    /// reading sheet's header starts `gap` lower than its text (the text runs up under the gap, out of
+    /// sight until full screen) and is opaque (`ReadingBars`): the text scrolls out of sight under it.
     private var headerBlock: some View {
         VStack(spacing: 0) {
-            SheetGrabber()
-                .frame(maxWidth: .infinity, minHeight: largePullTargets ? Control.tap : nil, alignment: .top)
+            if largePullTargets {
+                SheetGrabber()
+                    .frame(maxWidth: .infinity, minHeight: Control.bar)
+            } else {
+                SheetGrabber()
+                    .padding(.top, Spacing.xs)
+                    .padding(.bottom, Spacing.xxs)
+                    .frame(maxWidth: .infinity)
+            }
             header
         }
         .contentShape(Rectangle())
@@ -279,8 +289,6 @@ struct SheetGrabber: View {
         Capsule()
             .fill((reading?.secondaryInk ?? Palette.secondaryInk).opacity(0.35))
             .frame(width: 36, height: 5)
-            .padding(.top, Spacing.xs)
-            .padding(.bottom, Spacing.xxs)
             .accessibilityHidden(true)
     }
 }
@@ -365,6 +373,7 @@ private struct SheetPreviewFrame: View {
             Palette.scrim.opacity(look.dim)
             VStack(spacing: 0) {
                 SheetGrabber()
+                    .padding(.top, Spacing.xs)
                 Text("Notes on Tides")
                     .typeStyle(.title)
                     .foregroundStyle(Palette.ink)
