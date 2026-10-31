@@ -2,23 +2,23 @@ import SwiftUI
 
 /// What you hear, opened up (`ReadingPage`): on regular width a `Sheet` over everything that
 /// shrinks back into the Now Playing bar, on compact width a cover over everything, chrome too. In the
-/// Reader's colours and type (the reading theme, `palette`): the spoken paragraph highlighted in
-/// full ink, the others dimmed.
+/// Reader's colours and type (the reading theme, `palette`): the spoken paragraph on the theme's
+/// highlight, every paragraph in full ink. Regular width's sheet:
 ///
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ <- grabber (the sheet's)
 /// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- the top bar, as in the Reader: the pill (the sheet's)
 /// │ `banner` (the ^ hint, while on)      │   names where it plays from and shrinks it; Aa, `accessory`
-/// │ `text`: dimmed, SPOKEN in full ink   │   The text fills the page, under the header and the
-/// │         dimmed                       │   band; it follows the audio. (↑) is Jump to Audio,
-/// │          ( ↑ Jump to Audio )         │   centred, 12 pt above the card, once you scroll away
-/// │ ─────────────────────────────────────│ <- hairline divider
-/// │ [art] Title          time left (Voice)│ <- title; Voice trailing (aligned right)
-/// │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ <- scrub row
-/// │ [🔖]  [⏮]    (⏸)    [⏭]   [⋯]      │ <- transport
+/// │ `text`: SPOKEN on the highlight      │   The text fills the page, under the header and the
+/// │                                      │   band; it follows the audio. (↑) is Jump to Audio,
+/// │          ( ↑ Jump to Audio )         │   centred, 12 pt above the band, once you scroll away
+/// │ `band`: title, scrub row, transport  │ <- the bottom band
 /// └──────────────────────────────────────┘
 /// ```
+///
+/// Compact Listen has no top bar (the grabber's band alone) and its band is the player card on glass
+/// (`ReaderPlayerCard`), its tools beside the transport.
 ///
 /// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
 /// `playState` / `onPlayPause`, at the bottom right. Jump to Audio (`JumpToAudioButton`, a thin accent pill, "↑ Jump to Audio") floats

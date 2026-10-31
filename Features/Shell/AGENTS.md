@@ -14,7 +14,7 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   mode open in place via `ReaderSurface` and feed it. The host draws translucent glass (`ChromeSkin`; App
   sets `ChromeSkin.forcesMaterial` for `-chromeFallback`) with only a gradient fade behind. Screens reserve
   `ChromeHome.clearance(step: 0)` above the safe area (`CompactChromeInsets`) and report their scroll with
-  `CompactChromeScroll`. The round buttons share `ChromeCircleFace`. Change the host, never one screen.
+  `CompactChromeScroll`. Listen and Library Read's ⋯ share one round face, `ChromeCircleFace`. Change the host, never one screen.
 - **Listen is not under the chrome.** `isNowPlayingPresented` draws `NowPlayingScreen` above the chrome
   in `BrowseStartView.layers`, as a `Sheet` that covers the screen (`ReadingShowing.cover`), below the ⋯
   menu overlay and the sheet presenters so Voice, Save to Folder, ⋯ and the debug panel open over it.

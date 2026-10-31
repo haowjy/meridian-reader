@@ -132,8 +132,8 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   drawn while typing or in Library Edit (row 1 is then the field alone).
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **48 pt**
   (`Control.bar`, Safari's address bar and buttons), for every piece in every row and state (pill,
-  fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, Library Read's ⋯), on every screen. The round
-  buttons share one face (`ChromeCircleFace`).
+  fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, Library Read's ⋯), on every screen. Listen and
+  Library Read's ⋯ share one round glass face (`ChromeCircleFace`).
   **Concentric:** a 48 pt end holds a 24 pt glyph slot inset 12 (`endGlyphSlot`, `endInset`), so the slot's
   radius is the end cap's less the inset. **Every hit area is at least 44 pt** (`Control.tap`): the glass is
   48 tall, so the hit shape is the glass itself (`hitOutset` 0; `ChromeHitShape`, `tapTarget(size)`), and
@@ -267,8 +267,8 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   with the text and is never read aloud, and its label stays "▶ Listen" while the page plays. It plays the
   page from its saved spot and slides Listen up; for the page you hear it only slides Listen up. The
   reader stays a plain reader while its page plays: no spoken paragraph, underlined sentence, following
-  or Jump to Audio (the playhead is Listen's), and no saved-spot underline; *Play from Here* moves the
-  playhead and slides Listen up. The end of the text scrolls to just above the chrome as it is drawn
+  or Jump to Audio (the playhead is Listen's), and no saved-spot underline (a page that isn't playing
+  keeps its saved spot underlined); *Play from Here* moves the playhead and slides Listen up. The end of the text scrolls to just above the chrome as it is drawn
   (two rows, one, the bubble). Full screen is the text alone, down to the screen's foot, where its end then scrolls: no floating
   ▶ / ⏸ (that is Listen's and the regular-width sheets'). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor. Aa is in the address field beside ↻ (`readerAppearance`), and ⋯ → *Text Appearance* opens the same panel, a popover pointing at Aa either way. The web page
   under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
@@ -507,8 +507,8 @@ commas.
 - **The home** (`LibraryHomeView`, C104): Library shows what is saved: top-level folders and pages in
   no folder (*New Folder…* is in the title line's ⋯ on compact width, ＋ on regular width). Preparing an article saves it to the Library first (an article played without
   saving goes to the top level). History shows every article you started listening to
-  ("opened" is started: `lastPlayedAt`), saved, prepared or played without saving (no folders,
-  links or chapters), most recent first, in the same rows; a tap plays one. An unsaved one's ⋯ (and
+  ("opened" is started: `lastPlayedAt`), saved, prepared or played without saving (articles only,
+  a book's chapters and link pages too; no folders), most recent first, in the same rows; a tap plays one. An unsaved one's ⋯ (and
   long-press) has *Save to Library*, which moves the article into the Library (it stays in History), *Save to Folder…*, and *Remove from History* (the same remove as *Remove from
   Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
@@ -520,18 +520,17 @@ commas.
   same on every empty screen (`AddToLibraryTiles`; a folder's go into the folder, every other's into the top
   level): *Browse the Web* (the Browser), *Import a File* (as *Import from…*), *Paste Text* (as *Paste Text…*)
   and *Add a Link* (as *Add Link…*), each closing what is over the screen first (a sheet, Listen) and landing
-  where its result shows (the Browser, or the Library with the picker, editor or address field up); History says *No History*, "Articles you play without saving show
-  up here for 7 days.", over the same four. Search with no match is the system's search view.
+  where its result shows (the Browser, or the Library with the picker, editor or address field up); History says *No History*, "Articles you listen to show up here.",
+  over the same four. It keeps the last 50 started (`LibraryStore.recentLimit`); one played without saving
+  also leaves after 7 days unplayed (`pruneUnsaved`). Search with no match is the system's search view.
   Search filters the tab on screen: on
   Everything the Library's folders and pages across the tree, on
   History its pages; folders by name, then pages by title (the newest first among equal
   titles); a result keeps its location and shows the path (one at the top level keeps its own second
   line). Rows are the compact two-line
-  rows (below): an article row plays on a tap, a folder row opens, and each has only ⋯. The bar's ▶
-  resumes what you last heard, and a folder row's ⋯ › *Continue* resumes its own pages without
-  opening it (D14). A first-run empty Library shows *Find Something
-  to Listen To*, naming 🌐 and ＋ by their symbols, with *Browse the Web* and *Import
-  Book…* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
+  rows (below): an article row plays on a tap, a folder row opens, and each has only ⋯. On regular width the
+  bar's ▶ resumes what you last heard (compact width has Listen instead), and a folder row's ⋯ ›
+  *Continue* resumes its own pages without opening it (D14). The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
   default, or *Title*), *New Folder…, Import from…, Paste Text…, Add Link…, Prepared Audio*.
@@ -1088,7 +1087,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
   stays readable. The article's title is the first thing in its text; when the article's own first
   heading repeats it, that heading takes the title's look and shows once. The spoken paragraph is on the theme's highlight;
-  every paragraph stays in full ink (C105). The *Jump to Audio* button takes the card's fill and the theme's ink; the scrub row, the bubble, the jump hint, the ⋯ panel and the speed popover
+  every paragraph stays in full ink (C105). The *Jump to Audio* pill takes the theme's accent and its ink on the accent; the scrub row, the bubble, the jump hint, the ⋯ panel and the speed popover
   take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on the
   same reading article, in both, so everything below applies to it too.
 - **The bottom band** (flat on the page background, no card, no shadow) shows the artwork tile,
@@ -1320,8 +1319,9 @@ control for control.
 
 ## Settings
 
-**⋯ › Settings** (`SettingsView`; the last row of every ⋯ panel, and the sidebar's bottom row on
-iPad; titled *Settings*, *Done* closes it) is a `NavigationStack` of cards on paper. Every list of cards in the app (the Library and its
+**Settings** (`SettingsView`) is a `NavigationStack` of cards on paper: on compact width the chrome
+pill's third destination, in place under the chrome; on regular width a sheet opened from the last row
+of every ⋯ panel and the sidebar's bottom row (titled *Settings*, *Done* closes it). Every list of cards in the app (the Library and its
 folders, History, Settings and its pages, a Voice picker, Follow, Following, the Move tree, Folder
 Details, Book Import, Prepared Audio) has the same rows: at least 48 pt at the default text size
 (`Control.bar`, the system Settings' proportions, set once by `cardListStyle`: no row sets its own; a two-line row grows to its content), 16 pt

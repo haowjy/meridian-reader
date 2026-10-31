@@ -48,8 +48,8 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   Library home; a scroll up of 24 pt or a tap on the bubble brings both rows back; Pages mode never
   folds; Library Edit stays expanded; Listen slides up over the chrome and a pull down closes it back to where you were (a pull pushed back
   up before release keeps it);
-  Listen's floating pause pauses in full screen; an in-place reader's full screen is the text alone, to
-  the screen's foot), with a
+  Listen's floating pause pauses in full screen; an in-place reader's full screen is the text alone, its
+  background to the screen's foot and its last line scrolling just clear of the home indicator's strip), with a
   recorded video and frames for the motion. Launch with the arguments below.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
 - One scheme, `MeridianReader`, with one test target, `MeridianReaderTests` (unit, `Tests/`).
@@ -83,7 +83,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 | Path | What lives there |
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
-| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `PDF` (PDFKit text extract into pages), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import for EPUB/PDF), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
+| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `PDF` (PDFKit text extract into pages), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import for EPUB/PDF), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `PreparedAudio/`: the prepare list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
 | `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock, the compact chrome host), `Library` (the Library's screens, rows, the Move tree), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |

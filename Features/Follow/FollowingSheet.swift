@@ -48,7 +48,7 @@ struct FollowingSheet: View {
         let checking = follow.checking.contains(folder.id)
         return List {
             Section {
-                fact(String(localized: "Last Checked"), state.lastCheckedAt.map { FollowText.when($0) } ?? "—")
+                fact(String(localized: "Last Checked"), state.lastCheckedAt.map { FollowText.when($0) } ?? String(localized: "Not yet"))
                 fact(String(localized: "Next Check"), nextCheck(folder))
                 fact(String(localized: "Chapter Text"), chapterText(progress))
                 fact(String(localized: "Last New Chapters"), state.lastAddedAt.map {

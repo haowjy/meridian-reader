@@ -53,7 +53,7 @@ struct WhatsNewSheet: View {
 #Preview("What's New · light") {
     WhatsNewSheet(notes: [
         "Listen to web articles with high-quality on-device voices.",
-        "Save articles and listen offline — no account needed.",
+        "Save articles and listen offline. No account needed.",
         "Follow web serials and get new chapters automatically.",
         "Import EPUB books and listen chapter by chapter.",
     ]) {}
@@ -63,7 +63,7 @@ struct WhatsNewSheet: View {
 #Preview("What's New · dark") {
     WhatsNewSheet(notes: [
         "Listen to web articles with high-quality on-device voices.",
-        "Save articles and listen offline — no account needed.",
+        "Save articles and listen offline. No account needed.",
     ]) {}
     .previewVariant(.dark)
 }

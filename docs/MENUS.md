@@ -235,7 +235,7 @@ The names for the chrome that runs along the bottom of every screen.
 | `PlayerCard` | enum | Shared constants (artwork size, progress height) and the flat card surface for `NowPlayingBar`. |
 | `NowPlayingBar` | view | The compact flat card (artwork, title, groove progress line, play/pause) on the `PlayerCard` surface (no shadow), in `SurfaceBand`'s top row. |
 | `NowPlayingBarView` | view | The same card in the Reader's band; hides on Now Playing and while sheets are up. |
-| `ReaderPlayerCard` | view | Compact Listen's player card, sized to its rows, no divider: title, Jump to Audio and Save; site and time left; scrubber; speed over Aa and Voice over ⋯ at the margins, the `card`-size transport centred between. Drawn on glass by the cover band. |
+| `ReaderPlayerCard` | view | Compact Listen's player card, sized to its rows, no divider: title and Save; site and time left; scrubber; speed over Aa and Voice over ⋯ at the margins, the `card`-size transport centred between. Drawn on glass by the cover band. |
 | `ReadingBottomBand` | view | The bottom band of the Reader and Now Playing: integrated controls flat on the page background, separated by a hairline divider. |
 | `ReadingPage` | view | A reading page in place (compact) or in a `Sheet` (regular), laid out by `ReadingBars`. |
 | `ReaderSheet` | view | The Reader's page: its band and Listen over `ReadingPage`. |

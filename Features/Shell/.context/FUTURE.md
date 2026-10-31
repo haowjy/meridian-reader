@@ -28,7 +28,3 @@
   portrait orientation key is set and the layout was only checked in portrait. Decide whether to
   allow landscape, then check the sidebar, dock (`playerClusterWidth`) and reading measure there.
 
-- Bottom chrome redesign (approved 2026-10-25, in progress): the four-PR plan and the screen audit live in
-  the project context (`work/bottom-chrome/build-plan.md`, `audit.md`). Open choices, each with a default
-  taken from the mockups: Reader far left, idle Reader dimmed with an empty state, Reader returning to the
-  screen you came from, the collapsed width fallback order, no Reader item in the iPad sidebar.

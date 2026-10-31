@@ -106,7 +106,7 @@ struct LibraryHomeView: View {
         } else {
             EmptyState(tab == .recent ? String(localized: "No History") : String(localized: "Start Your Library"),
                        description: tab == .recent
-                           ? Text("Articles you play without saving show up here for 7 days.")
+                           ? Text("Articles you listen to show up here.")
                            : Text("Save articles from the web, a file, text or a link.")) {
                 AddToLibraryTiles(folder: nil)
             }

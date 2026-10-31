@@ -2,7 +2,7 @@ import SwiftUI
 
 /// A big square-ish tile that starts something: a large symbol over a short label, on a soft filled
 /// surface. Set side by side (two to a row) where a screen offers a few clearly separate ways in,
-/// such as the empty Library's *Browse the Web* and *Import a Book*. `prominent` tints the surface
+/// such as every empty screen's *Browse the Web*, *Import a File*, *Paste Text* and *Add a Link*. `prominent` tints the surface
 /// with the accent for the first choice; the rest sit on the neutral fill.
 struct ActionTile: View {
     let title: String
@@ -52,7 +52,7 @@ struct ActionTileGallery: View {
             PreviewState("two to a row") {
                 HStack(spacing: Spacing.s) {
                     ActionTile(title: "Browse the Web", symbol: Icons.browser, prominent: true) {}
-                    ActionTile(title: "Import a Book", symbol: Icons.book) {}
+                    ActionTile(title: "Import a File", symbol: Icons.importFile) {}
                 }
             }
         }
