@@ -26,7 +26,6 @@ final class TestVoiceProvider: SpeechEngineProvider {
     }
 
     func isInstalled(_ id: SpeechEngineID) -> Bool { true }
-    func deleteModels(_ id: SpeechEngineID) throws {}
 }
 
 private final class TestVoiceHost: LocalSynthHost, @unchecked Sendable {

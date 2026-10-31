@@ -167,7 +167,7 @@ player and the lock screen agree. The engine reports facts; it owns no bake poli
 - Nothing moves a live play to another engine or voice: engine state changes don't re-route.
   Changing an article's voice stops its playback (`ArticleVoiceChange`).
 - Views only call `setDefaultSelection` (Settings), `ArticleVoiceChange.apply` (an article's or a
-  book's picker), `deleteModel` or `synth.cancelDownload`; they never restart playback or load
+  book's picker), `deleteVoicePack` (Settings) or `synth.cancelDownload`; they never restart playback or load
   an engine themselves.
 
 ### UI binding
@@ -322,16 +322,17 @@ default, restarts the worker (`GlobalSynthQueue.renderTargetChanged`).
 
 **Loads.** The worker is the only owner of engine loads. It takes the first unit and, when the
 unit's engine isn't the resident one, loads it (the other host goes first) and picks again; a
-listener's chunk is demand, so its engine loads first, at `.userInitiated`, other work's at
-`.utility`. A load in flight is awaited, never started twice. Nothing else loads: not the launch,
+listener's chunk is demand, so its engine loads first, at `.userInitiated`; every other load,
+the playing article's bake-ahead with no chunk waited on included, runs at `.utility`. A load in flight is awaited, never started twice. Nothing else loads: not the launch,
 not an enqueue, not the player. At the end of the launch's hold, with nothing queued, the worker
 preloads the Settings default's engine (`preload`), so the first Play doesn't wait for the load;
 work picked before it cancels the preload. An engine that fails to load (or whose load is
 cancelled in Settings) fails the chunks listeners wait for in it, and its jobs wait until a
 listener asks again, Retry, a voice change or a dropped host (`loadFailures`). Retry, the Kokoro
 thread setting (`reloadEngine`) and a media services reset ask the worker to drop the host
-(`dropHost`): the call in flight finishes on it first, and the next work for the engine loads a
-fresh one. Each load logs `engine_load` (`op` start / ready / failed, `reason` preload / listener /
+(`dropHost`): the call or load in flight finishes on it first, and the next work for the engine
+loads a fresh one (the drop clears its failed-load mark when it is applied, so a load that fails
+in between doesn't park the rebuild). Each load logs `engine_load` (`op` start / ready / failed, `reason` preload / listener /
 work, `qos`, `ms`).
 
 **What's missing.** Each job keeps its list of paragraphs still missing audio

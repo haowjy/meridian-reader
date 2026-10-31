@@ -324,21 +324,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
         onRenderStateChange?()
     }
 
-    /// Delete one local engine's downloaded models (default: the active local engine).
-    /// Kept for Listen debug / CPU-route bench; Voice settings removes packs per voice instead.
-    func deleteModel(_ engine: SpeechEngineID? = nil) throws {
-        let id = engine ?? activeLocalEngineID ?? engines.defaultEngine.id
-        switch synth.state {
-        case .warming(id, _, _), .ready(id), .failed(id, _):
-            synth.turnOff()
-        default:
-            break
-        }
-        try engines.deleteModels(id)
-        voicePacksRevision &+= 1
-        noteBakeMarksChanged()
-    }
-
     func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
         engines.isVoicePackInstalled(voice, for: id)
     }
@@ -347,9 +332,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
         engines.canDeleteVoicePack(voice, for: id)
     }
 
-    /// Remove one on-device voice pack (swipe *Remove Download* on that voice). Heart stays when
-    /// it is the only curated pack; deleting the selected pack falls back to Heart (or another
-    /// installed pack if Heart itself was removed).
+    /// Remove one on-device voice pack (swipe *Remove Download* on that voice). The engine's
+    /// default pack stays when it is the only one; deleting the selected pack falls back to the
+    /// default (or another installed pack if the default itself was removed).
     func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws {
         guard engines.canDeleteVoicePack(voice, for: id) else { return }
         try engines.deleteVoicePack(voice, for: id)
@@ -367,17 +352,16 @@ final class LocalTTSCoordinator: SynthQueueContext {
         noteBakeMarksChanged()
     }
 
-    /// After removing `voice`, prefer Heart (re-seeded from the bundle), else any other installed
-    /// curated pack, else the engine's catalog default.
+    /// After removing `voice`, prefer the engine's default voice (its provider re-seeds it), else
+    /// any other installed pack, else the default anyway.
     private func fallbackVoiceAfterDeleting(_ voice: String, for id: SpeechEngineID) -> String {
-        let heart = engines.descriptor(id)?.defaultVoiceID ?? KokoroVoiceCatalog.defaultVoice
-        if voice != heart, engines.isVoicePackInstalled(heart, for: id) { return heart }
-        if let other = engines.descriptor(id)?.allVoices.map(\.id).first(where: {
+        // `deleteVoicePack` only gets here for an engine a provider registered.
+        guard let descriptor = engines.descriptor(id),
+              let preferred = descriptor.resolvedVoice(nil) else { return voice }
+        if voice != preferred, engines.isVoicePackInstalled(preferred, for: id) { return preferred }
+        return descriptor.allVoices.map(\.id).first {
             $0 != voice && engines.isVoicePackInstalled($0, for: id)
-        }) {
-            return other
-        }
-        return heart
+        } ?? preferred
     }
 
     func noteBakeMarksChanged() {

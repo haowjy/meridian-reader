@@ -136,7 +136,7 @@ provider owns its host, model store, voice catalog and chunk limits.
   `ListenHTMLBlocks.version`; library pages rebuild once and positions / audio must be remapped
   like `LibraryStore.migrateParagraphLayout` does.
 - **Engine loads never re-route playback.** Views call `setDefaultSelection` (Settings),
-  `ArticleVoiceChange.apply` (a picker) or `deleteModel`; they never restart playback or load an
+  `ArticleVoiceChange.apply` (a picker) or `deleteVoicePack`; they never restart playback or load an
   engine.
 - **Persisted ids and keys** never change (AGENTS.md); review any diff that touches one.
 

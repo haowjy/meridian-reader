@@ -111,9 +111,13 @@ final class GlobalSynthQueue {
     /// `.listener` while someone listens to the article — waits on one of its chunks or is
     /// playing it — else `.bakeAhead`.
     private func renderPriority(for cacheKey: UUID) -> RenderPriority {
-        let listening = chunkWaiters.keys.contains { $0.cacheKey == cacheKey }
-            || coordinator?.playingCacheKey == cacheKey
-        return listening ? .listener : .bakeAhead
+        hasWaiter(on: cacheKey) || coordinator?.playingCacheKey == cacheKey ? .listener : .bakeAhead
+    }
+
+    /// A listener waits on one of the article's chunks now. Loads go at `.listener` only then:
+    /// playing alone, with audio ready ahead, is no reason to load at the user's priority.
+    private func hasWaiter(on cacheKey: UUID) -> Bool {
+        chunkWaiters.keys.contains { $0.cacheKey == cacheKey }
     }
 
     private func observeRunState() {
@@ -399,14 +403,16 @@ final class GlobalSynthQueue {
     /// The next work for the engine loads a fresh host.
     func dropHost(engineID: String) {
         hostDrops.insert(engineID)
-        loadFailures.remove(engineID)
         if worker == nil { applyHostDrops() }
         if !stack.isEmpty { kickWorker() }
     }
 
+    /// Clears each engine's failed-load mark here, not when the drop is asked for: a load in
+    /// flight then may still fail and mark it, and the rebuild must still get its fresh try.
     private func applyHostDrops() {
         guard let coordinator, !hostDrops.isEmpty else { return }
         for engineID in hostDrops { coordinator.dropHost(engineID) }
+        loadFailures.subtract(hostDrops)
         hostDrops.removeAll()
     }
 
@@ -680,7 +686,9 @@ final class GlobalSynthQueue {
         // The worker owns loads: this unit's engine is loaded now if it isn't the resident one,
         // and the next step picks again (the queue may have moved during the load).
         if coordinator.residentEngineID != target.engineID {
-            await load(target.engineID, reason: priority == .listener ? "listener" : "work", priority: priority)
+            let waited = hasWaiter(on: job.cacheKey)
+            await load(target.engineID, reason: waited ? "listener" : "work",
+                       priority: waited ? .listener : .bakeAhead)
             return nil
         }
         do {

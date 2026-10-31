@@ -54,13 +54,6 @@ enum PhononModelStore {
         }
     }
 
-    /// Remove the installed copy (debug: model delete). The next load copies the bundle again.
-    @MainActor static func delete() {
-        install = nil
-        let fm = FileManager.default
-        for url in [modelsDirectory, stagingDirectory] + downloadLeftovers { try? fm.removeItem(at: url) }
-    }
-
     nonisolated private static func installShippedBundle() throws {
         let t0 = ListenTimingLog.now()
         guard let source = shippedBundle else {

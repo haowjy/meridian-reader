@@ -14,8 +14,6 @@ protocol SpeechEngineProvider: AnyObject {
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost?
     /// Model files for `id` look present on disk.
     func isInstalled(_ id: SpeechEngineID) -> Bool
-    /// Remove downloaded model files for `id`.
-    func deleteModels(_ id: SpeechEngineID) throws
     /// Make sure `voice`'s files are on disk (prepare if needed) before it's selected.
     /// No-op for engines whose voices ship with the model.
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws
@@ -131,10 +129,6 @@ final class EngineRegistry {
 
     func isInstalled(_ id: SpeechEngineID) -> Bool {
         byID[id]?.1.isInstalled(id) ?? false
-    }
-
-    func deleteModels(_ id: SpeechEngineID) throws {
-        try byID[id]?.1.deleteModels(id)
     }
 
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {

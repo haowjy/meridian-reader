@@ -57,11 +57,6 @@ final class PhononProvider: SpeechEngineProvider {
     /// The model bundle ships in the app (`PhononModelStore`): always installed.
     func isInstalled(_ id: SpeechEngineID) -> Bool { id == .phonon }
 
-    func deleteModels(_ id: SpeechEngineID) throws {
-        guard id == .phonon else { return }
-        PhononModelStore.delete()
-    }
-
     /// Every catalog voice is in the shipped bundle.
     func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
         id == .phonon && PhononVoiceCatalog.all.contains(where: { $0.id == voice })

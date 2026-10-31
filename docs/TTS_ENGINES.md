@@ -219,7 +219,7 @@ AppComposition (composition root: the only file that lists libraries)
 SpeechEngineProvider (one per library)      EngineDescriptor (per engine)
   descriptors / retiredEngines                 id, names, subtitle, recommended, sort order
   makeHost(for:voice:) → LocalSynthHost        voices + default, voice defaults key
-  isInstalled / deleteModels                   hardware gate, languages
+  isInstalled                                  hardware gate, languages
   recover(from:playing:)                       onDevice: OnDeviceTraits
   launchMigrations / debugSections(speech:)      cache voice prefix and revision, chunk limits, crash guard
 LocalSynthHost (thin: load + ONE call)
@@ -272,8 +272,8 @@ voice takes the built-in default as any unregistered engine's does.
    `cacheRevision` when the model can change under the same voices, `<short>@<revision>.<voice>`), chunk
    `limits` sized from the per-call cap (measure chars or phonemes per second of audio on a
    device), and `isCrashGuarded` if the library can die uncatchably.
-4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
-   `deleteModels`; override `recover(from:playing:)` if a crash needs more than a pause for Retry,
+4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`;
+   override `recover(from:playing:)` if a crash needs more than a pause for Retry,
    `launchMigrations` for the library's launch steps (`LaunchMigration`s, run after retired
    engines' cleanup), `debugSections(speech:)` for its own Listen debug panel sections, and
    `storedKeys` for settings it stores itself (beyond each engine's voice key), which

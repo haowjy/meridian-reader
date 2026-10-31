@@ -122,14 +122,6 @@ final class FluidAudioProvider: SpeechEngineProvider {
         id == .kokoro && KokoroCPUHost.filesLookInstalled
     }
 
-    /// The ONNX model and FluidAudio's Kokoro dirs (vocab, voice packs, G2P, lexicon).
-    func deleteModels(_ id: SpeechEngineID) throws {
-        guard id == .kokoro else { return }
-        KokoroAssets.clearCachedModels()
-        KokoroONNXModelStore.shared.cancel()
-        KokoroONNXModelStore.shared.delete()
-    }
-
     /// Non-default Kokoro packs are fetched on first use (~0.5 MB); do it at select time so the
     /// first render doesn't wait on the network (and a failed prepare keeps the old voice).
     func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {
