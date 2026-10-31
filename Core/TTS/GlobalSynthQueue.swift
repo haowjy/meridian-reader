@@ -861,9 +861,21 @@ final class GlobalSynthQueue {
             }
             let listened = waited[key] ?? []
             for index in listened.sorted() where usable(index) && missing.contains(index) { offer(index, .listener) }
-            // The first missing paragraph in `range` no listener waits on.
+            // The first missing paragraph in `range` no listener waits on. `missing` is ascending,
+            // so the search starts at the range's first paragraph and stops at its end: a step
+            // costs each job's front, not its whole remaining list.
             func next(in range: Range<Int>) -> Int? {
-                missing.first { range.contains($0) && !listened.contains($0) && usable($0) }
+                guard !range.isEmpty else { return nil }
+                var low = 0, high = missing.count
+                while low < high {
+                    let mid = (low + high) / 2
+                    if missing[mid] < range.lowerBound { low = mid + 1 } else { high = mid }
+                }
+                for index in missing[low...] {
+                    if index >= range.upperBound { return nil }
+                    if !listened.contains(index) && usable(index) { return index }
+                }
+                return nil
             }
             let start = job.plan.priorityStart
             if isStaged {
@@ -872,11 +884,10 @@ final class GlobalSynthQueue {
                 continue
             }
             let ahead = next(in: start..<Int.max)
-            let above = next(in: 0..<start)
             if key == playing {
                 if let ahead { offer(ahead, .playing) }
-                if let above { offer(above, .queued) }
-            } else if let first = ahead ?? above {
+                if let above = next(in: 0..<start) { offer(above, .queued) }
+            } else if let first = ahead ?? next(in: 0..<start) {
                 offer(first, .queued)
             }
         }
