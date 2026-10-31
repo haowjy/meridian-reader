@@ -1,14 +1,14 @@
 import AVFoundation
 import SwiftUI
 
-/// C138a: the one voice switcher. A compact Engine control (Phonon | Kokoro | Apple) filters the
+/// C138a: the one voice switcher. A compact Voices control (Phonon | Kokoro | Apple) filters the
 /// list; each on-device engine's voices (with samples, `VoiceChoiceRows`) or Apple's installed
 /// voices for the language (Premium, Enhanced, then the rest) follow. Picking a voice picks its
 /// engine. Settings › Voice (the default for new articles) and an article's or a book's *Voice*
 /// picker (`VoicePickerSheet`) are this list.
 ///
 /// ```
-/// Engine   [ Phonon | Kokoro | Apple ]
+/// Voices   [ Phonon | Kokoro | Apple ]
 /// PHONON
 ///  Zoey  ✓  Playful, American (default)
 ///  Freya    Bright, British
@@ -65,7 +65,7 @@ struct VoiceSelectionList: View {
     @ViewBuilder
     private var engineSelector: some View {
         Section {
-            SettingsControlRow(title: String(localized: "Engine")) {
+            SettingsControlRow(title: String(localized: "Voices")) {
                 ChoicePicker(options: engineOptions, selection: engineSelection,
                              identifier: "engineRow") { id in
                     Text(engineChipLabel(id)).typeStyle(.row)
@@ -128,6 +128,8 @@ struct VoiceSelectionList: View {
                 Text(notice).foregroundStyle(Palette.destructive).listFooter()
             } else if case .failed(id, let message) = localTTS.synth.state {
                 Text(message).foregroundStyle(Palette.destructive).listFooter()
+            } else {
+                footerText.listFooter()
             }
         }
         .listCard()
@@ -153,6 +155,16 @@ struct VoiceSelectionList: View {
             return String(localized: "Downloading… \(Int(fraction * 100))%")
         }
         return String(localized: "Preparing…")
+    }
+
+    /// What the picked voice is for (`footer`), or why the last voice download failed.
+    @ViewBuilder
+    private var footerText: some View {
+        if let error {
+            Text(error).foregroundStyle(Palette.destructive)
+        } else {
+            Text(footer)
+        }
     }
 
     private var language: String { speech.effectiveLanguageCode }
@@ -191,11 +203,7 @@ struct VoiceSelectionList: View {
             SectionHeader(title: localTTS.engines.systemDescriptor?.displayName ?? "Apple").listHeader()
         } footer: {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                if let error {
-                    Text(error).foregroundStyle(Palette.destructive)
-                } else {
-                    Text(footer)
-                }
+                footerText
                 if !VoiceCatalog.hasHighQualityVoice(forLanguage: language) {
                     Text("Better Apple voices (Enhanced or Premium) can be downloaded in iOS Settings > Accessibility > Spoken Content > Voices.")
                         .accessibilityIdentifier("appleVoiceHint")
