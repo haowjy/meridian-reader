@@ -15,9 +15,12 @@ import Foundation
 /// - **Threads**: while a Neural Engine host is loaded in front, the CPU lane's budget leaves
 ///   `neuralEngineCallCores` for its calls. A CPU call started before that (with the whole
 ///   budget) holds it: a new Neural Engine call waits until it ends.
+/// - **A failed load** takes only that route out: the other lane renders the work. Listeners are
+///   told only when no lane it may use now has a route left for them.
 @MainActor
 final class LanePolicy: RenderPolicy {
     var name: String { isOneLane ? "lanes (one: memory)" : "lanes" }
+    let lanes: [Lane] = [.neuralEngine, .cpu]
 
     /// The CPU a Neural Engine call uses itself (Phonon: about 1.1 cores, p433).
     static let neuralEngineCallCores = 1
@@ -31,8 +34,9 @@ final class LanePolicy: RenderPolicy {
     private(set) var isOneLane = false
 
     func plan(_ situation: RenderSituation) -> RenderPlan {
-        guard situation.phase != .background || situation.audioPlaying else { return RenderPlan() }
-        var plan = RenderPlan()
+        let usable: [Lane] = situation.phase != .background && !isOneLane ? lanes : [.cpu]
+        var plan = RenderPlan(failed: situation.unservable(on: usable))
+        guard situation.phase != .background || situation.audioPlaying else { return plan }
         var taken = Set<Int>()
         var loading = situation.lanes.values.contains { if case .load = $0.work { true } else { false } }
 
@@ -61,15 +65,14 @@ final class LanePolicy: RenderPolicy {
             }
         }
 
-        if situation.phase != .background, !isOneLane { fill(.neuralEngine) }
+        if usable.contains(.neuralEngine) { fill(.neuralEngine) }
         fill(.cpu)
         // Turned to one lane during this plan: the lone load waits for the Neural Engine's call.
         if case .load(let load)? = plan.actions[.cpu], load.alone, plan.actions[.neuralEngine] != nil {
             plan.actions[.cpu] = nil
         }
         if plan.actions.isEmpty, situation.candidates.isEmpty, !loading {
-            let lanes: [Lane] = situation.phase != .background && !isOneLane ? [.neuralEngine, .cpu] : [.cpu]
-            if let route = lanes.lazy.compactMap({ lane in situation.preload.first { $0.lane == lane } }).first,
+            if let route = usable.lazy.compactMap({ lane in situation.preload.first { $0.lane == lane } }).first,
                situation.lanes[route.lane]?.isFree == true, situation.lanes[route.lane]?.resident != route,
                let load = load(route, for: nil, priority: .bakeAhead, in: situation) {
                 plan.actions[route.lane] = .load(load)

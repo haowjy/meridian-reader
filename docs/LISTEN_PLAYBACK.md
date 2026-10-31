@@ -146,14 +146,17 @@ player and the lock screen agree. The engine reports facts; it owns no bake poli
 
 ### Engine binding
 
-- `LocalSynthService` (`LocalTTSCoordinator.synth`) holds the on-device model: the one resident
-  host behind `LocalChunkRenderer`, and the lifecycle `state` (`LocalEngineState`). Only the
-  render queue's worker loads a host (`makeResident`, Render queue → "Loads"); a render never
-  loads one and runs only on the resident host of its own engine. An engine switch, a dropped host
+- `LocalSynthService` (`LocalTTSCoordinator.synth`) holds the on-device models: one resident
+  host per lane behind `LocalChunkRenderer`, each with its lifecycle `state` (`LocalEngineState`;
+  Settings reads an engine's across lanes, `state(of:)`). Only the render queue's worker loads a
+  host (`makeResident`, Render queue → "Loads"); a render never loads one and runs only on the
+  resident host of its own engine on its route's lane. An engine switch on a lane, a dropped host
   (Retry, a thread setting, a media services reset, a voice pack's swipe *Remove Download*),
-  Settings' cancel or a failed load lets the host go: its load in flight stops, its models are
-  released and the model call in flight on it finishes, and only then does the next host load, so
-  two hosts' models (two ORT sessions, ≈1 GB) are never resident together. The states: `off`
+  Settings' cancel or a failed load lets that lane's host go: its load in flight stops, its models
+  are released and the model call in flight on it finishes, and every load waits until each host
+  let go has released its models, so a load that replaces one never holds both (two ORT sessions,
+  ≈1 GB). Different lanes keep their hosts together: two models are resident at once only under
+  `LanePolicy`, which checks the memory first ("The render policy"). The states: `off`
   (nothing loaded), `warming(id, progress, task)` (prepare / load in flight; `task` is the single
   load, cancelling it abandons the load), `ready(id)`, `failed(id, message)` (Settings shows the
   message; a play waiting on it pauses). On every change the coordinator calls
@@ -420,9 +423,11 @@ Prepared Audio").
 One **`GlobalSynthQueue`** owns all on-device synthesis, live and ahead. Each lane renders one
 **chunk** at a time (`GlobalSynthQueue+Render.swift`), so the playhead can preempt bake-ahead
 between chunks; two model calls never run at once on one lane (a lane takes work only while free,
-and its gate, `SynthRenderGate.of(lane)`, is held around every call and load), and a paragraph
-rendering on one lane isn't offered to another, so it is published once. With `SingleCallPolicy`
-only the CPU lane works: one call at a time. Actions reorder the queue through one
+and its gate, `SynthRenderGate.of(lane)`, one per declared lane, is held around every call and
+load), and a paragraph rendering on one lane isn't offered to another, so it is published once.
+A policy names the lanes it plans for (`RenderPolicy.lanes`), and the queue plans only while one of
+them is free. With `SingleCallPolicy` only the CPU lane works: one call at a time, and no plan
+while it runs. Actions reorder the queue through one
 upsert, `enqueue(at:)` with a placement (`.front`, `.back`, `.behind` the playing chapter), and
 `focusPlayhead`; nothing builds its own render loop. The coordinator's one entry for the Reader
 opening an article and for listening starting or jumping is `LocalTTSCoordinator.openArticle`.
@@ -442,11 +447,14 @@ chunk, a Play's first one included, is demand, so its engine loads first, at `.u
 the playing article's bake-ahead with no chunk waited on included, runs at `.utility`. A load in flight is awaited, never started twice. Nothing else loads: not the launch,
 not an enqueue, not the player. At the end of the launch's hold, with nothing queued, the worker
 preloads the Settings default's engine (`preload`), so the first Play doesn't wait for the load;
-work picked before it cancels the preload. An engine that fails to load (or whose load is
-cancelled in Settings) fails the chunks listeners wait for in it, and its jobs wait until a
-listener asks again, Retry, a voice change or a dropped host (`failedLoads`, by route). Only a
-CPU-lane load failing does that; a Neural Engine load that fails takes only that route out, and the
-CPU lane goes on. Retry, the Kokoro thread setting (`reloadEngine`) and a media services reset ask
+work picked before it cancels the preload. A route that fails to load (or whose load is
+cancelled in Settings) is marked with its error until a listener asks again, Retry, a voice change
+or a dropped host (`failedLoads`); the queue offers it to the policy as a fact
+(`RenderCandidate.failedRoutes`), never as a route to render on, and the policy decides whether
+the work waits or its listeners are told (`RenderPlan.failed`; the queue fails their chunks with
+the load's error, and the player pauses). `SingleCallPolicy`: the engine's work waits and its
+listeners are told. `LanePolicy`: the other lane renders the work, and listeners are told only
+when no lane it may use now has a route left (the CPU's failing in the background). Retry, the Kokoro thread setting (`reloadEngine`) and a media services reset ask
 the queue to drop the engine's hosts on every lane (`dropHost`): a free lane's goes at once, a busy
 lane's once the call or load in flight on it ends, and the next work for the engine loads a fresh
 one (the drop clears its failed-load mark when it is applied, so a load that fails
@@ -520,17 +528,21 @@ its done pages and *Keep* stay as they are and only pages it doesn't list join; 
 
 **The render policy.** Whenever a call or load ends, and on every event that can change the
 answer (work queued or moved, a listener waiting, an app-phase change, a hold's change, a resume;
-the kicks of one turn make one plan), the queue asks one policy what to do next
+the kicks of one turn make one plan; none while every lane the policy plans for is busy), the
+queue asks one policy what to do next
 (`RenderPolicy.plan`, `Core/TTS/RenderPolicy.swift`): it hands over the situation
 (`RenderSituation`: the app phase, whether audio plays, a hold, the routes of the engine to
 preload, the candidates, each lane's work in flight and resident route, the cores, the memory the
 process may still take) and gets back an action for each free lane it uses (`RenderPlan`: start a
-call on a route, or load a route), and a hold work waits for. The queue checks it before it acts
-(`RenderPlan.violation`: a route of the candidate's own engine, an action only on its route's
-free lane, none in the background on a lane that doesn't run there, a call only on its route's
-resident host, never two calls on one paragraph, one load at a time), and a plan that breaks one
+call on a route, or load a route), a hold work waits for, and the listeners to tell their chunk
+won't come (`failed`). The queue checks it before it acts (`RenderPlan.violation`: a route of the
+candidate's own engine, an action only on its route's free lane and one of the policy's lanes,
+none in the background on a lane that doesn't run there, a call only on its route's resident host,
+never two calls on one paragraph, one load at a time, nothing else while a load runs alone, no
+failed candidate started), and a plan that breaks one
 is dropped and logged (`render_plan_refused`; a Debug build stops on it). After it starts
-something it plans once more, so a lane still free can take the same job's next paragraph.
+something it plans once more if one of its lanes is still free, so that lane can take the same
+job's next paragraph.
 The route loaded is the lane's resident one: its host is built for that route
 (`SpeechEngineProvider.makeHost(for:voice:)`), and a different route of the same engine (a new
 thread cap) is a new load. The candidates are every job's next unit per demand, in the queue's
@@ -563,8 +575,11 @@ background rule:
 - In front the Neural Engine lane takes the most urgent work whose engine has a route there
   (Phonon), and the CPU lane the most urgent work left: another article, or the same article's
   next paragraphs. Kokoro has no second route and renders on the CPU lane only.
-- In the background only the CPU lane starts calls. The Neural Engine's host stays loaded, unused,
-  and a call cut by the app leaving the front isn't the paragraph's failure: the CPU lane renders it.
+- In the background only the CPU lane starts calls. The Neural Engine's host stays loaded, unused.
+  A Neural Engine call planned in front but reaching the model after the app left it is refused
+  there, before its crash marker (`LocalChunkRenderer` throws `LaneUnavailable`, `Lane.runs(in:)`),
+  and one cut short by the app leaving isn't the paragraph's failure either: its listeners keep
+  waiting and the CPU lane renders it (`call_left_front`, `started` false or true).
 - Threads: while a Neural Engine host is loaded in front, the CPU lane's budget leaves one core for
   its calls (`neuralEngineCallCores`); a CPU call started with the whole budget holds it, and a new
   Neural Engine call waits until it ends (an uncapped CPU call counts 2 cores).

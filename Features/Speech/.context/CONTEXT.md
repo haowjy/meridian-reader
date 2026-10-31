@@ -115,7 +115,10 @@ provider owns its host, model store, voice catalog and chunk limits.
   `SynthRenderGate`), one load at a time across lanes, and a paragraph in a call on one lane is
   never offered to another. Every engine has a CPU route (the registry refuses one without): the
   CPU lane is the only one in the background (`Lane.runsInBackground`) and the app's policy's only
-  one. A lane that can't run in the background is a fact on `Lane`, not a flag on the host.
+  one. A lane that can't run in the background is a fact on `Lane`, not a flag on the host; the
+  renderer holds to it at the model call (`Lane.runs(in:)`, else `LaneUnavailable`, which the
+  queue treats as "plan again", never as a failure or a cancellation). A lane is one `Lane` case:
+  its gate comes from `Lane.allCases`.
   With `SingleCallPolicy` only the CPU lane ever has a host, so behavior is one call at a time.
   Every extra call is exposure to an uncatchable engine crash, so don't add re-renders: probe a
   change that could add calls by counting them in the timing log.
@@ -135,10 +138,11 @@ provider owns its host, model store, voice catalog and chunk limits.
   `LanePolicy` in a Debug launch with `-renderPolicy lanes`, built in
   `AppComposition.makeRenderPolicy`). The queue offers every job's next unit by demand, in its
   order, and checks the plan, an action per free lane (`RenderPlan.violation`), before it starts
-  them (`GlobalSynthQueue+Render.swift`); it plans again whenever a call or load ends. Ordering
-  rules, FIFO included, lane choice and the memory check for a second model
-  (`RenderSituation.availableMemoryMB` against `RenderRoute.footprintMB`) go in the policy; a new
-  policy is one type and that line. The selected route is the residency identity:
+  them (`GlobalSynthQueue+Render.swift`); it plans again whenever a call or load ends, and never
+  while all the policy's lanes (`RenderPolicy.lanes`) are busy. Ordering rules, FIFO included,
+  lane choice, what a failed load means (wait, or tell the listeners: `RenderPlan.failed`) and the
+  memory check for a second model (`RenderSituation.availableMemoryMB` against
+  `RenderRoute.footprintMB`) go in the policy; a new policy is one type and that line. The selected route is the residency identity:
   `makeResident(route)` builds the host for it on its lane (`makeHost(for:voice:)`) and the lane
   snapshot reports the route loaded; nothing else picks a route. In the background it renders continuously while audio plays, one call at a time,
   Kokoro on one ONNX thread: back-to-back rendering on three threads got the app killed by iOS

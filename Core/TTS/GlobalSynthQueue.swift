@@ -71,10 +71,11 @@ final class GlobalSynthQueue {
     /// (key|index|textHash) that failed the engine — skipped by the worker so a
     /// bad unit cannot spin forever. A live request for the unit clears its mark (fresh try).
     var failedUnits: Set<String> = []
-    /// Routes whose load failed or was cancelled (ids): they aren't offered, and a job whose
-    /// engine's CPU route is among them waits rather than load again and again, until a listener
-    /// asks, a voice changes or the host is dropped (fresh try).
-    var failedLoads: Set<String> = []
+    /// Routes whose load failed or was cancelled (ids), with the error: offered to the policy as
+    /// facts (`RenderCandidate.failedRoutes`), never as routes to render on, until a listener
+    /// asks, a voice changes or the host is dropped (fresh try). Whether work waits or its
+    /// listeners get the error is the policy's (`RenderPlan.failed`).
+    var failedLoads: [String: Error] = [:]
     /// To load once nothing is left to render (`preload`); work picked first cancels it.
     var preloadEngineID: String?
     /// Per lane, the engines whose host there goes once the work in flight on it ends
@@ -344,12 +345,12 @@ final class GlobalSynthQueue {
         for lane in Lane.allCases {
             switch laneWork[lane]?.work {
             case nil: coordinator.dropHost(on: lane, of: engineID)
-            case .call(let route, _)?, .load(let route)?:
+            case .call(let route, _)?, .load(let route, _)?:
                 if route.engine.rawValue == engineID { hostDrops[lane, default: []].insert(engineID) }
             }
         }
         if !hostDrops.values.contains(where: { $0.contains(engineID) }) {
-            failedLoads.subtract(coordinator.routes(for: engineID).map(\.id))
+            for route in coordinator.routes(for: engineID) { failedLoads[route.id] = nil }
         }
         applyHostDrops()
         if !stack.isEmpty { kickWorker() }
@@ -381,7 +382,7 @@ final class GlobalSynthQueue {
         if expectedListener?.cacheKey == cacheKey { expectedListener = nil }
         // A live request is a fresh try, of the unit and of its engine's load.
         failedUnits.remove(failedID(cacheKey, paragraphIndex, hash))
-        failedLoads.subtract(coordinator.routes(for: target.engineID).map(\.id))
+        for route in coordinator.routes(for: target.engineID) { failedLoads[route.id] = nil }
 
         let chunkURL = cache.chunkURL(articleID: cacheKey, paragraphIndex: paragraphIndex, textHash: hash,
                                       voice: target.cacheVoice, chunk: chunk)
@@ -527,14 +528,15 @@ final class GlobalSynthQueue {
     /// What a listener waiting on a chunk gets when no registered engine speaks the article's voice.
     static let noEngine = LocalSynthError.engineUnavailable("No on-device voice speaks this article.")
 
-    /// A unit offered to the policy: a paragraph of a job, the target it renders in, why, and the
-    /// routes it may render on (its engine's, less those whose load failed).
+    /// A unit offered to the policy: a paragraph of a job, the target it renders in, why, and its
+    /// engine's routes, split by whether their load failed.
     struct Unit {
         var job: ArticleJob
         var index: Int
         var target: RenderTarget
         var demand: Demand
         var routes: [RenderRoute]
+        var failedRoutes: [RenderRoute]
     }
 
     /// The units offered to the policy, in the queue's order, each job's next per demand: a
@@ -544,8 +546,7 @@ final class GlobalSynthQueue {
     /// other job's next paragraph in its plan's order (`queued`). Which goes first is the
     /// policy's. Read from each job's kept missing list (`missingParagraphs`), not the cache. A
     /// paragraph rendering on a lane isn't offered, and still counts as its job's work. A job with
-    /// nothing left is done and leaves; one whose engine's CPU route (every engine's fallback lane)
-    /// failed to load offers nothing until a fresh try.
+    /// nothing left is done and leaves.
     func candidates() -> [Unit] {
         placeStaged()
         guard let coordinator else { return [] }
@@ -569,11 +570,9 @@ final class GlobalSynthQueue {
                 position += 1
                 continue
             }
-            let routes = coordinator.routes(for: target.engineID).filter { !failedLoads.contains($0.id) }
-            guard routes.contains(where: { $0.lane == .cpu }) else {
-                position += 1
-                continue
-            }
+            let allRoutes = coordinator.routes(for: target.engineID)
+            let routes = failedLoads.isEmpty ? allRoutes : allRoutes.filter { failedLoads[$0.id] == nil }
+            let failedRoutes = failedLoads.isEmpty ? [] : allRoutes.filter { failedLoads[$0.id] != nil }
             let missing = missingParagraphs(of: key, in: target) // ascending
             // A paragraph that failed isn't work until a fresh try.
             let usable = { (idx: Int) -> Bool in
@@ -591,7 +590,8 @@ final class GlobalSynthQueue {
             }
             position += 1
             func offer(_ index: Int, _ demand: Demand) {
-                units.append(Unit(job: job, index: index, target: target, demand: demand, routes: routes))
+                units.append(Unit(job: job, index: index, target: target, demand: demand, routes: routes,
+                                  failedRoutes: failedRoutes))
             }
             let free = { (idx: Int) -> Bool in inFlight.isEmpty || !inFlight.contains(ParagraphKey(cacheKey: key, index: idx)) }
             let listened = waited[key] ?? []

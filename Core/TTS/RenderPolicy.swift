@@ -9,6 +9,17 @@ enum Lane: String, Sendable, Hashable, CaseIterable {
     /// Whether calls may run on it with the app in the background: the Neural Engine is for the
     /// app in front.
     var runsInBackground: Bool { self == .cpu }
+
+    /// Whether a model call may start on it in `phase`: what the plan check and the renderer at
+    /// the model call (`LaneUnavailable`) both hold to.
+    func runs(in phase: AppRunState.Phase) -> Bool { runsInBackground || phase != .background }
+}
+
+/// A model call refused at its start: its lane doesn't run in the app's phase now (the app left
+/// the front between the plan and the call). Not the paragraph's failure: its listeners keep
+/// waiting and the queue plans it again, for a lane that runs now.
+struct LaneUnavailable: Error {
+    let lane: Lane
 }
 
 /// Whether a route can be told how many threads a call may use.
@@ -54,7 +65,12 @@ struct RenderCandidate: Sendable, Equatable {
     var demand: Demand
     /// The article's own engine: the only one whose routes are offered.
     var engine: SpeechEngineID
+    /// The engine's routes it may render on.
     var routes: [RenderRoute]
+    /// The engine's routes whose load failed (until a fresh try: a listener's request, a voice
+    /// change, the host dropped). Whether the candidate waits or its listeners are told is the
+    /// policy's (`RenderPlan.failed`).
+    var failedRoutes: [RenderRoute] = []
 }
 
 /// What a lane is doing now. A lane runs one thing at a time: it takes an action only when free.
@@ -62,7 +78,8 @@ struct LaneSnapshot: Sendable, Equatable {
     enum Work: Sendable, Equatable {
         /// A model call on `route`, at `threads` (nil: a route that takes no count).
         case call(RenderRoute, threads: Int?)
-        case load(RenderRoute)
+        /// `alone`: no other lane takes work until it ends (`RenderPlan.Load.alone`).
+        case load(RenderRoute, alone: Bool)
     }
 
     var work: Work?
@@ -136,13 +153,19 @@ struct RenderPlan: Sendable, Equatable {
     var actions: [Lane: Action] = [:]
     /// Work waits for this hold to clear (the queue's log and debug line).
     var held: BakeConditions.Hold?
+    /// Candidates whose listeners are told their chunk won't come: no route left that the policy
+    /// would render them on (indices into `RenderSituation.candidates`). The queue fails their
+    /// waiters with the failed load's error.
+    var failed: [Int] = []
 
     /// What the scheduler refuses whatever the policy says (a broken one is a bug in the policy):
     /// a route is its candidate's own engine's (the voice is never swapped); an action runs on its
-    /// route's lane, only while that lane is free, and in the background only on a lane that runs
-    /// there; a call runs on its route's resident host; two calls never take the same paragraph;
-    /// one load at a time, and one loading alone only while the other lanes are free.
-    func violation(of situation: RenderSituation) -> String? {
+    /// route's lane, one of the policy's `lanes`, only while that lane is free, and only on a lane
+    /// that runs in the app's phase; a call runs on its route's resident host; two calls never
+    /// take the same paragraph; one load at a time, and one loading alone only while the other
+    /// lanes are free (and nothing else starts while it runs); a failed candidate isn't also
+    /// started.
+    func violation(of situation: RenderSituation, lanes policyLanes: [Lane]) -> String? {
         func route(_ route: RenderRoute, of index: Int) -> String? {
             guard situation.candidates.indices.contains(index) else { return "no candidate \(index)" }
             let candidate = situation.candidates[index]
@@ -152,14 +175,21 @@ struct RenderPlan: Sendable, Equatable {
             return nil
         }
         var paragraphs = Set<String>()
-        var loads = situation.lanes.values.filter { if case .load = $0.work { true } else { false } }.count
+        var loads = 0
+        for (lane, snapshot) in situation.lanes {
+            guard case .load(_, let alone)? = snapshot.work else { continue }
+            loads += 1
+            if alone, !actions.isEmpty { return "\(lane.rawValue) loads alone" }
+        }
+        for index in failed where !situation.candidates.indices.contains(index) { return "no candidate \(index)" }
         for (lane, action) in actions {
             guard action.lane == lane else { return "\(lane.rawValue) can't run a \(action.lane.rawValue) route" }
+            guard policyLanes.contains(lane) else { return "\(lane.rawValue) isn't the policy's" }
             guard situation.lanes[lane]?.isFree == true else { return "\(lane.rawValue) is busy" }
             switch action {
             case .start(let start):
                 if let wrong = route(start.route, of: start.candidate) { return wrong }
-                if situation.phase == .background, !lane.runsInBackground {
+                if !lane.runs(in: situation.phase) {
                     return "\(lane.rawValue) doesn't run in the background"
                 }
                 guard situation.lanes[lane]?.resident == start.route else {
@@ -169,6 +199,7 @@ struct RenderPlan: Sendable, Equatable {
                 guard paragraphs.insert("\(candidate.item)|\(candidate.paragraph)").inserted else {
                     return "two calls on \(candidate.item) p\(candidate.paragraph)"
                 }
+                if failed.contains(start.candidate) { return "candidate \(start.candidate) fails and starts" }
             case .load(let load):
                 if let index = load.candidate {
                     if let wrong = route(load.route, of: index) { return wrong }
@@ -187,11 +218,14 @@ struct RenderPlan: Sendable, Equatable {
 }
 
 /// Decides what renders next from a snapshot: no I/O, no engines, no clock of its own. The
-/// render queue asks it whenever a lane may be free. A new policy is one type and the line in
-/// `AppComposition.makeRenderPolicy`.
+/// render queue asks it whenever one of its lanes may be free. A new policy is one type and the
+/// line in `AppComposition.makeRenderPolicy`.
 @MainActor
 protocol RenderPolicy: AnyObject {
     var name: String { get }
+    /// The lanes it plans for: the queue asks it only while one of them is free, and refuses an
+    /// action on another.
+    var lanes: [Lane] { get }
     func plan(_ situation: RenderSituation) -> RenderPlan
 }
 
@@ -200,6 +234,16 @@ extension RenderSituation {
     var urgencyOrder: [Int] {
         candidates.indices.sorted {
             (candidates[$0].demand.rawValue, $0) < (candidates[$1].demand.rawValue, $1)
+        }
+    }
+
+    /// The listeners' candidates none of `lanes` can render, their engine's route there having
+    /// failed to load: what a policy that renders only on `lanes` tells them (`RenderPlan.failed`).
+    func unservable(on lanes: [Lane]) -> [Int] {
+        candidates.indices.filter { index in
+            let candidate = candidates[index]
+            return candidate.demand == .listener && !candidate.failedRoutes.isEmpty
+                && !candidate.routes.contains { lanes.contains($0.lane) }
         }
     }
 }

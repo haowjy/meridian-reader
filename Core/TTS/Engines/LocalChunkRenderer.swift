@@ -27,8 +27,9 @@ struct ChunkRenderRequest: Sendable {
 }
 
 /// Engine-agnostic render pipeline around one `LocalSynthHost` on one route:
-/// shared normalize → prepare → the route's lane gate (`SynthRenderGate.of`) → call (with
-/// `EngineCrashGuard` if the engine is crash-guarded) → on `LocalSynthError.inputTooLong` re-split
+/// shared normalize → prepare → the route's lane gate (`SynthRenderGate.of`) → the lane runs in
+/// the app's phase (else `LaneUnavailable`) → call (with `EngineCrashGuard` if the engine is
+/// crash-guarded) → on `LocalSynthError.inputTooLong` re-split
 /// (≈halves, down to the engine's `minResplit`) and recurse → write 24 kHz mono CAF. Every model
 /// call is logged (`synth`).
 /// Host-specific spoken-text tweaks (`LocalSynthHost.spokenText(forChunk:)`) run here at render
@@ -40,7 +41,7 @@ final class LocalChunkRenderer: Sendable {
     private let limits: TextChunker.Limits
     private let gate: SynthRenderGate
     private let crashGuard: EngineCrashGuard?
-    /// The app phase each call's log line and crash marker record.
+    /// The app phase each call starts in (`Lane.runs(in:)`), its log line and crash marker record.
     private let runState: AppRunState
     static let maxResplitDepth = 5
 
@@ -97,13 +98,16 @@ final class LocalChunkRenderer: Sendable {
         }
     }
 
-    /// One call; on overflow split and recurse. Caller holds the gate.
+    /// One call; on overflow split and recurse. Caller holds the gate. A call whose lane doesn't
+    /// run in the app's phase now throws `LaneUnavailable` before its crash marker: the phase
+    /// can change between the plan and here (the task's start, `prepare`, the gate).
     func synthesizeResilient(_ text: String, depth: Int, request: ChunkRenderRequest) async throws -> SynthesizedPCM {
         try Task.checkCancellation()
+        let phase = runState.phase
+        guard route.lane.runs(in: phase) else { throw LaneUnavailable(lane: route.lane) }
         // C138: the article's voice, set under the gate right before every call.
         if let voice = request.voice { host.setVoice(voice) }
         let t0 = ListenTimingLog.now()
-        let phase = runState.phase
         var fields = request.logFields
         if let voice = request.voice { fields["voice"] = voice }
         fields["engine"] = descriptor.shortName.lowercased()

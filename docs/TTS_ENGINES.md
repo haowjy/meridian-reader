@@ -281,7 +281,7 @@ voice takes the built-in default as any unregistered engine's does.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
    `routes` (a `RenderRoute` per way an engine runs: its lane, `.cpu` or `.neuralEngine`, whether
    it takes a thread count, and about how much memory its loaded host adds, measured on a phone;
-   the registry refuses an engine without a `.cpu` route, every engine's fallback lane;
+   the registry refuses an engine without a `.cpu` route, the one lane every policy has;
    `makeHost` builds a host for the route the render policy loads);
    override `recover(from:playing:)` if a crash needs more than a pause for Retry,
    `launchMigrations` for the library's launch steps (`LaunchMigration`s, run after retired

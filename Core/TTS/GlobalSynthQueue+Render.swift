@@ -2,8 +2,9 @@ import Foundation
 
 /// The render queue's executor: the policy's plan carried out on the lanes. Each lane runs one
 /// model call or one load at a time, in a task of its own; whenever any ends (and on every event
-/// that can change the answer, `kickWorker`), the queue offers its candidates for the free lanes
-/// again. Hosts asked to go are dropped on free lanes only, never under a call.
+/// that can change the answer, `kickWorker`), the queue offers its candidates again, while one of
+/// the policy's lanes is free (no plan while they are all busy). Hosts asked to go are dropped on
+/// free lanes only, never under a call.
 extension GlobalSynthQueue {
     /// What runs on a lane now.
     struct LaneWork {
@@ -12,9 +13,10 @@ extension GlobalSynthQueue {
         var unit: ParagraphKey?
     }
 
-    /// Plan again once this turn's events are in: every kick in one turn makes one plan.
+    /// Plan again once this turn's events are in: every kick in one turn makes one plan. None
+    /// while the policy's lanes are all busy: the work ending on one kicks again.
     func kickWorker() {
-        guard !pumpScheduled, !isPausedForProbe, !isHeldForLaunch, !isPausedForRetry else { return }
+        guard !pumpScheduled, !isPausedForProbe, !isHeldForLaunch, !isPausedForRetry, hasFreeLane else { return }
         pumpScheduled = true
         Task { [weak self] in
             guard let self else { return }
@@ -23,21 +25,31 @@ extension GlobalSynthQueue {
         }
     }
 
+    /// One of the policy's lanes has nothing running.
+    private var hasFreeLane: Bool {
+        coordinator?.renderPolicy.lanes.contains { laneWork[$0] == nil } ?? false
+    }
+
     /// Drop the hosts asked for on the lanes that are free, offer the candidates to the policy,
-    /// check its plan, and start each of its actions on its lane.
+    /// check its plan, tell the listeners it fails, and start each of its actions on its lane.
     private func pump() {
         defer { settleIfIdle() }
         guard let coordinator, !isPausedForProbe, !isHeldForLaunch, !isPausedForRetry else { return }
         applyHostDrops()
-        guard laneWork.count < Lane.allCases.count else { return }
+        guard hasFreeLane else { return }
         let (offered, situation) = self.situation(coordinator)
         if !offered.isEmpty { preloadEngineID = nil }
         let policy = coordinator.renderPolicy
         let plan = policy.plan(situation)
-        if let violation = plan.violation(of: situation) {
+        if let violation = plan.violation(of: situation, lanes: policy.lanes) {
             assertionFailure("Render policy \(policy.name): \(violation)")
             ListenTimingLog.log("render_plan_refused", ["policy": policy.name, "why": violation])
             return
+        }
+        for index in plan.failed {
+            let unit = offered[index]
+            guard let error = unit.failedRoutes.lazy.compactMap({ self.failedLoads[$0.id] }).first else { continue }
+            failWaiters(cacheKey: unit.job.cacheKey, index: unit.index, error: error)
         }
         for lane in Lane.allCases {
             guard let action = plan.actions[lane] else { continue }
@@ -48,7 +60,7 @@ extension GlobalSynthQueue {
                 if load.alone {
                     for other in Lane.allCases where other != lane { coordinator.dropHost(on: other, of: nil) }
                 }
-                begin(.load(load.route), unit: load.candidate.map { key(of: offered[$0]) }, on: lane) {
+                begin(.load(load.route, alone: load.alone), unit: load.candidate.map { key(of: offered[$0]) }, on: lane) {
                     let reason = load.candidate == nil ? "preload" : load.priority == .listener ? "listener" : "work"
                     await $0.load(load.route, reason: reason, priority: load.priority)
                     return true // the queue may have moved during the load: plan again
@@ -61,7 +73,7 @@ extension GlobalSynthQueue {
             }
         }
         // What started is offered no more: a lane still free may take the next unit of the same job.
-        if !plan.actions.isEmpty, laneWork.count < Lane.allCases.count { kickWorker() }
+        if !plan.actions.isEmpty { kickWorker() }
         guard laneWork.isEmpty else { return }
         if let hold = plan.held {
             lastBakeEvent = "held: \(hold.label) (resumes when it clears)"
@@ -110,7 +122,7 @@ extension GlobalSynthQueue {
         }
         let waiting = hostDrops.values.reduce(into: Set<String>()) { $0.formUnion($1) }
         for engineID in dropped.subtracting(waiting) {
-            failedLoads.subtract(coordinator.routes(for: engineID).map(\.id))
+            for route in coordinator.routes(for: engineID) { failedLoads[route.id] = nil }
         }
     }
 
@@ -139,11 +151,13 @@ extension GlobalSynthQueue {
         } catch is CancellationError {
             failWaiters(cacheKey: job.cacheKey, index: index, error: CancellationError())
             return false
-        } catch where !start.route.lane.runsInBackground && runState.phase == .background {
-            // The app left the front during the call: not the paragraph's failure. Its waiters
-            // keep waiting; a lane that runs in the background renders it.
+        } catch where error is LaneUnavailable || !start.route.lane.runs(in: runState.phase) {
+            // The app left the front before the call started (`LaneUnavailable`, refused at the
+            // model call) or during it: not the paragraph's failure. Its waiters keep waiting; the
+            // next plan gives it to a lane that runs now.
             ListenTimingLog.log("call_left_front", ["key": ListenTimingLog.shortKey(job.cacheKey), "p": index,
-                                                    "route": start.route.id, "err": error.localizedDescription])
+                                                    "route": start.route.id, "started": !(error is LaneUnavailable),
+                                                    "err": error.localizedDescription])
         } catch {
             // The engine failed (or stitch/store failed). Don't hot-loop.
             failedUnits.insert(failedID(job.cacheKey, index, job.paragraphHashes[index]))
@@ -171,7 +185,8 @@ extension GlobalSynthQueue {
             hold: bakeConditions().bakeAheadHold, preload: preloadEngineID.map(coordinator.routes(for:)) ?? [],
             candidates: offered.map {
                 RenderCandidate(item: $0.job.cacheKey, paragraph: $0.index, demand: $0.demand,
-                                engine: SpeechEngineID(rawValue: $0.target.engineID), routes: $0.routes)
+                                engine: SpeechEngineID(rawValue: $0.target.engineID), routes: $0.routes,
+                                failedRoutes: $0.failedRoutes)
             },
             lanes: lanes, cores: ProcessInfo.processInfo.activeProcessorCount,
             availableMemoryMB: ProcessMemory.availableMB)
@@ -272,11 +287,10 @@ extension GlobalSynthQueue {
         ])
     }
 
-    /// Load a host for `route` on its lane (the queue's alone; see the type's notes). A CPU-lane
-    /// load that fails or is cancelled fails the chunks listeners wait for in its engine, and its
-    /// jobs wait (`failedLoads`). Another lane's failed load only takes that route out: the CPU
-    /// lane, every engine's fallback, goes on with its work (and a load cut by the app leaving the
-    /// front isn't marked at all).
+    /// Load a host for `route` on its lane. A load that fails or is cancelled marks the route
+    /// (`failedLoads`, with its error) for the policy, which decides at the next plan whether its
+    /// work waits or its listeners are told. A load cut by the app leaving the front, on a lane
+    /// that doesn't run in the background, isn't marked.
     private func load(_ route: RenderRoute, reason: String, priority: RenderPriority) async {
         guard let coordinator else { return }
         let engineID = route.engine.rawValue
@@ -291,15 +305,10 @@ extension GlobalSynthQueue {
         } catch {
             ListenTimingLog.log("engine_load", ["engine": engineID, "route": route.id, "reason": reason, "op": "failed",
                                                 "ms": ListenTimingLog.ms(since: t0), "err": error.localizedDescription])
-            if !route.lane.runsInBackground, runState.phase == .background { return }
-            failedLoads.insert(route.id)
+            if !route.lane.runs(in: runState.phase) { return }
+            failedLoads[route.id] = error
             lastBakeEvent = "\(route.id) didn’t load: \(error.localizedDescription)"
             ListenDebugLog.shared.append(lastBakeEvent)
-            guard route.lane == .cpu else { return }
-            for key in Set(chunkWaiters.keys.map(\.cacheKey))
-            where coordinator.renderTarget(for: key)?.engineID == engineID {
-                failWaiters(cacheKey: key, error: error)
-            }
         }
     }
 
@@ -328,6 +337,8 @@ extension GlobalSynthQueue {
             return duration
         } catch is CancellationError {
             throw CancellationError()
+        } catch let unavailable as LaneUnavailable {
+            throw unavailable
         } catch {
             guard coordinator.renderTarget(for: job.cacheKey) == target else { return nil }
             // The unit fails; the player pauses there (C129: never another voice).

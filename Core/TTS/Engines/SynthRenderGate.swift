@@ -5,15 +5,10 @@ import Foundation
 /// E5RT/BNNS use is a known corruption trigger, FluidAudio #661).
 actor SynthRenderGate {
     /// The gate of `lane`.
-    static func of(_ lane: Lane) -> SynthRenderGate {
-        switch lane {
-        case .cpu: cpu
-        case .neuralEngine: neuralEngine
-        }
-    }
+    static func of(_ lane: Lane) -> SynthRenderGate { gates[lane]! }
 
-    private static let cpu = SynthRenderGate()
-    private static let neuralEngine = SynthRenderGate()
+    /// One per declared lane, for the life of the process.
+    private static let gates = Dictionary(uniqueKeysWithValues: Lane.allCases.map { ($0, SynthRenderGate()) })
 
     private var busy = false
     private var waiters: [CheckedContinuation<Void, Never>] = []

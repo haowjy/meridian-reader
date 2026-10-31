@@ -13,32 +13,40 @@ import Foundation
 /// - QoS: `.userInitiated` for a listener's chunk, `.utility` for everything else.
 /// - The route of the work it picks is loaded first, when it isn't the resident one; with no
 ///   work, the route of the engine asked for as a preload.
+/// - An engine whose CPU route failed to load renders nothing until a fresh try: its work waits,
+///   and the listeners waiting on it are told (`RenderPlan.failed`).
 @MainActor
 final class SingleCallPolicy: RenderPolicy {
     let name = "single-call"
+    let lanes: [Lane] = [.cpu]
 
     static let frontReserveCores = 1
     static let backgroundThreads = 1
 
     func plan(_ situation: RenderSituation) -> RenderPlan {
-        guard situation.lanes[.cpu]?.isFree == true else { return RenderPlan() }
-        guard situation.phase != .background || situation.audioPlaying else { return RenderPlan() }
+        var plan = RenderPlan(failed: situation.unservable(on: lanes))
+        guard situation.phase != .background || situation.audioPlaying else { return plan }
         for index in situation.urgencyOrder {
             let candidate = situation.candidates[index]
-            if candidate.demand > .playing, let hold = situation.hold { return RenderPlan(held: hold) }
+            if candidate.demand > .playing, let hold = situation.hold {
+                plan.held = hold
+                return plan
+            }
             guard let route = candidate.routes.first(where: { $0.lane == .cpu }) else { continue }
             let priority = Self.priority(of: candidate)
-            guard situation.lanes[.cpu]?.resident == route else {
-                return RenderPlan(actions: [.cpu: .load(.init(route: route, priority: priority, candidate: index))])
+            if situation.lanes[.cpu]?.resident == route {
+                plan.actions[.cpu] = .start(.init(candidate: index, route: route,
+                                                  threads: Self.threads(on: route, budget: Self.budget(in: situation)),
+                                                  priority: priority))
+            } else {
+                plan.actions[.cpu] = .load(.init(route: route, priority: priority, candidate: index))
             }
-            return RenderPlan(actions: [.cpu: .start(.init(candidate: index, route: route,
-                                                           threads: Self.threads(on: route, budget: Self.budget(in: situation)),
-                                                           priority: priority))])
+            return plan
         }
         if let route = situation.preload.first(where: { $0.lane == .cpu }), situation.lanes[.cpu]?.resident != route {
-            return RenderPlan(actions: [.cpu: .load(.init(route: route, priority: .bakeAhead, candidate: nil))])
+            plan.actions[.cpu] = .load(.init(route: route, priority: .bakeAhead, candidate: nil))
         }
-        return RenderPlan()
+        return plan
     }
 
     /// The CPU threads calls may use: every core but `frontReserveCores` in front (and inactive),
