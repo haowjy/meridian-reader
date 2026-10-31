@@ -379,7 +379,8 @@ private struct StorageSettingsSection<VersionRow: View>: View {
         .task {
             let cache = speech.localTTS.audioCache
             let held = Set(preparedAudio.heldArticleKeys)
-            let dirs = cache.cachedArticleKeys().map { (held.contains($0), cache.directory(for: $0)) }
+            // Old voices count as audio from listening: kept 7 days, like unsaved audio.
+            let dirs = cache.entries().map { ($0.isLive && held.contains($0.storageID), cache.directory(for: $0.storageID)) }
             let (p, l) = await Task.detached(priority: .utility) {
                 dirs.reduce((Int64(0), Int64(0))) { sum, d in
                     let bytes = FileSizes.allocatedBytes(at: d.1)

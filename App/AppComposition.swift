@@ -135,12 +135,15 @@ enum AppComposition {
     /// (`ArticleAudioCache.held`), for a later launch. Then the
     /// launch steps (`EngineRegistry.launchMigrations`, which can purge an engine's audio and
     /// orphan files, held audio excepted), the chunk scratch (nothing plays at launch) and the
-    /// prune of unsaved audio (7 days, 2 GB; held audio excepted). First of all the cache is kept
+    /// prune of unsaved audio and old voices (7 days, 2 GB; held audio excepted). Voice records
+    /// a launch left are among the audio work, so a voice change is finished before the prune
+    /// and before rendering starts. First of all the cache is kept
     /// out of backups: it is audio the app can render again (`BackupExclusion`).
     static func prepareAudioCache(library: LibraryStore, tts: LocalTTSCoordinator) {
         tts.audioCache.excludeFromBackup()
         tts.holdRenderingForLaunch()
         library.finishAudioWork()
+        dropStaleVoiceParagraphs(tts: tts)
         for migration in tts.engines.launchMigrations { migration.runIfNeeded(tts) }
         removeAppleVoices(library: library, tts: tts)
         adoptArticleVoices(library: library, tts: tts)
@@ -148,6 +151,19 @@ enum AppComposition {
         let pruned = tts.audioCache.pruneEphemeral()
         if pruned.removed > 0 {
             ListenTimingLog.log("audio_cache_prune", ["removed": pruned.removed, "bytes": pruned.freedBytes])
+        }
+    }
+
+    /// Once, marked done when nothing was held or failed: older builds' caches can hold
+    /// paragraphs in a voice other than their index's (a voice switch they hadn't rendered again);
+    /// they're deleted (`ArticleAudioCache.dropStaleVoiceParagraphs`).
+    static func dropStaleVoiceParagraphs(tts: LocalTTSCoordinator) {
+        let doneKey = "reader.migration.staleVoiceParagraphsDropped.v1"
+        guard !tts.defaults.bool(forKey: doneKey) else { return }
+        let dropped = tts.audioCache.dropStaleVoiceParagraphs()
+        if dropped.complete { tts.defaults.set(true, forKey: doneKey) }
+        if dropped.articles > 0 {
+            ListenTimingLog.log("stale_voice_paragraphs_dropped", ["articles": dropped.articles, "complete": dropped.complete])
         }
     }
 

@@ -46,19 +46,19 @@ extension LibraryStore {
         return voice
     }
 
-    /// *Voice* in an article's menu: the article (or its book) speaks in `voice` from now on.
-    func setVoice(_ voice: String, of article: Article) {
-        try? edit("set voice") {
-            switch Self.voiceOwner(of: article) {
+    /// *Voice* in an article's or a book's menu: it speaks in `voice` from now on. One save holds
+    /// the selection and a voice record for each page it changes (the article, or every chapter),
+    /// done right after it (`settleVoice`); a save that fails is rolled back and throws, and no
+    /// file is touched.
+    func setVoice(_ voice: String, of owner: VoiceOwner) throws {
+        let keys = articlesSpeaking(in: owner).map(\.listenKey)
+        try edit("set voice") {
+            switch owner {
             case .article(let a): a.voiceID = voice
             case .folder(let f): f.voiceID = voice
             }
+            for key in keys { plan(.voice, key: key) }
         }
-    }
-
-    /// *Voice* in a book's menu.
-    func setVoice(_ voice: String, of folder: Folder) {
-        try? edit("set voice") { folder.voiceID = voice }
     }
 
     /// The pages whose audio a voice change on `owner` remakes: the article, or every chapter.

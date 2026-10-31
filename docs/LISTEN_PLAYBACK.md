@@ -396,15 +396,17 @@ route names its lane, so another lane is a route plus a `RenderPolicy` ("Routes 
 
 **Switching article or voice.** Playing another article puts it at the front; the jobs already
 queued stay behind it, and at most the call in flight finishes first. Changing an article's voice
-stops its queued work in the old voice at the next step, discards a call in flight in it at
-publish, and renders the article again in the new voice; the two voices never mix in one article
-("One voice, never swapped", "Audio cache"). Only each article's own voice is ever rendered: no
-other voice is rendered ahead in case you switch.
+stops its queued work in the old voice at the next step and discards a call in flight in it at
+publish. Its audio in the old voice is kept for 7 days with other unsaved audio, and audio kept
+from an earlier change back to the new voice is its audio again; the queue renders what the new
+voice still lacks. The two voices never mix in one article ("One voice, never swapped", "Audio
+cache"). Only each article's own voice is ever rendered: no other voice is rendered ahead in case
+you switch.
 
 **Cost.** Audio is 24 kHz 16-bit mono PCM, about 2.9 MB a minute: a 10-hour book is about 1.7 GB
 and takes roughly 30–45 minutes of rendering. Prepared audio is kept until it is removed. At
-launch, unsaved pages' audio older than 7 days goes, and the oldest goes first past 2 GB
-(`ArticleAudioCache.pruneEphemeral`). Audio rendered while listening is also cleared for articles
+launch, unsaved pages' audio and audio in a voice its article no longer uses older than 7 days
+go, and the oldest goes first past 2 GB (`ArticleAudioCache.pruneEphemeral`). Audio rendered while listening is also cleared for articles
 outside the last 50 played (Recent); prepared audio is never cleared by it ("Retention and
 Prepared Audio").
 
@@ -497,7 +499,7 @@ never for what listening needs (`needsAudio`: the article bound to the session, 
 finished, and the chapter staged after it): its job and its audio stay. *Remove Prepared Audio* (an article, in its menu or the Prepared Audio list) or *Remove Prepared Audio* (a folder, the same) takes
 the article out of every prepare (a folder's prepare drops it, never queues it again), the article
 playing too, whose audio stays for the session, saved or ephemeral as the library keeps the article. The voice a prepare is shown in is read
-from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
+from its audio (`ArticleAudioCache.renderedVoice`: its live directory's voice), so a
 voice change shows at once; finished prepared audio aren't re-rendered by it (*Prepare Again* does that).
 A folder's prepare is its Prepare toggle (the header's Prepare control): while it is on, pages added to the folder later join
 it after each stored library edit (`PrepareCenter.takeInNewArticles`), except pages whose prepared audio
@@ -640,7 +642,8 @@ highlight and the paragraph picker stay fine-grained.
 
 ## Audio cache
 
-`ArticleAudioCache`, `Application Support/TTSCache/<article key>/`:
+`ArticleAudioCache`, `Application Support/TTSCache/<article key>/` (an article's live
+directory), old-voice entries beside them, and `TTSCache/chunks/` for chunk scratch:
 
 - **Not backed up.** The launch flags `TTSCache` to stay out of iCloud and computer backups
   (`BackupExclusion`, before anything renders; the flag on the folder covers every article in
@@ -661,7 +664,9 @@ highlight and the paragraph picker stay fine-grained.
   interrupted change left. An app that dies at any step leaves an index whose every CAF exists
   (a cold load drops nothing), and running the change again finishes it. A key with no directory takes
   another's whole, in one rename.
-- Chunk scratch: `chunks/p-NNNN-<texthash>-<voice>/c-KK.caf`, filed by cache voice: a call in
+- Chunk scratch: `chunks/<article key>/p-NNNN-<texthash>-<voice>/c-KK.caf`, under the cache
+  root, outside the article's directory (only main-actor cache methods write in that), filed by
+  cache voice: a call in
   flight when the voice changes writes into its own voice's folder, never where the new voice
   looks, and a chunk rendered for a target that changed during the call is neither handed to a
   listener nor stitched. Once every chunk of a paragraph exists the
@@ -693,8 +698,8 @@ highlight and the paragraph picker stay fine-grained.
 - **What still needs audio** has one rule, `ArticleAudioCache.missingParagraphs`: a paragraph
   with something to speak (its chunk plan, `ChunkPlans`, has chunks) and no CAF in exactly this
   engine and voice. A paragraph with nothing to speak (a bare "—") never gets audio and is never
-  missing. The render queue's work and job completion, the voice-switch cleanup, Prepared Audio,
-  and staging the next chapter all ask it; the bake marks show
+  missing. The render queue's work and job completion, Prepared Audio, and staging the next
+  chapter all ask it; the bake marks show
   `readyIndices`.
 - **One voice per article, and per book (C138, C138a).** Each article stores its selection, the
   engine and voice together (`VoiceSelection`, stored in `Article.voiceID` as
@@ -711,14 +716,38 @@ highlight and the paragraph picker stay fine-grained.
   voice per chunk, `ChunkRenderRequest.voice`), and readiness, bake marks, Prepared Audio and
   the listen player all ask in that voice. Playback plays only CAFs in the article's voice
   (`playableAudioURL` no longer falls back to another voice's file), so voices never mix.
-  The index's top-level `engineID` / `voiceID` is still the voice of its last write; entries of
-  another voice are stamped and never count or play; once nothing is missing in the article's
-  voice, `finalizeVoiceSwitch` deletes them.
+  An article's live directory holds one voice, its index's `engineID` / `voiceID`: publishing a
+  paragraph in another voice first moves the voice there into an old-voice entry
+  (`publishParagraph` → `archiveLive`), and merges never put a second voice in one
+  (`prepareMerge`). Paragraphs older builds left stamped with another voice than their index's are
+  deleted once at launch (`dropStaleVoiceParagraphs`).
+- **Old voices.** An article's audio in a voice it no longer uses is an old-voice entry: a
+  directory with a random name whose `meta.json` names its article (`voiceOf`), ephemeral, dated
+  the moment it was left, so the launch prune ages it out with unsaved audio (7 days, then the
+  oldest first past 2 GB, a whole entry at a time). Its voice is read from its index, so the voice
+  key migrations keep it findable; at most one per article and voice. It never counts as prepared
+  or plays: readers look only in the live directory. A hold on an article (unfinished library
+  work) holds its entries too; Save's and dedupe's merges carry the merged article's entries to
+  the kept one (per voice, the more recently left wins), and merged audio in another voice than
+  the kept article's becomes its entry instead of merging. *Remove Prepared Audio*, *Clear Audio
+  from Listening* and deleting the article delete its entries; retention and the finished-chapters
+  trim clear only the live directory, so the 7 days hold. Settings counts entries as audio from
+  listening.
 - **Changing an article's or book's voice** (its menu's *Voice: Heart*, `ArticleVoiceChange`):
   downloads the voice's files if needed, stops playback of it if it is playing (it plays again
-  all in the new voice), stores the voice, then prepared audio renders again (Prepare Again; the
-  old files go once the new audio is whole) and audio from listening is cleared. The picker asks
-  first with the sizes.
+  all in the new voice), then one save stores the voice and a voice record per article
+  (`LibraryAudioWork` `.voice`, every chapter of a book). If the save fails nothing changes and
+  the picker says "Couldn’t change the voice. Nothing was changed." The records run right after
+  the save (`ArticleAudioCache.settleVoice`): the live directory's audio in another voice becomes
+  an old-voice entry, and an entry in the new voice, aligned with the article's paragraphs first
+  (a paragraph whose text changed meanwhile is dropped), is its live audio again: renamed into
+  place, or filling what was published since. So a change back within the 7 days plays at once
+  and Prepared Audio shows it whole; what is missing renders, prepared audio through *Prepare
+  Again*. A record that fails waits with the other audio work, holding its article from the
+  prune, and the next launch finishes it before the prune and before rendering starts; every step
+  is one write, rename or delete, and running it again finishes from any of them. Playing or
+  rendering meanwhile is safe: the voice checks in readiness and publish cover every state. The
+  picker asks first with the sizes.
 - **Migration (C138, once, `AppComposition.adoptArticleVoices`):** an article with audio takes the
   voice most of its paragraphs are in (`ArticleAudioCache.renderedVoice`); a book, the voice most
   of its chapters' audio is in; articles with no audio get none. C138a, once: a voice stored as a
@@ -978,6 +1007,6 @@ engine crash guard's marker (`EngineCrashGuardTests`).
 ## Retention and Prepared Audio (C134, C135, C136)
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
-- **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
+- **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio. Neither touches an article's old voices, which the 7-day prune removes ("Audio cache", Old voices).
 - **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice (C138). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
 - **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

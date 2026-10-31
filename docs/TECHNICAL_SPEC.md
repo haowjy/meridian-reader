@@ -437,14 +437,17 @@ its queued render non-ephemeral), the layout pass (audio aligned to the new
 paragraphs, the crash-resume point and pending renders remapped), dedupe (the merged article's audio filling the
 kept article's paragraphs it has none for, by text, then its directory and pending render dropped;
 the resume point, the crash target read at launch and the live session moved onto the kept article,
-at the paragraph with the same text) and a book's *Replace* (edited chapters aligned, chapters
+at the paragraph with the same text), a voice change (each article's audio settled into its new
+voice, the old voice kept as an old-voice entry and one kept from before restored,
+`ArticleAudioCache.settleVoice`) and a book's *Replace* (edited chapters aligned, chapters
 found by their text merged, and a dropped chapter's audio, pending render and queued renders
 deleted) change nothing outside the store until the library change is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit` does it right
 after the save. A failed save is rolled back with its work, leaving the audio cache, pending
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
-there, the merged article's directory gone, a deleted article's audio gone, and otherwise the audio
-saved or ephemeral as its article is. Delete, remove and Save records act on the article holding the key
+there, the merged article's directory gone, a deleted article's audio and old voices gone, after a
+voice change one voice in the live directory and none of its old-voice entries in it, and otherwise
+the audio saved or ephemeral as its article is. Delete, remove and Save records act on the article holding the key
 when they run, not as it was planned: by then the key can belong to a later article (saved, deleted,
 then played again without saving), whose audio stays, saved only if that article is saved in the
 Library. A record that fails is kept, with everything after it,

@@ -13,11 +13,12 @@ enum VoiceTarget: Equatable {
     }
 }
 
-/// C138: changing the voice of one article, or of a book (every chapter). Its audio is remade in
-/// the new voice, never mixed: playback of it stops (it plays again from the start of its next
-/// play, all in the new voice); prepared audio renders again (the old voice's files go once the
-/// new audio is whole, `ArticleAudioCache.finalizeVoiceSwitch`, and never play meanwhile); audio
-/// from listening is cleared, and made again as it plays.
+/// C138: changing the voice of one article, or of a book (every chapter). Its audio is in the new
+/// voice from now on, never mixed: playback of it stops (it plays again from the start of its next
+/// play, all in the new voice); the old voice's audio is kept 7 days with other unsaved audio, and
+/// audio kept from an earlier change back is its audio again (the voice record,
+/// `ArticleAudioCache.settleVoice`); prepared audio renders what the new voice lacks, and audio
+/// from listening is made as it plays.
 @MainActor
 struct ArticleVoiceChange {
     let owner: LibraryStore.VoiceOwner
@@ -68,7 +69,8 @@ struct ArticleVoiceChange {
         }
     }
 
-    /// What a change remakes: prepared audio (rendered again) and audio from listening (cleared).
+    /// What a change leaves behind in the old voice: prepared audio (rendered again in the new one)
+    /// and audio from listening (made again as it plays). Both are kept 7 days.
     struct Cost: Equatable {
         var prepared: Int64 = 0
         var listening: Int64 = 0
@@ -86,28 +88,30 @@ struct ArticleVoiceChange {
         return cost
     }
 
+    enum Failure: Error {
+        /// The voice's files didn't download.
+        case download
+        /// The library couldn't save the change: nothing changed.
+        case save
+    }
+
     /// C138a: picks `selection` (any engine's voice): downloads its files if needed, then sets
-    /// it and remakes the audio. Throws when the download fails.
+    /// it (one save with its voice records, `LibraryStore.setVoice`) and prepares again what was
+    /// prepared. Throws `Failure` when the download or the save fails.
     func apply(_ selection: VoiceSelection) async throws {
         guard selection != ownSelection else { return }
-        guard await tts.downloadVoice(selection.voice, for: selection.engine) else {
-            throw CocoaError(.fileReadUnknown)
-        }
+        guard await tts.downloadVoice(selection.voice, for: selection.engine) else { throw Failure.download }
         let keys = articles.map(\.listenKey)
         // Never two voices in one listen: what plays of it stops at once.
         for key in keys { speech.stopIfPlaying(key) }
-        switch owner {
-        case .article(let a): library.setVoice(selection.stored, of: a)
-        case .folder(let f): library.setVoice(selection.stored, of: f)
+        do {
+            try library.setVoice(selection.stored, of: owner)
+        } catch {
+            ListenDebugLog.shared.append("C138a voice \(selection) not saved: \(error)")
+            throw Failure.save
         }
         tts.articleVoicesChanged()
-        for key in keys {
-            let prepared = preparedAudio.hasRecord(for: key)
-            if !prepared, tts.audioCache.bytes(for: key) > 0 {
-                try? tts.clearListenAudio(for: key)
-            }
-            if prepared { preparedAudio.reprepare(article: key) }
-        }
+        for key in keys where preparedAudio.hasRecord(for: key) { preparedAudio.reprepare(article: key) }
         ListenDebugLog.shared.append("C138a voice \(selection) for \(keys.count) article(s)")
     }
 }

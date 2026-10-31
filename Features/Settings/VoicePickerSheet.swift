@@ -2,7 +2,7 @@ import SwiftUI
 
 /// *Voice: Heart* in an article's or a book's menu (C138, C138a): the voice it speaks in, from the
 /// one voice switcher (`VoiceSelectionList`: engines as sections). Picking another asks first when it has audio, with how
-/// much is remade, then remakes it in that voice (`ArticleVoiceChange`).
+/// much is made again, then changes it to that voice (`ArticleVoiceChange`).
 ///
 /// ```
 ///                  Voice                    Done
@@ -82,6 +82,8 @@ struct VoicePickerSheet: View {
         Task {
             do {
                 try await change.apply(selection)
+            } catch ArticleVoiceChange.Failure.save {
+                self.error = String(localized: "Couldn’t change the voice. Nothing was changed.")
             } catch {
                 self.error = String(localized: "Couldn’t download the voice. Check your connection and try again.")
             }
@@ -89,16 +91,16 @@ struct VoicePickerSheet: View {
         }
     }
 
-    /// "Remakes 12 MB of prepared audio and clears 3 MB of audio from listening."
+    /// "Its 12 MB of prepared audio is made again in the new voice. … kept for 7 days …"
     static func costMessage(_ cost: ArticleVoiceChange.Cost) -> String {
         var parts: [String] = []
         if cost.prepared > 0 {
             parts.append(String(localized: "Its \(FileSizes.label(cost.prepared)) of prepared audio is made again in the new voice."))
         }
         if cost.listening > 0 {
-            parts.append(String(localized: "Its \(FileSizes.label(cost.listening)) of audio from listening is cleared and made again as it plays."))
+            parts.append(String(localized: "Its \(FileSizes.label(cost.listening)) of audio from listening is made again as it plays."))
         }
-        parts.append(String(localized: "Old audio is deleted once replaced, and the two voices never mix."))
+        parts.append(String(localized: "Audio in the current voice is kept for 7 days, so changing back plays it at once. The two voices never mix."))
         return parts.joined(separator: " ")
     }
 }

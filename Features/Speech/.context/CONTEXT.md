@@ -84,6 +84,12 @@ provider owns its host, model store, voice catalog and chunk limits.
   paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the
   paragraph count.
+- **One voice per live directory.** Audio enters an article's directory only through
+  `ArticleAudioCache.publishParagraph` (which archives another voice there first) and the merges
+  (`prepareMerge`); a voice change moves files only through its voice record (`settleVoice`), never
+  directly from a view or the coordinator. A new path that writes or moves audio keeps that rule
+  and keeps the cache's in-memory indexes true itself (`forget`): an old voice's audio must never
+  count as prepared in the new one (`ArticleAudioCache+Voices.swift`).
 - **Phonon (the default engine).** Core ML's CPU path (`PhononHost.computeUnit` is `.cpu`), in front
   and in the background, one-call-at-a-time like the rest (route `phonon.cpu`, no thread count). Its cache key doesn't name the compute unit (the owner heard no difference
   from Neural Engine audio): a Neural Engine route coming back doesn't need a new cache revision. Its limits

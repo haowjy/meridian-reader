@@ -720,7 +720,9 @@ final class GlobalSynthQueue {
                                          after: cache.indexChanges(of: job.cacheKey))
         coordinator.noteBakeMarksChanged(of: job.cacheKey)
         if job.isEphemeral {
-            cache.markEphemeral(cacheKey: job.cacheKey, lastAccess: Date())
+            do { try cache.markEphemeral(cacheKey: job.cacheKey, lastAccess: Date()) } catch {
+                ListenDebugLog.shared.append("ephemeral mark failed \(job.cacheKey.uuidString.prefix(8)): \(error.localizedDescription)")
+            }
         }
         if !liveChunkParagraphs.contains(ParagraphKey(cacheKey: job.cacheKey, index: index)) {
             try? FileManager.default.removeItem(
@@ -848,7 +850,7 @@ final class GlobalSynthQueue {
             }
             guard missing.contains(where: usable) else {
                 // Fully baked: off the queue, and on to the next.
-                finishJob(job, in: target)
+                coordinator.bakeCompleted(cacheKey: key) // its persisted pending job goes
                 jobs[key] = nil
                 stack.remove(at: position)
                 if isStaged { staged = nil }
@@ -892,21 +894,6 @@ final class GlobalSynthQueue {
             }
         }
         return units
-    }
-
-    /// Article done: drop its persisted pending job; if no paragraph needs audio in the target's
-    /// voice any more, delete any leftover units of an older voice/engine (one voice per article).
-    private func finishJob(_ job: ArticleJob, in target: RenderTarget) {
-        guard let coordinator else { return }
-        let freed = coordinator.audioCache.finalizeVoiceSwitch(
-            articleID: job.cacheKey, paragraphs: job.paragraphs,
-            engineID: target.engineID, voiceID: target.cacheVoice, plans: coordinator.chunkPlans)
-        if freed > 0 {
-            ListenDebugLog.shared.append(
-                "voice switch done \(job.cacheKey.uuidString.prefix(8)): old-voice audio removed (\(FileSizes.label(freed)))")
-            coordinator.noteBakeMarksChanged(of: job.cacheKey)
-        }
-        coordinator.bakeCompleted(cacheKey: job.cacheKey)
     }
 
     private func resumeChunkWaiters(cacheKey: UUID, index: Int, chunk: Int, url: URL) {

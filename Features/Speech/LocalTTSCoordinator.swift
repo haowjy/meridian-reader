@@ -391,7 +391,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
     func openArticle(cacheKey: UUID, paragraphs: [String], from start: Int, isEphemeral: Bool) {
         guard !paragraphs.isEmpty, rendersAhead(cacheKey, paragraphs: paragraphs) else { return }
         focusCacheKey = cacheKey
-        if isEphemeral { audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date()) }
+        if isEphemeral {
+            do { try audioCache.markEphemeral(cacheKey: cacheKey, lastAccess: Date()) } catch {
+                ListenDebugLog.shared.append("ephemeral mark failed \(cacheKey.uuidString.prefix(8)): \(error.localizedDescription)")
+            }
+        }
         synthQueue.enqueue(cacheKey: cacheKey, paragraphs: paragraphs, from: start, isEphemeral: isEphemeral,
                            at: .front)
     }
@@ -419,7 +423,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// included, keeps its place and plan and just turns saved.
     func startBakeIfNeeded(articleID: UUID, paragraphs: [String]) {
         guard !paragraphs.isEmpty, rendersAhead(articleID, paragraphs: paragraphs) else { return }
-        audioCache.markSaved(cacheKey: articleID)
+        do { try audioCache.markSaved(cacheKey: articleID) } catch {
+            ListenDebugLog.shared.append("saved mark failed \(articleID.uuidString.prefix(8)): \(error.localizedDescription)")
+        }
         pendingBakes.enqueuePending(articleID: articleID, paragraphs: paragraphs, priorityStart: 0)
         synthQueue.enqueue(cacheKey: articleID, paragraphs: paragraphs, isEphemeral: false, at: .back)
     }
@@ -429,11 +435,13 @@ final class LocalTTSCoordinator: SynthQueueContext {
         guard ephemeralKey != savedKey else {
             // Identity v2: saved id == reader key, so Save is just a kind flip (no dir move,
             // no queue rekey, no playback teardown).
-            markListenCacheSaved(savedKey)
+            do { try markListenCacheSaved(savedKey) } catch {
+                ListenDebugLog.shared.append("saved mark failed \(savedKey.uuidString.prefix(8)): \(error.localizedDescription)")
+            }
             return
         }
         do {
-            try audioCache.rekeyCache(from: ephemeralKey, to: savedKey)
+            try audioCache.rekeyCache(from: ephemeralKey, to: savedKey, voice: selectedCacheVoice(of: savedKey))
             synthQueue.rekey(from: ephemeralKey, to: savedKey)
             synthQueue.setEphemeral(cacheKey: savedKey, false)
             noteBakeMarksChanged()
@@ -469,7 +477,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         if !audioCache.hasCache(for: key) {
             for legacy in legacyKeys where legacy != key && audioCache.hasCache(for: legacy) {
                 do {
-                    try audioCache.rekeyCache(from: legacy, to: key)
+                    try audioCache.rekeyCache(from: legacy, to: key, voice: selectedCacheVoice(of: key))
                     // v1 key embedded the content hash, so its units match `paragraphs`.
                     try audioCache.stampMissingHashes(articleID: key, paragraphs: paragraphs)
                     ListenDebugLog.shared.append("identity adopt v1 \(legacy.uuidString.prefix(8)) → \(key.uuidString.prefix(8))")

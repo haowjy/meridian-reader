@@ -22,6 +22,10 @@ enum LibraryAudioWorkKind: String, Codable {
     /// TTL, and its queued render turns non-ephemeral, if the page is still saved in the Library
     /// when it runs.
     case saved
+    /// A page's voice changed (*Voice* on it or its book): its audio in another voice becomes an
+    /// old-voice entry, and its audio in the voice it has now, kept from before, is its live audio
+    /// again (`ArticleAudioCache.settleVoice`), as the page is when it runs.
+    case voice
 }
 
 /// Work outside the library store that a library change needs once it is saved: the audio cache,
@@ -37,7 +41,7 @@ final class LibraryAudioWork {
     var kindRaw: String = LibraryAudioWorkKind.align.rawValue
     /// The page whose audio ends up aligned: the rebuilt page, or the page kept by a merge; for
     /// `delete`, the deleted page; for `ephemeral`, the page that left the Library; for `saved`,
-    /// the page saved.
+    /// the page saved; for `voice`, the page whose voice changed.
     var key: UUID?
     /// `merge`: the merged page, whose audio moves under `key`.
     var fromKey: UUID?

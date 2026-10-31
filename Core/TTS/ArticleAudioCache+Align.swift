@@ -66,13 +66,16 @@ extension ArticleAudioCache {
     /// chunks line up with the old render (`slices`; `chunkPlan` is the render queue's plan, nil
     /// cuts nothing); the rest is dropped. Unhashed legacy units keep their slot. `adopting`: a
     /// merged article whose audio fills the paragraphs this one has no unit for, the same way;
-    /// its directory is deleted once this article's index is saved. Copy-on-write (above): a
-    /// failure throws and leaves the last saved index usable.
+    /// its directory is deleted once this article's index is saved. Its old voices become this
+    /// article's, and its audio in another voice than `voice` (the one this article renders in)
+    /// becomes an old-voice entry of this article instead (`prepareMerge`). Copy-on-write (above):
+    /// a failure throws and leaves the last saved index usable.
     @discardableResult
-    func reconcile(articleID: UUID, paragraphs: [String], adopting source: UUID? = nil,
+    func reconcile(articleID: UUID, paragraphs: [String], adopting source: UUID? = nil, voice: CacheVoice? = nil,
                    chunkPlan: ((String, String) -> [String]?)? = nil) throws -> ReconcileResult {
         var result = ReconcileResult()
-        let source = source == articleID ? nil : source
+        var source = source == articleID ? nil : source
+        if let from = source, !(try prepareMerge(from: from, into: articleID, voice: voice)) { source = nil }
         let own = index(for: articleID)
         let merged = source.flatMap { index(for: $0) }
         var units = self.units(of: own, for: articleID, origin: .own)
@@ -90,7 +93,7 @@ extension ArticleAudioCache {
             try publish(placed, for: articleID, engineID: base.engineID, voiceID: base.voiceID)
         }
         if let source, hasDirectory(for: source) {
-            if merged != nil { markSaved(cacheKey: articleID) }
+            if merged != nil { try markSaved(cacheKey: articleID) }
             try deleteAudio(for: source)
         }
         try removeUnlisted(articleID: articleID, previous: own)
