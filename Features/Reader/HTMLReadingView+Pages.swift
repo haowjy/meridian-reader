@@ -73,7 +73,6 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
     let model: ReadingPages
     /// The room under the pages: the footer and the home indicator's inset.
     private var footer: CGFloat
-    private var insets = ReaderTextInsets()
     /// The column layout is on the page.
     private var paged = false
     /// A measurement in flight, and another asked for meanwhile.
@@ -284,7 +283,6 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
     }
 
     func setInsets(_ insets: ReaderTextInsets) {
-        self.insets = insets
         guard let sv = scrollView else { return }
         sv.verticalScrollIndicatorInsets = .zero
         if paged { applyColumns() } else { sv.contentInset = .zero }

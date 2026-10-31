@@ -287,7 +287,8 @@ struct SheetGrabber: View {
 
     var body: some View {
         Capsule()
-            .fill((reading?.secondaryInk ?? Palette.secondaryInk).opacity(0.35))
+            // Strong enough to find on a dark page too (at 0.35 it all but vanished there).
+            .fill((reading?.secondaryInk ?? Palette.secondaryInk).opacity(0.6))
             .frame(width: 36, height: 5)
             .accessibilityHidden(true)
     }

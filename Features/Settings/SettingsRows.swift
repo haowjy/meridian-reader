@@ -67,20 +67,27 @@ extension SettingsChoiceRow where Accessory == EmptyView {
 }
 
 /// A row that opens a page of choices (`route`, pushed on Settings' stack): its name, the current
-/// choice in secondary ink, then ›. One line; the value truncates first.
+/// choice in secondary ink, then ›. One line; the value truncates first. At Accessibility sizes
+/// the value goes under the name, whole, as Settings does: beside it, it shrank to a letter.
 struct SettingsLinkRow: View {
     let title: String
     let value: String
     let accessibilityID: String
     let route: SettingsRoute
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         NavigationLink(value: route) {
-            SymbolRow(title, symbol: nil) {
-                Text(value)
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.secondaryInk)
-                    .lineLimit(1)
+            if dynamicTypeSize.isAccessibilitySize {
+                SymbolRow(title, subtitle: DetailPart(value), symbol: nil)
+            } else {
+                SymbolRow(title, symbol: nil) {
+                    Text(value)
+                        .typeStyle(.row)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .lineLimit(1)
+                }
             }
         }
         .accessibilityIdentifier(accessibilityID)

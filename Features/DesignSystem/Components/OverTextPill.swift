@@ -39,6 +39,8 @@ struct OverTextPill: View {
                         .foregroundStyle(reading?.onAccent ?? Palette.onAccent)
                         .padding(.horizontal, Spacing.s)
                         .padding(.vertical, Spacing.xxs)
+                        // It floats over the text: past XXXL it would hide whole lines of it.
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         .background(reading?.accent ?? Palette.accent, in: Capsule(style: .continuous))
                         // Thin, but its tap area is the tap floor.
                         .contentShape(Capsule().inset(by: -Spacing.s))
