@@ -138,13 +138,26 @@ final class LibraryScreenState {
         addingLink = .some(folder)
     }
 
-    /// The typed address as a web address: `https://` added when it has no scheme; nil when it
-    /// isn't one (no host with a dot).
+    /// The typed address as a web address, or nil when it isn't one. A bare host and path
+    /// ("example.com/a", "localhost:8080" with its port) gets `https://`; an address with a scheme
+    /// keeps it and must be http or https ("mailto:…", "ftp://…" are refused, not rewritten).
+    /// The host needs a real name: localhost, or two or more labels of letters, digits and hyphens ("." and
+    /// "example." are refused); no user name or password.
     static func linkURL(_ text: String) -> URL? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let withScheme = trimmed.contains("://") ? trimmed : "https://" + trimmed
-        guard let url = URL(string: withScheme), let scheme = url.scheme?.lowercased(),
-              scheme == "http" || scheme == "https", let host = url.host, host.contains(".") else { return nil }
+        guard !trimmed.isEmpty, !trimmed.contains(where: \.isWhitespace) else { return nil }
+        // A scheme is letters then ":"; "host:8080" is a port, not a scheme.
+        let hasScheme = trimmed.range(of: #"^[A-Za-z][A-Za-z0-9+.-]*:(?!\d+(?:[/?#]|$))"#,
+                                      options: .regularExpression) != nil
+        guard let url = URL(string: hasScheme ? trimmed : "https://" + trimmed),
+              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              url.user == nil, url.password == nil, let host = url.host(percentEncoded: false) else { return nil }
+        let labels = host.split(separator: ".", omittingEmptySubsequences: false)
+        let isLabel: (Substring) -> Bool = { label in
+            !label.isEmpty && !label.hasPrefix("-") && !label.hasSuffix("-")
+                && label.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
+        }
+        guard labels.count >= 2 || host == "localhost", labels.allSatisfy(isLabel) else { return nil }
         return url
     }
 }
