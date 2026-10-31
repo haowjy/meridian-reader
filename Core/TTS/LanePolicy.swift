@@ -34,6 +34,7 @@ final class LanePolicy: RenderPolicy {
     private(set) var isOneLane = false
 
     func plan(_ situation: RenderSituation) -> RenderPlan {
+        let wasOneLane = isOneLane
         let usable: [Lane] = situation.phase != .background && !isOneLane ? lanes : [.cpu]
         var plan = RenderPlan(failed: situation.unservable(on: usable))
         guard situation.phase != .background || situation.audioPlaying else { return plan }
@@ -70,6 +71,14 @@ final class LanePolicy: RenderPolicy {
         // Turned to one lane during this plan: the lone load waits for the Neural Engine's call.
         if case .load(let load)? = plan.actions[.cpu], load.alone, plan.actions[.neuralEngine] != nil {
             plan.actions[.cpu] = nil
+        }
+        // Turned to one lane during this plan: tell the listeners the CPU lane alone can't serve,
+        // now, since no later event need come to plan again.
+        if isOneLane, !wasOneLane {
+            let started = Set(plan.actions.values.compactMap { action -> Int? in
+                if case .start(let start) = action { start.candidate } else { nil }
+            })
+            plan.failed = situation.unservable(on: [.cpu]).filter { !started.contains($0) }
         }
         if plan.actions.isEmpty, situation.candidates.isEmpty, !loading {
             if let route = usable.lazy.compactMap({ lane in situation.preload.first { $0.lane == lane } }).first,
