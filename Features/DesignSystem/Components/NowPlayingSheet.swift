@@ -12,7 +12,7 @@ import SwiftUI
 /// │ `banner` (the ^ hint, while on)      │   names where it plays from and shrinks it; Aa, `accessory`
 /// │ `text`: dimmed, SPOKEN in full ink   │   The text fills the page, under the header and the
 /// │         dimmed                       │   band; it follows the audio. (↑) is Jump to Audio,
-/// │                 (↑)                  │   centred, 12 pt above the card, once you scroll away
+/// │          ( ↑ Jump to Audio )         │   centred, 12 pt above the card, once you scroll away
 /// │ ─────────────────────────────────────│ <- hairline divider
 /// │ [art] Title          time left (Voice)│ <- title; Voice trailing (aligned right)
 /// │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ <- scrub row
@@ -21,7 +21,7 @@ import SwiftUI
 /// ```
 ///
 /// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
-/// `playState` / `onPlayPause`, at the bottom right. Jump to Audio (`JumpToAudioButton`) floats
+/// `playState` / `onPlayPause`, at the bottom right. Jump to Audio (`JumpToAudioButton`, a thin accent pill, "↑ Jump to Audio") floats
 /// centred over the text while it is away from the audio, 12 pt above the card, or above the home
 /// indicator's strip in full screen; its arrow points to the sentence (`direction`). On regular
 /// width the pill, the grabber and a pull down shrink it
@@ -78,31 +78,33 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     }
 }
 
-/// Jump to Audio: a round glass button a bar high, on the chrome's shared circle face
-/// (`ChromeCircleFace`), floating in the middle of the line above what floats at the foot (the
-/// card, or the strip in full screen: `ReadingBars`'s over-text clearance), with an arrow that
-/// points to the spoken sentence. It shows only while the text is away from the audio (`shows`),
-/// and fades in and out.
+/// Jump to Audio: a thin accent pill in caption type, "↑ Jump to Audio", floating in the
+/// middle of the line above what floats at the foot (the card, or the strip in full screen), its
+/// arrow pointing to the spoken sentence. It shows only while the text is away from the audio
+/// (`shows`), and fades in and out.
 struct JumpToAudioButton: View {
     let shows: Bool
     let direction: JumpDirection
     let action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    /// The circle: a bar's height. Its tap area is at least `Control.tap`.
-    static let size = Control.bar
+    @Environment(\.readingPalette) private var reading
 
     var body: some View {
         ZStack {
             if shows {
                 Button(action: action) {
-                    ChromeCircleFace(symbol: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown, label: Verbs.jumpToAudio)
-                        .frame(width: Self.size, height: Self.size)
-                        .tapTarget(Self.size)
-                        .environment(\.chromeSkin, ChromeSkin.current)
+                    Label(Verbs.jumpToAudio, systemImage: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown)
+                        .typeStyle(.caption, weight: .semibold)
+                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(reading?.onAccent ?? Palette.onAccent)
+                        .padding(.horizontal, Spacing.s)
+                        .padding(.vertical, Spacing.xxs)
+                        .background(reading?.accent ?? Palette.accent, in: Capsule(style: .continuous))
+                        // Thin, but its tap area is the tap floor.
+                        .contentShape(Capsule().inset(by: -Spacing.s))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PillPressStyle())
                 .accessibilityLabel(Verbs.jumpToAudio)
                 .accessibilityHint(direction == .up
                     ? String(localized: "Scrolls up to the sentence being read.")

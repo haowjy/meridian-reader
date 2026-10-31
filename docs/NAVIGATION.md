@@ -130,7 +130,7 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   drawn while typing or in Library Edit (row 1 is then the field alone).
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **48 pt**
   (`Control.bar`, Safari's address bar and buttons), for every piece in every row and state (pill,
-  fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, Jump to Audio, Library Read's ⋯), on every screen. The round
+  fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, Library Read's ⋯), on every screen. The round
   buttons share one face (`ChromeCircleFace`).
   **Concentric:** a 48 pt end holds a 24 pt glyph slot inset 12 (`endGlyphSlot`, `endInset`), so the slot's
   radius is the end cap's less the inset. **Every hit area is at least 44 pt** (`Control.tap`): the glass is
@@ -226,10 +226,10 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   full-width scrubber, no times. Under it two rows of small glyphs, no labels, at the card's margins:
   the speed (1×) over Aa at the left, Voice (VoiceOver: "Voice", never a voice's name) over ⋯ at the
   right; between them ⏮, a 62 pt ▶ / ⏸ and ⏭ (`NowPlayingTransport`'s `card` size), centred across
-  both rows. **Jump to Audio** is not in the card: scrolled away from the audio, a round glass ↑ or ↓
-  (48 pt, `JumpToAudioButton`, the same on regular width) floats in the middle 12 pt above the card (above
-  the home indicator's strip in full screen) and brings the text back to the spoken sentence (VoiceOver:
-  "Jump to Audio"); while the text follows the audio, or once the article has finished, it isn't there.
+  both rows. **Jump to Audio** is not in the card: scrolled away from the audio, a thin accent pill,
+  "↑ Jump to Audio" or "↓ Jump to Audio" in caption type (`JumpToAudioButton`, the same on regular width;
+  its tap area 44 pt), floats in the middle 12 pt above the card (above
+  the home indicator's strip in full screen) and brings the text back to the spoken sentence; while the text follows the audio, or once the article has finished, it isn't there.
   ⋯ (`listenMore`) is a system menu, a section per
   group: *Play from a Paragraph*; *Go to <folder or Library>*, *Save to Folder…*,
   *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place). There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the
