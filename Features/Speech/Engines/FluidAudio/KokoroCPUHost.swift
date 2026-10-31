@@ -4,7 +4,7 @@ import Foundation
 import UIKit
 #endif
 
-/// Kokoro 82M on the **ONNX CPU route**, Kokoro's default route.
+/// Kokoro 82M on the **ONNX CPU route**, the only route Kokoro renders on.
 ///
 /// - Synthesis: ONNX Runtime CPU execution provider (`KokoroONNXSession`,
 ///   `onnx-community/Kokoro-82M-v1.0-ONNX` fp16, 163 MB, downloaded by `KokoroONNXModelStore`).
@@ -12,11 +12,12 @@ import UIKit
 ///   and allowed in the background (CPU work while audio plays), so `rendersInBackground`.
 /// - Text frontend: FluidAudio's English frontend rebuilt without Core ML
 ///   (`KokoroAneCPUFrontend`, a Reader patch in `Vendor/FluidAudio`): NeMo/regex normalizer,
-///   Misaki lexicon, and a pure-Swift port of the BART G2P for out-of-vocabulary words. Same
-///   phonemes, vocab (`ANE/vocab.json`) and voice packs (`ANE/<voice>.bin`) as the Core ML route,
-///   so cached audio keeps its "kokoro.<voice>" key and all curated voices work.
+///   Misaki lexicon, and a pure-Swift port of the BART G2P for out-of-vocabulary words, with
+///   FluidAudio's vocab (`ANE/vocab.json`) and voice packs (`ANE/<voice>.bin`). Its phonemes match
+///   FluidAudio's Core ML frontend, so audio cached under "kokoro.<voice>" stays valid.
 /// - Style vector = voice-pack row `len(phonemes) − 1` (FluidAudio / kokoro-onnx rule); output ×0.69
-///   to match the Core ML route's loudness (ONNX measured ≈3 dB louder).
+///   to match FluidAudio's Core ML Kokoro loudness, the level the cached audio has (ONNX measured
+///   ≈3 dB louder).
 /// - Threads: `KokoroRouteSettings.cpuThreads` (default: every core but one, 5 on an iPhone 17
 ///   Pro) while the app is in front, one in the
 ///   background (`KokoroRouteSettings.onnxThreads`). ORT fixes the count when a session is
@@ -59,9 +60,9 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
 
     var routingLabel: String? { "onnxCPU t\(lock.withLock { sessions }?.threads ?? threads)" }
     var rendersInBackground: Bool { true }
-    var routeTag: String? { KokoroRoute.onnxCPU.rawValue }
+    var routeTag: String? { KokoroRouteSettings.onnxRouteTag }
 
-    init(voice: String = KokoroHost.defaultVoice, threads: Int = KokoroRouteSettings.defaultThreads,
+    init(voice: String = KokoroVoiceCatalog.defaultVoice, threads: Int = KokoroRouteSettings.defaultThreads,
          crashCount: KokoroRouteSettings? = nil, runState: AppRunState = .shared) {
         self.voice = voice
         self.threads = threads
@@ -250,13 +251,6 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     }
 
     // MARK: - Files
-
-    /// Prepare what the route needs for `voice` without loading it (the Core ML route's fallback).
-    static func ensureFiles(voice: String) async throws {
-        try await KokoroAneCPUFrontend.ensureAssets()
-        try await KokoroAssets.ensureVoicePack(voice)
-        try await KokoroONNXModelStore.shared.ensureInstalled()
-    }
 
     /// Everything the CPU route needs is on disk (cheap checks, no hashing).
     static var filesLookInstalled: Bool {

@@ -4,18 +4,16 @@ import Foundation
 import UIKit
 #endif
 
-/// `-KokoroStress coreml|onnx` (Debug hooks only): renders a fixed corpus of
-/// `KokoroStressCorpus.calls` Kokoro calls through one route with the app in front, to count
-/// crashes and compare speed.
+/// `-KokoroStress` (Debug hooks only): renders a fixed corpus of `KokoroStressCorpus.calls`
+/// Kokoro calls with the app in front, to count crashes and measure speed.
 ///
-/// - Hosts: `coreml` = `KokoroHost` alone (no ONNX fallback; `-kokoroUnits` still applies),
-///   `onnx` = `KokoroCPUHost` at the front thread count. The app's own Kokoro host is unloaded
-///   first and the render queue is paused; every call holds `SynthRenderGate`.
-/// - Output: `Documents/KokoroStress/<route>.jsonl`. A `begin` line is written and synced before
+/// - Host: a fresh `KokoroCPUHost` at the front thread count. The app's own Kokoro host is
+///   unloaded first and the render queue is paused; every call holds `SynthRenderGate`.
+/// - Output: `Documents/KokoroStress/onnx.jsonl`. A `begin` line is written and synced before
 ///   each call, an `end` line (wall ms, audio s, RTF, ms per audio second) after it, so a hard
 ///   crash leaves its call index. Launched again with the same argument, the run counts that crash
-///   (with the Core ML breadcrumb's stage) and goes on with the next call, until the corpus is done
-///   or `crashLimit` crashes. Then `Documents/KokoroStress/<route>-summary.json`.
+///   and goes on with the next call, until the corpus is done or `crashLimit` crashes. Then
+///   `Documents/KokoroStress/onnx-summary.json`.
 /// - `-KokoroStressCalls N` shortens or lengthens the corpus; `-KokoroStressFresh` starts over.
 ///   A finished run starts over by itself.
 /// - Calls start only while the app is active; the screen stays awake while it runs.
@@ -23,15 +21,13 @@ import UIKit
 enum KokoroStressRun {
     static let crashLimit = 5
 
-    enum Route: String { case coreml, onnx }
+    /// The route the run measures; it names the output files.
+    static let route = KokoroRouteSettings.onnxRouteTag
 
     /// What the launch asked for (`LaunchOptions.kokoroStress`).
     struct Request: Equatable {
-        var route: Route
         var calls: Int = KokoroStressCorpus.calls
         var fresh = false
-        /// The Core ML host's compute units (`-kokoroUnits`); nil: its default.
-        var coreMLUnits: String?
     }
 
     private static var didRun = false
@@ -49,8 +45,8 @@ enum KokoroStressRun {
     }
 
     static func run(_ request: Request, coordinator: LocalTTSCoordinator) async {
-        let log = KokoroStressLog(url: directory.appendingPathComponent("\(request.route.rawValue).jsonl"))
-        let summaryURL = directory.appendingPathComponent("\(request.route.rawValue)-summary.json")
+        let log = KokoroStressLog(url: directory.appendingPathComponent("\(route).jsonl"))
+        let summaryURL = directory.appendingPathComponent("\(route)-summary.json")
         var history = log.read()
         if request.fresh || history.done || history.corpusCalls != request.calls {
             log.reset()
@@ -59,14 +55,9 @@ enum KokoroStressRun {
         }
         let runID = String(UUID().uuidString.prefix(8))
         if let crashed = history.inFlight {
-            var fields: [String: Any] = ["ev": "crash", "i": crashed.index, "run": crashed.run, "found_by": runID]
-            if let crumb = CoreMLBreadcrumbFile.shared.read(), crumb.at.timeIntervalSince1970 >= crashed.t {
-                fields["coreml_stage"] = "\(crumb.model)/\(crumb.stage)"
-            }
-            log.append(fields)
+            log.append(["ev": "crash", "i": crashed.index, "run": crashed.run, "found_by": runID])
             history = log.read()
         }
-        CoreMLBreadcrumbFile.shared.clear()
         let corpus = KokoroStressCorpus.chunks(count: request.calls)
         if history.crashes.count >= crashLimit {
             finish(log: log, summaryURL: summaryURL, request: request, status: "stopped_at_crash_limit")
@@ -77,26 +68,20 @@ enum KokoroStressRun {
         UIApplication.shared.isIdleTimerDisabled = true
         defer { UIApplication.shared.isIdleTimerDisabled = false }
         #endif
-        // The app's own Kokoro host goes first: Core ML twice fails on device, and ONNX twice
-        // doubles the memory.
+        // The app's own Kokoro host goes first: a second ONNX session doubles the memory.
         await coordinator.withRenderingQuiet {
-            let voice = KokoroHost.defaultVoice
-            let host: LocalSynthHost
-            switch request.route {
-            case .coreml:
-                host = KokoroHost(voice: voice, unitsLabel: request.coreMLUnits)
-            case .onnx: host = KokoroCPUHost(voice: voice, threads: KokoroRouteSettings().cpuThreads)
-            }
+            let voice = KokoroVoiceCatalog.defaultVoice
+            let host = KokoroCPUHost(voice: voice, threads: KokoroRouteSettings().cpuThreads)
             let start = history.nextIndex
             log.append([
-                "ev": "start", "run": runID, "route": request.route.rawValue, "corpus_calls": request.calls,
+                "ev": "start", "run": runID, "route": route, "corpus_calls": request.calls,
                 "from": start, "units": host.routingLabel ?? "", "voice": voice,
                 "device": DeviceChipGate.machineIdentifier, "os": ProcessInfo.processInfo.operatingSystemVersionString,
                 "build": LocalTTSCoordinator.buildConfiguration, "optimized": !_isDebugAssertConfiguration(),
                 "thermal": ProcessInfo.processInfo.thermalState.rawValue,
                 "low_power": ProcessInfo.processInfo.isLowPowerModeEnabled, "cores": ProcessInfo.processInfo.activeProcessorCount,
             ])
-            say("\(request.route.rawValue) run \(runID): calls \(start)..<\(request.calls), \(history.crashes.count) crashes so far")
+            say("\(route) run \(runID): calls \(start)..<\(request.calls), \(history.crashes.count) crashes so far")
 
             let t0 = ListenTimingLog.now()
             do {
@@ -112,8 +97,7 @@ enum KokoroStressRun {
             for index in start..<corpus.count {
                 await waitUntilActive(log: log, run: runID)
                 let chunk = corpus[index]
-                log.append(["ev": "begin", "run": runID, "i": index, "chars": chunk.text.count, "para": chunk.paragraph,
-                            "t": Date().timeIntervalSince1970])
+                log.append(["ev": "begin", "run": runID, "i": index, "chars": chunk.text.count, "para": chunk.paragraph])
                 await SynthRenderGate.shared.acquire()
                 let tCall = ListenTimingLog.now()
                 var fields: [String: Any] = ["ev": "end", "run": runID, "i": index, "chars": chunk.text.count]
@@ -127,7 +111,7 @@ enum KokoroStressRun {
                         fields["rtf"] = (wallMs / 1000 / pcm.duration * 1000).rounded() / 1000
                         fields["ms_per_audio_s"] = Int((wallMs / pcm.duration).rounded())
                     }
-                    for key in ["stages_ms", "onnx_ms", "g2p_ms", "threads", "phonemes", "tokens"] {
+                    for key in ["onnx_ms", "g2p_ms", "threads", "phonemes", "tokens"] {
                         if let v = pcm.metrics[key] { fields[key] = v }
                     }
                 } catch {
@@ -140,7 +124,7 @@ enum KokoroStressRun {
                 fields["mem_mb"] = ProcessMemory.footprintMB
                 if index == start { fields["first_audio_ms"] = ListenTimingLog.ms(since: t0) }
                 log.append(fields)
-                if index % 20 == 19 || index == start { say("\(request.route.rawValue) \(index + 1)/\(corpus.count)") }
+                if index % 20 == 19 || index == start { say("\(route) \(index + 1)/\(corpus.count)") }
             }
             await host.unload()
             finish(log: log, summaryURL: summaryURL, request: request, status: "complete")
@@ -157,7 +141,7 @@ enum KokoroStressRun {
     }
 
     private static func finish(log: KokoroStressLog, summaryURL: URL, request: Request, status: String) {
-        let summary = log.read().summary(route: request.route.rawValue, corpusCalls: request.calls, status: status)
+        let summary = log.read().summary(route: route, corpusCalls: request.calls, status: status)
         if let data = try? JSONSerialization.data(withJSONObject: summary, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: summaryURL, options: .atomic)
         }
@@ -213,7 +197,7 @@ enum KokoroStressCorpus {
 
 /// What a stress log holds so far.
 struct KokoroStressHistory {
-    struct InFlight { var index: Int; var run: String; var t: Double }
+    struct InFlight { var index: Int; var run: String }
 
     var events: [[String: Any]] = []
 
@@ -226,7 +210,7 @@ struct KokoroStressHistory {
     var inFlight: InFlight? {
         guard let last = events.last(where: { ["begin", "end", "crash"].contains($0["ev"] as? String) }),
               last["ev"] as? String == "begin", let i = last["i"] as? Int else { return nil }
-        return InFlight(index: i, run: last["run"] as? String ?? "", t: last["t"] as? Double ?? 0)
+        return InFlight(index: i, run: last["run"] as? String ?? "")
     }
 
     /// The call after the last one ended or crashed.
@@ -263,7 +247,7 @@ struct KokoroStressHistory {
             "optimized": starts.last?["optimized"] ?? NSNull(),
             "calls_attempted": ends.count + crashes.count, "calls_ok": ok.count, "calls_failed": ends.count - ok.count,
             "crashes": crashes.count,
-            "crash_calls": crashes.map { ["i": $0["i"] ?? -1, "coreml_stage": $0["coreml_stage"] ?? NSNull()] },
+            "crash_calls": crashes.compactMap { $0["i"] as? Int },
             "audio_s": (audioS * 10).rounded() / 10, "wall_s": (wallMs / 100).rounded() / 10,
             "x_realtime": wallMs > 0 ? (audioS / (wallMs / 1000) * 100).rounded() / 100 : 0,
             "rtf": audioS > 0 ? (wallMs / 1000 / audioS * 1000).rounded() / 1000 : 0,

@@ -2,13 +2,13 @@ import Foundation
 import SwiftUI
 
 extension SpeechEngineID {
-    /// Phonon 31m English (Apache 2.0). Core ML via Gradium `ptts`. App default on-device engine.
+    /// Phonon 31m English (Apache 2.0). Core ML's CPU path via Gradium `ptts`. App default on-device engine.
     static let phonon = SpeechEngineID("local.phonon")
 }
 
 extension TextChunker.Limits {
     /// Phonon prefers whole-paragraph synth calls. Display paragraphs are capped around
-    /// 1,200 chars (`ParagraphSplitter.threshold`); Phonon's own sentence handling + ANE
+    /// 1,200 chars (`ParagraphSplitter.threshold`); Phonon's own sentence handling and speed
     /// make short TTFA first-clips unnecessary for normal listening. Oversized rare
     /// paragraphs still sentence-split via TextChunker under `hardMax`.
     static let phonon = TextChunker.Limits(
@@ -17,7 +17,7 @@ extension TextChunker.Limits {
 }
 
 /// Gradium Phonon 31m English adapter. Registers one on-device engine (`local.phonon`).
-/// Core ML on Phonon's default compute unit (Neural Engine).
+/// Core ML's CPU path (`PhononHost.computeUnit`).
 @MainActor
 final class PhononProvider: SpeechEngineProvider {
     let name = "Phonon"
@@ -67,7 +67,11 @@ final class PhononProvider: SpeechEngineProvider {
         id == .phonon && PhononVoiceCatalog.all.contains(where: { $0.id == voice })
     }
 
-    var launchMigrations: [LaunchMigration] { [PhononDownloadLeftovers(), PhononCacheRevision()] }
+    /// Phonon's model housekeeping, then pruning Core ML's compiled-model cache of earlier
+    /// installs' bundles (Phonon is the app's only Core ML model).
+    var launchMigrations: [LaunchMigration] {
+        [PhononDownloadLeftovers(), PhononCacheRevision(), CoreMLCompileCacheJanitor()]
+    }
 
     func debugSections(speech: SpeechController) -> AnyView {
         AnyView(EmptyView())

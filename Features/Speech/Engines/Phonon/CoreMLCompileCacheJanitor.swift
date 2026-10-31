@@ -7,7 +7,7 @@ import Foundation
 ///
 /// Once per install, delete bundle dirs whose newest file predates this launch (the first launch of
 /// the install). Core ML recompiles anything it still needs — which it does after a binary change anyway (the one slow
-/// first Kokoro load after an install), so this costs nothing extra. One of FluidAudio's launch steps.
+/// first Phonon load after an install), so this costs nothing extra. One of Phonon's launch steps.
 struct CoreMLCompileCacheJanitor {
     struct Report: Sendable {
         var bundlesRemoved = 0

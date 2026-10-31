@@ -18,7 +18,7 @@ Listen UI  →  SpeechController  →  LocalListenEngine (bound per play, one vo
                                      └─ LocalListenPlayer: file player + producer
                                           └─ ListenUnitSource (per play): audio cache + GlobalSynthQueue
                                                → LocalSynthService → LocalChunkRenderer
-                                                  → LocalSynthHost (KokoroCPUHost / KokoroHost / PhononHost)
+                                                  → LocalSynthHost (KokoroCPUHost / PhononHost)
 ```
 
 The engine reports events (`PlaybackEngineEvent`: audible, paused, position, finished, stalled);
@@ -30,15 +30,15 @@ the session decides. What binds, and what happens while the voice's engine loads
 Kokoro-82M, English only (`supportedLanguages = ["en"]`), A15 or newer and iOS 17+ (the Simulator
 is allowed). `FluidAudioProvider` declares it (`local.kokoro`) and builds its host.
 
-### Routes
+### Route
 
-Both routes use the same voice packs, phonemes and cache key (`kokoro.<voice>`), so audio rendered
-on either stays valid on the other (`KokoroRoute`, `KokoroRouteSettings`).
+Kokoro renders on one route, ONNX Runtime on the CPU (`KokoroCPUHost`; its knobs are
+`KokoroRouteSettings`). Its phonemes, voice packs and cache key (`kokoro.<voice>`) are those of
+FluidAudio's Core ML Kokoro, so audio rendered on it stays valid.
 
 | Route | Host | Notes |
 |---|---|---|
-| **ONNX CPU** (default) | `KokoroCPUHost` | ONNX Runtime on the CPU execution provider, onnx-community `model_fp16.onnx` (≈163 MB, downloaded into `Application Support/CPURoute/kokoro-82m-v1.0-onnx/`, SHA-256 checked, excluded from backup), every core but one in front (3 to 6: 5 on an iPhone 17 Pro, so the work an efficiency core holds is a smaller piece; `reader.tts.kokoro.cpuThreads` overrides it in the debug panel) and 1 in the background (the session is rebuilt at the first call after a phase change, `KokoroONNXSessionSlot`). Each run shrinks ORT's CPU arena when it ends (`memory.enable_memory_arena_shrinkage`), so the footprint between calls stays near where it started; a memory warning lets go of the session, which the next call builds again (≈0.5 s; `kokoro_cpu_session_released`, `kokoro_cpu_session_rebuilt`). Frontend `KokoroAneCPUFrontend` (vendored FluidAudio patch: Misaki lexicon + a pure-Swift BART G2P that reads the Core ML G2P weights as data; heteronyms such as read, live, close, record pick Misaki's part-of-speech pronunciation per sentence from Apple's `NLTagger`, with auxiliary rules for past `read`, from the bundled `Resources/KokoroHeteronyms.json`, C132; an OOV `-s`/`-ed`/`-ing` word is built from its known stem by Misaki's suffix rules, a heteronym's VERB reading as the stem, so `lived` is lˈɪvd, and `c.`/`ca.` before a number reads "circa", C137), so no Core ML runs on this route. Renders in the background, in bursts that start below 4 min of listening ready ahead and stop at 8 min (LISTEN_PLAYBACK.md → "Rendering in the background"). |
-| Core ML (debug) | `KokoroSplitHost` | In front, FluidAudio's 7-stage Core ML chain (`KokoroHost`) with `aneTailGpu` routing (FluidAudio #667: albert, post-albert, alignment, prosody and vocoder on `.cpuAndNeuralEngine`; noise and the iSTFT tail on `.cpuAndGPU`, so the tail never runs on the CPU's BNNS; `-kokoroUnits <label>` overrides it in Debug builds). From the first load or call made in the background until the process ends it renders on the ONNX route (`KokoroCPUHost`), after releasing the Core ML models; `prepare()` puts the ONNX files on disk so that never downloads in the background. Core ML's E5RT → libBNNS path can still crash on iOS 26.4+ (FluidAudio #844/#817); any Kokoro crash turns this route off. Listen debug panel → "Kokoro fast GPU route". Unused Core ML stages are deleted at launch while it is off. |
+| **ONNX CPU** | `KokoroCPUHost` | ONNX Runtime on the CPU execution provider, onnx-community `model_fp16.onnx` (≈163 MB, downloaded into `Application Support/CPURoute/kokoro-82m-v1.0-onnx/`, SHA-256 checked, excluded from backup), every core but one in front (3 to 6: 5 on an iPhone 17 Pro, so the work an efficiency core holds is a smaller piece; `reader.tts.kokoro.cpuThreads` overrides it in the debug panel) and 1 in the background (the session is rebuilt at the first call after a phase change, `KokoroONNXSessionSlot`). Each run shrinks ORT's CPU arena when it ends (`memory.enable_memory_arena_shrinkage`), so the footprint between calls stays near where it started; a memory warning lets go of the session, which the next call builds again (≈0.5 s; `kokoro_cpu_session_released`, `kokoro_cpu_session_rebuilt`). Frontend `KokoroAneCPUFrontend` (vendored FluidAudio patch: Misaki lexicon + a pure-Swift BART G2P that reads the Core ML G2P weights as data; heteronyms such as read, live, close, record pick Misaki's part-of-speech pronunciation per sentence from Apple's `NLTagger`, with auxiliary rules for past `read`, from the bundled `Resources/KokoroHeteronyms.json`, C132; an OOV `-s`/`-ed`/`-ing` word is built from its known stem by Misaki's suffix rules, a heteronym's VERB reading as the stem, so `lived` is lˈɪvd, and `c.`/`ca.` before a number reads "circa", C137), so no Core ML runs on this route. Renders in the background, in bursts that start below 4 min of listening ready ahead and stop at 8 min (LISTEN_PLAYBACK.md → "Rendering in the background"). |
 
 Measured with `-KokoroStress` (320 fixed calls, app in front, iPhone 17 Pro, iOS 26.6.2, Release
 build with the Debug hooks, 2026-10-11):
@@ -49,7 +49,8 @@ build with the Debug hooks, 2026-10-11):
 | Core ML, `aneTailGpu` | 20, stopped at 5 crashes | 5 | 62 (16×) | 1.1–1.4 s |
 | Core ML, `gpuAneVocoder` | 20, stopped at 5 crashes | 5 | 95 (10.5×) | 1.8–2.0 s |
 
-Every Core ML crash is the same: `SIGSEGV` in `libBNNS` (`BNNSGraphContextExecute_v2`, from
+The Core ML rows are FluidAudio's 7-stage Core ML chain, which the app doesn't run because of
+these crashes. Every Core ML crash is the same: `SIGSEGV` in `libBNNS` (`BNNSGraphContextExecute_v2`, from
 `E5RT::Ops::BnnsCpuInferenceOperation` on `com.apple.e5rt.concurrentExecutionQueue`) during the
 `tail` stage, though that stage is placed on `.cpuAndGPU`: E5RT still runs part of it on the
 CPU. Calls 1, 2 and 19 crashed on both routings, two of them as a fresh process's first call, so
@@ -71,8 +72,7 @@ chunk (playback pauses there with Retry), and `LocalPCMWriter` writes non-finite
 ### Assets and voices
 
 - Shared assets (`KokoroAssets`, `Application Support/fluidaudio/Models/kokoro-82m-coreml/ANE/`):
-  vocab, BART G2P, the US lexicon, voice packs (`<voice>.bin`, 0.5 MB each) and, for the Core ML
-  route, the `.mlmodelc` stages. The shared ONNX model download shows progress under the voice
+  vocab, BART G2P, the US lexicon and voice packs (`<voice>.bin`, 0.5 MB each). The shared ONNX model download shows progress under the voice
   list (tap to cancel). Each downloaded voice pack is removed with a swipe *Remove Download* on
   that voice row; Heart cannot be removed while it is the only curated pack on disk.
 - Voices (`KokoroVoiceCatalog`): `af_heart` (Heart, default), `af_bella`, `bf_emma`, `am_puck`,
@@ -109,7 +109,7 @@ one: no notice, no crash count, nothing reopened:
   than the marker: the process played on long past the call's start, so the call didn't end it;
 - **memory kill:** the call started in the background with a footprint of 1,000 MB or more: iOS
   reclaiming memory (jetsam), not the engine;
-- **engine crash:** anything else, including every Core ML call (they run only in front).
+- **engine crash:** anything else.
 
 A crash never changes the engine or the voice. The provider decides how it resumes
 (`SpeechEngineProvider.recover(from:playing:)`, a `CrashRecovery`). An engine without a hook
@@ -117,8 +117,8 @@ A crash never changes the engine or the voice. The provider decides how it resum
 says "Phonon stopped." with *Retry*; Retry, or any press of play, loads the engine afresh in the
 same voice and plays on. Kokoro answers with `KokoroCrashRecovery`:
 
-- any crash turns the Core ML route off (the setting, so it stays off until turned on again);
-- a Core ML crash → the ONNX route, and the article reopens at that paragraph;
+- a marker from an older build's Core ML route (route `coreml`, or none) → the ONNX route, and the
+  article reopens at that paragraph; it doesn't count toward the pause;
 - an ONNX crash → ONNX again on one thread fewer and the same resume; a second ONNX crash without
   40 healthy calls in between pauses for Retry, as above ("Kokoro stopped.");
 - a resume that doesn't pause auto-plays when the crash was under 20 minutes ago and something was
@@ -126,9 +126,7 @@ same voice and plays on. Kokoro answers with `KokoroCrashRecovery`:
 - the paragraph is applied only on an article that still holds the text it was played in; otherwise
   the article opens paused at its own spot (`AppLaunch.resumeAfterCrash`, `LISTEN_PLAYBACK.md`).
 
-On the Core ML route `coreml_breadcrumb.json` names the model and stage that was about to run;
-after a Kokoro crash, `FluidAudioProvider.recover` logs it as `coreml_stage` in
-`engine_crash_coreml_stage`, right after `engine_crash_detected`, and clears it. A process that dies while suspended
+A process that dies while suspended
 mid-call (no notice, no time to clear) can't be told from a crash, but the render queue holds a
 background task while a call is in flight as the app leaves the front, so the call ends first.
 
@@ -138,35 +136,35 @@ background task while a call is in flight as the app leaves the front, so the ca
 anything plays (after the library's unfinished audio work): `KokoroAudioCachePurge` (drops Kokoro
 audio rendered before the NaN patch and the boundary-trimmed joins;
 `reader.tts.kokoro.audioCacheVersion`; audio held for library work that couldn't finish is left
-for a later launch's purge), `KokoroCoreMLStageCleanup` (with the Core ML route off, the
-stages are deleted off the main thread whenever they are found; skipped for a Core ML stress run,
-which the provider is told at init), `CoreMLCompileCacheJanitor` (Core ML's compiled-model cache,
-once per install, in the background; `LISTEN_PLAYBACK.md` → "Audio cache"), and in Debug builds
+for a later launch's purge), `KokoroCoreMLStageCleanup` (at every launch: removes the stored
+`reader.tts.kokoro.fastGPURoute` an older build's Core ML route setting left, and deletes the Core
+ML stages it downloaded, off the main thread, whenever they are found), and in Debug builds
 `CPURouteProbes` (whether background tasks can get GPU time, `probe_bg_gpu`).
 
 The route settings (`KokoroRouteSettings`) belong to `FluidAudioProvider`. Its Listen debug panel
 section (`KokoroRouteDebugSection`, from the provider's `debugSections`) changes them through it
-(`setFastGPURoute`, `setCPUThreads`), then asks the coordinator to rebuild the live host
+(`setCPUThreads`), then asks the coordinator to rebuild the live host
 (`LocalTTSCoordinator.reloadEngine`, which knows no engine).
 
 
 ## Phonon
 
 On-device English TTS via Gradium [`ptts`](https://github.com/gradium-ai/xn-ptts) 0.6.0
-(Phonon 31m Core ML, Apache 2.0). **The default on-device engine** (Zoey, picked on a fresh
+(Phonon 31m on Core ML's CPU path, Apache 2.0). **The default on-device engine** (Zoey, picked on a fresh
 install when the engine is supported); Kokoro Heart is the second default. iOS 18+.
 
 | | |
 |---|---|
 | Engine id | `local.phonon` |
-| Host | `PhononHost`: Core ML on Phonon's default compute unit, the Neural Engine (`computeUnit` is `nil`; routing label `phonon-31m ane`). `PhononHost` can take `computeUnit: .cpu` (label `phonon-31m cpu`), but nothing in the app passes it: CPU-only rendering made the phone laggy. |
+| Host | `PhononHost`: Core ML's CPU path, always (`PhononHost.computeUnit` is `.cpu`; routing label `phonon-31m cpu`). On an iPhone 17 Pro (Release) it renders about 22× real time in front at about 1.7 cores and 13.4× in the background. The cache key doesn't name the compute unit: audio rendered on the Neural Engine sounds the same and stays valid. |
 | Models | Built into the app (`Resources/PhononBundle`, ~170 MB, every voice), put there at build time by `tools/fetch-phonon-bundle.sh` from the release [`phonon-31m-en-200-v0.6.0`](https://github.com/haowjy/xn-ptts/releases/tag/phonon-31m-en-200-v0.6.0) on the owner's fork, haowjy/xn-ptts. Nothing downloads at run time. Core ML compiles a model beside its package, so the first load of a process copies the bundle to `PhononTTS/models` unless that copy already holds the same export (`bundle.json`'s `built`); the copy is staged and swapped in whole, before any Phonon model loads. Builds that downloaded the model left the zip and an unzipped `bundle/`; a launch step removes them (`PhononDownloadLeftovers`). |
 | Voices | The full English set in the bundle (`PhononVoiceCatalog`): eight curated at the top of the picker (Zoey default), the rest under *More voices*. Every one is always installed. |
 | Prefill | 200 tokens. ptts groups a paragraph's sentences up to the bundle's prefill and cuts a longer sentence at the word nearest its middle, ending each piece with a full stop; the model speaks each piece as its own sentence, so a cut sounds like a false sentence end. Upstream's release bundle is exported at 48 tokens (about 150 characters of prose), which cut ordinary long sentences; at 200 (ptts's own fit limit, past which the model stops early and skips words) a sentence goes through whole. The larger cache (ctx 1200 against 414) makes every step costlier: on a Mac's Neural Engine it still renders about 15× real time and takes about 30 MB more; on the Simulator, which has no Neural Engine, it renders about 2.5× slower than the 48-token bundle. |
 | Bundle export | At ptts v0.6.0: `cargo build -j 2 --release -p ptts --example export_coreml --features hub`, then `export_coreml --max-tokens 200 phonon-31m-en-coreml` (its default checkpoint, `hf://gradium/phonon-31m-en@8c64b55ec301728e2d1695bfea87a08a267d0c2d`). The checkpoint carries only its `default` voice, so the other 37 voice files are copied unchanged from upstream's v0.4.0 bundle and added to `bundle.json`'s `files` and `voices`; `source.json` records the sources. Zipped with the root folder `phonon-31m-en-coreml`. The release notes give the details and hashes. |
 | Cache revision | Cache voice keys carry the bundle's `built` stamp (`phonon@1793455047.Zoey`, `OnDeviceTraits.cacheRevision`), so audio a different bundle rendered never plays or counts as prepared, and renders again. Keys without a revision (`phonon.Zoey`) were rendered by upstream's 0.4.0 bundle and were renamed once at launch to its stamp, `phonon@1792483937` (`PhononCacheRevision`). |
 | Chunking | `TextChunker.Limits.phonon`: target 1200, `hardMax` 1600, whole-paragraph calls (no short first clip). |
-| Background | No (`rendersInBackground` false): the Core ML path renders only with the app in front. |
+| Background | Yes (`rendersInBackground`): the CPU path renders in the background, in the same bursts as Kokoro (LISTEN_PLAYBACK.md → "Rendering in the background"). |
+| Launch steps | `PhononDownloadLeftovers`, `PhononCacheRevision`, then `CoreMLCompileCacheJanitor` (Core ML's compiled-model cache, once per install, in the background; `LISTEN_PLAYBACK.md` → "Audio cache"). |
 | Probe | `-engineProbe -probeOnly Phonon,Kokoro` (the short names; the log line `compute units=` shows the routing label). |
 
 Phonon's own English `normalize_text` runs inside every `Phonon.synthesize` (the host loads with
@@ -290,8 +288,8 @@ registry.
 
 Per-engine voice keys (`reader.tts.kokoroVoice`, `reader.tts.phononVoice`), the default
 selection (`reader.voiceSelection.default`: engine + voice for new articles) and
-`reader.rateMultiplier`. Rate applies to every engine. Kokoro's route knobs and
-ONNX crash count (`reader.tts.kokoro.fastGPURoute`, `.cpuThreads`, `.onnxCrashCount`) are
+`reader.rateMultiplier`. Rate applies to every engine. Kokoro's thread count and
+ONNX crash count (`reader.tts.kokoro.cpuThreads`, `.onnxCrashCount`) are
 `FluidAudioProvider`'s `storedKeys`. `-resetLibrary` clears all of these.
 
 ## Cloud voices

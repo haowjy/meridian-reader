@@ -13,7 +13,8 @@ Tests/Documentation and upstream's `.github/` (its CI workflows) removed; test t
   in unoptimized sampling, tripling Nano decode time.
 
 ## Reader no longer uses Chatterbox Nano (2026-09-24)
-Reader removed the Nano engine; Kokoro (`KokoroAneManager`) is the only FluidAudio model it loads.
+Reader removed the Nano engine. Reader now uses only Kokoro's CPU frontend (`KokoroAneCPUFrontend`),
+voice packs and resource downloader; it no longer loads `KokoroAneManager` (Core ML).
 The Nano patch above is left as-is (it only touches `ChatterboxNanoModels.swift`, which Kokoro never
 calls). The Debug `-O` patch still matters for Kokoro. Reader's `-nanoProbe` launch arg no longer exists.
 
@@ -29,8 +30,8 @@ calls). The Debug `-O` patch still matters for Kokoro. Reader's `-nanoProbe` lau
   (before the encoder, before the decoder loop, after decoding) and
   `TTS/KokoroAne/Pipeline/KokoroAneSynthesizer.swift` (`predict(stage:)`: before and after every stage):
   crash attribution. E5RT runs Core ML on its own queue, so a libBNNS crash report doesn't show which
-  model was running; Reader installs a handler that atomically writes `ListenTiming/coreml_breadcrumb.json`
-  and reports it with `engine_crash_detected` on the next launch.
+  model was running. Reader no longer runs FluidAudio's Core ML Kokoro (only the CPU frontend above),
+  so it installs no handler and the calls are no-ops; the patch is left in place.
 
 ## Context-aware heteronyms (2026-10-20, Reader C132)
 - `Sources/FluidAudio/TTS/KokoroAne/CPUFrontend/KokoroHeteronyms.swift` (new) + `KokoroAneCPUFrontend`:

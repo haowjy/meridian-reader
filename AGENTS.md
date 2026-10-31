@@ -69,7 +69,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   the last launch left), `-chromeFold P` (the compact chrome held at fold P: 0.5 one row, 1 the bubble), `-readerFullScreen` (the first reading page shown, in place or Listen, goes full screen 3 s after it opens), `-readerScrollToEnd` (that page's text goes to its end as a finger would; Listen stops following, so Jump to Audio shows), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
   on-device test voice for prepared audio; `-selectEngine test.voice`). Keep probes and tests offline;
   use the test pages, not live sites. `LaunchOptions` parses every launch argument, the
-  diagnostics' too (`-engineProbe`, `-KokoroStress`, `-kokoroUnits`; `docs/LISTEN_PLAYBACK.md` →
+  diagnostics' too (`-engineProbe`, `-KokoroStress`; `docs/LISTEN_PLAYBACK.md` →
   "Diagnostics"); Features and the speech stack get the values from App (`AppComposition`,
   `LaunchTestHooks`), never from `LaunchOptions` or the process arguments. The exceptions are stored settings a launch overrides through UserDefaults' argument
   domain (`-reader.developerOptions YES`, `-reader.listenDebugEnabled YES`,
@@ -87,7 +87,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 | `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock, the compact chrome host), `Library` (the Library's screens, rows, the Move tree), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
-| `ptts` (SPM 0.6.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); its model bundle ships in the app (`Resources/PhononBundle/`, fetched by `tools/fetch-phonon-bundle.sh`): our own export at a 200-token prefill, released on haowjy/xn-ptts, not upstream's 48-token one (`docs/TTS_ENGINES.md`, "Phonon") |
+| `ptts` (SPM 0.6.0) | Gradium Phonon 31m English on Core ML's CPU path (`Features/Speech/Engines/Phonon/`); its model bundle ships in the app (`Resources/PhononBundle/`, fetched by `tools/fetch-phonon-bundle.sh`): our own export at a 200-token prefill, released on haowjy/xn-ptts, not upstream's 48-token one (`docs/TTS_ENGINES.md`, "Phonon") |
 | `Resources/` | Readability scripts, voice previews, assets |
 | `docs/` | How the app behaves and why (below) |
 

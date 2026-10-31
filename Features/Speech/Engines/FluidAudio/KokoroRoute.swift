@@ -1,34 +1,13 @@
 import Foundation
 
-/// How Kokoro renders. Both routes use the same voice packs, phonemes and article cache key
-/// ("kokoro.<voice>"), so audio rendered on either route stays valid on the other.
-///
-/// - `onnxCPU` (default): ONNX Runtime on the CPU execution provider
-///   (`KokoroCPUHost`). No Core ML / Espresso / BNNS anywhere in the call, so it neither hits the
-///   iOS 26.4+ libBNNS SIGSEGV nor is it forbidden in the background (CPU work is allowed while
-///   audio plays).
-/// - `coreMLGPU` (debug opt-in, `KokoroSplitHost`): in front, FluidAudio's 7-stage Core ML chain
-///   (`KokoroHost`, `aneTailGpu`: RNN stages on the ANE, noise and the iSTFT tail on the GPU);
-///   from the first call in the background to the end of the process, the ONNX CPU route. Faster
-///   in front, but Core ML can crash in libBNNS on iOS 26.4+ (uncatchable).
-enum KokoroRoute: String, Sendable, Equatable {
-    case onnxCPU = "onnx"
-    case coreMLGPU = "coreml"
-
-    var label: String {
-        switch self {
-        case .onnxCPU: return "ONNX CPU"
-        case .coreMLGPU: return "Core ML (ANE + GPU)"
-        }
-    }
-}
-
-/// Persisted Kokoro route knobs (UserDefaults; injectable for tests).
+/// Persisted knobs of Kokoro's ONNX CPU route (UserDefaults; injectable for tests).
 struct KokoroRouteSettings {
-    static let fastGPURouteKey = "reader.tts.kokoro.fastGPURoute"
     static let cpuThreadsKey = "reader.tts.kokoro.cpuThreads"
     static let onnxCrashCountKey = "reader.tts.kokoro.onnxCrashCount"
-    static let storedKeys = [fastGPURouteKey, cpuThreadsKey, onnxCrashCountKey]
+    static let storedKeys = [cpuThreadsKey, onnxCrashCountKey]
+    /// The ONNX route's tag in crash markers (`KokoroCPUHost.routeTag`). A Kokoro marker with
+    /// another tag ("coreml") or none was written by an older build's Core ML route.
+    static let onnxRouteTag = "onnx"
     /// ONNX intra-op threads in front by default: every core but one (the UI, audio and the render
     /// queue's own work keep that one), at least 3, at most 6. 5 on an iPhone 17 Pro (2
     /// performance + 4 efficiency cores). ORT splits a matrix multiply into one piece per thread,
@@ -60,12 +39,6 @@ struct KokoroRouteSettings {
         self.defaults = defaults
     }
 
-    /// Debug toggle "Kokoro fast GPU route (may crash on iOS 26.4+)". Off by default.
-    var fastGPURouteEnabled: Bool {
-        get { defaults.bool(forKey: Self.fastGPURouteKey) }
-        nonmutating set { defaults.set(newValue, forKey: Self.fastGPURouteKey) }
-    }
-
     /// ONNX threads (debug override; 0/unset = default).
     var cpuThreads: Int {
         get {
@@ -81,18 +54,14 @@ struct KokoroRouteSettings {
         get { defaults.integer(forKey: Self.onnxCrashCountKey) }
         nonmutating set { defaults.set(max(0, newValue), forKey: Self.onnxCrashCountKey) }
     }
-
-    /// The route new Kokoro hosts use.
-    var route: KokoroRoute { fastGPURouteEnabled ? .coreMLGPU : .onnxCPU }
 }
 
 /// Auto-recover after a crash inside a Kokoro call — a pure state machine (unit-tested) plus
 /// `recover`, the policy `FluidAudioProvider` answers the coordinator's crash hook with.
 ///
 /// C129: Kokoro never falls to another engine or voice on its own.
-/// - Any Kokoro crash turns the Core ML route off: it resumes on the ONNX route.
-/// - Core ML crash (or a pre-route marker from an older build) → Kokoro/ONNX, same voice, resume,
-///   no notice (the same voice and the same cached audio, so nothing the user hears changes).
+/// - A crash an older build's Core ML route left (tag "coreml" or none) → resume on ONNX, same
+///   voice, no notice, not counted (the same voice and cached audio, so nothing heard changes).
 /// - ONNX route crash #1 → the same, silently, on one thread fewer (a fresh session).
 /// - ONNX route crash #2 (without a healthy stretch in between) → still Kokoro, one thread fewer
 ///   again; prepared audio and new rendering pause, while playback goes on through audio already
@@ -112,19 +81,15 @@ enum KokoroCrashRecovery {
         case pauseForRetry
     }
 
-    /// `crashedRoute` nil = legacy marker (older builds only ran Core ML).
-    static func onCrash(route crashedRoute: KokoroRoute?, onnxCrashCount: inout Int) -> Outcome {
-        switch crashedRoute ?? .coreMLGPU {
-        case .coreMLGPU:
-            return .resumeOnONNX
-        case .onnxCPU:
-            onnxCrashCount += 1
-            if onnxCrashCount >= onnxCrashLimit {
-                onnxCrashCount = 0 // Retry starts a fresh count
-                return .pauseForRetry
-            }
-            return .resumeOnONNX
+    /// `onONNX`: the marker carries the ONNX route's tag; false for an older build's Core ML route.
+    static func onCrash(onONNX: Bool, onnxCrashCount: inout Int) -> Outcome {
+        guard onONNX else { return .resumeOnONNX }
+        onnxCrashCount += 1
+        if onnxCrashCount >= onnxCrashLimit {
+            onnxCrashCount = 0 // Retry starts a fresh count
+            return .pauseForRetry
         }
+        return .resumeOnONNX
     }
 
     /// Threads after an ONNX crash: one fewer than before, at least `minimumRetryThreads`
@@ -134,16 +99,15 @@ enum KokoroCrashRecovery {
     }
 
     /// The previous process died inside a Kokoro call: stay on Kokoro and its voice.
-    /// Updates the route settings (crash count, fast route off, threads) and says where to resume.
+    /// Updates the route settings (crash count, threads) and says where to resume.
     /// `playing` is the session's last resume point.
     static func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?,
                         settings: KokoroRouteSettings) -> CrashRecovery {
         var onnxCount = settings.onnxCrashCount
-        let crashedRoute = crash.route.flatMap(KokoroRoute.init(rawValue:))
-        let outcome = onCrash(route: crashedRoute, onnxCrashCount: &onnxCount)
+        let onONNX = crash.route == KokoroRouteSettings.onnxRouteTag
+        let outcome = onCrash(onONNX: onONNX, onnxCrashCount: &onnxCount)
         settings.onnxCrashCount = onnxCount
-        settings.fastGPURouteEnabled = false
-        if crashedRoute == .onnxCPU { settings.cpuThreads = retryThreads(after: settings.cpuThreads) }
+        if onONNX { settings.cpuThreads = retryThreads(after: settings.cpuThreads) }
         let target = ListenResumeTarget.forCrash(article: crash.articleKey, paragraph: crash.paragraph,
                                                  crashAt: crash.at, playing: playing)
         let recovery: CrashRecovery

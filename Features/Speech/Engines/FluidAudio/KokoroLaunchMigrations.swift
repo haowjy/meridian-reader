@@ -24,24 +24,25 @@ struct KokoroAudioCachePurge: LaunchMigration {
     }
 }
 
-/// With the Core ML route off, its 7 stages (≈82 MB) are dead weight: the ONNX route needs only
-/// the vocab, voice packs and G2P / lexicon files beside them. Deleted at every launch they are
-/// found, off the main thread; the Core ML route prepared audio them again when turned on.
+/// Kokoro renders only on its ONNX CPU route. An older build's Core ML route left its 7 stages
+/// (≈82 MB) beside the vocab, voice packs and G2P / lexicon files the ONNX route still reads, and
+/// stored its on/off setting. At every launch: the setting goes, and the stages are deleted off
+/// the main thread whenever they are found.
 struct KokoroCoreMLStageCleanup: LaunchMigration {
+    static let fastGPURouteKey = "reader.tts.kokoro.fastGPURoute"
+
     func runIfNeeded(_ tts: LocalTTSCoordinator) {
-        let route = KokoroRouteSettings(defaults: tts.defaults)
-        guard !route.fastGPURouteEnabled else { return }
+        tts.defaults.removeObject(forKey: Self.fastGPURouteKey)
         DispatchQueue.global(qos: .utility).async {
             let freed = KokoroAssets.deleteCoreMLStages()
             guard freed > 0 else { return }
             ListenTimingLog.log("kokoro_coreml_cleanup", ["bytes": freed])
             DispatchQueue.main.async {
-                ListenDebugLog.shared.append("Kokoro Core ML stages removed (ONNX route): freed \(FileSizes.label(freed))")
+                ListenDebugLog.shared.append("Kokoro Core ML stages removed: freed \(FileSizes.label(freed))")
             }
         }
     }
 }
-
 
 /// Copy the bundled Heart voice pack into FluidAudio's cache when missing so the Voice picker
 /// never starts empty. Idempotent; runs every launch (cheap existence check).

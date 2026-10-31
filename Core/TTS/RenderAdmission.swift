@@ -2,7 +2,7 @@ import Foundation
 
 /// May an on-device model call start now? One rule for the render queue and the renderer.
 ///
-/// | App phase | Route renders in background (ONNX CPU) | Core ML route |
+/// | App phase | Host renders in background (the CPU routes) | Host that can't |
 /// |---|---|---|
 /// | active | render | render |
 /// | inactive | render | listener's chunks only; bake-ahead parks |
@@ -23,7 +23,7 @@ enum RenderAdmission: Equatable {
 
     /// - Parameters:
     ///   - engineReady: an on-device engine is loaded to render with.
-    ///   - rendersInBackground: the active host keeps rendering while backgrounded (no Core ML).
+    ///   - rendersInBackground: the active host keeps rendering while backgrounded (CPU only).
     ///   - isLiveRequest: a listener is waiting for audio.
     ///   - isPlayingArticle: the audio belongs to the article that is playing.
     ///   - inBackgroundBurst: a background burst is running (less than the low-water mark of
@@ -46,8 +46,8 @@ enum RenderAdmission: Equatable {
         }
     }
 
-    /// The hard rule under every decision: no Core ML call starts in the background (no GPU there,
-    /// and the CPU fallback is the libBNNS crash path). Hosts without Core ML may run.
+    /// The hard rule under every decision: a host that can't render in the background (no GPU
+    /// there) starts no call there. CPU-only hosts may run.
     static func modelCallsAllowed(phase: AppRunState.Phase, rendersInBackground: Bool) -> Bool {
         phase != .background || rendersInBackground
     }

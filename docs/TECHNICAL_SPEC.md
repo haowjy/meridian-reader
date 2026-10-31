@@ -26,7 +26,7 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 | Browser | `WKWebView` |
 | Extraction | Mozilla Readability.js, bundled (`Resources/Readability/`) |
 | Persistence | SwiftData, two store files: the library (`Folder`, `Article`) and the local store (`RecentVisit`; `SavedArticle`, frozen); small JSON files and UserDefaults for the rest |
-| Speech | `AVSpeechSynthesizer`; Phonon 31m via Gradium `ptts` (Core ML); Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
+| Speech | `AVSpeechSynthesizer`; Phonon 31m via Gradium `ptts` (Core ML's CPU path); Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
 | Language | `NaturalLanguage` (article language), `Speech` (address-bar dictation) |
 | Project | XcodeGen (`project.yml` → `MeridianReader.xcodeproj`) |
 
@@ -563,7 +563,7 @@ The button is a thin accent pill (`OverTextPill`: its label in `TypeStyle.row` s
   mtime). A leftover marker from another build is verdict `reinstalled` and dismissed: an install
   replacing the app mid-call (the 2026-10-20 21:06 EDT Napoleon banner) is not a crash.
 - `CrashRecovery`: a provider without a hook (Phonon) gives `.pauseForRetry`; Kokoro's
-  `KokoroCrashRecovery` gives `.stay` (same voice, ONNX CPU, silent) for a Core ML crash or ONNX
+  `KokoroCrashRecovery` gives `.stay` (same voice, ONNX CPU, silent) for a marker an older build's Core ML route left or ONNX
   crash #1 and `.pauseForRetry` for ONNX crash #2 in a row. On `.pauseForRetry` the coordinator
   sets `isPausedForRetry` and `GlobalSynthQueue.isPausedForRetry` stops the render worker
   (prepared audio, render-ahead); a crash found at launch reopens the article paused and the toast

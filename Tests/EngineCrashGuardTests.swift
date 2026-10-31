@@ -38,10 +38,10 @@ final class EngineCrashGuardTests: XCTestCase {
 final class EngineStopRecoveryTests: XCTestCase {
     func testONNXCrashesResumeSilentlyThenPause() {
         var count = 0
-        XCTAssertEqual(KokoroCrashRecovery.onCrash(route: .onnxCPU, onnxCrashCount: &count), .resumeOnONNX)
-        XCTAssertEqual(KokoroCrashRecovery.onCrash(route: .onnxCPU, onnxCrashCount: &count), .pauseForRetry)
+        XCTAssertEqual(KokoroCrashRecovery.onCrash(onONNX: true, onnxCrashCount: &count), .resumeOnONNX)
+        XCTAssertEqual(KokoroCrashRecovery.onCrash(onONNX: true, onnxCrashCount: &count), .pauseForRetry)
         XCTAssertEqual(count, 0)
-        XCTAssertEqual(KokoroCrashRecovery.onCrash(route: .coreMLGPU, onnxCrashCount: &count), .resumeOnONNX)
+        XCTAssertEqual(KokoroCrashRecovery.onCrash(onONNX: false, onnxCrashCount: &count), .resumeOnONNX)
     }
 
     func testRecoverStaysOnKokoroWithFewerThreads() {

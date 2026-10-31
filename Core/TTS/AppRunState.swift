@@ -3,22 +3,22 @@ import Foundation
 import UIKit
 #endif
 
-/// Foreground / background state that gates on-device Core ML synthesis.
+/// Foreground / background state that gates on-device synthesis.
 ///
-/// iOS forbids GPU work in the background, and on iOS 26.4+ *every* Kokoro compute routing
-/// still runs BNNS CPU ops that can crash (FluidAudio #844 — cpuOnly, cpuAndGPU and
-/// ANE-with-CPU-tail all crashed; ANE-only is not available for all stages). So there is no
-/// background-safe compute setting to switch to: **no local model call starts while the app is
-/// in the background**. Listening continues from rendered audio and pauses where it runs out
-/// (see `GlobalSynthQueue`, docs/LISTEN_PLAYBACK.md).
+/// iOS forbids GPU work in the background, so a host that can't render there
+/// (`rendersInBackground` false) starts no model call while the app is in the background:
+/// listening continues from rendered audio and pauses where it runs out (see `GlobalSynthQueue`,
+/// docs/LISTEN_PLAYBACK.md).
 ///
 /// - `active`: everything runs (live chunks + bake-ahead).
 /// - `inactive` (Control Center, call banner, app switcher; also on the way to background):
-///   only chunks a listener is waiting for; bake-ahead waits.
-/// - `background`: no Core ML at all; live requests are deferred (playback pauses there).
+///   only chunks a listener is waiting for; bake-ahead waits, unless the host renders in the
+///   background.
+/// - `background`: on a host that can't render there, live requests are deferred (playback
+///   pauses there).
 ///
-/// Hosts without Core ML (Kokoro's ONNX CPU route) are the exception; `RenderAdmission` holds
-/// the full rule.
+/// The on-device engines render on the CPU and do render in the background; `RenderAdmission`
+/// holds the full rule.
 ///
 /// Thread-safe: `LocalChunkRenderer` checks it off the main actor right before each call.
 final class AppRunState: @unchecked Sendable {

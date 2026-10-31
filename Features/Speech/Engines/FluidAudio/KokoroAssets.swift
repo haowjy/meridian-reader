@@ -1,8 +1,8 @@
 import FluidAudio
 import Foundation
 
-/// Kokoro's files in FluidAudio's English repo directory, shared by both routes: vocab, voice
-/// packs, G2P + lexicon, and the Core ML stages (used only by the Core ML route).
+/// Kokoro's files in FluidAudio's English repo directory: vocab, voice packs, G2P + lexicon (and
+/// Core ML stages an older build downloaded, which `KokoroCoreMLStageCleanup` deletes).
 enum KokoroAssets {
     /// `Application Support/fluidaudio`: FluidAudio's download cache, every model under it.
     static var fluidAudioDirectory: URL {
@@ -12,10 +12,6 @@ enum KokoroAssets {
     /// `Application Support/fluidaudio/Models/kokoro-82m-coreml/ANE` (FluidAudio's English repo dir).
     static var repoDirectory: URL {
         fluidAudioDirectory.appendingPathComponent("Models/kokoro-82m-coreml/ANE", isDirectory: true)
-    }
-
-    static var repoDirectoryExists: Bool {
-        FileManager.default.fileExists(atPath: repoDirectory.path)
     }
 
     /// Bundled default pack (`Resources/Kokoro/af_heart.bin`, ~0.5 MB). Ships with the app so the
@@ -88,11 +84,6 @@ enum KokoroAssets {
     /// Flat 510×256 fp32 voice pack (`<voice>.bin`).
     static func loadVoicePack(_ voice: String) throws -> [Float] {
         try KokoroAneVoicePack.load(from: voicePackURL(voice)).storage
-    }
-
-    /// The Core ML route's 7-stage chain appears to be on disk (cheap existence check).
-    static var coreMLStagesLookInstalled: Bool {
-        FileManager.default.fileExists(atPath: repoDirectory.appendingPathComponent("KokoroVocoder.mlmodelc").path)
     }
 
     /// Delete the Core ML stage bundles (keeps vocab, voice packs, G2P + lexicon). Returns bytes freed.

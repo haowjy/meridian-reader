@@ -283,10 +283,10 @@ Headphone and lock-screen skips stay paragraph skips (D4).
 its end, the next chapter is staged in the render queue (`GlobalSynthQueue.stageNext`, "Render
 queue"), so its opening is on disk when it starts; not when its audio is held for unfinished
 library work (`ArticleAudioCache.held`), which a render would overwrite. On a host that can't render in
-the background (Phonon), no model call starts there, so a chapter not rendered in full (a
+the background, no model call starts there, so a chapter not rendered in full (a
 paragraph with words still needs audio, "Audio cache") plays its rendered audio and pauses where
-that runs out ("Background listening"). Kokoro renders in the background on either route (the Core ML route hands over to ONNX) and
-keeps its voice; there the next chapter's opening
+that runs out ("Background listening"). Phonon and Kokoro both render on the CPU, in the
+background too, and keep their voice; there the next chapter's opening
 renders in a background burst, once less than 4 min of the chapter playing is ready ahead
 ("Rendering in the background"). The catch-up bake at the end of a
 page runs only for pages outside books and series, and finished chapters more than 2 behind the
@@ -392,7 +392,7 @@ Mode is on (`BakeConditions`) and resumes on the change notification. Before eve
 `ensureChunk`, on every app-phase change and when a render fails, one pure rule decides
 (`RenderAdmission.decide`):
 
-| App phase | Kokoro, either route (renders in background) | A host that can't render in the background |
+| App phase | Phonon, Kokoro (render in background) | A host that can't render in the background |
 |---|---|---|
 | active | render | render |
 | inactive | render | listener's chunks only; bake-ahead parks |
@@ -402,10 +402,8 @@ With no engine loaded (no render target) no model call starts in any phase: a li
 the engine, bake-ahead parks.
 
 The renderer checks it again right before each model call (`LocalChunkRenderer`,
-`RenderAdmission.modelCallsAllowed`). No Core ML call ever starts in the background (no GPU
-there, and the CPU fallback is the libBNNS crash path): Kokoro's Core ML route
-(`KokoroSplitHost`) renders on ONNX from its first background load or call until the process
-ends.
+`RenderAdmission.modelCallsAllowed`). Both engines render on the CPU alone (Phonon on Core ML's
+CPU path, Kokoro on ONNX Runtime's), so neither needs the GPU, which isn't available in the background.
 
 **Producer.** The player keeps a short buffer of rendered units and stops producing when it is
 full. Chunk 0 plays as soon as it is rendered; the producer doesn't wait for the paragraph. Seek /
@@ -436,7 +434,7 @@ audio" rule all read it.
 
 | Limits | Target | Hard max | First chunk | Used by |
 |---|---|---|---|---|
-| `kokoroCPU` | 240 | 280 | 80 (a whole first sentence ≤ 104) | Kokoro, either route |
+| `kokoroCPU` | 240 | 280 | 80 (a whole first sentence ≤ 104) | Kokoro |
 
 - **Sentences first.** Whole sentences are packed up to the chunk's budget (abbreviation-,
   initial-, "U.S.A."- and decimal-aware). A sentence that fits the hard max is split only to make
@@ -602,7 +600,7 @@ background task, and full-article rendering in the background is not promised.
 **Core ML compile cache.** Core ML adds compiled bundles under
 `Library/Caches/<bundle>/com.apple.e5rt.e5bundlecache/<os build>/` after every install and never
 evicts the stale ones (a development phone reached 16.7 GB). `CoreMLCompileCacheJanitor`, one of
-FluidAudio's launch steps, runs once per install (`reader.coreml.e5janitor.installID` = the install's container UUID; bundle file
+Phonon's launch steps, runs once per install (`reader.coreml.e5janitor.installID` = the install's container UUID; bundle file
 dates read as the epoch on device) and deletes bundle dirs whose newest file predates this launch.
 Logs `coreml_cache_prune`.
 
@@ -618,7 +616,7 @@ by `RootView`):
 |---|---|
 | The engine is still loading, or rendering is behind | Playback waits ("Preparing the voice", "Preparing next…") and plays on in the same voice |
 | The engine fails to load, a chunk can't be rendered, or the last process crashed in it | Paused at that spot; "Phonon stopped." with *Retry* (Retry, or any play, loads the engine afresh in the same voice) |
-| The app is in the background on an engine that can't render there (Phonon) | Rendered audio plays out, then a pause; "Phonon can’t read in the background." Play in front goes on |
+| The app is in the background on an engine that can't render there (none of the shipped ones) | Rendered audio plays out, then a pause; "<voice library> can’t read in the background." Play in front goes on |
 | The article's language isn't one its voice reads | Listen doesn't start (what plays plays on): "Can’t read French yet." Prepare marks the article failed with the same words |
 | The device can't run the article's voice library | Listen doesn't start: "Kokoro needs …" (the hardware it needs); Settings › Voice says the same on that library |
 
@@ -703,13 +701,13 @@ and resume goes through session intents):
 
 **Rendering in the background.** `AppRunState` mirrors `UIApplication` (active / inactive /
 background), thread-safe; admission follows the table in "Render queue". On a host that can't render in the background
-(Phonon) the player plays what is rendered, then pauses where a paragraph still needs audio
-(`stalled(.background)`: "Phonon can’t read in the background."); back in front, play goes on in
-the same voice. Prepare an article ahead (Prepared Audio) to listen to it locked on Phonon.
+(none of the shipped engines; the test voice by default) the player plays what is rendered, then
+pauses where a paragraph still needs audio (`stalled(.background)`: "<voice library> can’t read in
+the background."); back in front, play goes on in the same voice.
 
-The ONNX route renders in the background, within limits: rendering a whole article back to back
-there got the app killed by iOS about a minute after the phone locked (3 threads, 1.0–1.3 GB).
-So in the background:
+Phonon (Core ML's CPU path, about 1.7 cores) and Kokoro (ONNX) render in the background, within
+limits: rendering a whole article back to back there on Kokoro got the app killed by iOS about a
+minute after the phone locked (3 threads, 1.0–1.3 GB). So in the background:
 
 - **One thread.** Kokoro's ONNX session runs 1 intra-op thread in the background and the
   configured count in front (every core but one, 3 to 6: 5 on an iPhone 17 Pro;
@@ -776,8 +774,7 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   `Documents/engine_probe.txt` (written before each step, so a crash shows where it died). Like
   the stress run and the CPU route benchmark it runs with the model to itself
   (`LocalTTSCoordinator.withRenderingQuiet`): the app's load settles, the render worker holds and
-  the app's host goes (a second loaded copy of the same Core ML models fails on device, and a
-  second ORT session doubles the memory), then it builds its own host per engine; the queue's next
+  the app's host goes (a second loaded copy of the same models doubles the memory), then it builds its own host per engine; the queue's next
   render loads the app's engine again.
 - `-bakeArticle <saved id prefix>`: render that saved article top-down in the foreground without
   playing it, then pull ListenTiming and TTSCache.
@@ -795,16 +792,16 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   level (no sheet; an earlier import of it is deleted first, with its audio), then play it from
   where Continue would (chapter 1, not the title page). The offline test pages' page one links to
   the same book as a `blob:` URL, for the `.epub` link path.
-- `-selectEngine local.kokoro|local.phonon`, `-kokoroUnits <label>` (Core ML route routing).
-- `-KokoroStress coreml|onnx` (`KokoroStressRun`): with the app in front, renders a fixed corpus
+- `-selectEngine local.kokoro|local.phonon`.
+- `-KokoroStress` (`KokoroStressRun`): with the app in front, renders a fixed corpus
   of 320 Kokoro calls (paragraphs of 1 to 10 sentences from the demo book, cut by the ONNX
-  chunker) through one route: `KokoroHost` alone or `KokoroCPUHost` at the front thread count.
-  The app's Kokoro host is unloaded and the queue paused. `Documents/KokoroStress/<route>.jsonl`
+  chunker) on a fresh `KokoroCPUHost` at the front thread count.
+  The app's Kokoro host is unloaded and the queue paused. `Documents/KokoroStress/onnx.jsonl`
   gets a synced `begin` line before each call and an `end` line after it (wall ms, audio s, RTF,
-  ms per audio second, stage or ONNX ms, memory, thermal). Launched again with the same argument
-  after a crash, it counts the crash at the call that began (with the Core ML breadcrumb's stage)
+  ms per audio second, ONNX ms, memory, thermal). Launched again with the same argument
+  after a crash, it counts the crash at the call that began
   and carries on from the next call, stopping at 5 crashes; at the end
-  `Documents/KokoroStress/<route>-summary.json`. `-KokoroStressCalls N`, `-KokoroStressFresh`.
+  `Documents/KokoroStress/onnx-summary.json`. `-KokoroStressCalls N`, `-KokoroStressFresh`.
   Pull with `xcrun devicectl device copy from --device <id> --domain-type appDataContainer
   --domain-identifier com.jimmyyao.Reader --source Documents/KokoroStress --destination <dir>`.
 - **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–6 threads and
@@ -829,9 +826,9 @@ To use these tools in an optimized build, build Release with `READER_EXTRA_CONDI
 - A French article doesn't start: "Can’t read French yet."
 - Skip / jump re-prioritizes from the new playhead; after listening from mid-article, rendering
   returns to the top (in front) so the whole article ends up on disk.
-- Background: baked audio plays, the playing article renders in bursts on one thread on the ONNX
-  route (`bg_render_burst_*` lines; the app survives a locked listen), nothing
-  renders with Core ML.
+- Background: baked audio plays, the playing article renders in bursts (`bg_render_burst_*`
+  lines; the app survives a locked listen): Kokoro on one ONNX thread, Phonon on Core ML's CPU
+  path, no "can’t read in the background." pause.
 
 Playback is verified by probing the running app (the launch arguments above, the debug log,
 `ListenTiming`) and on the phone for timing and background behavior. Unit tests pin only the

@@ -36,9 +36,7 @@ final class LocalSynthService: SynthChunkRendering {
     var engineShortName: String { engines.shortName(engineID) }
     /// Routing label of the live host (debug).
     var hostRoutingLabel: String? { renderer?.host.routingLabel }
-    /// Route tag of the live host ("onnx", "coreml"; nil when none is built).
-    var hostRouteTag: String? { renderer?.host.routeTag }
-    /// The live host keeps rendering in the background (Kokoro ONNX CPU route).
+    /// The live host keeps rendering in the background.
     var rendersInBackground: Bool { renderer?.host.rendersInBackground ?? false }
 
     // MARK: - Lifecycle

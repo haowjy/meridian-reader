@@ -132,12 +132,10 @@ struct LaunchOptions: Equatable {
     /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
     /// load at launch; its voice is the default for new articles.
     var selectsEngine: SpeechEngineID?
-    /// `-kokoroUnits <label>`: compute units of Kokoro's Core ML route (`KokoroHost.unitsLabel`).
-    var kokoroUnits: String?
     /// `-engineProbe [-probeOnly Kokoro,…] [-probeStress [-probeStressN n]]`: time every on-device
     /// engine once launched (`EngineLatencyProbe`).
     var engineProbe: EngineLatencyProbe.Request?
-    /// `-KokoroStress coreml|onnx [-KokoroStressCalls n] [-KokoroStressFresh]`: the Kokoro crash
+    /// `-KokoroStress [-KokoroStressCalls n] [-KokoroStressFresh]`: the Kokoro crash
     /// and speed run (`KokoroStressRun`).
     var kokoroStress: KokoroStressRun.Request?
 
@@ -195,18 +193,15 @@ struct LaunchOptions: Equatable {
         showsWhatsNew = flags.contains("-showWhatsNew")
         usesTestVoice = flags.contains("-testVoice")
         selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
-        kokoroUnits = value(after: "-kokoroUnits")
         if flags.contains("-engineProbe") {
             engineProbe = EngineLatencyProbe.Request(
                 engines: value(after: "-probeOnly").map { Set($0.split(separator: ",").map { $0.lowercased() }) },
                 stressCalls: flags.contains("-probeStress") ? value(after: "-probeStressN").flatMap(Int.init) ?? 20 : nil)
         }
-        if let route = value(after: "-KokoroStress").flatMap({ KokoroStressRun.Route(rawValue: $0.lowercased()) }) {
+        if flags.contains("-KokoroStress") {
             kokoroStress = KokoroStressRun.Request(
-                route: route,
                 calls: value(after: "-KokoroStressCalls").flatMap(Int.init).map { max(1, $0) } ?? KokoroStressCorpus.calls,
-                fresh: flags.contains("-KokoroStressFresh"),
-                coreMLUnits: kokoroUnits)
+                fresh: flags.contains("-KokoroStressFresh"))
         }
     }
 

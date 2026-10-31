@@ -355,7 +355,7 @@ final class ArticleAudioCache {
     /// Drop chunk scratch for one article except the dirs that still match `paragraphs`
     /// (same index + text hash, any voice): those hold finished chunks of a paragraph the queue
     /// is baking right now. Wiping them made the worker synthesize the same chunks again —
-    /// extra Core ML calls, each one more exposure to the Kokoro libBNNS crash (#844).
+    /// extra model calls, each one more exposure to an engine crash.
     func removeChunkScratch(for articleID: UUID, keepingCurrent paragraphs: [String]) {
         let dir = directory(for: articleID).appendingPathComponent("chunks", isDirectory: true)
         guard let subdirs = try? fileManager.contentsOfDirectory(atPath: dir.path) else { return }

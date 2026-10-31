@@ -201,13 +201,8 @@ enum AppComposition {
 
     static func makeProviders() -> [SpeechEngineProvider] {
         #if DEBUG
-        let options = LaunchOptions.current
-        var providers: [SpeechEngineProvider] = [
-            FluidAudioProvider(coreMLUnits: options.kokoroUnits,
-                               keepsCoreMLStages: options.kokoroStress?.route == .coreml),
-            PhononProvider(),
-        ]
-        if options.usesTestVoice { providers.append(TestVoiceProvider()) }
+        var providers: [SpeechEngineProvider] = [FluidAudioProvider(), PhononProvider()]
+        if LaunchOptions.current.usesTestVoice { providers.append(TestVoiceProvider()) }
         return providers
         #else
         return [FluidAudioProvider(), PhononProvider()]

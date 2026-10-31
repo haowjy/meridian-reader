@@ -18,9 +18,9 @@ enum LocalSynthError: LocalizedError {
     case inputTooLong(String)
     case emptyText
     case engineUnavailable(String)
-    /// The app is in the background and the active host can't render there (Core ML: GPU
-    /// forbidden, CPU paths hit the libBNNS crash on iOS 26.4+). Playback pauses where
-    /// rendered audio runs out. Hosts with `rendersInBackground` (ONNX CPU) never see this.
+    /// The app is in the background and the active host can't render there (the GPU is
+    /// forbidden there). Playback pauses where rendered audio runs out. Hosts with
+    /// `rendersInBackground` never see this.
     case deferredInBackground
 
     var errorDescription: String? {
@@ -68,9 +68,9 @@ protocol LocalSynthHost: AnyObject, Sendable {
     /// An unloaded host isn't used again: `LocalSynthService` builds a new one.
     func unload() async
     /// May this host start a model call while the app is in the background? Only hosts that
-    /// never touch Core ML/GPU (Kokoro's ONNX CPU route) say yes. Default: no.
+    /// render on the CPU alone (no Neural Engine or GPU) say yes. Default: no.
     var rendersInBackground: Bool { get }
-    /// Short route tag for crash markers / logs ("onnx", "coreml"; nil = n/a).
+    /// Short route tag for crash markers / logs (Kokoro's "onnx"; nil = n/a).
     var routeTag: String? { get }
     /// Trim each chunk's leading/trailing silence to boundary-sized pauses (`ChunkEdgeTrim`).
     var trimsEdgeSilence: Bool { get }

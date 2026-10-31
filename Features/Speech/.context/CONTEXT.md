@@ -80,9 +80,10 @@ provider owns its host, model store, voice catalog and chunk limits.
   paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the
   paragraph count.
-- **Phonon (the default engine).** Core ML on the Neural Engine (`PhononHost`), one-call-at-a-time
-  like the rest, and `rendersInBackground` is false: `RenderAdmission` parks background renders for
-  it, so a Phonon article only plays on in the background from audio already rendered. Its limits
+- **Phonon (the default engine).** Core ML's CPU path (`PhononHost.computeUnit` is `.cpu`), in front
+  and in the background, one-call-at-a-time like the rest; it renders in the background in the
+  same bursts as Kokoro. Its cache key doesn't name the compute unit (the owner heard no difference
+  from Neural Engine audio): a Neural Engine route coming back doesn't need a new cache revision. Its limits
   (`TextChunker.Limits.phonon`: target 1200, hardMax 1600, whole paragraphs) belong to
   `PhononProvider`; `PhononSpokenText` may change case and drop redundant punctuation, never words
   (chunks must still map to the normalized paragraph, see the chunk-plans rule below). Its model
@@ -96,10 +97,10 @@ provider owns its host, model store, voice catalog and chunk limits.
   speakable-text pass: engines own normalization (`docs/TTS_ENGINES.md` → "Text prep for speech").
 - **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
   (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again.
-  One call at a time (`SynthRenderGate`), never a Core ML call in the background
-  (`RenderAdmission`; the Core ML route's `KokoroSplitHost` switches itself to ONNX there for the
-  rest of the process). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
-  don't add re-renders: probe a change that could add calls by counting them in the timing log.
+  One call at a time (`SynthRenderGate`). Every engine renders on the CPU alone, so it may render in
+  the background; a host that needs the GPU or Neural Engine must say `rendersInBackground` false.
+  Every extra call is exposure to an uncatchable engine crash, so don't add re-renders: probe a
+  change that could add calls by counting them in the timing log.
 - **Only a death inside the engine is a crash.** The in-flight marker exists only during a
   guarded call; termination clears it, and launch drops a marker the process outlived or a
   background memory kill (`EngineCrashGuard.MarkerVerdict`). Anything that adds a long wait inside
@@ -110,14 +111,14 @@ provider owns its host, model store, voice catalog and chunk limits.
   change rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route
   benchmark on a device, not from the Mac (a Mac has more performance cores than an iPhone's
   two).
-- **Background rendering is budgeted.** On the ONNX route the background gets one thread and
+- **Background rendering is budgeted.** Kokoro's ONNX session gets one thread in the background, and
   bake-ahead runs only in bursts between the watermarks (`BackgroundRenderWatermarks`); between
   bursts the worker is idle until playback wakes it (`GlobalSynthQueue.playbackAdvanced`, called
   by `LocalListenEngine` on each unit start and resume). Back-to-back background rendering got the
   app killed by iOS. Anything new that renders in the background goes through the queue's
   admission, and nothing holds a background task per chunk. Prepared Audio (`../../Prepared Audio/`) are
-  ordinary bake jobs (`LocalTTSCoordinator+PreparedAudio`): they park in the background and never
-  count as playing.
+  ordinary bake jobs (`LocalTTSCoordinator+PreparedAudio`): in the background they render only on
+  their prepare turn while audio plays (`RenderAdmission`), and never count as playing.
 - **`onRenderStateChange` is called inside the queue's work** (`noteBakeMarksChanged` runs mid
   drain, `bakeCompleted` from the worker): its handler acts later, never re-entering the queue in
   the call.

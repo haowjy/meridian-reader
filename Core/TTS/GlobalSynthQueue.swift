@@ -421,7 +421,7 @@ final class GlobalSynthQueue {
             return resolved
         }
 
-        // Background on a Core ML route: don't wait for a render that can't happen; the player
+        // Background on a host that can't render there: don't wait for a render that can't happen; the player
         // pauses there. Don't move the cursor either: on return the listen engine refocuses at
         // the paragraph it restarts from.
         guard admission(isLiveRequest: true, cacheKey: cacheKey) == .render else {

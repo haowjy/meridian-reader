@@ -1,18 +1,15 @@
 import Foundation
 import PhononTTS
 
-/// Phonon 31m English via Gradium `ptts` / Core ML.
-/// Normal listening uses Phonon's default compute unit (Neural Engine). `computeUnit: .cpu` is an
-/// optional debug route (the earlier CPU probe); CPU-only rendering made the phone laggy.
+/// Phonon 31m English via Gradium `ptts`, on Core ML's CPU path (`computeUnit: .cpu`), in front
+/// and in the background alike. Audio sounds the same as on the Neural Engine, so its cache key
+/// doesn't name the compute unit.
 final class PhononHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .phonon
-    /// nil = Phonon default (Neural Engine). `.cpu` only for the debug probe.
-    let computeUnit: ComputeUnit?
-    var routingLabel: String? { computeUnit == nil ? "phonon-31m ane" : "phonon-31m cpu" }
-    var routeTag: String? { computeUnit == nil ? "ane" : "cpu" }
-    private var unitTag: String { computeUnit == nil ? "ane" : "cpu" }
-    /// Core ML path; prove background later. Default LocalSynthHost is false.
-    var rendersInBackground: Bool { false }
+    static let computeUnit: ComputeUnit = .cpu
+    var routingLabel: String? { "phonon-31m cpu" }
+    /// The CPU path runs while the app is in the background (no GPU or Neural Engine there).
+    var rendersInBackground: Bool { true }
     var onProgress: (@Sendable (Double) -> Void)?
 
     private let load = SingleFlightLoad()
@@ -20,10 +17,8 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
     private var voice: String
     private var tts: Phonon?
 
-    init(voice: String = PhononVoiceCatalog.defaultVoice,
-         computeUnit: ComputeUnit? = nil) {
+    init(voice: String = PhononVoiceCatalog.defaultVoice) {
         self.voice = voice
-        self.computeUnit = computeUnit
     }
 
     var isPrepared: Bool { load.isLoaded }
@@ -39,11 +34,9 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
     func prepare() async throws {
         let progress = onProgress
         let voice = currentVoice
-        let unit = computeUnit
-        let tag = unitTag
         try await load.run {
             let t0 = ListenTimingLog.now()
-            ListenTimingLog.log("phonon_init_start", ["voice": voice, "unit": tag])
+            ListenTimingLog.log("phonon_init_start", ["voice": voice, "unit": "cpu"])
             do {
                 progress?(0.02)
                 try await PhononModelStore.ensureInstalled()
@@ -57,16 +50,10 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
                     // `language: .english` turns Gradium normalize ON (Normalize::for_lang(En)).
                     // `.none` would skip it. Numbers / @ / + / = / currency / … are rewritten
                     // inside every later `synthesize` — no separate Swift `normalize()` call.
-                    if let unit {
-                        loaded = try await Phonon.load(
-                            models: PhononModelStore.modelsDirectory,
-                            language: .english,
-                            computeUnit: unit)
-                    } else {
-                        loaded = try await Phonon.load(
-                            models: PhononModelStore.modelsDirectory,
-                            language: .english)
-                    }
+                    loaded = try await Phonon.load(
+                        models: PhononModelStore.modelsDirectory,
+                        language: .english,
+                        computeUnit: Self.computeUnit)
                     if voice != loaded.voice {
                         try await loaded.setVoice(voice)
                     }
@@ -123,7 +110,7 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
             sampleRate: Int(Phonon.sampleRate),
             metrics: [
                 "engine": "phonon",
-                "unit": unitTag,
+                "unit": "cpu",
                 "wall_ms": wallMs,
                 "audio_s": audioS,
                 "rtf": audioS > 0 ? (Double(wallMs) / 1000.0) / audioS : 0,

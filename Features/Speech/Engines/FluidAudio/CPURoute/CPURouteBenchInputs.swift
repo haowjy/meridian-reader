@@ -2,8 +2,8 @@
 import Foundation
 
 /// Kokoro text frontend + assets for the CPU route, owned by the FluidAudio side
-/// (`KokoroCPUHost`) so only FluidAudio files import FluidAudio. Phonemes, vocab and voice pack
-/// are exactly the ones the Core ML route uses; nothing here touches Core ML.
+/// (`KokoroCPUHost`) so only FluidAudio files import FluidAudio: the route's own phonemes, vocab
+/// and voice pack; nothing here touches Core ML.
 protocol KokoroCPURouteFrontend: AnyObject, Sendable {
     /// Text → Kokoro IPA phoneme string (Misaki lexicon + pure-Swift BART G2P; no Core ML).
     func cpuRoutePhonemes(for text: String) async throws -> String

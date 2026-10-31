@@ -170,7 +170,7 @@ final class CPURouteBench {
             "run": runID, "device": CPURouteMetrics.device, "os": CPURouteMetrics.os,
             "build": LocalTTSCoordinator.buildConfiguration,
             "ort": KokoroONNXSession.runtimeVersion, "model": "onnx-community/Kokoro-82M-v1.0-ONNX model_fp16.onnx",
-            "voice": KokoroHost.defaultVoice, "low_power": ProcessInfo.processInfo.isLowPowerModeEnabled,
+            "voice": KokoroVoiceCatalog.defaultVoice, "low_power": ProcessInfo.processInfo.isLowPowerModeEnabled,
             "tokens_501": inputs.long.tokenCount, "tokens_190": inputs.short.tokenCount,
             "phonemes_501": inputs.long.phonemeCount, "phonemes_190": inputs.short.phonemeCount,
             "style_row_501": inputs.long.styleRow, "style_row_190": inputs.short.styleRow,
@@ -248,7 +248,7 @@ final class CPURouteBench {
     private func prepareInputs() async throws -> Inputs {
         if let cachedInputs { return cachedInputs }
         let text = KokoroCPUBenchText.long
-        let frontend: KokoroCPURouteFrontend = KokoroCPUHost(voice: KokoroHost.defaultVoice)
+        let frontend: KokoroCPURouteFrontend = KokoroCPUHost(voice: KokoroVoiceCatalog.defaultVoice)
 
         var cache = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: Self.phonemeCacheURL))) ?? [:]
         var longPh: String
@@ -272,7 +272,7 @@ final class CPURouteBench {
             source = "builtin-mac (backgrounded)"
         }
         let shortPh = KokoroCPUTensorBuilder.shortCase(fromLongPhonemes: longPh)
-        let pack = try await frontend.cpuRouteVoicePack(KokoroHost.defaultVoice)
+        let pack = try await frontend.cpuRouteVoicePack(KokoroVoiceCatalog.defaultVoice)
         let long = try KokoroCPUTensorBuilder.build(
             tokenIDs: try await frontend.cpuRouteTokenIDs(for: longPh), phonemeCount: longPh.count, voicePack: pack)
         let short = try KokoroCPUTensorBuilder.build(
