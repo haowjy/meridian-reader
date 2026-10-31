@@ -1,3 +1,14 @@
 # managed by meridian — do not edit
 [project]
 id = "idle-chamber-crossroads"
+
+[context.work]
+source = "git"
+remote = "git@github.com:haowjy/docs.git"
+path = "meridian-reader/work"
+archive = "meridian-reader/archive/work"
+
+[context.kb]
+source = "git"
+remote = "git@github.com:haowjy/docs.git"
+path = "meridian-reader/kb"
