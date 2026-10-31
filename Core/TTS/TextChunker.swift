@@ -24,7 +24,7 @@ enum TextChunker {
         var hardMax: Int
         /// First chunk of a multi-chunk paragraph never exceeds this, so first audio lands sooner.
         var firstTarget: Int
-        /// Below this we stop re-splitting on synth overflow and fall back to Apple TTS.
+        /// Below this we stop re-splitting on synth overflow and the chunk fails.
         var minResplit: Int
         /// Split off a short first chunk even when the whole paragraph would fit one call
         /// (fast first audio on slower engines). Paragraphs ≤ `firstTarget + firstSlack` stay whole.

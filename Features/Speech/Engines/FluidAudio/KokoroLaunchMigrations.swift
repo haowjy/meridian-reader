@@ -24,31 +24,6 @@ struct KokoroAudioCachePurge: LaunchMigration {
     }
 }
 
-/// A Core ML crash from before the ONNX route existed left Kokoro users on Apple. Bring them back
-/// to Kokoro on the stable route, at the article and paragraph of that crash (opened paused).
-/// Skipped when this launch already recovered from a Kokoro crash.
-struct KokoroONNXMainMigration: LaunchMigration {
-    static let doneKey = "reader.tts.kokoro.onnxMainMigration.v1"
-
-    func runIfNeeded(_ tts: LocalTTSCoordinator) {
-        let defaults = tts.defaults
-        guard !defaults.bool(forKey: Self.doneKey) else { return }
-        defaults.set(true, forKey: Self.doneKey)
-        guard tts.launchCrash?.engine != .kokoro, tts.selectedEngineID == .apple, tts.engines.supports(.kokoro),
-              let last = tts.crashGuard.lastCrash, last.engine == .kokoro else { return }
-        let route = KokoroRouteSettings(defaults: tts.defaults)
-        route.fastGPURouteEnabled = false
-        route.onnxCrashCount = 0
-        var target = ListenResumeTarget.forCrash(article: last.articleKey, paragraph: last.paragraph,
-                                                 crashAt: last.at, playing: tts.resumePoints.load())
-        target?.autoPlay = false
-        tts.applyLaunchRecovery(.stay(notice: nil, resume: target), crashed: .kokoro)
-        ListenTimingLog.log("kokoro_onnx_migration", [
-            "from": "apple", "resume_key": target?.articleKey.prefix(8) ?? "", "resume_p": target?.paragraph ?? -1,
-        ])
-    }
-}
-
 /// With the Core ML route off, its 7 stages (≈82 MB) are dead weight: the ONNX route needs only
 /// the vocab, voice packs and G2P / lexicon files beside them. Deleted at every launch they are
 /// found, off the main thread; the Core ML route prepared audio them again when turned on.

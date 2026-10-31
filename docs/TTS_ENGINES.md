@@ -1,55 +1,29 @@
 # TTS engines
 
-Meridian Reader speaks with **Apple TTS** (always available fallback) or an on-device neural
-voice: **Phonon** 31m English (default on-device choice, Zoey) or **Kokoro** (2nd default, Heart;
-Heart's pack ships in the app). Voice libraries plug in behind one registry, so the listen core never
+Meridian Reader speaks with an on-device neural voice: **Phonon** 31m English (the default, Zoey)
+or **Kokoro** (the second default, Heart; Heart's pack ships in the app). Both read English only.
+Playback never changes the voice on its own: an article plays in its own voice or pauses and says
+why (`LISTEN_PLAYBACK.md` → "One voice, never swapped"). Voice libraries plug in behind one registry, so the listen core never
 imports a library or switches on engine types. How playback, rendering and the audio cache use an
 engine is in `LISTEN_PLAYBACK.md`.
 
 ## Shape
 
 `SpeechController` owns the session (`PlaybackSessionState`: document, position, phase) and the
-rate, voice and language settings, and binds one **playback engine** per utterance. On-device
-audio is rendered by a **synth host** owned by `LocalSynthService`; the listen player only plays
-rendered files.
+rate, and binds one `LocalListenEngine` per play, in the article's voice. Audio is rendered by a
+**synth host** owned by `LocalSynthService`; the listen player only plays rendered files.
 
 ```
-Listen UI  →  SpeechController  →  ListenEngine (bound per utterance)
-                                      ├─ AppleListenEngine   AVSpeechSynthesizer, one utterance
-                                      └─ LocalListenEngine   LocalListenPlayer: file player + producer
-                                                               └─ ListenUnitSource (per play): audio cache + GlobalSynthQueue
-                                                                    → LocalSynthService → LocalChunkRenderer
-                                                                       → LocalSynthHost (KokoroCPUHost / KokoroHost / PhononHost)
+Listen UI  →  SpeechController  →  LocalListenEngine (bound per play, one voice)
+                                     └─ LocalListenPlayer: file player + producer
+                                          └─ ListenUnitSource (per play): audio cache + GlobalSynthQueue
+                                               → LocalSynthService → LocalChunkRenderer
+                                                  → LocalSynthHost (KokoroCPUHost / KokoroHost / PhononHost)
 ```
 
-```swift
-@MainActor
-protocol ListenEngine: AnyObject {
-    var name: String { get }
-    var onEvent: ((PlaybackEngineEvent) -> Void)? { get set }  // audible / paused / position / finished
-    func play(_ request: ListenPlayRequest)                     // document, start offset, paused?, Apple voice
-    func pause(); func resume(); func stop()
-    func setRate(_ multiplier: Double)
-    var snapshot: PlaybackEngineSnapshot { get }
-    // + listen-bar status (waiting for audio, source note), foreground hook, debug numbers
-}
-```
-
-Which engine speaks, and what happens when the on-device engine finishes loading or goes away
-mid-utterance, is in `LISTEN_PLAYBACK.md` → "Engine binding".
-
-## Apple
-
-- `AppleListenEngine`: `AVSpeechSynthesizer` with one utterance for the rest of the article.
-- Voices: all installed non-novelty system voices (`VoiceCatalog`), Premium and Enhanced first then
-  Standard, plus a "Best for language" system-default entry. The voice picker lists all qualities
-  and labels them Premium / Enhanced / Standard.
-- Default voice for English (C139): Nora / "Voice 4" (identifier contains `siri.natural.Nora` or
-  name is "Voice 4") if installed, then any Premium/Enhanced voice by quality + gender + region
-  score, then Samantha, Daniel, Karen, Moira, Tessa in that order among Standard voices, then any
-  remaining installed voice. Non-English languages use quality + gender + region scoring only.
-- Offline, nothing to prepare. Speaks whenever no on-device engine is ready, when the article's
-  language isn't one the engine supports, and for any chunk the engine can't render.
+The engine reports events (`PlaybackEngineEvent`: audible, paused, position, finished, stalled);
+the session decides. What binds, and what happens while the voice's engine loads or stops, is in
+`LISTEN_PLAYBACK.md` → "Engine binding".
 
 ## Kokoro
 
@@ -91,8 +65,8 @@ Only the ONNX route needs the model patch: the fp16 model can output an all-NaN 
 fp16 0/0 inside the generator's `atan2`, exported as `Atan(Div(imag, real))`).
 `KokoroONNXModelPatch` puts `Where(IsNaN(x), 0, x)` in front of every `Atan` once after download
 (`KokoroONNXModelStore.ensurePatchedModel`); audio is bit-identical wherever the original was
-finite. As defence in depth `KokoroCPUHost` retries a non-finite output once, then renders that
-chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
+finite. As defence in depth `KokoroCPUHost` retries a non-finite output once, then fails the
+chunk (playback pauses there with Retry), and `LocalPCMWriter` writes non-finite samples as 0.
 
 ### Assets and voices
 
@@ -107,7 +81,6 @@ chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
   A stored voice that isn't curated resolves to the default. Other packs prepare (~0.5 MB) when
   the voice is chosen (`LocalTTSCoordinator.downloadVoice` → `EngineRegistry.prepareVoice`);
   only then does the voice switch. A failed prepare keeps the old voice and shows the error.
-  Until Kokoro's model is ready, Apple's "Best for English" remains available as today.
 - Previews are bundled (`Resources/VoicePreviews/voice-preview-kokoro-<id>.m4a`, ≈5 s, 24 kHz
   mono AAC), rendered on the Mac:
 
@@ -123,14 +96,14 @@ chunk with Apple, and `LocalPCMWriter` writes non-finite samples as 0.
 
 The libBNNS crash kills the process; nothing catches it. `EngineCrashGuard` writes an in-flight
 marker (`ListenTiming/engine_inflight.json`) around every call of an engine whose descriptor sets
-a crash notice (`OnDeviceTraits.crashNotice`), with the route, article, paragraph, app phase and
+`OnDeviceTraits.isCrashGuarded` (Phonon, Kokoro), with the route, article, paragraph, app phase and
 memory footprint (`phys_footprint`), and removes it when the call returns, so it exists only
 while a call is in flight. Termination (`willTerminateNotification`, e.g. a swipe-kill while the
 app runs, playing or rendering) removes it and lets no call write another.
 
 A marker found at launch counts as a crash only when the engine killed the process
 (`MarkerVerdict`); otherwise it is logged (`engine_marker_dismissed`) and the launch is a normal
-one: no notice, no crash count, no voice switch, nothing reopened:
+one: no notice, no crash count, nothing reopened:
 
 - **stale:** the resume point (written per paragraph while listening) is more than 60 s newer
   than the marker: the process played on long past the call's start, so the call didn't end it;
@@ -138,15 +111,18 @@ one: no notice, no crash count, no voice switch, nothing reopened:
   reclaiming memory (jetsam), not the engine;
 - **engine crash:** anything else, including every Core ML call (they run only in front).
 
-For a crash the provider decides (`SpeechEngineProvider.recover(from:playing:)`; engines without
-a hook switch to Apple). Kokoro answers with `KokoroCrashRecovery`:
+A crash never changes the engine or the voice. The provider decides how it resumes
+(`SpeechEngineProvider.recover(from:playing:)`, a `CrashRecovery`). An engine without a hook
+(Phonon) pauses for Retry: the article reopens in Listen, paused at that paragraph, and the toast
+says "Phonon stopped." with *Retry*; Retry, or any press of play, loads the engine afresh in the
+same voice and plays on. Kokoro answers with `KokoroCrashRecovery`:
 
 - any crash turns the Core ML route off (the setting, so it stays off until turned on again);
 - a Core ML crash → the ONNX route, and the article reopens at that paragraph;
-- an ONNX crash → ONNX again and the same resume; a second ONNX crash without 40 healthy calls in
-  between → Apple, with a notice in Settings ("Tap Kokoro to try again");
-- resume auto-plays when the crash was under 20 minutes ago and something was playing
-  (`ListenResumeTarget.forCrash`);
+- an ONNX crash → ONNX again on one thread fewer and the same resume; a second ONNX crash without
+  40 healthy calls in between pauses for Retry, as above ("Kokoro stopped.");
+- a resume that doesn't pause auto-plays when the crash was under 20 minutes ago and something was
+  playing (`ListenResumeTarget.forCrash`);
 - the paragraph is applied only on an article that still holds the text it was played in; otherwise
   the article opens paused at its own spot (`AppLaunch.resumeAfterCrash`, `LISTEN_PLAYBACK.md`).
 
@@ -162,9 +138,7 @@ background task while a call is in flight as the app leaves the front, so the ca
 anything plays (after the library's unfinished audio work): `KokoroAudioCachePurge` (drops Kokoro
 audio rendered before the NaN patch and the boundary-trimmed joins;
 `reader.tts.kokoro.audioCacheVersion`; audio held for library work that couldn't finish is left
-for a later launch's purge), `KokoroONNXMainMigration`
-(a user that a Core ML crash left on Apple goes back to Kokoro on the ONNX route, at that crash's
-article and paragraph, paused), `KokoroCoreMLStageCleanup` (with the Core ML route off, the
+for a later launch's purge), `KokoroCoreMLStageCleanup` (with the Core ML route off, the
 stages are deleted off the main thread whenever they are found; skipped for a Core ML stress run,
 which the provider is told at init), `CoreMLCompileCacheJanitor` (Core ML's compiled-model cache,
 once per install, in the background; `LISTEN_PLAYBACK.md` → "Audio cache"), and in Debug builds
@@ -180,8 +154,7 @@ section (`KokoroRouteDebugSection`, from the provider's `debugSections`) changes
 
 On-device English TTS via Gradium [`ptts`](https://github.com/gradium-ai/xn-ptts) 0.4.0
 (Phonon 31m Core ML, Apache 2.0). **The default on-device engine** (Zoey, picked on a fresh
-install when the engine is supported); Kokoro Heart is the second default. Apple stays the
-fallback when no on-device engine can speak. iOS 18+.
+install when the engine is supported); Kokoro Heart is the second default. iOS 18+.
 
 | | |
 |---|---|
@@ -206,8 +179,7 @@ Files: `Features/Speech/Engines/Phonon/` (`PhononProvider`, `PhononHost`, `Phono
 On Wi-Fi (or Ethernet) with Low Data Mode off a download starts without a prompt. On cellular or
 with Low Data Mode on, an alert from `RootView` asks "Download on Cellular?" ("<engine> needs about
 <size>. You're not on Wi-Fi.") with *Download* or *Wait for Wi-Fi* (which cancels the download
-for now). Offline never prompts, so the download's own error shows. Apple voices never go
-through it.
+for now). Offline never prompts, so the download's own error shows.
 
 ## Text prep for speech
 
@@ -238,7 +210,7 @@ its data file.
 
 ```
 AppComposition (composition root: the only file that lists libraries)
-  └─ EngineRegistry(providers: [AppleSpeechProvider, FluidAudioProvider, PhononProvider])
+  └─ EngineRegistry(providers: [FluidAudioProvider, PhononProvider])
        └─ injected → LocalTTSCoordinator(engines:defaults:…) → LocalSynthService(engines:)
             └─ SpeechController(localTTS:defaults:) over the coordinator
 
@@ -246,15 +218,15 @@ SpeechEngineProvider (one per library)      EngineDescriptor (per engine)
   descriptors / retiredEngines                 id, names, subtitle, recommended, sort order
   makeHost(for:voice:) → LocalSynthHost        voices + default, voice defaults key
   isInstalled / deleteModels                   hardware gate, languages
-  recover(from:playing:)                       onDevice: OnDeviceTraits? (nil for Apple)
-  launchMigrations / debugSections(speech:)      cache voice prefix and revision, chunk limits, crash notice
+  recover(from:playing:)                       onDevice: OnDeviceTraits
+  launchMigrations / debugSections(speech:)      cache voice prefix and revision, chunk limits, crash guard
 LocalSynthHost (thin: load + ONE call)
   → LocalChunkRenderer (shared: normalize, gate, crash guard, re-split on inputTooLong, log, CAF)
 ```
 
-An engine is on-device exactly when its descriptor has `OnDeviceTraits`
-(`EngineRegistry.isOnDevice`): it renders ahead into the audio cache through the render queue.
-The shared core has no `import FluidAudio` and no switch on engine types: `GlobalSynthQueue`
+Every engine is on-device (`OnDeviceTraits`): it renders ahead into the audio cache through the
+render queue. The registry needs at least one; its `defaultEngine` is the recommended one that
+runs here, else the first. The shared core has no `import FluidAudio` and no switch on engine types: `GlobalSynthQueue`
 (`SynthQueueContext` and its `RenderTarget`, `RenderAdmission`), `ArticleAudioCache` keys, `TextChunker`,
 `LocalChunkRenderer`, `EngineCrashGuard`, `SynthRenderGate`, the Settings voice list, the engine
 probe, the Listen debug panel. Library code lives only under `Features/Speech/Engines/<Library>/`,
@@ -262,17 +234,25 @@ including its crash policy, its launch steps and its debug-panel sections. The p
 and the registry sit beside them (`Features/Speech/Engines/SpeechEngineProvider.swift`): their
 hooks hand out launch steps and SwiftUI sections, which Core can't name.
 
-Persisted values never change without a migration: engine ids (`apple`, `local.kokoro`), cache
-voice keys (`kokoro.<voice>`, `phonon@<revision>.<voice>`), `reader.tts.engineID`,
+Persisted values never change without a migration: engine ids (`local.phonon`, `local.kokoro`), cache
+voice keys (`kokoro.<voice>`, `phonon@<revision>.<voice>`), `reader.voiceSelection.default`,
 `reader.tts.kokoroVoice`. A cache revision is the one planned change of a key: audio of another
 revision stops counting and re-renders.
 
 **Retired engines.** A provider lists engines it no longer ships in `retiredEngines` (id, display
-name, done flag, replacement, file deleter). A stored selection of one maps to the replacement when
-that is installed, else Apple, and the `RetiredEngineCleanup` launch migration deletes its cached
+name, done flag, file deleter). A stored default in an engine no longer registered takes the
+built-in default (`LocalTTSCoordinator.loadDefaultSelection`), and the `RetiredEngineCleanup` launch migration deletes its cached
 audio and model files once (again on a later launch if audio was held for unfinished library
 work). FluidAudio lists one: Chatterbox Nano (`local.chatterbox-nano`), the
 engine that also owns index files written without an engine id.
+
+**Apple's voices** (engine id `apple`) are gone. `AppComposition.removeAppleVoices` runs once,
+marked done only when every step succeeded: articles and books stored in an Apple voice
+(`apple/…`) have none again, so they take the Settings default at their next first use; audio
+filed under `apple` is deleted (audio held for unfinished library work waits for a later launch);
+the settings only Apple used (`reader.selectedVoiceIdentifier`, `reader.languageAutomatic`,
+`reader.selectedLanguageCode`, `reader.tts.engineID`) are removed. A stored default in an Apple
+voice takes the built-in default as any unregistered engine's does.
 
 ### Adding an engine
 
@@ -289,9 +269,9 @@ engine that also owns index files written without an engine id.
    `OnDeviceTraits`: `cacheVoicePrefix: "<short>"` (cache voice keys `<short>.<voice>`; with a
    `cacheRevision` when the model can change under the same voices, `<short>@<revision>.<voice>`), chunk
    `limits` sized from the per-call cap (measure chars or phonemes per second of audio on a
-   device), and a `crashNotice` if the library can die uncatchably.
+   device), and `isCrashGuarded` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
-   `deleteModels`; override `recover(from:playing:)` if a crash needs more than "switch away",
+   `deleteModels`; override `recover(from:playing:)` if a crash needs more than a pause for Retry,
    `launchMigrations` for the library's launch steps (`LaunchMigration`s, run after retired
    engines' cleanup), `debugSections(speech:)` for its own Listen debug panel sections, and
    `storedKeys` for settings it stores itself (beyond each engine's voice key), which
@@ -301,15 +281,14 @@ engine that also owns index files written without an engine id.
 6. **Verify.** A Release device run of
    `-engineProbe -probeOnly <ShortName>` (init, first audio, wall vs audio); then pick it in Settings.
 
-The Settings row, prepare / progress / delete UI, cache, bake-ahead, Apple fallback and probe
-come from the registry.
+The Settings row, prepare / progress / delete UI, cache, bake-ahead and probe come from the
+registry.
 
 ## Settings keys
 
-`reader.tts.engineID` (the engine on `ready`, Apple on `off` / `failed`), per-engine voice keys
-(`reader.tts.kokoroVoice`, `reader.tts.phononVoice`), the default selection
-(`reader.voiceSelection.default`: engine + voice for new articles), `reader.rateMultiplier`, `reader.languageAutomatic` and
-`reader.selectedLanguageCode`. Rate and language apply to every engine. Kokoro's route knobs and
+Per-engine voice keys (`reader.tts.kokoroVoice`, `reader.tts.phononVoice`), the default
+selection (`reader.voiceSelection.default`: engine + voice for new articles) and
+`reader.rateMultiplier`. Rate applies to every engine. Kokoro's route knobs and
 ONNX crash count (`reader.tts.kokoro.fastGPURoute`, `.cpuThreads`, `.onnxCrashCount`) are
 `FluidAudioProvider`'s `storedKeys`. `-resetLibrary` clears all of these.
 
@@ -317,4 +296,5 @@ ONNX crash count (`reader.tts.kokoro.fastGPURoute`, `.cpuThreads`, `.onnxCrashCo
 
 Not built. A cloud engine would be another synth host feeding the same file player (or its own
 `ListenEngine` if it streams), behind a `CloudSpeechEngine` with the provider key from the
-Keychain, falling back to Apple offline or on failure.
+Keychain. Offline or on failure it pauses and says so, as the on-device engines do; it never
+hands the article to another voice.

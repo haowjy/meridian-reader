@@ -40,17 +40,16 @@ final class LocalChunkRenderer: Sendable {
     private let runState: AppRunState
     static let maxResplitDepth = 5
 
-    /// nil for an engine that isn't on-device (no `OnDeviceTraits`).
-    init?(host: LocalSynthHost, descriptor: EngineDescriptor,
-          gate: SynthRenderGate = .shared, crashGuard: EngineCrashGuard = .shared,
-          runState: AppRunState = .shared) {
-        guard let traits = descriptor.onDevice else { return nil }
+    init(host: LocalSynthHost, descriptor: EngineDescriptor,
+         gate: SynthRenderGate = .shared, crashGuard: EngineCrashGuard = .shared,
+         runState: AppRunState = .shared) {
+        let traits = descriptor.onDevice
         self.host = host
         self.descriptor = descriptor
         self.limits = traits.limits
         self.gate = gate
         self.runState = runState
-        self.crashGuard = traits.crashNotice != nil ? crashGuard : nil
+        self.crashGuard = traits.isCrashGuarded ? crashGuard : nil
     }
 
     var engineID: SpeechEngineID { descriptor.id }

@@ -1,14 +1,16 @@
 import Foundation
 
 /// Listen through the on-device engine: a `LocalListenPlayer` fed, per play, by a
-/// `QueueUnitSource` over the coordinator's render queue and audio cache. Player time has no
+/// `QueueUnitSource` over the coordinator's render queue and audio cache. `SpeechController`
+/// sends it every command; it reports what happened through `onEvent` (audible, paused, the spot
+/// being spoken, stalled, finished) and never changes the session itself. Player time has no
 /// callbacks, so while audio is wanted and the app is on screen the engine samples it 5×/s
 /// (`clock`) and reports the spot being spoken and listen-bar status changes itself. In the
 /// background (the phone locked) nothing is on screen and the clock stops; the player's own
 /// events (a unit starting, the player running dry) report the paragraph and hold the app alive
 /// while it waits for audio.
 @MainActor
-final class LocalListenEngine: ListenEngine {
+final class LocalListenEngine {
     var onEvent: ((PlaybackEngineEvent) -> Void)?
 
     private let coordinator: LocalTTSCoordinator
@@ -32,15 +34,14 @@ final class LocalListenEngine: ListenEngine {
     private var lastStatus: Status?
     private var runStateObserver: NSObjectProtocol?
     #if canImport(UIKit)
-    /// Keeps the app alive while the player waits for audio in the background (e.g. an Apple
-    /// fallback paragraph rendering): with nothing audible iOS may suspend the app.
+    /// Keeps the app alive while the player waits for audio in the background (a chunk the ONNX
+    /// route is rendering): with nothing audible iOS may suspend the app.
     private lazy var gapGrace = BackgroundGrace(name: "ReaderListenGap")
     #endif
 
     private struct Status: Equatable {
         var waiting: Bool
         var waitingForVoice: Bool
-        var note: String?
         var snapshot: PlaybackEngineSnapshot
     }
 
@@ -60,11 +61,7 @@ final class LocalListenEngine: ListenEngine {
         }
         player.onStarved = { [weak self] in self?.updateGapGrace() }
         player.rendersPausedForRetry = { [weak coordinator] in coordinator?.isPausedForRetry ?? false }
-        player.onNeedsRetry = { [weak self] in
-            guard let self else { return }
-            self.pause()
-            self.coordinator.playbackReachedUnrendered()
-        }
+        player.onStalled = { [weak self] stall in self?.stall(stall) }
         player.onFinished = { [weak self] in
             self?.stopClock()
             self?.onEvent?(.finished)
@@ -85,16 +82,17 @@ final class LocalListenEngine: ListenEngine {
 
     private var runState: AppRunState { coordinator.synthQueue.runState }
 
+    /// Diagnostics / timing-log name ("Kokoro").
     var name: String { coordinator.synth.engineShortName }
 
+    /// Start at `request.utf16Offset`. Paused: take the spot without sounding; `resume` or a new
+    /// `play` sounds it.
     func play(_ request: ListenPlayRequest) {
         playGeneration += 1
         let generation = playGeneration
         document = request.document
         let source = QueueUnitSource(coordinator: coordinator, articleID: request.articleID,
-                                     paragraphs: document.paragraphs,
-                                     selection: request.selection
-                                        ?? coordinator.selection(for: request.articleID, paragraphs: document.paragraphs))
+                                     paragraphs: document.paragraphs, selection: request.selection)
         self.source = source
         let queue = coordinator.synthQueue
         let engineID = source.selection.engine.rawValue
@@ -131,13 +129,22 @@ final class LocalListenEngine: ListenEngine {
                 if self.holdsAtStart { self.pause() }
             } catch {
                 guard generation == self.playGeneration else { return }
-                // The host failed to load: the engine is marked failed, and the controller's
-                // engine-change handling re-speaks this spot with Apple.
+                // The host failed to load: the engine is marked failed, and playback pauses at
+                // the spot; a play loads it again.
                 self.coordinator.synth.noteSpeakFailed(error)
+                self.stall(.engineStopped)
             }
         }
     }
 
+    /// Playback reached audio the engine can't give now: it pauses there, and the controller says
+    /// why (`PlaybackEngineEvent.stalled`).
+    private func stall(_ stall: ListenStall) {
+        pause()
+        onEvent?(.stalled(stall))
+    }
+
+    /// Confirmed with `becamePaused` once the audio holds.
     func pause() {
         holdsAtStart = true
         player.pause()
@@ -146,6 +153,7 @@ final class LocalListenEngine: ListenEngine {
         onEvent?(.becamePaused)
     }
 
+    /// Continue what `pause` held (no-op when nothing is held).
     func resume() {
         holdsAtStart = false
         guard player.state == .paused else { return }
@@ -185,15 +193,9 @@ final class LocalListenEngine: ListenEngine {
     /// is rendered (`LocalListenPlayer.isWaitingForVoice`).
     var isWaitingForVoice: Bool { !holdsAtStart && player.isWaitingForVoice }
 
-    var sourceNote: String? {
-        player.currentAppleFallbackReason?.localizedNote(engine: name)
-    }
-
-    /// Apple units queued only because the engine couldn't render in the background are dropped
-    /// and re-rendered; the queue cursor moves to the restart paragraph first.
-    func appDidBecomeActive() { player.reclaimBackgroundFallbacks() }
-
-    /// Each unit gets its own `AVAudioPlayer`, so stopping drops every dead one.
+    /// iOS restarted its media services: stop, and build new audio objects for the next `play`
+    /// (the old ones are dead and fail silently). Each unit gets its own `AVAudioPlayer`, so
+    /// stopping drops every dead one.
     func mediaServicesWereReset() { stop() }
 
     var debug: ListenEngineDebug {
@@ -217,7 +219,7 @@ final class LocalListenEngine: ListenEngine {
         case (.active, _), (.inactive, true): return "\(phase.rawValue), \(route)\(pace)"
         case (.inactive, false): return "inactive, \(name) for playhead only, bake-ahead held"
         case (.background, true): return "background, \(route), playing article in bursts\(pace)"
-        case (.background, false): return "background, no model calls — baked audio + Apple fallback"
+        case (.background, false): return "background, no model calls: rendered audio, then a pause"
         }
     }
 
@@ -276,8 +278,7 @@ final class LocalListenEngine: ListenEngine {
 
     private func tick() {
         reportPosition(force: false)
-        let status = Status(waiting: isWaitingForAudio, waitingForVoice: isWaitingForVoice, note: sourceNote,
-                            snapshot: snapshot)
+        let status = Status(waiting: isWaitingForAudio, waitingForVoice: isWaitingForVoice, snapshot: snapshot)
         if status != lastStatus {
             lastStatus = status
             onEvent?(.statusChanged)

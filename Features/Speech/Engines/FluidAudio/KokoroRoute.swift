@@ -92,7 +92,7 @@ struct KokoroRouteSettings {
 /// C129: Kokoro never falls to another engine or voice on its own.
 /// - Any Kokoro crash turns the Core ML route off: it resumes on the ONNX route.
 /// - Core ML crash (or a pre-route marker from an older build) → Kokoro/ONNX, same voice, resume,
-///   no banner (the same voice and the same cached audio, so nothing the user hears changes).
+///   no notice (the same voice and the same cached audio, so nothing the user hears changes).
 /// - ONNX route crash #1 → the same, silently, on one thread fewer (a fresh session).
 /// - ONNX route crash #2 (without a healthy stretch in between) → still Kokoro, one thread fewer
 ///   again; prepared audio and new rendering pause, while playback goes on through audio already
@@ -111,8 +111,6 @@ enum KokoroCrashRecovery {
         /// The ONNX route crashed `onnxCrashLimit` times: stay on Kokoro, pause until Retry.
         case pauseForRetry
     }
-
-    static let pausedNotice = "Kokoro stopped twice in a row, so preparing audio is paused and playback stopped where no audio is ready yet. Tap Retry to continue with the same voice."
 
     /// `crashedRoute` nil = legacy marker (older builds only ran Core ML).
     static func onCrash(route crashedRoute: KokoroRoute?, onnxCrashCount: inout Int) -> Outcome {
@@ -151,10 +149,10 @@ enum KokoroCrashRecovery {
         let recovery: CrashRecovery
         switch outcome {
         case .resumeOnONNX:
-            recovery = .stay(notice: nil, resume: target)
+            recovery = .stay(resume: target)
         case .pauseForRetry:
             // Playback carries on through rendered audio; the notice shows when it runs out.
-            recovery = .pauseForRetry(notice: pausedNotice, resume: target)
+            recovery = .pauseForRetry(resume: target)
         }
         let resume = recovery.resume
         ListenTimingLog.log("kokoro_auto_recover", [

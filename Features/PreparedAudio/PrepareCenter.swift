@@ -611,8 +611,8 @@ final class PrepareCenter {
             switch rendering.queuePrepare(cacheKey: key, paragraphs: paragraphs) {
             case .ready:
                 finish(recordID, key, .done)
-            case .speaksLive:
-                finish(recordID, key, .speaksLive)
+            case .cantRead(let notice):
+                finish(recordID, key, .failed, notice)
             case .held:
                 finish(recordID, key, .failed, String(localized: "Couldn’t prepare it now"))
             case .notRendering:
@@ -644,8 +644,8 @@ final class PrepareCenter {
     }
 
     /// Looks at the page rendering now: done once every paragraph with words has audio in the
-    /// prepare voice. A job that left the queue unfinished (paragraphs the voice and Apple's both
-    /// failed on, or a job something else dropped) goes back once, then the page is marked failed.
+    /// prepare voice. A job that left the queue unfinished (paragraphs the voice failed on, or a
+    /// job something else dropped) goes back once, then the page is marked failed.
     private func checkActive() {
         guard let active, case .rendering(let paragraphs) = active.phase else { return advance() }
         guard rendering.wantsLocalBake else {
@@ -687,7 +687,7 @@ final class PrepareCenter {
 protocol PrepareRendering {
     /// The voice downloads render in, as a cache voice key.
     var prepareVoice: String? { get }
-    /// An on-device voice is selected, so prepared audio render.
+    /// This device can run a voice library, so prepared audio renders.
     var wantsLocalBake: Bool { get }
     /// The voice most of `key`'s audio is in.
     func renderedVoice(of key: UUID) -> String?
@@ -711,10 +711,10 @@ enum PrepareQueueing: Equatable {
     case rendering
     /// Every paragraph that has words is rendered in the prepare voice already.
     case ready
-    /// The engine doesn't speak its language: Apple's voice speaks it, live.
-    case speaksLive
+    /// It can't be read (`LocalTTSCoordinator.cantReadNotice`): the notice says why.
+    case cantRead(String)
     /// Its audio waits for library work an earlier launch couldn't finish (`ArticleAudioCache.held`).
     case held
-    /// No on-device voice that renders prepared audio is selected.
+    /// This device can run none of the voice libraries.
     case notRendering
 }

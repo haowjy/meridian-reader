@@ -11,8 +11,7 @@ extension LocalTTSCoordinator: PrepareRendering {
 
     func queuePrepare(cacheKey: UUID, paragraphs: [String]) -> PrepareQueueing {
         guard wantsLocalBake else { return .notRendering }
-        // C138a: an article in an Apple voice (or a language the engine can't speak) speaks live.
-        guard rendersAhead(cacheKey, paragraphs: paragraphs) else { return .speaksLive }
+        if let notice = cantReadNotice(of: cacheKey, paragraphs: paragraphs) { return .cantRead(notice) }
         guard !audioCache.held.contains(cacheKey) else { return .held }
         if missingPrepareParagraphs(cacheKey: cacheKey, paragraphs: paragraphs) == 0 { return .ready }
         startBakeIfNeeded(articleID: cacheKey, paragraphs: paragraphs)
@@ -24,7 +23,7 @@ extension LocalTTSCoordinator: PrepareRendering {
     /// It reads `bakeMarksRevision`, so a view showing it redraws as audio is rendered.
     func missingPrepareParagraphs(cacheKey: UUID, paragraphs: [String]) -> Int {
         _ = bakeMarksRevision
-        let selection = peekSelection(of: cacheKey, paragraphs: paragraphs)
+        let selection = effectiveSelection(of: cacheKey)
         guard let voice = cacheVoice(of: selection) else { return paragraphs.count }
         return audioCache.missingParagraphs(articleID: cacheKey, paragraphs: paragraphs,
                                             engineID: selection.engine.rawValue, voiceID: voice, plans: chunkPlans).count

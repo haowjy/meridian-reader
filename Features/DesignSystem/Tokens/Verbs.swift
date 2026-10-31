@@ -107,6 +107,8 @@ enum Verbs {
     // MARK: A prepare
 
     static let resume = String(localized: "Resume")
+    /// The toast after the voice stopped (`ListenNotice.offersRetry`): play on from there.
+    static let retry = String(localized: "Retry")
     static let pauseAll = String(localized: "Pause All")
     static let resumeAll = String(localized: "Resume All")
     static let reprepare = String(localized: "Prepare Again")
@@ -181,7 +183,6 @@ enum Verbs {
     /// Cellular prompt before Phonon / Kokoro model downloads.
     static let downloadAnyway = String(localized: "Download")
     static let waitForWiFi = String(localized: "Wait for Wi‑Fi")
-    static let language = String(localized: "Language")
     static let textSize = String(localized: "Text Size")
     static let listenDebug = String(localized: "Listen Debug")
 

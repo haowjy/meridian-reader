@@ -9,10 +9,11 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 - iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`), iOS 18+, portrait. The iPad has a regular-width
   layout (below); compact width keeps the phone's chrome. Native Swift and SwiftUI only.
 - No backend, accounts or sync. Article text and audio stay on the device.
-- Offline first: saved articles read and play with no network (Apple voices, Phonon, whose model
-  is built into the app, or Kokoro once its model is downloaded).
+- Offline first: saved articles read and play with no network (Phonon, whose model is built into
+  the app, or Kokoro once its model is downloaded).
 - On-device Phonon (voice Zoey) is the default voice on a supported device and Kokoro (Heart) the
-  second default; Apple TTS is the fallback when neither can speak. Phonon's model ships in the app
+  second default. Playback never changes the voice on its own: when the article's voice can't go
+  on, it waits or pauses and says why (`LISTEN_PLAYBACK.md` → "One voice, never swapped"). Phonon's model ships in the app
   (~170 MB); Kokoro's is a large download, so on cellular or Low Data Mode the app asks first
   (`LargeModelDownloadConsent`).
 - Extraction sits behind a protocol, so the engine can be swapped.
@@ -508,7 +509,7 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 |---------|---------|
 | Library, search, delete | Yes |
 | Reading a saved article | Yes (`cleanedHTML`) |
-| Listening | Yes: Apple voices, Phonon; Kokoro once its model is downloaded |
+| Listening | Yes: Phonon; Kokoro once its model is downloaded |
 | Loading pages, Save of a new page | No |
 | Search suggestions, favicons | No (they quietly don't show) |
 
@@ -561,19 +562,17 @@ The button is a thin accent pill (`OverTextPill`: its label in `TypeStyle.row` s
 - `EngineCrashGuard.beginCall` stamps the in-flight marker with `buildStamp` (executable size and
   mtime). A leftover marker from another build is verdict `reinstalled` and dismissed: an install
   replacing the app mid-call (the 2026-10-20 21:06 EDT Napoleon banner) is not a crash.
-- `KokoroCrashRecovery`: Core ML crash or ONNX crash #1 gives `.stay(notice: nil)` (same voice,
-  ONNX CPU, no banner); ONNX crash #2 in a row gives `.pauseForRetry` (amended): the coordinator sets
-  `isPausedForRetry` and `GlobalSynthQueue.isPausedForRetry` stops the render worker (prepared audio,
-  render-ahead); playback goes on through rendered audio. `LocalListenPlayer`'s producer stops at
-  the first chunk not ready (`held_for_retry`), lets the buffer drain, then the engine pauses and
-  `playbackReachedUnrendered` shows the banner with *Retry* (`retryAfterEngineStop`: fresh host
-  via `reloadEngine`, then the queue resumes; pressing play or dismissing also retries). Each ONNX crash steps `cpuThreads` down one (minimum 2). There is no
-  path from a Kokoro crash to Apple any more.
-- Live-gap Apple units stay temp files (`UnitSource.appleFallback`, deleted when played); bake
-  cache keys are `kokoro.<voice>`, so mismatched audio can't be cached.
-- `VoiceCatalog.bestVoice(forLanguage:gender:)` ranks Premium > Enhanced > default, then the
-  Kokoro voice's gender (`gender(ofKokoroVoice:)`), then region. Launch logs `apple_voices`
-  (English voices, quality, and a Siri count) to the timing log.
+- `CrashRecovery`: a provider without a hook (Phonon) gives `.pauseForRetry`; Kokoro's
+  `KokoroCrashRecovery` gives `.stay` (same voice, ONNX CPU, silent) for a Core ML crash or ONNX
+  crash #1 and `.pauseForRetry` for ONNX crash #2 in a row. On `.pauseForRetry` the coordinator
+  sets `isPausedForRetry` and `GlobalSynthQueue.isPausedForRetry` stops the render worker
+  (prepared audio, render-ahead); a crash found at launch reopens the article paused and the toast
+  says "<voice library> stopped." with *Retry*. In a live play `LocalListenPlayer`'s producer stops
+  at the first chunk not ready (`playback_held`), lets the buffer drain, then the engine pauses and
+  reports `stalled(.engineStopped)`, which shows the same toast. Retry, or any play
+  (`SpeechController.userPerform`), runs `retryAfterEngineStop`: a fresh host via `reloadEngine`,
+  then the queue resumes. Each Kokoro ONNX crash steps `cpuThreads` down one (minimum 2). No crash
+  changes the engine or voice.
 
 ## Tests (C133)
 

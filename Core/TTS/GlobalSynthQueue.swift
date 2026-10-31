@@ -21,17 +21,16 @@ import Foundation
 /// playhead paragraph while chunks 1… render (`ensureChunk`). A paragraph is Ready (bake mark,
 /// `p-NNNN.caf`) only once all its chunks are rendered and stitched.
 ///
-/// Never silently skip: a chunk the local engine cannot render (after recursive re-split in
-/// `LocalChunkRenderer`) is rendered with Apple TTS instead. Only if that also fails is the
-/// paragraph marked failed (no hot retry loop) and its waiters get the error.
+/// Never silently skip: a chunk the engine cannot render (after recursive re-split in
+/// `LocalChunkRenderer`) marks its paragraph failed (no hot retry loop) and its waiters get the
+/// error; the listen player pauses there. Nothing else renders it.
 ///
 /// Saved vs unsaved only changes the persistence key (`cacheKey`), not queue behavior.
 ///
 /// Background (`AppRunState`): which model calls may start is `RenderAdmission`. On a Core ML
 /// route nothing renders while the app is backgrounded: a live chunk request for audio that isn't
-/// rendered yet throws `LocalSynthError.deferredInBackground` at once (the producer speaks that
-/// paragraph with Apple TTS, never silent or skipped, and the Apple audio is not written into the
-/// engine's cache); bake-ahead waits until the app is active; while `inactive` only chunks a
+/// rendered yet throws `LocalSynthError.deferredInBackground` at once (the player plays what is
+/// rendered and pauses there); bake-ahead waits until the app is active; while `inactive` only chunks a
 /// listener waits for render. A route that renders in the background (Kokoro's ONNX CPU route,
 /// `SynthQueueContext.activeRouteRendersInBackground`) treats `inactive` like `active`; in the
 /// background it renders live requests and bakes the playing article ahead, from its playhead
@@ -44,8 +43,8 @@ import Foundation
 ///
 /// What it renders for is the context's `renderTarget`: the loaded engine and its voice. Jobs carry
 /// no voice; every readiness check, chunk file and publish uses the target read at that step, so
-/// a voice switch can't file one voice's audio under another. While there is no target (Apple
-/// selected, a model loading, failed or deleted) the worker parks (`RenderAdmission`) and never
+/// a voice switch can't file one voice's audio under another. While there is no target (a
+/// model loading, failed or deleted) the worker parks (`RenderAdmission`) and never
 /// loads a model itself; the coordinator restarts it once an engine is ready
 /// (`renderTargetChanged`).
 ///
@@ -64,7 +63,7 @@ final class GlobalSynthQueue {
     /// Paragraphs whose chunk files a live player may reference — keep their scratch after
     /// stitching (cleaned on next open / launch). Pure bake-ahead paragraphs drop scratch at once.
     private var liveChunkParagraphs: Set<ParagraphKey> = []
-    /// (key|index|textHash) that failed the engine *and* Apple fallback — skipped by the worker so a
+    /// (key|index|textHash) that failed the engine — skipped by the worker so a
     /// bad unit cannot spin forever. A live request for the unit clears its mark (fresh try).
     private var failedUnits: Set<String> = []
 
@@ -137,7 +136,7 @@ final class GlobalSynthQueue {
             #if canImport(UIKit)
             drainGrace.begin()
             #endif
-        } else if admission(isLiveRequest: true, cacheKey: nil) == .deferToApple {
+        } else if admission(isLiveRequest: true, cacheKey: nil) == .deferred {
             failAllLiveWaiters(LocalSynthError.deferredInBackground)
         }
         if let primary = stack.first, admission(isLiveRequest: hasLiveWaiters, cacheKey: primary) == .render {
@@ -204,7 +203,7 @@ final class GlobalSynthQueue {
 
     private func noteBackgroundDeferral(_ cacheKey: UUID, _ index: Int, chunk: Int?) {
         backgroundDeferrals += 1
-        lastBakeEvent = "background: \(cacheKey.uuidString.prefix(8)) p\(index) → Apple (this route makes no model calls in background)"
+        lastBakeEvent = "background: \(cacheKey.uuidString.prefix(8)) p\(index) deferred (this route makes no model calls in background)"
         ListenTimingLog.log("bg_deferred", [
             "key": ListenTimingLog.shortKey(cacheKey), "p": index, "c": chunk ?? -1,
         ])
@@ -422,9 +421,9 @@ final class GlobalSynthQueue {
             return resolved
         }
 
-        // Background on a Core ML route: don't wait for a render that can't happen — the producer
-        // speaks it with Apple. Don't move the cursor either (the producer pre-renders Apple units
-        // far ahead); on return the listen engine refocuses at the paragraph it restarts from.
+        // Background on a Core ML route: don't wait for a render that can't happen; the player
+        // pauses there. Don't move the cursor either: on return the listen engine refocuses at
+        // the paragraph it restarts from.
         guard admission(isLiveRequest: true, cacheKey: cacheKey) == .render else {
             noteBackgroundDeferral(cacheKey, paragraphIndex, chunk: chunk)
             throw LocalSynthError.deferredInBackground
@@ -765,8 +764,7 @@ final class GlobalSynthQueue {
         ])
     }
 
-    /// What a listener waiting on a chunk gets while no engine is loaded: the player speaks it
-    /// with Apple.
+    /// What a listener waiting on a chunk gets while no engine is loaded: the player pauses there.
     private static let noEngine = LocalSynthError.engineUnavailable("No on-device voice is loaded.")
 
     /// The worker stopped before a chunk (`RenderAdmission` said not now). Returns the reason
@@ -797,10 +795,9 @@ final class GlobalSynthQueue {
         }
     }
 
-    /// Engine first (recursive re-split inside the renderer); Apple TTS for this chunk if the engine
-    /// still fails, in the voice the listen player falls back to for this article. Throws only
-    /// when both fail. Writes nothing when the engine fails because `target` went away or changed
-    /// during the call (the next step renders it for what renders now, or parks).
+    /// The engine renders the chunk (recursive re-split inside the renderer); throws when it
+    /// fails. Writes nothing when the engine fails because `target` went away or changed during
+    /// the call (the next step renders it for what renders now, or parks).
     private func renderChunk(
         job: ArticleJob, index: Int, chunk: Int, of count: Int, text: String, next: String? = nil,
         to url: URL, for target: RenderTarget, priority: RenderPriority
@@ -822,16 +819,15 @@ final class GlobalSynthQueue {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            // Backgrounded (or the call was refused because of it): don't write Apple audio into
-            // the engine's cache — the chunk renders with the engine once it may run again.
+            // Backgrounded (or the call was refused because of it): not a failure; the chunk
+            // renders once the engine may run again.
             if case LocalSynthError.deferredInBackground = error { throw error }
             guard coordinator.renderTarget(for: job.cacheKey) == target else { return }
             if admission(isLiveRequest: hasLiveWaiters, cacheKey: job.cacheKey,
                          isPrepareTurn: onPrepareTurn && prepareKeys.contains(job.cacheKey)) != .render {
                 throw LocalSynthError.deferredInBackground
             }
-            // C138a: never Apple audio in the article's cache (it would play as its voice). The
-            // unit fails; the player fills the gap live with temporary, unsaved Apple (C129).
+            // The unit fails; the player pauses there (C129: never another voice).
             let msg = "\(engine.engineShortName) FAIL p\(index) c\(chunk): \(error.localizedDescription)"
             ListenDebugLog.shared.append(msg)
             lastBakeEvent = msg

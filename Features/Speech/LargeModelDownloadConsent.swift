@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Asks before Kokoro's model download (~163 MB) when the path is cellular or
-/// Low Data Mode. Apple voices never go through this. Wi‑Fi downloads start without a prompt.
+/// Low Data Mode. Wi‑Fi downloads start without a prompt.
 /// Wired once from `RootView`; model stores call `confirmIfNeeded` before starting a transfer.
 @MainActor
 @Observable

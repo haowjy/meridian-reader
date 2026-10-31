@@ -33,7 +33,7 @@ final class PrepareOverviewTests: XCTestCase {
 
     /// A row's Downloaded mark: done, and in the voice downloads render in now or one kept.
     func testPreparedMeansDoneInAVoiceThePrepareAccepts() {
-        let book = record([.done, .done, .queued, .speaksLive, .failed])
+        let book = record([.done, .done, .queued, .failed, .failed])
         let keys = book.entries.map(\.key)
         var voices = [keys[0]: heart, keys[1]: bella, keys[2]: heart, keys[3]: heart, keys[4]: heart]
         func prepared(_ k: [UUID], current: String? = "kokoro.af_heart") -> Bool {
@@ -42,7 +42,7 @@ final class PrepareOverviewTests: XCTestCase {
         XCTAssertTrue(prepared([keys[0]]))
         XCTAssertFalse(prepared([keys[1]]), "done, but in another voice")
         XCTAssertFalse(prepared([keys[2]]), "still queued")
-        XCTAssertFalse(prepared([keys[3]]), "spoken live: no audio downloaded")
+        XCTAssertFalse(prepared([keys[3]]), "can't be read (its language): nothing prepared")
         XCTAssertFalse(prepared([keys[4]]), "failed")
         XCTAssertFalse(prepared([UUID()]), "never downloaded")
         XCTAssertFalse(prepared([keys[0], keys[1]]), "a folder: every page it covers")
@@ -56,8 +56,18 @@ final class PrepareOverviewTests: XCTestCase {
                       "in the voice its download keeps")
     }
 
+    /// A prepare list written while Apple's voices read other languages still loads (one unknown
+    /// state would lose every prepare): such a page is queued again, and its turn decides it.
+    func testAPageOnceSpokenLiveIsQueuedAgain() throws {
+        let json = #"{"key":"\#(UUID().uuidString)","state":"speaksLive"}"#
+        let entry = try JSONDecoder().decode(PrepareRecord.Entry.self, from: Data(json.utf8))
+        XCTAssertEqual(entry.state, .queued)
+        XCTAssertThrowsError(try JSONDecoder().decode(PrepareRecord.Entry.self,
+                                                      from: Data(#"{"key":"\#(UUID().uuidString)","state":"x"}"#.utf8)))
+    }
+
     func testAudioInAnotherVoiceIsADifferentVoice() {
-        let mixed = record([.done, .done, .speaksLive, .failed])
+        let mixed = record([.done, .done, .failed, .failed])
         let o = overview([mixed], voices: [mixed.entries[0].key: heart, mixed.entries[1].key: bella])
         XCTAssertEqual(o.differentVoice.first?.status, .differentVoice(bella))
         XCTAssertEqual(o.differentVoice.first?.voice, bella)

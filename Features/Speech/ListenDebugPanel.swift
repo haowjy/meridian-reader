@@ -38,7 +38,7 @@ struct ListenDebugPanel: View {
                         row("Ready ahead", "\(snapshot.renderedParagraphsAhead) paragraphs")
                         row("Background", snapshot.background)
                         row("Audio session", snapshot.audioSession)
-                        row(Verbs.language, snapshot.language)
+                        row("Language", snapshot.language)
                         row("Audible", snapshot.isAudible ? "yes" : "no")
                         row("isSpeaking", snapshot.isSpeaking ? "yes" : "no")
                         row("isPaused", snapshot.isPaused ? "yes" : "no")

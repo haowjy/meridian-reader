@@ -2,23 +2,31 @@ import Foundation
 import AVFoundation
 import Observation
 
+/// Something playback has to tell the user, shown once as the shell's toast
+/// (`RootView`, `ShellToast`): an article that can't be read ("Can't read French yet."), or the
+/// engine pausing where its audio ran out ("Kokoro stopped.", with Retry).
+struct ListenNotice: Identifiable, Equatable {
+    let id = UUID()
+    let message: String
+    /// Retry (`SpeechController.retry`) plays on from where it paused.
+    var offersRetry = false
+}
+
 /// Listen façade for UI. Phase / playhead live in `playback` (PlaybackSessionState); views read
-/// the published copies below it. Each utterance is bound to one `ListenEngine` (Apple or the
-/// on-device engine), which reports events; engines never clear the session themselves. A book
-/// or series carries on from chapter to chapter (`SpeechController+Advance`).
-/// See docs/LISTEN_PLAYBACK.md.
+/// the published copies below it. Each utterance plays in its article's own voice
+/// (`VoiceSelection`) on the on-device engine (`LocalListenEngine`), which reports events;
+/// engines never clear the session themselves. Playback never changes the voice it reads in:
+/// where the voice can't go on it pauses and says so (`notice`). A book or series carries on
+/// from chapter to chapter (`SpeechController+Advance`). See docs/LISTEN_PLAYBACK.md.
 @MainActor
 @Observable
 final class SpeechController {
     // Exactly one instance per process: built by `AppComposition` (composition root) and
     // injected via ReaderApp + the environment default. A second instance would warm a second
     // copy of the local model.
-    static let voiceDefaultsKey = "reader.selectedVoiceIdentifier"
-    static let languageDefaultsKey = "reader.selectedLanguageCode"
     static let rateDefaultsKey = "reader.rateMultiplier"
-    static let languageAutomaticKey = "reader.languageAutomatic"
     /// The settings it stores, for `-resetLibrary` to clear.
-    static let storedKeys = [voiceDefaultsKey, languageDefaultsKey, rateDefaultsKey, languageAutomaticKey]
+    static let storedKeys = [rateDefaultsKey]
 
     /// Single source of truth for Listen phase + position. Not observed directly: every change is
     /// copied into the published properties below, each assigned only when its value changes.
@@ -51,13 +59,11 @@ final class SpeechController {
     /// What the listen bar shows from the engine. Engine state isn't observable, so
     /// `sampleListenStatus` takes this on every playback change and every engine
     /// `statusChanged`, and bumps `listenStatusRevision` only when it differs: views that show it
-    /// (`playState(of:)`, `isBufferingNext`, `isPreparingVoice`, `renderNote`) redraw exactly when
-    /// it changes.
+    /// (`playState(of:)`, `isBufferingNext`, `isPreparingVoice`) redraw exactly when it changes.
     private struct ListenStatus: Equatable {
         var showsPause = false
         var bufferingNext = false
         var preparingVoice = false
-        var renderNote: String?
     }
     @ObservationIgnored private var listenStatus = ListenStatus()
     private var listenStatusRevision = 0
@@ -106,52 +112,51 @@ final class SpeechController {
 
     let localTTS: LocalTTSCoordinator
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let appleEngine: ListenEngine
     @ObservationIgnored let localEngine: LocalListenEngine
-    private var listenEngines: [ListenEngine] { [appleEngine, localEngine] }
 
-    /// The engine the live utterance is bound to (nil: nothing speaking or held). Set in `speak`,
-    /// cleared when the engines stop.
-    private struct EngineBinding {
-        var route: ListenRoute
-        var engine: ListenEngine
-        /// Apple speaks a chapter that started in the background on a route that can't render
-        /// there (decision D9); the on-device engine takes over once the app is in front again.
-        var standsInUntilForeground = false
-    }
-    @ObservationIgnored private var binding: EngineBinding?
+    /// The voice the live utterance plays in (nil: nothing speaking or held). Set in `speak`,
+    /// cleared when the engine stops.
+    @ObservationIgnored private(set) var boundSelection: VoiceSelection?
     /// The engine every command goes to (nil: nothing speaking or held).
-    var activeEngine: ListenEngine? { binding?.engine }
+    var activeEngine: LocalListenEngine? { boundSelection == nil ? nil : localEngine }
 
-    private func engine(for route: ListenRoute) -> ListenEngine {
-        switch route {
-        case .apple, .appleStandIn: return appleEngine
-        case .local: return localEngine
-        }
-    }
+    /// What the shell shows next as a toast (`noticeShown` once it has).
+    private(set) var notice: ListenNotice?
 
-    /// C138a: the route of the article with `articleID`: its own selection (locked now if it is
-    /// brand new). An on-device engine that isn't loaded starts loading; the player waits for it
-    /// and fills any gap with temporary Apple audio (C129), never another saved voice.
-    func route(for articleID: UUID, paragraphs: [String]) -> ListenRoute {
-        let selection = localTTS.selection(for: articleID, paragraphs: paragraphs)
-        guard localTTS.engines.isOnDevice(selection.engine) else { return .apple(voice: selection.voice) }
+    /// C138a: the voice of the article with `articleID`: its own selection (locked now if it is
+    /// brand new). Its engine starts loading if it isn't; the player waits for it. Never another
+    /// voice.
+    func selection(forPlaying articleID: UUID) -> VoiceSelection {
+        let selection = localTTS.selection(for: articleID)
         localTTS.loadEngineIfNeeded(selection.engine)
-        return .local(selection)
+        return selection
     }
 
-    /// The route of the session bound now (nil: none).
-    var boundRoute: ListenRoute? { binding?.route }
-
-    // MARK: - Language
-
-    /// Settings → Language → "Automatic (match article)" (default). Off = `selectedLanguageCode`.
-    var languageAutomatic: Bool {
-        didSet { defaults.set(languageAutomatic, forKey: Self.languageAutomaticKey) }
+    /// The shell showed `notice` (`RootView`).
+    func noticeShown(_ id: UUID) {
+        if notice?.id == id { notice = nil }
     }
 
-    /// Detected language of the prepared session's article (nil = unknown / none prepared).
-    private(set) var sessionDetectedLanguage: String?
+    func tell(_ message: String, offersRetry: Bool = false) {
+        notice = ListenNotice(message: message, offersRetry: offersRetry)
+    }
+
+    /// `engine` stopped (it failed, or killed the last process): playback is paused for Retry.
+    func tellStopped(_ engine: SpeechEngineID) {
+        tell(String(localized: "\(localTTS.engines.shortName(engine)) stopped."), offersRetry: true)
+    }
+
+    /// Why `session` can't be read (`LocalTTSCoordinator.cantReadNotice`), told to the user; false
+    /// when it can.
+    private func refuses(_ articleID: UUID, paragraphs: [String]) -> Bool {
+        guard let refusal = localTTS.cantReadNotice(of: articleID, paragraphs: paragraphs) else { return false }
+        ListenTimingLog.log("listen_refused", ["key": ListenTimingLog.shortKey(articleID), "why": refusal])
+        tell(refusal)
+        return true
+    }
+
+    /// The toast's Retry: play on from where it paused (a press of play does the same).
+    func retry() { userPerform(.resume) }
 
     var isPlaying: Bool { playbackPhase == .playing }
 
@@ -185,7 +190,7 @@ final class SpeechController {
 
     private func sampleListenStatus() {
         let status = ListenStatus(showsPause: activeSessionShowsPause(), bufferingNext: engineIsBufferingNext(),
-                                  preparingVoice: engineIsPreparingVoice(), renderNote: currentRenderNote())
+                                  preparingVoice: engineIsPreparingVoice())
         guard status != listenStatus else { return }
         listenStatus = status
         listenStatusRevision &+= 1
@@ -227,14 +232,14 @@ final class SpeechController {
     /// What you hear waits for its on-device voice to load: playing, and nothing at its start is
     /// rendered yet (audio already rendered plays without the model). It starts by itself once
     /// the model is loaded; Pause holds it, another play replaces it, and a load that fails
-    /// speaks it with Apple (`noteSpeakFailed`).
+    /// pauses it with a notice (`noteSpeakFailed`).
     var isPreparingVoice: Bool {
         _ = listenStatusRevision
         return engineIsPreparingVoice()
     }
 
     private func engineIsPreparingVoice() -> Bool {
-        playback.phase == .playing && binding?.engine === localEngine && localEngine.isWaitingForVoice
+        playback.phase == .playing && boundSelection != nil && localEngine.isWaitingForVoice
     }
 
     /// Whether `target` is what you hear (bound, in any phase).
@@ -308,7 +313,7 @@ final class SpeechController {
     func userPerform(_ intent: PlaybackIntent) {
         noteUserIntent()
         // C129: the user pressing anything but pause after the engine stopped is the Retry.
-        if localTTS.engineCrashNotice != nil, localTTS.isPausedForRetry, intent != .pause {
+        if localTTS.isPausedForRetry, intent != .pause, intent != .stop {
             localTTS.retryAfterEngineStop()
         }
         perform(intent)
@@ -317,7 +322,7 @@ final class SpeechController {
     /// Plays `article` from `spot` (`start`). The article goes to `onListen` first, so a page the
     /// library doesn't have is kept once it plays.
     func listen(to article: ReaderArticle, at spot: ListenSpot = .top) {
-        guard !article.document.isEmpty else { return }
+        guard !article.document.isEmpty, !refuses(article.id, paragraphs: article.document.paragraphs) else { return }
         onListen?(article)
         var session = SpeechSession(article: article)
         session.folder = nextChapters?.folder(containing: article.id)
@@ -325,9 +330,10 @@ final class SpeechController {
     }
 
     /// The one way a page starts playing: `session` from `spot`, replacing what plays (a page
-    /// already bound plays from `spot`'s paragraph). A page in a folder carries on through it.
+    /// already bound plays from `spot`'s paragraph). A page in a folder carries on through it. A
+    /// page that can't be read (`cantReadNotice`) doesn't start, and what plays plays on.
     func start(_ session: SpeechSession, at spot: ListenSpot = .top) {
-        guard !session.document.isEmpty else { return }
+        guard !session.document.isEmpty, !refuses(session.id, paragraphs: session.document.paragraphs) else { return }
         prepare(session, at: spot)
         userPerform(.play(from: spot.paragraph))
     }
@@ -360,12 +366,6 @@ final class SpeechController {
         return engineIsBufferingNext()
     }
 
-    /// Listen-bar note while the paragraph playing is Apple TTS instead of the local engine.
-    var renderNote: String? {
-        _ = listenStatusRevision
-        return currentRenderNote()
-    }
-
     /// Audible audio always shows Pause, even while the phase briefly disagrees (the engine
     /// hasn't reported a change yet).
     private func activeSessionShowsPause() -> Bool {
@@ -375,11 +375,6 @@ final class SpeechController {
     private func engineIsBufferingNext() -> Bool {
         guard playback.articleID != nil, playback.phase == .playing else { return false }
         return activeEngine?.isWaitingForAudio == true
-    }
-
-    private func currentRenderNote() -> String? {
-        guard playback.phase == .playing || playback.phase == .paused else { return nil }
-        return activeEngine?.sourceNote
     }
 
     /// The session's resume point changed (playing a new paragraph, paused, stopped).
@@ -392,16 +387,12 @@ final class SpeechController {
         }
     }
 
-    var selectedLanguageCode: String {
-        didSet { defaults.set(selectedLanguageCode, forKey: Self.languageDefaultsKey) }
-    }
-
     /// The listen speed, always one of `ListenRate.options` (`setRateMultiplier`).
     private(set) var rateMultiplier: Double {
         didSet {
             defaults.set(rateMultiplier, forKey: Self.rateDefaultsKey)
-            // Every engine keeps the speed; the bound one applies it to what is playing.
-            for engine in listenEngines { engine.setRate(rateMultiplier) }
+            // The engine keeps the speed and applies it to what is playing.
+            localEngine.setRate(rateMultiplier)
             refreshNowPlaying()
         }
     }
@@ -410,50 +401,24 @@ final class SpeechController {
     /// any rate).
     func setRateMultiplier(_ value: Double) { rateMultiplier = ListenRate.nearest(to: value) }
 
-    var selectedVoiceIdentifier: String? {
-        didSet { defaults.set(selectedVoiceIdentifier, forKey: Self.voiceDefaultsKey) }
-    }
-
     /// Over `localTTS`, which also holds the crash-resume file this writes as playback moves.
-    /// `audioSession` / `nowPlaying` / `appleEngine` are injectable for unit tests (no
-    /// process-wide audio session or remote command registration, a scripted Apple engine).
+    /// `audioSession` / `nowPlaying` are injectable for unit tests (no process-wide audio session
+    /// or remote command registration).
     init(localTTS: LocalTTSCoordinator,
          defaults: UserDefaults,
          audioSession: ListenAudioSession? = nil,
-         nowPlaying: NowPlayingController? = nil,
-         appleEngine: ListenEngine? = nil) {
+         nowPlaying: NowPlayingController? = nil) {
         self.localTTS = localTTS
         self.defaults = defaults
-        self.appleEngine = appleEngine ?? AppleListenEngine(runState: localTTS.synthQueue.runState)
         self.localEngine = LocalListenEngine(coordinator: localTTS)
         self.audioSession = audioSession ?? ListenAudioSession()
         self.lockScreen = nowPlaying ?? NowPlayingController()
-        let storedLanguage = defaults.string(forKey: Self.languageDefaultsKey)
-        let fallback = Locale.current.language.languageCode.map {
-            "\($0.identifier)-\(Locale.current.region?.identifier ?? "US")"
-        } ?? "en-US"
-        self.selectedLanguageCode = storedLanguage ?? Locale.preferredLanguages.first ?? fallback
         // `double(forKey:)` also parses a launch-argument string ("-reader.rateMultiplier 2", a probe).
         let storedRate = defaults.object(forKey: Self.rateDefaultsKey) != nil
             ? defaults.double(forKey: Self.rateDefaultsKey) : 1.0
         self.rateMultiplier = storedRate > 0 ? ListenRate.nearest(to: storedRate) : 1.0
-        self.selectedVoiceIdentifier = defaults.string(forKey: Self.voiceDefaultsKey)
-        self.languageAutomatic = (defaults.object(forKey: Self.languageAutomaticKey) as? Bool) ?? true
-        // Bake / warm only articles the local engine can speak (others speak with Apple).
-        self.localTTS.localLanguageGate = { [weak self] paragraphs in
-            guard let self else { return true }
-            let language = self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs))
-            return self.localTTS.engines.isOnDevice(language.engineID)
-        }
-        self.localTTS.appleVoiceForArticle = { [weak self] paragraphs in
-            guard let self else { return nil }
-            let language = self.languageResolution(detected: ListenLanguage.detectCached(paragraphs: paragraphs))
-            return self.appleVoice(forLanguage: language.languageCode)?.identifier
-        }
-        for engine in listenEngines {
-            engine.setRate(rateMultiplier)
-            engine.onEvent = { [weak self, unowned engine] event in self?.handle(event, from: engine) }
-        }
+        localEngine.setRate(rateMultiplier)
+        localEngine.onEvent = { [weak self] event in self?.handle(event) }
         // Category only; the session is activated when playback starts (activating at launch
         // interrupted other apps' audio just for opening Reader). Non-mixable so Reader becomes
         // the Now Playing app (lock screen controls); `UIBackgroundModes: audio` keeps it playing.
@@ -496,8 +461,6 @@ final class SpeechController {
                                canonicalURL: session.canonicalURL, sourceLabel: session.sourceLabel,
                                folder: session.folder)
         if meta != sessionMeta { sessionMeta = meta }
-        let detected = session.detectedLanguage ?? ListenLanguage.detectCached(paragraphs: session.document.paragraphs)
-        if sessionDetectedLanguage != detected { sessionDetectedLanguage = detected }
     }
 
     /// The page changing inside a folder (`SpeechController+Advance`).
@@ -582,7 +545,7 @@ final class SpeechController {
             perform(.resume)
         case .rebuildEngines:
             stopEngines()
-            for engine in listenEngines { engine.mediaServicesWereReset() }
+            localEngine.mediaServicesWereReset()
             execute(playback.holdForRebuiltEngines())
         case .none:
             break
@@ -593,14 +556,6 @@ final class SpeechController {
 
     private func appRunStateChanged() {
         let phase = localTTS.synthQueue.runState.phase
-        if phase == .active {
-            activeEngine?.appDidBecomeActive()
-            // D9: the chapter Apple took in the background goes back to the on-device engine.
-            if binding?.standsInUntilForeground == true {
-                binding?.standsInUntilForeground = false
-                restartUtteranceIfNeeded()
-            }
-        }
         diagnostics.appPhaseChanged(phase)
     }
 
@@ -632,7 +587,7 @@ final class SpeechController {
         activeEngine?.snapshot ?? PlaybackEngineSnapshot(isAudible: false, isPaused: false)
     }
 
-    /// The engine confirms with `becamePaused` (the on-device player at once, Apple at the next word).
+    /// The engine confirms with `becamePaused`.
     private func pauseEngines() {
         activeEngine?.pause()
     }
@@ -648,15 +603,15 @@ final class SpeechController {
     }
 
     func stopEngines() {
-        binding = nil
-        for engine in listenEngines { engine.stop() }
+        boundSelection = nil
+        localEngine.stop()
         sampleListenStatus()
     }
 
-    /// Events from engines. Only the bound engine's count: a stopped or replaced engine's late
-    /// callback (a cancelled utterance, a cleared player) must not move the session.
-    private func handle(_ event: PlaybackEngineEvent, from engine: ListenEngine) {
-        guard engine === activeEngine else { return }
+    /// Events from the engine while it is bound (its late callbacks after a stop count for
+    /// nothing; the engine drops those of a replaced play itself).
+    private func handle(_ event: PlaybackEngineEvent) {
+        guard boundSelection != nil else { return }
         switch event {
         case .becameAudible:
             playback.handle(event)
@@ -669,6 +624,13 @@ final class SpeechController {
             if moved { stageNextChapterIfDue() }
         case .statusChanged:
             sampleListenStatus()
+        case .stalled(let stall):
+            let engine = boundSelection?.engine ?? localTTS.defaultSelection.engine
+            switch stall {
+            case .engineStopped: tellStopped(engine)
+            case .background:
+                tell(String(localized: "\(localTTS.engines.shortName(engine)) can’t read in the background."))
+            }
         case .finished:
             pageEnded(restartBake: true)
         }
@@ -680,35 +642,28 @@ final class SpeechController {
         speak(fromUTF16Offset: playback.utf16Offset, startPaused: playback.phase == .paused)
     }
 
-    /// Binds the engine `route` names (the one `speak` would pick, unless given) and plays from
-    /// `offset`. `standsIn`: Apple is taking a chapter the on-device engine can't render in the
-    /// background (D9), until the app is in front again.
-    func speak(fromUTF16Offset offset: Int, startPaused: Bool, route chosen: ListenRoute? = nil,
-               standsIn: Bool = false) {
-        if !startPaused { audioSession.activate() }
+    /// Binds the article's voice (`selection(forPlaying:)`) and plays from `offset`. A page bound
+    /// that can't be read (`cantReadNotice`; one bound paused, then played) stays bound and
+    /// unplayed, with the notice.
+    func speak(fromUTF16Offset offset: Int, startPaused: Bool) {
         stopEngines()
-
         playback.moveTo(utf16: offset)
         let start = playback.utf16Offset
         guard start < (document.joinedText as NSString).length, let articleID = playback.articleID else {
             pageEnded(restartBake: false)
             return
         }
-
-        let route = chosen ?? route(for: articleID, paragraphs: document.paragraphs)
-        let engine = engine(for: route)
-        binding = EngineBinding(route: route, engine: engine, standsInUntilForeground: standsIn)
-        var selection: VoiceSelection?
-        var apple = effectiveAppleVoice
-        switch route {
-        case .local(let s): selection = s
-        case .apple(let voice): apple = appleVoice(forLanguage: effectiveLanguageCode, preferred: voice)
-        case .appleStandIn: break
+        guard !refuses(articleID, paragraphs: document.paragraphs) else {
+            playback.reconcile(with: engineSnapshot())
+            return
         }
+        if !startPaused { audioSession.activate() }
+        let selection = selection(forPlaying: articleID)
+        boundSelection = selection
         // The phase already says playing or paused (the intent that led here set it); the engine
         // confirms with its own events.
-        engine.play(ListenPlayRequest(articleID: articleID, document: document, utf16Offset: start,
-                                      startPaused: startPaused, selection: selection, appleVoice: apple))
+        localEngine.play(ListenPlayRequest(articleID: articleID, document: document, utf16Offset: start,
+                                           startPaused: startPaused, selection: selection))
     }
 
     /// Played to the end (not stopped) with nothing to carry on to: the engines and the audio
@@ -735,20 +690,14 @@ final class SpeechController {
         }
     }
 
-    // MARK: - Bake-ready marks (local engines only)
+    // MARK: - Bake-ready marks
 
-    /// When a local engine is selected/pending, returns indices with a usable CAF for the article
-    /// in the CURRENT voice (stale old-voice units don't count).
-    /// `nil` means hide marks (Apple path — no CAF bake, don't fake "not ready").
-    func bakeReadyParagraphIndices(articleID: UUID, paragraphCount: Int, detectedLanguage: String? = nil) -> Set<Int>? {
-        // C138a: the article's own selection; an Apple one (or a language its engine can't speak)
-        // renders nothing ahead: no marks.
-        let detected = detectedLanguage ?? (articleID == activeSessionID ? sessionDetectedLanguage : nil)
-        let selection = localTTS.storedSelection(of: articleID)
-            ?? (localTTS.engines.isOnDevice(languageResolution(detected: detected).engineID)
-                ? localTTS.defaultSelection : VoiceSelection(engine: .apple, voice: ""))
-        guard localTTS.engines.supports(selection.engine), localTTS.engines.isOnDevice(selection.engine),
-              let voice = localTTS.cacheVoice(of: selection) else { return nil }
+    /// Indices with a usable CAF for the article in its own voice (stale old-voice units don't
+    /// count). nil hides the marks: its voice can't run here.
+    func bakeReadyParagraphIndices(articleID: UUID, paragraphCount: Int) -> Set<Int>? {
+        // C138a: the article's own selection, else the default it would take.
+        let selection = localTTS.effectiveSelection(of: articleID)
+        guard localTTS.engines.supports(selection.engine), let voice = localTTS.cacheVoice(of: selection) else { return nil }
         let localID = selection.engine
         // Hide until unit count is known — empty Set would mark every HTML block not-ready.
         guard paragraphCount > 0 else { return nil }

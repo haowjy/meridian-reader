@@ -19,7 +19,7 @@ enum ReaderOrigin: Equatable {
 
 /// A page pushed in Settings (Settings › Voice).
 enum SettingsRoute: String, Hashable {
-    case voice, language, speed, appearance, reading, preparedAudio, acknowledgements
+    case voice, speed, appearance, reading, preparedAudio, acknowledgements
 }
 
 /// The Reader sheet: a page shown for reading over the surface that opened it, on regular width.

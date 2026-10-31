@@ -80,8 +80,6 @@ enum MenuRegistry {
         var hasPreparedAudio = false
         /// A book or series: one voice for every chapter (C138).
         var isBookOrSeries = false
-        /// An on-device voice speaks (Kokoro): *Voice* can pick one (C138).
-        var hasVoices = false
         // A prepare
         var isQueued = false
         /// A row of From Listening: audio made while listening, not prepared (C135).
@@ -141,8 +139,8 @@ enum MenuRegistry {
         Spec(option: .goTo, kind: .article, places: [.nowPlaying], enabled: { $0.goToEnabled }, greyIf: "nowhere to go"),
         Spec(option: .prepare, kind: .article, places: articlePlacesButListen, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
         // C138: the voice it speaks in (its book's for a chapter); picking one remakes its audio.
-        Spec(option: .voice, kind: .article, places: articlePlacesButListen, applies: { $0.hasPage }, enabled: { $0.hasVoices },
-             hiddenIf: "no page (a page in the browser only)", greyIf: "Apple's voice is selected"),
+        Spec(option: .voice, kind: .article, places: articlePlacesButListen, applies: { $0.hasPage },
+             hiddenIf: "no page (a page in the browser only)"),
         Spec(option: .move, kind: .article, places: articlePlaces, enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
         Spec(option: .finished, kind: .article, places: articlePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),
         // Chapter-only and rare: one submenu, only for a page in a folder.
@@ -167,8 +165,7 @@ enum MenuRegistry {
              enabled: { $0.prepareIsOn || $0.hasPreparedAudio || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
         Spec(option: .removePreparedAudio, kind: .folder, places: [.header], enabled: { $0.hasPreparedAudio }, greyIf: "nothing downloaded or downloading"),
         Spec(option: .folderVoice, kind: .folder, places: folderPlaces, applies: { $0.isBookOrSeries },
-             enabled: { $0.hasVoices }, hiddenIf: "a plain folder (each article keeps its own voice)",
-             greyIf: "Apple's voice is selected"),
+             hiddenIf: "a plain folder (each article keeps its own voice)"),
         Spec(option: .folderMove, kind: .folder, places: folderPlaces),
         Spec(option: .editDetails, kind: .folder, places: folderPlaces),
         Spec(option: .deleteFolder, kind: .folder, places: folderPlaces),

@@ -29,9 +29,6 @@ protocol ListenUnitSource: AnyObject {
     func isChunkReady(paragraph: Int, chunk: Int) -> Bool
     /// What the render worker is doing relative to `paragraph`.
     func workerStatus(paragraph: Int) -> RenderWorkerStatus
-    /// Render `text` with Apple TTS into `destination` (the engine can't provide it in time).
-    /// Returns its length in seconds.
-    func renderApple(_ text: String, to destination: URL) async throws -> TimeInterval
     /// Production restarts at `paragraph`: render from there first.
     func focus(paragraph: Int)
 }
@@ -61,10 +58,8 @@ final class QueueUnitSource: ListenUnitSource {
     /// Audio already rendered in it plays whether its engine is loaded or not; only audio still
     /// to render waits for the engine.
     let selection: VoiceSelection
-    /// The cache voice key of `selection` (nil: Apple, which renders nothing ahead).
+    /// The cache voice key of `selection` (nil: no registered engine speaks it).
     private let cacheVoice: String?
-    /// Apple voice for fallback renders: the one the render queue falls back to for this article.
-    private let appleVoiceID: String?
     private let coordinator: LocalTTSCoordinator
     private var queue: GlobalSynthQueue { coordinator.synthQueue }
     private var cache: ArticleAudioCache { coordinator.audioCache }
@@ -75,7 +70,6 @@ final class QueueUnitSource: ListenUnitSource {
         self.paragraphs = paragraphs
         self.selection = selection
         self.cacheVoice = coordinator.cacheVoice(of: selection)
-        self.appleVoiceID = coordinator.appleFallbackVoice(for: paragraphs)
     }
 
     /// Save landed on a different key than the reader's: keep playing under the new one.
@@ -128,10 +122,6 @@ final class QueueUnitSource: ListenUnitSource {
     func workerStatus(paragraph: Int) -> RenderWorkerStatus {
         guard let active = queue.activeBakeCacheKey else { return .idle }
         return active == articleID && queue.activeBakeIndex == paragraph ? .renderingThisParagraph : .busyElsewhere
-    }
-
-    func renderApple(_ text: String, to destination: URL) async throws -> TimeInterval {
-        try await coordinator.synth.renderAppleFallback(text: text, destination: destination, voiceID: appleVoiceID)
     }
 
     func focus(paragraph: Int) {

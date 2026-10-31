@@ -153,7 +153,7 @@ struct NowPlayingScreen: View {
             let rate = speech.rateMultiplier
             let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: spot.utf16Offset, rate: rate)
             let source = ArticleRowTitle.lineTwoSource(title: now.title, source: now.source)
-            let note = NowPlayingControls.note(of: speech, detectedLanguage: speech.sessionDetectedLanguage)
+            let note = NowPlayingControls.note(of: speech)
             ReaderPlayerCard(
                 title: now.lineOne,
                 detail: note.map { [$0] } ?? (now.isFinished ? [String(localized: "Finished")]
@@ -244,7 +244,7 @@ struct NowPlayingScreen: View {
             playerScrub(spot: spot) { SpeedButton(speech: speech) }
 
             // Notes (buffering, language, etc.)
-            NowPlayingControls(speech: speech, detectedLanguage: speech.sessionDetectedLanguage)
+            NowPlayingControls(speech: speech)
 
             // Transport: [🔖] [⏮] (⏸) [⏭] [⋯]
             ListenTransportView(
@@ -297,8 +297,7 @@ struct NowPlayingScreen: View {
     /// Lighter "buffered" fill: stretches of rendered audio, as scrubber fractions.
     private func bufferedSpans(_ map: ReaderScrubMap) -> [ClosedRange<Double>] {
         guard let id = speech.activeSessionID,
-              let ready = speech.bakeReadyParagraphIndices(articleID: id, paragraphCount: speech.document.count,
-                                                           detectedLanguage: speech.sessionDetectedLanguage),
+              let ready = speech.bakeReadyParagraphIndices(articleID: id, paragraphCount: speech.document.count),
               !ready.isEmpty else { return [] }
         return map.spans(covering: ready)
     }

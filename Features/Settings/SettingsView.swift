@@ -133,7 +133,6 @@ struct SettingsView: View {
     private func page(_ route: SettingsRoute) -> some View {
         switch route {
         case .voice: VoicePage(speech: speech)
-        case .language: LanguagePage(speech: speech)
         case .speed: SpeedPage(speech: speech)
         case .appearance: AppearanceSettingsPage(appearance: AppAppearance.shared)
         case .reading: ReadingSettingsPage()

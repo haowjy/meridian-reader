@@ -53,7 +53,7 @@ struct KokoroRouteDebugSection: View {
                 }
             LabeledContent("Live route", value: liveRoute)
             LabeledContent("Render speed", value: paceLabel)
-            LabeledContent("ONNX crashes (→ Apple at 2)", value: "\(kokoro.routeSettings.onnxCrashCount)")
+            LabeledContent("ONNX crashes (pauses for Retry at 2)", value: "\(kokoro.routeSettings.onnxCrashCount)")
         } header: {
             SectionHeader(title: "Kokoro Route").listHeader()
         } footer: {

@@ -32,14 +32,14 @@ struct ListenDebugSnapshot: Equatable {
     var workerBusy: Bool
     var warmingLocal: Bool
     var lastBakeEvent: String
-    /// e.g. "fr (auto) → Apple, Kokoro is English-only" / "en (auto) → local.kokoro".
+    /// The language detected in what plays: "en", "undetected".
     var language: String = ""
-    /// "active, <engine> (<host routing>), 3.1× real time" / "background, no model calls — baked
-    /// audio + Apple fallback" / "Apple TTS …".
+    /// "active, <engine> (<host routing>), 3.1× real time" / "background, no model calls: rendered
+    /// audio, then a pause".
     var renderMode: String = ""
     /// Paragraphs after the playhead already rendered (how far ahead the queue is).
     var renderedParagraphsAhead: Int = 0
-    /// Last background stretch: units played baked / as chunks / as Apple fallback, deferrals.
+    /// Last background stretch: units played baked / as chunks, deferrals.
     var background: String = "—"
     var audioSession: String = ""
 }

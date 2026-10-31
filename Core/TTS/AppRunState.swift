@@ -9,13 +9,13 @@ import UIKit
 /// still runs BNNS CPU ops that can crash (FluidAudio #844 — cpuOnly, cpuAndGPU and
 /// ANE-with-CPU-tail all crashed; ANE-only is not available for all stages). So there is no
 /// background-safe compute setting to switch to: **no local model call starts while the app is
-/// in the background**. Listening continues from baked audio, and paragraphs that aren't
-/// rendered yet are spoken with Apple TTS (see `GlobalSynthQueue`, docs/LISTEN_PLAYBACK.md).
+/// in the background**. Listening continues from rendered audio and pauses where it runs out
+/// (see `GlobalSynthQueue`, docs/LISTEN_PLAYBACK.md).
 ///
 /// - `active`: everything runs (live chunks + bake-ahead).
 /// - `inactive` (Control Center, call banner, app switcher; also on the way to background):
 ///   only chunks a listener is waiting for; bake-ahead waits.
-/// - `background`: no Core ML at all; live requests are deferred (→ Apple fallback).
+/// - `background`: no Core ML at all; live requests are deferred (playback pauses there).
 ///
 /// Hosts without Core ML (Kokoro's ONNX CPU route) are the exception; `RenderAdmission` holds
 /// the full rule.
@@ -78,8 +78,7 @@ final class AppRunState: @unchecked Sendable {
 
 #if canImport(UIKit)
 /// `beginBackgroundTask` wrapper: a short grace period so work in flight when the app leaves the
-/// foreground (a Core ML chunk + its CAF write, or an Apple-fallback render while the player is
-/// starved) finishes instead of being suspended mid-way. Does NOT permit GPU work.
+/// foreground (a Core ML chunk + its CAF write) finishes instead of being suspended mid-way. Does NOT permit GPU work.
 @MainActor
 final class BackgroundGrace {
     let name: String

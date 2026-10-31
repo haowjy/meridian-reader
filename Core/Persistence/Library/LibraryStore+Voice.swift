@@ -120,4 +120,24 @@ extension LibraryStore {
         }
         return count
     }
+
+    /// Migration: every article and book whose voice `isGone` (a voice library the app no longer
+    /// has) has none again, so it takes the Settings default at its next first use. Returns how
+    /// many changed; throws when the edit couldn't be saved (nothing changed then).
+    func clearVoices(where isGone: (String) -> Bool) throws -> Int {
+        let articles = (try? context.fetch(FetchDescriptor<Article>())) ?? []
+        let folders = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
+        return try edit("clear voices") {
+            var count = 0
+            for article in articles where article.voiceID.map(isGone) == true {
+                article.voiceID = nil
+                count += 1
+            }
+            for folder in folders where folder.voiceID.map(isGone) == true {
+                folder.voiceID = nil
+                count += 1
+            }
+            return count
+        }
+    }
 }

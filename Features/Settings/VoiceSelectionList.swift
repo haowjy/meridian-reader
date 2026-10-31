@@ -1,14 +1,12 @@
-import AVFoundation
 import SwiftUI
 
-/// C138a: the one voice switcher. A compact Voices control (Phonon | Kokoro | Apple) filters the
-/// list; each on-device engine's voices (with samples, `VoiceChoiceRows`) or Apple's installed
-/// voices for the language (Premium, Enhanced, then the rest) follow. Picking a voice picks its
-/// engine. Settings › Voice (the default for new articles) and an article's or a book's *Voice*
+/// C138a: the one voice switcher. A compact Voices control (Phonon | Kokoro) filters the list;
+/// that voice library's voices follow (with samples, `VoiceChoiceRows`), or why it can't run on
+/// this device. Picking a voice picks its engine. Settings › Voice (the default for new articles) and an article's or a book's *Voice*
 /// picker (`VoicePickerSheet`) are this list.
 ///
 /// ```
-/// Voices   [ Phonon | Kokoro | Apple ]
+/// Voices   [ Phonon | Kokoro ]
 /// PHONON
 ///  Zoey  ✓  Playful, American (default)
 ///  Freya    Bright, British
@@ -32,20 +30,18 @@ struct VoiceSelectionList: View {
     /// Engine whose voices are listed. nil until the user taps one: the current selection's engine.
     @State private var shownEngine: SpeechEngineID?
 
-    private var localEngines: [EngineDescriptor] {
-        localTTS.engines.localDescriptors.filter { !$0.voices.isEmpty }
+    private var engines: [EngineDescriptor] {
+        localTTS.engines.descriptors.filter { !$0.voices.isEmpty }
     }
 
     private var visibleEngine: SpeechEngineID {
-        shownEngine ?? current?.engine ?? localEngines.first?.id ?? .apple
+        shownEngine ?? current?.engine ?? localTTS.engines.defaultEngine.id
     }
 
-    /// Engine first (Phonon / Kokoro / Apple), then only that engine's voices.
+    /// Engine first (Phonon / Kokoro), then only that engine's voices.
     var body: some View {
         engineSelector
-        if visibleEngine == .apple {
-            appleSection
-        } else if let descriptor = localEngines.first(where: { $0.id == visibleEngine }) {
+        if let descriptor = engines.first(where: { $0.id == visibleEngine }) {
             engineSection(descriptor)
             if !descriptor.moreVoices.isEmpty, localTTS.engines.supports(descriptor.id) {
                 moreVoicesSection(descriptor)
@@ -53,10 +49,8 @@ struct VoiceSelectionList: View {
         }
     }
 
-    /// Compact Phonon | Kokoro | Apple chips (same ChoicePicker as Appearance), not tall choice rows.
-    private var engineOptions: [SpeechEngineID] {
-        localEngines.map(\.id) + [.apple]
-    }
+    /// Compact Phonon | Kokoro chips (same ChoicePicker as Appearance), not tall choice rows.
+    private var engineOptions: [SpeechEngineID] { engines.map(\.id) }
 
     private var engineSelection: Binding<SpeechEngineID> {
         Binding(get: { visibleEngine }, set: { shownEngine = $0 })
@@ -76,12 +70,7 @@ struct VoiceSelectionList: View {
     }
 
     private func engineChipLabel(_ id: SpeechEngineID) -> String {
-        if id == .apple {
-            return localTTS.engines.systemDescriptor?.shortName
-                ?? localTTS.engines.systemDescriptor?.displayName ?? "Apple"
-        }
-        return localEngines.first(where: { $0.id == id })?.shortName
-            ?? localTTS.engines.shortName(id)
+        localTTS.engines.shortName(id)
     }
 
     /// Same engine, listing only its *More voices* (VoiceChoiceRows lists `descriptor.voices`).
@@ -124,9 +113,7 @@ struct VoiceSelectionList: View {
         } header: {
             SectionHeader(title: descriptor.displayName).listHeader()
         } footer: {
-            if let notice = localTTS.engineCrashNotice, localTTS.crashedEngineID == nil || localTTS.crashedEngineID == id {
-                Text(notice).foregroundStyle(Palette.destructive).listFooter()
-            } else if case .failed(id, let message) = localTTS.synth.state {
+            if case .failed(id, let message) = localTTS.synth.state {
                 Text(message).foregroundStyle(Palette.destructive).listFooter()
             } else {
                 footerText.listFooter()
@@ -165,52 +152,5 @@ struct VoiceSelectionList: View {
         } else {
             Text(footer)
         }
-    }
-
-    private var language: String { speech.effectiveLanguageCode }
-
-    /// Apple's installed voices for the language, Premium, then Enhanced, then the rest.
-    private var appleEntries: [VoiceCatalog.Entry] {
-        VoiceCatalog.voices(forLanguage: language)
-            .enumerated()
-            .sorted { ($0.element.voice.quality.rawValue, -$0.offset) > ($1.element.voice.quality.rawValue, -$1.offset) }
-            .map(\.element)
-    }
-
-    @ViewBuilder
-    private var appleSection: some View {
-        let isApple = current?.isApple == true
-        Section {
-            SettingsChoiceRow(
-                title: String(localized: "Best for \(VoiceCatalog.languageName(for: language))"),
-                subtitle: DetailPart(String(localized: "The best installed voice")),
-                selected: isApple && current?.voice.isEmpty == true,
-                accessibilityID: "voiceRow-system"
-            ) {
-                onPick(VoiceSelection(engine: .apple, voice: ""))
-            }
-            ForEach(appleEntries) { entry in
-                SettingsChoiceRow(
-                    title: entry.voice.name,
-                    subtitle: DetailPart("\(entry.qualityLabel), \(entry.languageDisplayName)"),
-                    selected: isApple && current?.voice == entry.id,
-                    accessibilityID: "voiceRow-\(entry.id)"
-                ) {
-                    onPick(VoiceSelection(engine: .apple, voice: entry.id))
-                }
-            }
-        } header: {
-            SectionHeader(title: localTTS.engines.systemDescriptor?.displayName ?? "Apple").listHeader()
-        } footer: {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                footerText
-                if !VoiceCatalog.hasHighQualityVoice(forLanguage: language) {
-                    Text("Better Apple voices (Enhanced or Premium) can be downloaded in iOS Settings > Accessibility > Spoken Content > Voices.")
-                        .accessibilityIdentifier("appleVoiceHint")
-                }
-            }
-            .listFooter()
-        }
-        .listCard()
     }
 }

@@ -7,7 +7,6 @@ extension ReaderArticle {
     @MainActor
     static func loadSaved(id: UUID, in library: LibraryStore, update: (ReaderArticle) -> Void) async {
         guard let article = library.article(key: id) else { return }
-        article.detectedLanguageBackfilling()
         var readerArticle = ReaderArticle(article: article)
         update(readerArticle)
         guard readerArticle.document.isEmpty else { return }
@@ -21,7 +20,6 @@ extension ReaderArticle {
         if let article = library.article(key: id) {
             article.storeListenParagraphs(doc.paragraphs)
             library.commit("listen blocks")
-            readerArticle.storedDetectedLanguage = article.detectedLanguageCode
         }
         readerArticle.document = doc
         readerArticle.trustedParagraphs = doc.paragraphs

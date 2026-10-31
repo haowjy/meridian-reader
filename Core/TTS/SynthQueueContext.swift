@@ -30,9 +30,6 @@ protocol SynthQueueContext: AnyObject {
     var cacheEngineID: String { get }
     var chunkPlans: ChunkPlans { get }
     var synthRenderer: SynthChunkRendering { get }
-    /// The Apple voice that speaks an article with `paragraphs` where the engine can't: the one
-    /// the listen player falls back to for it (nil: the system voice).
-    func appleFallbackVoice(for paragraphs: [String]) -> String?
     func noteBakeMarksChanged()
     /// An article is fully baked (drop its persisted pending job).
     func bakeCompleted(cacheKey: UUID)
@@ -55,11 +52,10 @@ extension SynthQueueContext {
     var playingCacheKey: UUID? { nil }
 }
 
-/// Renders one synth chunk with the active local engine, or with Apple as the fallback. Both
-/// render at 1×: the listen speed is a time-stretch on the player.
+/// Renders one synth chunk with the loaded engine, at 1×: the listen speed is a time-stretch on
+/// the player.
 @MainActor
 protocol SynthChunkRendering: AnyObject {
     var engineShortName: String { get }
     func renderChunkToFile(text: String, destination: URL, request: ChunkRenderRequest) async throws -> TimeInterval
-    func renderAppleFallback(text: String, destination: URL, voiceID: String?) async throws -> TimeInterval
 }

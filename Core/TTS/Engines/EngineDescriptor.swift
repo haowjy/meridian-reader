@@ -1,9 +1,9 @@
 import Foundation
 
-/// Stable engine identifier. Persisted in UserDefaults (`reader.tts.engineID`) and in every
+/// Stable engine identifier. Persisted in every stored `VoiceSelection` and in every
 /// `TTSCache/<article>/index.json` entry, so raw values must never change once shipped.
-/// Well-known ids for concrete engines are declared by their provider (e.g. `FluidAudioProvider`);
-/// the shared core only knows `.apple`, the always-available system fallback.
+/// Ids for concrete engines are declared by their provider (e.g. `FluidAudioProvider`); the shared
+/// core knows none.
 struct SpeechEngineID: RawRepresentable, Hashable, Codable, Sendable, Identifiable, CustomStringConvertible {
     let rawValue: String
     init(rawValue: String) { self.rawValue = rawValue }
@@ -11,9 +11,6 @@ struct SpeechEngineID: RawRepresentable, Hashable, Codable, Sendable, Identifiab
 
     var id: String { rawValue }
     var description: String { rawValue }
-
-    /// Apple `AVSpeechSynthesizer` — no model, no bake cache, always available.
-    static let apple = SpeechEngineID("apple")
 }
 
 /// One selectable voice of an engine.
@@ -39,7 +36,8 @@ struct HardwareRequirement: Sendable, Equatable {
 }
 
 /// Everything the shared core needs to know about an engine. Core code reads these
-/// capabilities; it never switches on concrete engine types.
+/// capabilities; it never switches on concrete engine types. Every engine is an on-device model
+/// that renders audio ahead into the cache through the render queue.
 struct EngineDescriptor: Sendable, Identifiable {
     let id: SpeechEngineID
     /// Settings section title ("Kokoro").
@@ -51,7 +49,7 @@ struct EngineDescriptor: Sendable, Identifiable {
     /// Settings order among engines (ascending).
     let sortOrder: Int
 
-    /// Settings' Voice section for this engine; empty when its voices are picked elsewhere (Apple).
+    /// Settings' Voice section for this engine.
     var voices: [EngineVoice] = []
     /// Extra voices shown under *More voices* below `voices` (Phonon's full bundle).
     var moreVoices: [EngineVoice] = []
@@ -61,12 +59,11 @@ struct EngineDescriptor: Sendable, Identifiable {
     /// UserDefaults key for the selected voice (nil → "reader.tts.voice.<id>").
     var voiceDefaultsKey: String? = nil
     var hardware: HardwareRequirement = .none
-    /// Languages the engine can speak, as base language codes ("en"). Empty = any language
-    /// (Apple). An article whose effective language isn't listed speaks with Apple instead.
+    /// Languages the engine can speak, as base language codes ("en"). Empty = any language. An
+    /// article detected in a language it doesn't list isn't read (`ListenLanguage.unspoken`).
     var supportedLanguages: [String] = []
-    /// What only an on-device model has. An engine is on-device exactly when this is set: it
-    /// renders audio ahead into the cache through the render queue. nil for Apple.
-    let onDevice: OnDeviceTraits?
+    /// Its cache keys, chunk limits and crash guarding.
+    let onDevice: OnDeviceTraits
 
     var resolvedVoiceDefaultsKey: String { voiceDefaultsKey ?? "reader.tts.voice.\(id.rawValue)" }
 
@@ -76,30 +73,22 @@ struct EngineDescriptor: Sendable, Identifiable {
             || supportedLanguages.contains(ListenLanguage.baseCode(languageCode))
     }
 
-    /// "Kokoro is English-only" style note (nil when the engine speaks any language).
-    var languageLimitNote: String? {
-        guard !supportedLanguages.isEmpty else { return nil }
-        let names = supportedLanguages.map { ListenLanguage.displayName(for: $0) }
-        if names.count == 1 { return "\(shortName) is \(names[0])-only" }
-        return "\(shortName) speaks \(names.joined(separator: ", "))"
-    }
-
     /// Voice to use for a stored selection: the stored id if it's still offered, else the default.
     func resolvedVoice(_ stored: String?) -> String? {
         if let stored, allVoices.contains(where: { $0.id == stored }) { return stored }
         return defaultVoiceID ?? voices.first?.id
     }
 
-    /// Cache voice key of this engine's audio in `engineVoice` (nil: its default voice); nil for
-    /// an engine that renders nothing ahead.
-    func cacheVoiceID(engineVoice: String?) -> String? {
-        onDevice.map { "\($0.cacheVoiceNamespace).\(engineVoice ?? defaultVoiceID ?? "default")" }
+    /// Cache voice key of this engine's audio in `engineVoice` (nil: its default voice).
+    func cacheVoiceID(engineVoice: String?) -> String {
+        "\(onDevice.cacheVoiceNamespace).\(engineVoice ?? defaultVoiceID ?? "default")"
     }
 
     /// The engine voice a cache voice key of this engine names, in any revision ("kokoro.af_heart"
     /// → "af_heart", "phonon@1792483937.Zoey" → "Zoey"); nil for another engine's key.
     func engineVoice(fromCacheVoice key: String) -> String? {
-        guard let prefix = onDevice?.cacheVoicePrefix, key.hasPrefix(prefix) else { return nil }
+        let prefix = onDevice.cacheVoicePrefix
+        guard key.hasPrefix(prefix) else { return nil }
         let rest = key.dropFirst(prefix.count)
         switch rest.first {
         case ".": return String(rest.dropFirst())
@@ -122,23 +111,21 @@ struct OnDeviceTraits: Sendable {
     /// Per-call chunk sizing used by `TextChunker` (units = chars, digits ×3).
     let limits: TextChunker.Limits
     /// The engine can die uncatchably inside a model call: every call is wrapped in
-    /// `EngineCrashGuard`, and this cause goes in the notice after a crash ("Kokoro stopped
-    /// unexpectedly"). nil: not guarded.
-    var crashNotice: String? = nil
+    /// `EngineCrashGuard`.
+    var isCrashGuarded = false
 
     /// A cache voice key up to its voice: the prefix, with the revision when there is one.
     var cacheVoiceNamespace: String { cacheRevision.map { "\(cacheVoicePrefix)@\($0)" } ?? cacheVoicePrefix }
 }
 
-/// An engine a provider has removed. At launch (once, idempotent) the
-/// coordinator moves a persisted selection of `id` to `replacement` when that engine is installed
-/// (else Apple), deletes `id`'s cached article audio, and calls `deleteFiles` for its models.
+/// An engine a provider has removed. At launch (once, idempotent) its cached article audio is
+/// deleted and `deleteFiles` removes its models; a stored default in it takes the built-in
+/// default (`LocalTTSCoordinator.loadDefaultSelection`).
 struct RetiredEngine: @unchecked Sendable {
     let id: SpeechEngineID
     let displayName: String
     /// UserDefaults flag set after the cleanup ran.
     let doneKey: String
-    let replacement: SpeechEngineID
     /// Deletes the engine's model files / leftovers; returns bytes freed.
     let deleteFiles: () -> Int64
 }

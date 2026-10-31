@@ -38,39 +38,3 @@ final class RenderPace: @unchecked Sendable {
         lock.withLock { Snapshot(speed: samples >= 2 ? ewmaSpeed : nil, chunkWall: ewmaChunkWall, samples: samples) }
     }
 }
-
-/// Head-start rule. Rendering at `speed`× real time while playback
-/// consumes audio at `rate`×: to play `A` seconds of not-yet-rendered audio without a gap you
-/// need a buffer of `B = A·(1 − speed/rate)` (0 when speed ≥ rate) plus the time to render the
-/// first piece. Pure; unit-tested.
-enum HeadStart {
-    /// Seconds of audio per text character (Kokoro p95 ≈ 0.064 s/char, measured on device).
-    static let audioSecondsPerChar = 0.064
-    /// Tolerated gap before we switch a paragraph to Apple (a brief "Preparing next…" beats a
-    /// voice change).
-    static let toleranceSeconds = 2.0
-
-    static func requiredBuffer(remainingAudio: Double, speed: Double, rate: Double, firstPieceAudio: Double) -> Double {
-        guard speed > 0, rate > 0 else { return .infinity }
-        let deficit = max(0, remainingAudio * (1 - speed / rate))
-        // Rendering the first piece takes firstPieceAudio/speed wall seconds, during which
-        // playback eats rate× that much buffered audio.
-        return deficit + firstPieceAudio / speed * rate
-    }
-
-    /// Would rendering the rest of this paragraph starve playback by more than `tolerance`?
-    /// - bufferedAudio: audio already queued ahead of the playhead (seconds).
-    /// - workerBusyOther: the single worker is mid-call on something else (adds one call).
-    static func projectsUnderrun(
-        remainingChars: Int, firstChunkChars: Int, bufferedAudio: Double,
-        pace: RenderPace.Snapshot, rate: Double, workerBusyOther: Bool,
-        tolerance: Double = toleranceSeconds
-    ) -> Bool {
-        guard let speed = pace.speed, speed > 0 else { return false } // unknown pace: just wait
-        let remaining = Double(remainingChars) * audioSecondsPerChar
-        let first = Double(firstChunkChars) * audioSecondsPerChar
-        var need = requiredBuffer(remainingAudio: remaining, speed: speed, rate: rate, firstPieceAudio: first)
-        if workerBusyOther { need += (pace.chunkWall ?? first / speed) * rate }
-        return need > bufferedAudio + tolerance
-    }
-}

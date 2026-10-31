@@ -14,7 +14,7 @@ import Foundation
 struct BackgroundRenderWatermarks: Equatable {
     /// A burst starts below this much listening ahead. 4 min leaves a single ONNX thread (the
     /// background thread count, `KokoroRouteSettings.backgroundThreads`) time to catch up before
-    /// the player runs dry and a paragraph goes to Apple.
+    /// the player runs dry and playback waits.
     /// `-bgRender.lowWaterSeconds <s>` (a debug launch) lowers it so a simulator test sees bursts
     /// and prepare turns alternate within a short page; the high-water mark is then twice it.
     static var lowWater: TimeInterval { debugLowWater ?? 4 * 60 }

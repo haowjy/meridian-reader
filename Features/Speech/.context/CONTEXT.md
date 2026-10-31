@@ -6,12 +6,12 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 ## Where to start reading
 
 `SpeechController` (intents, engine binding; `+Advance` carries on through folders, `+NowPlaying`
-is the lock screen and remote commands, `+Settings` the language, voice and `ListenRate`) →
+is the lock screen and remote commands; `ListenRate` the speeds) →
 `Playback/PlaybackSession.swift` (the state machine)
-→ `Playback/` adapters (`AppleListenEngine`, `LocalListenEngine` → `LocalListenPlayer`) →
+→ `Playback/LocalListenEngine` → `LocalListenPlayer` →
 `LocalTTSCoordinator` (engine selection, `LocalSynthService`, launch recovery) →
 `Core/TTS/GlobalSynthQueue.swift` (render queue) and `Core/TTS/ArticleAudioCache.swift`. Engines are
-in `Engines/` (`Phonon/`, `FluidAudio/` and `ONNX/` for Kokoro, `Apple/`); each
+in `Engines/` (`Phonon/`, `FluidAudio/` and `ONNX/` for Kokoro); each
 provider owns its host, model store, voice catalog and chunk limits.
 
 ## Contracts that break quietly
@@ -19,8 +19,8 @@ provider owns its host, model store, voice catalog and chunk limits.
 - **What you hear.** Play buttons ask `playState(of:)` and press through `press(_:start:)`; never
   compare session ids in a view. Every start goes through `start(_:at:)` (`listen(to:)` wraps
   it). A finished article stays bound (`.finished`); only `stop()` (Stop Listening) and
-  `stopIfPlaying` (the article you hear removed, deleted, revised, or merged onto other text; no gap
-  fill) unbind. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
+  `stopIfPlaying` (the article you hear removed, deleted, revised, or merged onto other text)
+  unbind. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
   a replaced article's last spot (the `.stop` before the next `bind`). `listen(to:)` hands its article
   to `onListen` before it binds, so the recorder can keep an article the library doesn't have on its
   first start.
@@ -47,7 +47,7 @@ provider owns its host, model store, voice catalog and chunk limits.
   (`bind`, `advance`) and travels in every `ListenProgress`. The recorder, `pageFinished` and a
   rollback's rewrite store progress only on an article holding that text (`LibraryStore.holds`), and
   `rekeyActiveSession` moves the session only onto an article holding it, else stops it
-  (`stopIfPlaying`: a gap fill would render under a key no article holds). The crash
+  (`stopIfPlaying`: nothing may render under a key no article holds). The crash
   resume file carries it too, and `AppLaunch.resumeAfterCrash` applies its paragraph only on a
   article holding it. Anything new that writes a position, start or end onto an article, or moves the
   session to another key, goes through the same check.
@@ -60,16 +60,22 @@ provider owns its host, model store, voice catalog and chunk limits.
   (`PlayheadReader`, the Now Playing bar's progress, Now Playing's sentence underline); reading it
   in a screen's body redraws the screen on every tick.
 - **One `VoiceSelection` per article (C138a).** Engine + voice, stored on the article
-  (`Article.voiceID`, its book's `Folder.voiceID`), resolved by `LocalTTSCoordinator.selection(for:paragraphs:)`
+  (`Article.voiceID`, its book's `Folder.voiceID`), resolved by `LocalTTSCoordinator.selection(for:)`
   (brand new: the Settings default, locked then). It is passed explicitly to playback
-  (`ListenRoute`, `ListenPlayRequest.selection`, `QueueUnitSource`) and the render queue reads
+  (`ListenPlayRequest.selection`, `QueueUnitSource`) and the render queue reads
   `renderTarget(for: key)`, which is non-nil only when the article's own engine is the loaded one.
   Playback reads rendered audio by the selection's cache voice, loaded or not: never gate a cache
   read on `renderTarget` (cached audio must play while the model loads).
   Never read `engineVoices`, `activeLocalEngineID` or `defaultSelection` to decide what an
-  existing article plays or renders. The queue never writes Apple audio into the cache; the C129
-  gap fill and D9 `.appleStandIn` are the only Apple audio in an on-device article's listen, both
-  unsaved. A job whose engine isn't loaded waits in the queue; `ensureChunk` loads it (`awaitEngine`).
+  existing article plays or renders. A job whose engine isn't loaded waits in the queue;
+  `ensureChunk` loads it (`awaitEngine`).
+- **Never another voice.** Playback never changes the voice on its own (AGENTS.md;
+  `docs/LISTEN_PLAYBACK.md` → "One voice, never swapped"). Audio the player can't get stops it
+  there (`LocalListenPlayer.hold` → `stalled`), and the controller tells why
+  (`SpeechController.tell`, the shell's toast); an article its voice can't read or run is refused
+  before it binds (`cantReadNotice`). Don't add a fallback engine, voice or skip for a gap: wait
+  or pause. A crash pauses for Retry in the same voice (`CrashRecovery.pauseForRetry`) unless the
+  provider's recovery resumes it in the same voice.
 - **What still needs audio** is decided only by `ArticleAudioCache.missingParagraphs` (a
   paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the

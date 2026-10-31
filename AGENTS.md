@@ -1,7 +1,7 @@
 # Meridian Reader
 
 A personal iOS app for listening to (and reading) web articles: browse in the app, extract a clean
-copy with Readability, save it, and listen offline with Apple TTS, Kokoro, or Phonon running on the device.
+copy with Readability, save it, and listen offline with Phonon or Kokoro running on the device.
 Single user, no backend. SwiftUI, SwiftData, iOS 18+, iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`).
 
 iPad is a regular-width layout gated on `horizontalSizeClass == .regular`; compact chrome is unchanged. Detail: [`Features/Shell/AGENTS.md`](Features/Shell/AGENTS.md).
@@ -58,8 +58,8 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   builds only), on the Simulator as `xcrun simctl launch <device> com.jimmyyao.Reader <args>`, on
   the phone after `--` (`xcrun devicectl device process launch … com.jimmyyao.Reader -- <args>`).
   `-uiTesting` (test markers on, still playing bars, Google suggestions off), `-resetLibrary` (an
-  empty library and the stored settings cleared, as on a fresh install), `-selectEngine apple` (or
-  `test.voice`, `local.kokoro`). The seeds add to that: `-seedDemoArticle` (`-seedDemoPlainText`,
+  empty library and the stored settings cleared, as on a fresh install), `-selectEngine local.kokoro` (or
+  `local.phonon`, `test.voice`). The seeds add to that: `-seedDemoArticle` (`-seedDemoPlainText`,
   `-seedPlayedPages N`), `-seedDemoBook` (a demo book; `-seedDemoBookPlace N` puts it part-way,
   `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedHistory` (visits on three sites in the browser's History, for the start page's Frequently Visited). Other options:
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
@@ -101,6 +101,14 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   UTF-16 offset) and phase. Engines report events; the session decides. Nothing else stores or
   guesses the playing article or a playhead: every ▶ / ⏸ asks `SpeechController.playState(of:)`, the
   bar and Now Playing read `nowPlaying`, and `ListeningProgressRecorder` saves the position.
+- **Playback never changes the voice on its own.** An article plays in its own voice
+  (`LocalTTSCoordinator.selection(for:)`) or not at all: when that voice's engine is behind, still
+  loading, fails, crashes, can't run on the device, can't run in the background, or can't read
+  the article's language, playback waits or pauses and says why (`SpeechController.tell`, shown as
+  the shell's toast; a stopped engine's carries Retry). No fallback to another engine or voice,
+  for a paragraph or an article; prepared audio renders in that voice too. Only the user changes a
+  voice (Settings › Voice, an article's or book's *Voice*). A launch migration may rewrite a stored
+  voice that no longer exists.
 - **One save path**: `ArticleSaveCoordinator` → `LibraryStore.save`. One article per canonical URL
   (`ArticleIdentity`), app-wide. Save never restarts playback. Saving the article that is playing,
   under its own key, only marks its audio saved. Otherwise Save can move audio: under an older
@@ -197,7 +205,7 @@ release. The release workflow (`docs/RELEASE.md`) validates the notes file exist
 - `docs/NAVIGATION.md`: screens, gestures, bottom chrome, the reader UI.
 - `docs/LISTEN_PLAYBACK.md`: playback session, engines at runtime, render queue, chunking, audio
   cache, background listening, diagnostics.
-- `docs/TTS_ENGINES.md`: the engine registry, Apple, Kokoro, Phonon, adding an engine.
+- `docs/TTS_ENGINES.md`: the engine registry, Phonon, Kokoro, adding an engine.
 - `docs/ARTICLE_IDENTITY.md`: canonical URLs, article keys, per-paragraph audio reuse.
 - `docs/TECHNICAL_SPEC.md`, `docs/FUNCTIONAL_REQUIREMENTS.md`: how it is built, what it does.
 - `docs/RELEASE.md`: cutting a release, secrets, App Store Connect setup.

@@ -32,7 +32,20 @@ enum PlaybackEngineEvent: Equatable {
     /// Listen-bar status the engine has no other event for changed (waiting for audio, where the
     /// audio comes from). For the controller; the session ignores it.
     case statusChanged
+    /// The engine stopped where it can't give the next audio, and paused there (it sends
+    /// `becamePaused` first). For the controller, which tells the user; the session ignores it.
+    case stalled(ListenStall)
     case finished
+}
+
+/// Why the engine paused where its audio ran out.
+enum ListenStall: Equatable {
+    /// The engine failed, stopped (C129: paused for Retry after a crash) or couldn't load. Retry
+    /// (any play) asks it again.
+    case engineStopped
+    /// The app is in the background and the engine makes no model calls there (Core ML). Playing
+    /// on in front renders it.
+    case background
 }
 
 /// Live snapshot of the active adapter — used to decide toggle/pause without trusting phase alone.
@@ -278,7 +291,7 @@ struct PlaybackSessionState: Equatable {
             playhead = paragraph
             utf16Offset = utf16
 
-        case .statusChanged:
+        case .statusChanged, .stalled:
             break
 
         case .finished:

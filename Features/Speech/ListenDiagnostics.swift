@@ -146,12 +146,8 @@ final class ListenDiagnostics {
         )
     }
 
-    /// Debug overlay line: language code + source → engine.
+    /// Debug overlay line: the language detected in what plays ("fr", "undetected").
     var languageLabel: String {
-        let r = speech.languageResolution
-        let source = r.source == .detected ? "auto" : (r.source == .manual ? "manual" : "auto: undetected")
-        let engine = r.unsupportedEngineID != nil ? "Apple (\(speech.languageEngineDescriptor?.languageLimitNote ?? "unsupported"))"
-            : localTTS.engines.shortName(r.engineID)
-        return "\(r.languageCode) (\(source)) → \(engine)"
+        ListenLanguage.detectCached(paragraphs: speech.document.paragraphs) ?? "undetected"
     }
 }

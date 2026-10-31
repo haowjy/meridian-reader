@@ -78,7 +78,7 @@ struct VoicePickerSheet: View {
     }
 
     private func run(_ selection: VoiceSelection, change: ArticleVoiceChange) {
-        preparingID = selection.isApple ? nil : selection.voice
+        preparingID = selection.voice
         Task {
             do {
                 try await change.apply(selection)

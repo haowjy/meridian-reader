@@ -6,19 +6,20 @@ import Foundation
 /// |---|---|---|
 /// | active | render | render |
 /// | inactive | render | listener's chunks only; bake-ahead parks |
-/// | background | listener's chunks; bake-ahead of the playing article during a burst (`BackgroundRenderWatermarks`); a download's job on its turn (C94: audio playing, the playing article safely ahead); other articles park | no model call: a listener's chunk goes to Apple, bake-ahead parks |
+/// | background | listener's chunks; bake-ahead of the playing article during a burst (`BackgroundRenderWatermarks`); a download's job on its turn (C94: audio playing, the playing article safely ahead); other articles park | no model call: a listener's chunk is deferred (playback pauses there), bake-ahead parks |
 ///
-/// While no on-device engine is ready (no `RenderTarget`: Apple selected, a model loading, failed
-/// or deleted) no model call starts in any phase: a listener's chunk goes to Apple and bake-ahead
-/// parks until an engine is ready. Thermal / Low Power Mode holds on bake-ahead are separate
+/// While no engine is ready (no `RenderTarget`: a model loading, failed or deleted) no model call
+/// starts in any phase: a listener's chunk is deferred and bake-ahead parks until an engine is
+/// ready. Thermal / Low Power Mode holds on bake-ahead are separate
 /// (`BakeConditions`).
 enum RenderAdmission: Equatable {
     /// Start the call.
     case render
     /// Not now: wait until the app is active again (or a listener asks).
     case park
-    /// Not now, and a listener is waiting: the player speaks this audio with Apple instead.
-    case deferToApple
+    /// Not now, and a listener is waiting: it is told at once (`LocalSynthError.deferredInBackground`)
+    /// and playback pauses where its audio runs out.
+    case deferred
 
     /// - Parameters:
     ///   - engineReady: an on-device engine is loaded to render with.
@@ -33,7 +34,7 @@ enum RenderAdmission: Equatable {
                        isLiveRequest: Bool, isPlayingArticle: Bool, inBackgroundBurst: Bool,
                        isPrepareTurn: Bool = false) -> RenderAdmission {
         guard engineReady, modelCallsAllowed(phase: phase, rendersInBackground: rendersInBackground) else {
-            return isLiveRequest ? .deferToApple : .park
+            return isLiveRequest ? .deferred : .park
         }
         switch phase {
         case .active:

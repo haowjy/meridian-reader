@@ -62,7 +62,6 @@ struct ArticleMenu: View {
         facts.canSave = actions.canSave
         facts.inFolder = article?.folder != nil
         facts.canPlay = actions.isSaved || article?.isLink == true
-        facts.hasVoices = true // C138a: every article has a voice (an Apple one too)
         facts.hasShareURL = actions.shareURL != nil
         facts.inRecent = !facts.inLibrary && article.map(LibraryQueries.isInRecent) == true
         if case .nowPlaying(let goTo) = place { facts.goToEnabled = goTo.availability == .enabled }

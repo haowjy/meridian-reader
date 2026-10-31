@@ -218,15 +218,6 @@ extension Article {
         detectedLanguageCode = ListenLanguage.detectCached(paragraphs: paragraphs)
     }
 
-    /// Stored detected language; a page without one detects it from its listen blocks once.
-    @discardableResult
-    func detectedLanguageBackfilling() -> String? {
-        if let detectedLanguageCode { return detectedLanguageCode }
-        guard let paragraphs = cachedListenParagraphs else { return nil }
-        let code = ListenLanguage.detectCached(paragraphs: paragraphs)
-        if let code { detectedLanguageCode = code }
-        return code
-    }
 
     /// Stored paragraphs if valid, otherwise built now and stored (one-time backfill).
     func listenDocument() -> ParagraphDocument {

@@ -2,15 +2,15 @@ import AVFoundation
 import Foundation
 
 /// The on-device engine's file player and producer. Each play binds one `ListenUnitSource`; the
-/// producer fills `ChunkPlaybackQueue` from it in reading order: rendered paragraphs, chunks as
-/// they are rendered, and Apple renders where the engine can't keep up (never a silent skip). It
-/// reports unit starts and the article's end; `LocalListenEngine` turns those into session
-/// events. The model and the render queue live behind the source. See docs/LISTEN_PLAYBACK.md.
+/// producer fills `ChunkPlaybackQueue` from it in reading order: rendered paragraphs, then chunks
+/// as they are rendered. Where the engine can't give the next audio (it stopped, failed, or may
+/// not run in the background), the player plays what is queued and stops there (`onStalled`),
+/// never skipping text and never in another voice. It reports unit starts, stalls and the
+/// article's end; `LocalListenEngine` turns those into session events. The model and the render queue live behind the source. See docs/LISTEN_PLAYBACK.md.
 @MainActor
 final class LocalListenPlayer {
     private let player: ChunkPlaybackQueue
     private let runState: AppRunState
-    private let tempDir: URL
     /// Audio of the current play (nil: stopped).
     private var source: ListenUnitSource?
     private var paragraphs: [String] { source?.paragraphs ?? [] }
@@ -26,9 +26,6 @@ final class LocalListenPlayer {
     private var producerTask: Task<Void, Never>?
     /// Generation for starved-watchdog tasks; bumped whenever we leave play/resume paths.
     private var starveWatchGeneration = 0
-    /// Apple fallback renders so far: each gets its own file, so deleting one never touches
-    /// another unit's audio.
-    private var fallbackRenders = 0
 
     /// What the listener wants of the player, independent of the produce epoch: audio moving
     /// (`playing`: sounding, or waiting for its next unit), held (`paused`), or nothing.
@@ -39,12 +36,9 @@ final class LocalListenPlayer {
     struct BackgroundPlayStats: Equatable {
         var bakedParagraphs = 0
         var engineChunks = 0
-        var appleFallbacks = 0
-        var label: String { "baked \(bakedParagraphs), chunks \(engineChunks), Apple \(appleFallbacks)" }
+        var label: String { "baked \(bakedParagraphs), chunks \(engineChunks)" }
     }
     var backgroundStats = BackgroundPlayStats()
-    /// Why the unit now playing is Apple TTS (nil = the engine's own audio).
-    private(set) var currentAppleFallbackReason: FallbackReason?
 
     /// A unit of this paragraph started playing.
     var onUnitStarted: ((Int) -> Void)?
@@ -54,21 +48,17 @@ final class LocalListenPlayer {
     var onStarved: (() -> Void)?
     /// C129: rendering is paused for Retry (the engine stopped twice); nothing new renders.
     var rendersPausedForRetry: () -> Bool = { false }
-    /// Playback reached audio not rendered while rendering is paused: the player paused there.
-    var onNeedsRetry: (() -> Void)?
-    /// The producer stopped at unrendered audio (paused for retry); pause when the buffer drains.
-    private var heldForRetry = false
+    /// Playback reached audio the engine can't give now and stopped there, everything queued
+    /// before it played. The engine pauses.
+    var onStalled: ((ListenStall) -> Void)?
+    /// The producer stopped at audio it can't get; report it when the buffer drains.
+    private var heldStall: ListenStall?
     /// Sub-paragraph start: how far into the first unit of this play/seek to begin, as a
     /// fraction of its synth chunk. Consumed by the first enqueue of the start paragraph.
     private var pendingStartFraction: Double = 0
     /// Lead-in before an estimated sentence start (the in-chunk position is a character-based
     /// estimate; starting a hair early beats clipping the first word).
     static let subChunkLeadIn: TimeInterval = 0.25
-
-    /// The render ran behind playback: this paragraph plays with Apple (see `HeadStart`).
-    struct RenderFellBehind: LocalizedError {
-        var errorDescription: String? { "Rendering fell behind playback" }
-    }
 
     /// The play (its epoch) waiting for the engine's model to load before its first audio.
     private var waitingForVoice: Int?
@@ -78,24 +68,11 @@ final class LocalListenPlayer {
     /// Article whose audio is playing right now (nil when paused / stopped).
     var playingArticleID: UUID? { state == .playing ? source?.articleID : nil }
 
-    /// Where Apple fallback units are written (`tmp/ReaderTTSLive`), never cached: each file is
-    /// deleted once its unit leaves the player (played out, dropped, stopped), or at once when it
-    /// isn't queued. The first player of a process empties the folder of what an earlier process
-    /// left (iOS empties `tmp` only when storage runs low, and never while the app runs).
-    private static let fallbackDirectory: URL = {
-        let fm = FileManager.default
-        let dir = fm.temporaryDirectory.appendingPathComponent("ReaderTTSLive", isDirectory: true)
-        try? fm.removeItem(at: dir)
-        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }()
-
     /// `player` is injectable so tests can end units without waiting for real audio; `runState` is
     /// the render queue's (units played in the background are counted for the debug panel).
     init(player injected: ChunkPlaybackQueue? = nil, runState: AppRunState = .shared) {
         self.player = injected ?? ChunkPlaybackQueue(maxBuffered: 8)
         self.runState = runState
-        self.tempDir = Self.fallbackDirectory
 
         player.onUnitStarted = { [weak self] item in
             guard let self else { return }
@@ -115,9 +92,6 @@ final class LocalListenPlayer {
         }
         player.onError = { error in
             ListenDebugLog.shared.append("unit error, playing on: \(error.localizedDescription)")
-        }
-        player.onItemDone = { item in
-            if case .appleFallback = item.source { Self.deleteFallbackFile(item.fileURL) }
         }
         player.onFinished = { [weak self] in
             // The only place the article ends (see `ChunkPlaybackQueue.endOfInput`); once per play.
@@ -214,7 +188,7 @@ final class LocalListenPlayer {
     }
 
     func pause() {
-        heldForRetry = false
+        heldStall = nil
         starvedAt = nil
         speakRequestedAt = nil
         state = .paused
@@ -232,7 +206,7 @@ final class LocalListenPlayer {
 
     func stop() {
         source = nil
-        currentAppleFallbackReason = nil
+        heldStall = nil
         epoch += 1
         starveWatchGeneration += 1
         producerTask?.cancel()
@@ -246,32 +220,8 @@ final class LocalListenPlayer {
         starvedAt = nil
     }
 
-    /// Back in the foreground: Apple units rendered ahead only because the engine was paused in
-    /// the background (queued, not started) are dropped and production restarts at the first
-    /// of them, so the engine's voice returns within one paragraph instead of after up to
-    /// `maxBuffered` Apple paragraphs. Nothing is skipped: the dropped paragraphs are produced
-    /// again, in order, while the current unit keeps playing.
-    func reclaimBackgroundFallbacks() {
-        guard let source, let first = player.dropQueued(fromFirstWhere: { item in
-            if case .appleFallback(_, .background) = item.source { return true }
-            return false
-        }) else { return }
-        producerTask?.cancel()
-        producerTask = nil
-        epoch += 1 // an in-flight produce must not enqueue after the restart point
-        nextProduceIndex = first.paragraphIndex
-        nextProduceChunk = first.source.startChunk ?? 0
-        player.awaitingMore = true
-        ListenDebugLog.shared.append("foreground: re-rendering from p\(first.paragraphIndex) with \(source.engineName) (dropped queued Apple units)")
-        ListenTimingLog.log("bg_fallback_reclaimed", [
-            "key": ListenTimingLog.shortKey(source.articleID), "from_p": first.paragraphIndex, "c": nextProduceChunk,
-        ])
-        source.focus(paragraph: first.paragraphIndex)
-        ensureProducerRunning(epoch: epoch)
-    }
-
     /// Listen speed: a time-stretch on the player, applied in place. Audio is always
-    /// rendered at 1× (engine and Apple fallback alike), so nothing is re-rendered or re-queued
+    /// rendered at 1×, so nothing is re-rendered or re-queued
     /// and the current sentence just continues faster / slower.
     func setPlaybackRate(_ multiplier: Float) {
         player.setRate(multiplier)
@@ -287,7 +237,9 @@ final class LocalListenPlayer {
 
     private func ensureProducerRunning(epoch forced: Int? = nil) {
         let e = forced ?? epoch
-        guard producerTask == nil else { return }
+        // Held at audio it can't get: what is queued plays out, then the stall is reported. Asking
+        // again on every unit's end would only repeat the failed call.
+        guard producerTask == nil, heldStall == nil else { return }
         guard let source, nextProduceIndex < source.paragraphs.count else {
             player.endOfInput()
             return
@@ -302,9 +254,9 @@ final class LocalListenPlayer {
     /// producer task cannot leave the session awaitingMore forever.
     private func handleStarved() {
         ListenDebugLog.shared.append("starved nextProduce=\(nextProduceIndex) c\(nextProduceChunk) buf=\(player.bufferedCount) epoch=\(epoch)")
-        if heldForRetry {
-            heldForRetry = false
-            onNeedsRetry?()
+        if let stall = heldStall {
+            heldStall = nil
+            onStalled?(stall)
             return
         }
         if starvedAt == nil, state == .playing { starvedAt = ListenTimingLog.now() }
@@ -391,15 +343,10 @@ final class LocalListenPlayer {
                 }
                 let k = min(nextProduceChunk, chunks.count - 1)
                 // C129: rendering paused for Retry and this isn't rendered: play what is queued,
-                // then pause here (never Apple instead).
+                // then pause here.
                 if rendersPausedForRetry(), !source.isChunkReady(paragraph: index, chunk: k) {
-                    ListenTimingLog.log("held_for_retry", ["p": index, "c": k, "buffered": player.bufferedCount])
-                    if player.bufferedCount == 0 { onNeedsRetry?() } else { heldForRetry = true }
+                    hold(.engineStopped, paragraph: index, chunk: k)
                     return
-                }
-                if projectsUnderrun(source, index: index, chunk: k, chunks: chunks) {
-                    await fallbackToApple(source, index: index, fromChunk: k, error: RenderFellBehind(), epoch: e)
-                    continue
                 }
                 do {
                     let resolution = try await source.chunk(paragraph: index, chunk: k)
@@ -432,7 +379,11 @@ final class LocalListenPlayer {
                     return
                 } catch {
                     guard e == epoch else { return }
-                    await fallbackToApple(source, index: index, fromChunk: k, error: error, epoch: e)
+                    ListenDebugLog.shared.append("p\(index) c\(k) \(source.engineName) gave no audio: \(error.localizedDescription)")
+                    var stall = ListenStall.engineStopped
+                    if case LocalSynthError.deferredInBackground = error { stall = .background }
+                    hold(stall, paragraph: index, chunk: k)
+                    return
                 }
                 continue
             }
@@ -476,104 +427,20 @@ final class LocalListenPlayer {
         await Task.detached(priority: .userInitiated) { LocalPCMWriter.duration(of: url) }.value
     }
 
-    /// Head-start rule: on a route that keeps rendering while audio plays (ONNX CPU), if the
-    /// measured render speed can't deliver the rest of this paragraph before the buffered audio
-    /// runs out (plus a short tolerance), speak this paragraph with Apple and let the worker get
-    /// ahead on the next ones. Never at the start of a play/jump (nothing audible yet — the short
-    /// first chunk is fast) and only while the chunk isn't already rendered.
-    private func projectsUnderrun(_ source: ListenUnitSource, index: Int, chunk k: Int, chunks: [String]) -> Bool {
-        guard source.rendersInBackground, player.isAudible, chunks.indices.contains(k),
-              !source.isChunkReady(paragraph: index, chunk: k) else { return false }
-        let remaining = chunks[k...].reduce(0) { $0 + $1.count }
-        let buffered = player.bufferedSecondsAhead
-        let pace = RenderPace.shared.snapshot
-        let behind = HeadStart.projectsUnderrun(
-            remainingChars: remaining, firstChunkChars: chunks[k].count, bufferedAudio: buffered,
-            pace: pace, rate: Double(player.playbackRate),
-            workerBusyOther: source.workerStatus(paragraph: index) == .busyElsewhere)
-        if behind {
-            ListenTimingLog.log("render_behind", [
-                "key": ListenTimingLog.shortKey(source.articleID), "p": index, "c": k,
-                "buffered_s": (buffered * 10).rounded() / 10, "speed": ((pace.speed ?? 0) * 100).rounded() / 100,
-                "remaining_chars": remaining,
-            ])
-        }
-        return behind
-    }
-
-    /// Never silently skip: the engine could not produce this paragraph (or its remaining chunks), so
-    /// speak the remainder with Apple TTS as a one-off unit. Only if that fails too do we move on
-    /// — and say so in the debug overlay + timing log.
-    private func fallbackToApple(_ source: ListenUnitSource, index: Int, fromChunk: Int, error: Error, epoch e: Int) async {
-        pendingStartFraction = 0 // Apple units start at their chunk boundary
-        let chunks = source.chunks(paragraph: index)
-        let remainder = fromChunk < chunks.count && fromChunk > 0
-            ? chunks[fromChunk...].joined(separator: " ")
-            : TTSTextNormalize.normalize(source.paragraphs[index])
-        let engine = source.engineName
-        let reason: FallbackReason
-        if case LocalSynthError.deferredInBackground = error {
-            reason = .background
-        } else if error is RenderFellBehind {
-            reason = .behind
-        } else {
-            reason = .engineError
-        }
-        switch reason {
-        case .background:
-            ListenDebugLog.shared.append("p\(index) c\(fromChunk) not rendered yet, app in background → Apple TTS")
-        case .behind:
-            ListenDebugLog.shared.append("p\(index) c\(fromChunk) \(engine) behind playback → Apple TTS for this paragraph")
-        case .engineError:
-            ListenDebugLog.shared.append("p\(index) c\(fromChunk) \(engine) failed → Apple TTS (\(error.localizedDescription))")
-        }
-        if reason != .background, index + 1 < source.paragraphs.count {
-            // Apple speaks this paragraph: the worker moves on to the next one now, instead of
-            // finishing this one (which no longer plays) and falling behind again there. This one
-            // is rendered later, from the top.
-            source.focus(paragraph: index + 1)
-        }
-        fallbackRenders += 1
-        let url = tempDir.appendingPathComponent("apple-\(e)-\(index)-\(fromChunk)-\(fallbackRenders).caf")
-        let t0 = ListenTimingLog.now()
-        do {
-            let duration = try await source.renderApple(remainder, to: url)
-            guard e == epoch else {
-                Self.deleteFallbackFile(url)
-                return
-            }
-            ListenTimingLog.log("fallback_apple", ["p": index, "c": fromChunk, "live": true,
-                                                   "chars": remainder.count, "ms": ListenTimingLog.ms(since: t0),
-                                                   "engine": engine, "local_err": error.localizedDescription])
-            let queued = ArticleAudioCache.hasAudio(at: url)
-                && player.enqueue(.init(paragraphIndex: index, fileURL: url,
-                                        source: .appleFallback(fromChunk: fromChunk, reason: reason), duration: duration))
-            if !queued { Self.deleteFallbackFile(url) }
-        } catch {
-            Self.deleteFallbackFile(url)
-            ListenDebugLog.shared.append("SKIP p\(index): \(engine) and Apple TTS both failed (\(error.localizedDescription))")
-            ListenTimingLog.log("skip", ["p": index, "err": error.localizedDescription])
-        }
-        guard e == epoch else { return }
-        nextProduceIndex = index + 1
-        nextProduceChunk = 0
-    }
-
-    private static func deleteFallbackFile(_ url: URL) {
-        try? FileManager.default.removeItem(at: url)
+    /// The next audio (chunk `chunk` of `paragraph`) can't be had now: playback goes on through
+    /// what is queued and stops there (`onStalled`, at once when nothing is queued). The produce
+    /// cursor stays on it, so a resume asks for it again.
+    private func hold(_ stall: ListenStall, paragraph: Int, chunk: Int) {
+        ListenTimingLog.log("playback_held", ["p": paragraph, "c": chunk, "reason": String(describing: stall),
+                                              "buffered": player.bufferedCount])
+        if player.bufferedCount == 0 { onStalled?(stall) } else { heldStall = stall }
     }
 
     private func noteUnitKind(_ item: ChunkPlaybackQueue.Item) {
-        if case .appleFallback(_, let reason) = item.source {
-            currentAppleFallbackReason = reason
-        } else {
-            currentAppleFallbackReason = nil
-        }
         guard runState.phase == .background else { return }
         switch item.source {
         case .baked, .stitched: backgroundStats.bakedParagraphs += 1
         case .chunk: backgroundStats.engineChunks += 1
-        case .appleFallback: backgroundStats.appleFallbacks += 1
         }
         ListenTimingLog.log("bg_unit", [
             "key": ListenTimingLog.shortKey(source?.articleID), "p": item.paragraphIndex, "c": item.source.startChunk ?? -1,

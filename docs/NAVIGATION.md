@@ -861,7 +861,7 @@ prepare is grey on its Library row and its folder's header too, captioned *Pause
 **Prepared** (each with the grey ✓ and the room it takes, the total under the section, on the
 cards' edge), and **Different Voice** (done, but its audio isn't in its article's voice, C138:
 it never plays). Every row is a Library row (`ListRow`: one title line, one detail line) and says its voice
-as Settings › Voice does, never by the voice's name (*Default*, else its voice library, *Kokoro*, *Apple*:
+as Settings › Voice does, never by the voice's name (*Default*, else its voice library, *Kokoro*:
 `LocalTTSCoordinator.voiceSummary`; From Listening rows too); its parts are set apart by space, never a dot. A row opens what was prepared
 (the Reader, or the Library at the folder). Its ⋯ and long press are the prepare's one menu,
 the same in every section (`PrepareMenu`): *Pause / Resume* (dimmed once done), *Prepare Again*
@@ -871,8 +871,10 @@ below). *Keep* is gone (C138): changing the voice in Settings no longer moves an
 article's own voice changes from its menu's *Voice: Default* (or *Voice: Kokoro*, …). Swipe left is the same *Remove Prepared Audio* / *Remove Prepared Audio*.
 The list holds prepared audio of what is in the
 Library: removing an article from the Library, or deleting an article or folder, takes its prepare off
-the list too (a removed article's audio stays, ephemeral). While Apple's voice is selected nothing
-renders: queued prepared audio say *Needs a voice* (short, so line two keeps the folder, C130), with *Settings*. *Remove
+the list too (a removed article's audio stays, ephemeral). On a device that can run neither
+voice nothing renders: queued prepared audio say *Can’t prepare on this device*, and the list says
+why. An article its voice can't read (its language) is marked failed with the same words as
+Listen's ("Can’t read French yet."). *Remove
 Prepare* on an article and *Remove Prepared Audio* on a folder delete its audio and its prepare (a
 article's listening audio alone, never prepared, is cleared only by its folder's *Remove
 Prepared Audio* or Settings); the audio
@@ -1139,17 +1141,15 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   like the toolbar glyphs), as tall as the row, so every slot sits where it does on the other
   surfaces. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
   (D4). A sideways swipe on the row skips too.
-- **Status notes** ("Preparing next…", Apple-fallback / language notes, the
-  developer-only Debug chip) sit **above** the transport row so appearing text never pushes it.
+- **Status notes** ("Preparing next…", "Preparing the voice", the developer-only Debug chip) sit **above** the transport row so appearing text never pushes it.
 - **⋯**: the article's menu ("Menus", above) for the article you hear, with *Go to <name>* first (when
   it plays from a folder or the Library), then *Prepared Audio, Settings*; big buttons
   **Saved / History / Website**.
 - A **prepare progress line** runs along the top edge of the bottom band while prepared audio run,
   as on the other surfaces, in the theme's accent.
 - **Scrubber** (sentence-precise; the track runs inside the band): fill = progress
-  (weighted by text length; with a local voice the thumb moves smoothly inside a paragraph,
-  estimated from the player's time); the lighter fill ahead of it is audio already rendered (local
-  voices; Apple speaks live so there is none).
+  (weighted by text length; the thumb moves smoothly inside a paragraph, estimated from the
+  player's time); the lighter fill ahead of it is audio already rendered.
   - **Grab the thumb** (±26 pt) and it moves relative to your finger — no jump; touch elsewhere on
     the track and it jumps there. The touch area is the whole capsule height plus its rounded
     leading end.
@@ -1168,17 +1168,14 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   - **Release** seeks to the start of the sentence under the thumb: playing keeps playing from
     that sentence; paused stays paused there (Play resumes from it). A tap on the thumb itself
     isn't a seek.
-  - Local voice: playback starts at the synth chunk holding the sentence, offset into its audio
+  - Playback starts at the synth chunk holding the sentence, offset into its audio
     by characters (chunk boundaries found by counting letters; stitched paragraphs use the stored
     chunk durations), with a 0.25 s lead-in so the first word isn't clipped. Not rendered yet: the
-    render queue does that chunk first (then the rest of the paragraph). Apple voice: speaks from
-    the sentence's first character.
+    render queue does that chunk first (then the rest of the paragraph).
 - **Speed** (*1×*, at the end of the scrub capsule; a tap opens the list, 0.75× to 2×; Settings ›
   Listening has it as a row, *Speed 1× ›*, opening the same list): applied in place — the current sentence keeps going at the new speed.
-  Local voices: a pitch-preserving time-stretch on the player (`AVAudioPlayer.enableRate` /
-  `rate`; all audio, including Apple-fallback units, is rendered at 1×), so nothing is re-queued,
-  re-rendered or restarted. The Apple voice (AVSpeechSynthesizer can't change a running
-  utterance's rate) restarts from the word being spoken. The rate is persisted
+  A pitch-preserving time-stretch on the player (`AVAudioPlayer.enableRate` / `rate`; all audio
+  is rendered at 1×), so nothing is re-queued, re-rendered or restarted. The rate is persisted
   (`reader.rateMultiplier`) and the lock screen's playback rate follows it (and can set it).
 - An article played without saving is kept while it is in the last 50 of Recent (C134), with its text and its
   spot: after a relaunch it is at the top of the Library's *Pages*, opens in the Reader where it was, and
@@ -1336,15 +1333,14 @@ a symbol. Top to bottom:
 - **Listening** (first; the audio settings):
   - *Voice ›* (`VoicePage`): the default voice for new articles and books, from the one voice
     switcher (`VoiceSelectionList`, the same list an article's or a book's *Voice* picker shows).
-    *Phonon | Kokoro | Apple* chips choose which engine's voices are listed; picking a voice picks
-    its engine. Phonon and Kokoro list their curated voices with samples, then *More voices*;
-    Apple lists the installed voices for the language, Premium first. A voice's download shows
+    *Phonon | Kokoro* chips choose which engine's voices are listed; picking a voice picks
+    its engine. Each lists its curated voices with samples, then *More voices*. A voice's download shows
     progress below the list (tap to cancel; on cellular or Low Data Mode it asks first, "Download
-    on Cellular?"), a downloaded Kokoro pack is removed with a swipe, and a crash or failure
-    notice sits in the footer. The row's value never names the voice: *Default* while the
-    built-in voice is the pick (Zoey, else Heart, else Apple's best), else its voice library
-    (*Kokoro*, *Apple*).
-  - *Language ›* (`LanguagePage`) and *Speed ›* (the speeds Now Playing lists, 0.75× to 2×, the
+    on Cellular?"), a downloaded Kokoro pack is removed with a swipe, and a failed load's
+    message sits in the footer (on a device that can't run the library, what it needs). The row's
+    value never names the voice: *Default* while the built-in voice is the pick (Zoey, else
+    Heart), else its voice library (*Kokoro*).
+  - *Speed ›* (the speeds Now Playing lists, 0.75× to 2×, the
     chosen one ✓).
 - **Appearance ›** and **Reading ›**, one card (nested pages, not inline rows):
   *Appearance* (`AppearanceSettingsPage`) holds *Theme* System / Light / Dark (the app's windows

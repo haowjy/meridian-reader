@@ -31,14 +31,6 @@ struct ReaderArticle: Equatable, Identifiable {
     var trustedParagraphs: [String]? = nil
     /// Web pages: old v1 cache keys that may hold audio for this content (adopted on open).
     var legacyCacheKeys: [UUID] = []
-    /// Detected language stored on the page, if any (see `detectedLanguage`).
-    var storedDetectedLanguage: String? = nil
-
-    /// Article language for Listen (Automatic): the page's stored value, else detected from the
-    /// listen blocks (memoized). nil while blocks are still building or text is too short.
-    var detectedLanguage: String? {
-        storedDetectedLanguage ?? (document.isEmpty ? nil : ListenLanguage.detectCached(paragraphs: document.paragraphs))
-    }
 
     var extracted: ExtractedArticle {
         ExtractedArticle(
@@ -96,7 +88,6 @@ struct ReaderArticle: Equatable, Identifiable {
         self.trustedParagraphs = cached
         self.displayHTML = ParagraphDocument.readingHTML(html, matchingTitle: article.givenTitle)
         self.resumeParagraph = article.positionParagraph
-        self.storedDetectedLanguage = article.detectedLanguageCode
     }
 }
 

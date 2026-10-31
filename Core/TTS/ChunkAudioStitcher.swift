@@ -1,9 +1,8 @@
 import AVFoundation
 import Foundation
 
-/// Concatenates per-chunk CAFs (engine 24 kHz Int16, or an Apple-TTS fallback chunk in whatever
-/// format AVSpeechSynthesizer produced) into one 24 kHz mono Int16 paragraph CAF, written by
-/// `LocalPCMWriter`.
+/// Concatenates per-chunk CAFs into one 24 kHz mono Int16 paragraph CAF, written by
+/// `LocalPCMWriter`. A chunk in another format is converted.
 enum ChunkAudioStitcher {
     static let sampleRate: Double = 24_000
 

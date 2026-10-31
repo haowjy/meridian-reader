@@ -75,19 +75,18 @@ final class FluidAudioProvider: SpeechEngineProvider {
             // Chunks ≤ 280 units; a call over `KokoroCPUHost.maxTokensPerCall` throws
             // inputTooLong and the renderer re-splits.
             limits: .kokoroCPU,
-            crashNotice: "Kokoro stopped unexpectedly")
+            isCrashGuarded: true)
     )
 
     var descriptors: [EngineDescriptor] { [Self.kokoroDescriptor] }
 
-    /// Retired Chatterbox Nano: move its users to Kokoro (if installed) or Apple, delete its
-    /// ~750 MB of models and its cached article audio. Runs once (idempotent).
+    /// Retired Chatterbox Nano: delete its ~750 MB of models and its cached article audio. Runs
+    /// once (idempotent).
     var retiredEngines: [RetiredEngine] {
         [RetiredEngine(
             id: .retiredChatterboxNano,
             displayName: "Chatterbox Nano",
             doneKey: "reader.tts.retired.chatterboxNano.v1",
-            replacement: .kokoro,
             deleteFiles: { Self.deleteRetiredNanoFiles() }
         )]
     }
@@ -104,7 +103,7 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// Kokoro's audio and model housekeeping, then pruning Core ML's compiled-model cache of
     /// earlier installs' bundles; a Debug build also probes for background GPU time.
     var launchMigrations: [LaunchMigration] {
-        var steps: [LaunchMigration] = [KokoroHeartPackInstall(), KokoroAudioCachePurge(), KokoroONNXMainMigration()]
+        var steps: [LaunchMigration] = [KokoroHeartPackInstall(), KokoroAudioCachePurge()]
         if !keepsCoreMLStages { steps.append(KokoroCoreMLStageCleanup()) }
         steps.append(CoreMLCompileCacheJanitor())
         #if DEBUG
@@ -144,17 +143,12 @@ final class FluidAudioProvider: SpeechEngineProvider {
         }
     }
 
-    /// Kokoro crashed last session: `KokoroCrashRecovery` (resume on the ONNX route; Apple after
-    /// two ONNX crashes close together). The Core ML stage it died in is logged first.
+    /// Kokoro crashed last session: `KokoroCrashRecovery` (resume on the ONNX route; pause for
+    /// Retry after two ONNX crashes close together). The Core ML stage it died in is logged first.
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? {
         guard crash.engine == .kokoro else { return nil }
         CoreMLBreadcrumbFile.shared.logStage(of: crash)
         return KokoroCrashRecovery.recover(from: crash, playing: playing, settings: routeSettings)
-    }
-
-    /// Picking Kokoro again after the crash fallback starts a fresh ONNX crash count.
-    func crashRetried(_ id: SpeechEngineID) {
-        if id == .kokoro { routeSettings.onnxCrashCount = 0 }
     }
 
     func isInstalled(_ id: SpeechEngineID) -> Bool {

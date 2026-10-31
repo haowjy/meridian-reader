@@ -4,12 +4,10 @@ import Observation
 @MainActor
 @Observable
 final class LocalTTSCoordinator: SynthQueueContext {
-    static let engineIDKey = "reader.tts.engineID"
-
-    /// The settings it stores over `engines` (the engine, and what the engines store), for
+    /// The settings it stores over `engines` (the default voice, and what the engines store), for
     /// `-resetLibrary` to clear before any coordinator is made.
     static func storedKeys(for engines: EngineRegistry) -> [String] {
-        [engineIDKey] + engines.storedKeys
+        [defaultSelectionKey] + engines.storedKeys
     }
 
     /// Every engine + its capabilities. Injected from the composition root.
@@ -29,8 +27,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     let synth: LocalSynthService
     /// Every chunk plan, by engine (the render queue, the player, alignment, readiness).
     let chunkPlans: ChunkPlans
-    /// Called after every engine-state change and engine-voice change. `SpeechController` uses it
-    /// to decide whether the live utterance moves to another engine (views never coordinate that).
     /// The listen player (set by `LocalListenEngine`): the render queue asks it which article is
     /// playing (listener priority, background bake scope).
     @ObservationIgnored weak var listenPlayer: LocalListenPlayer?
@@ -41,13 +37,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
     @ObservationIgnored var onRenderStateChange: (() -> Void)?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
-    /// Set when the engine killed the last process inside a call (`CrashRecovery`; Kokoro:
-    /// resumed on the ONNX route, or switched to Apple after repeated ONNX crashes). Shown as a
-    /// dismissible one-line banner and in Settings.
-    private(set) var engineCrashNotice: String?
-    private(set) var crashedEngineID: SpeechEngineID?
-    /// C129: the engine stopped repeatedly; playback and the render queue wait for Retry
-    /// (`retryAfterEngineStop`). The engine and voice stay selected.
+    /// C129: the engine killed the last process inside a call (`CrashRecovery`); the render queue
+    /// waits for Retry (`retryAfterEngineStop`) and playback pauses where rendered audio runs out.
+    /// The engine and voice stay selected.
     private(set) var isPausedForRetry = false
     /// C138a: the stored selection of the article with `key` (or its book), in its stored form.
     @ObservationIgnored var articleSelection: (UUID) -> String? = { _ in nil }
@@ -55,13 +47,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
     @ObservationIgnored var lockArticleSelection: (UUID, String) -> String = { $1 }
     @ObservationIgnored var selectionMemo: [UUID: VoiceSelection?] = [:]
     /// The Settings default: the selection a brand-new article takes on first use. Nothing else.
-    var defaultSelection = VoiceSelection(engine: .apple, voice: "")
+    var defaultSelection: VoiceSelection
     /// C134: `key` has a prepare record (set by the composition from the prepare list).
     @ObservationIgnored var preparedKey: (UUID) -> Bool = { _ in false }
     /// C134: listening needs `key`'s audio now (set by the composition: session, staged chapter).
     @ObservationIgnored var listeningNeedsKey: (UUID) -> Bool = { _ in false }
-    /// The notice `playbackReachedUnrendered` shows while paused for retry.
-    @ObservationIgnored private var retryNotice: String?
     /// The crash this launch found (the engine killed the previous process inside a call).
     private(set) var launchCrash: EngineCrashGuard.CrashInfo?
     /// Article + paragraph to resume after a crash, handed to the UI once (`takePendingResume`);
@@ -81,16 +71,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Bumped when a Kokoro voice pack is installed or removed (Voice rows refresh swipe / ↓).
     private(set) var voicePacksRevision: UInt64 = 0
     private var voiceChoiceToken = 0
-    /// Set by `SpeechController`: may the local engine speak (and bake) these listen blocks?
-    /// False when the article's effective language isn't supported by the engine (it then
-    /// speaks with Apple). nil = always.
-    var localLanguageGate: (([String]) -> Bool)?
-    /// Set by `SpeechController`: the Apple voice that speaks an article with these listen blocks
-    /// (the voice for its language). The listen player and the render queue fall back to it alike.
-    var appleVoiceForArticle: (([String]) -> String?)?
 
-    /// Picks the launch engine (`selecting`, else the stored selection after crash recovery) and
-    /// starts loading it. `selecting` is a Debug launch's `-selectEngine` (`LaunchOptions`).
+    /// Loads the default's engine (`selecting`'s, when given) after crash recovery. `selecting` is a Debug launch's `-selectEngine` (`LaunchOptions`).
     /// One-time launch steps are `LaunchMigration`s, run by `AppComposition`, which builds the
     /// files and settings it works over (tests: `LibraryTestEnvironment`).
     init(
@@ -109,93 +91,52 @@ final class LocalTTSCoordinator: SynthQueueContext {
         self.pendingBakes = pendingBakes
         self.resumePoints = resumePoints
         self.synth = LocalSynthService(engines: engines, crashGuard: crashGuard)
-        self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.onDevice?.limits }
-        for d in engines.localDescriptors where !d.voices.isEmpty {
+        self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.onDevice.limits }
+        self.defaultSelection = Self.builtInDefault(of: engines)
+        for d in engines.descriptors where !d.voices.isEmpty {
             // Stored voice if still offered (curated list), else the engine default.
             engineVoices[d.id] = d.resolvedVoice(defaults.string(forKey: d.resolvedVoiceDefaultsKey))
         }
         synthQueue.attach(coordinator: self)
         synth.onStateChange = { [weak self] in self?.engineStateChanged() }
-        loadDefaultSelection(legacyEngine: storedSelection(),
-                             legacyAppleVoice: defaults.string(forKey: SpeechController.voiceDefaultsKey))
-        // The default's engine loads at launch; an article in another engine loads its own on play.
-        var initial = defaultSelection.engine
+        loadDefaultSelection()
+        if let launchEngine, engines.contains(launchEngine) {
+            // A launch argument (tests, debug) sets the default to that engine's voice.
+            defaultSelection = VoiceSelection(engine: launchEngine, voice: engineVoices[launchEngine] ?? "")
+        }
         // What was playing, and when it was last recorded: a marker much older than that is
         // from a call the process outlived.
         let playing = resumePoints.load()
         launchCrash = crashGuard.consumeCrashInfo(lastActivity: playing?.at)
-        if let launchCrash { initial = recover(from: launchCrash, selection: initial, playing: playing) }
-        if let launchEngine, engines.contains(launchEngine) {
-            initial = launchEngine
-            // A launch argument (tests, debug) sets the default to that engine's voice.
-            defaultSelection = VoiceSelection(engine: launchEngine, voice: engineVoices[launchEngine] ?? "")
-            if initial == crashedEngineID { engineCrashNotice = nil; crashedEngineID = nil }
-        }
-        start(initial)
+        if let launchCrash { recover(from: launchCrash, playing: playing) }
+        // The default's engine loads at launch; an article in another engine loads its own on play.
+        start(defaultSelection.engine)
     }
 
-    /// The persisted engine: a retired engine becomes its replacement when that is installed
-    /// (else Apple); an unknown id is Apple.
-    private func storedSelection() -> SpeechEngineID {
-        let stored = SpeechEngineID(rawValue: defaults.string(forKey: Self.engineIDKey) ?? SpeechEngineID.apple.rawValue)
-        if let retired = engines.retiredEngines.first(where: { $0.id == stored }) {
-            let to: SpeechEngineID = engines.supports(retired.replacement) && engines.isInstalled(retired.replacement)
-                ? retired.replacement : .apple
-            ListenDebugLog.shared.append("retired engine: \(retired.displayName) was selected → \(engines.displayName(to))")
-            return to
+    /// Start loading `id`, or mark it unavailable when it can't run here.
+    private func start(_ id: SpeechEngineID) {
+        guard engines.contains(id) else { return }
+        guard engines.supports(id) else {
+            synth.markUnavailable(id)
+            return
         }
-        return engines.contains(stored) ? stored : .apple
+        beginWarm(id)
     }
 
     /// The previous process died inside `crash.engine`. Its provider decides (Kokoro: resume on the
-    /// stable route); by default a crashed selection moves to the crash fallback.
-    private func recover(from crash: EngineCrashGuard.CrashInfo, selection: SpeechEngineID,
-                         playing: ListenResumeTarget?) -> SpeechEngineID {
-        guard let engine = crash.engine else { return selection }
-        if let recovery = engines.recover(from: crash, playing: playing) {
-            return apply(recovery, crashed: engine)
-        }
-        guard engine == selection else { return selection }
-        let fallback = engines.crashFallback(for: engine)
-        let d = engines.descriptor(engine)
-        let name = d?.shortName ?? engine.rawValue
-        ListenDebugLog.shared.append("\(name) crash detected → \(fallback.rawValue)")
-        return apply(.switchAway(notice: "\(name) crashed last session (\(d?.onDevice?.crashNotice ?? "engine crash")). "
-            + "Switched to \(engines.displayName(fallback)). Tap \(name) to try again."), crashed: engine)
-    }
-
-    /// Note the recovery for the UI; returns the engine to use.
-    private func apply(_ recovery: CrashRecovery, crashed engine: SpeechEngineID) -> SpeechEngineID {
-        engineCrashNotice = recovery.notice
-        switch recovery {
-        case .stay(_, let resume):
-            pendingResume = resume
-            return engine
-        case .pauseForRetry(let notice, let resume):
-            pendingResume = resume
-            retryNotice = notice
+    /// stable route first); by default the engine and voice stay and it pauses for Retry (C129:
+    /// never another voice).
+    private func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) {
+        guard let engine = crash.engine else { return }
+        let recovery = engines.recover(from: crash, playing: playing)
+            ?? .pauseForRetry(resume: ListenResumeTarget.forCrash(article: crash.articleKey, paragraph: crash.paragraph,
+                                                                  crashAt: crash.at, playing: playing))
+        ListenDebugLog.shared.append("\(engines.shortName(engine)) crash detected → \(recovery)")
+        pendingResume = recovery.resume
+        if case .pauseForRetry = recovery {
             isPausedForRetry = true
             synthQueue.isPausedForRetry = true
-            return engine
-        case .switchAway:
-            crashedEngineID = engine
-            return engines.crashFallback(for: engine)
         }
-    }
-
-    /// A launch step found an older crash to recover from (`KokoroONNXMainMigration`).
-    func applyLaunchRecovery(_ recovery: CrashRecovery, crashed engine: SpeechEngineID) {
-        start(apply(recovery, crashed: engine))
-    }
-
-    /// Persist `id` and load it when it's an on-device engine this device supports; else Apple.
-    private func start(_ id: SpeechEngineID) {
-        guard engines.isOnDevice(id), engines.supports(id) else {
-            synth.turnOff()
-            return
-        }
-        defaults.set(id.rawValue, forKey: Self.engineIDKey)
-        beginWarm(id)
     }
 
     static var buildConfiguration: String {
@@ -206,35 +147,20 @@ final class LocalTTSCoordinator: SynthQueueContext {
         #endif
     }
 
-    /// The engine Settings shows as chosen (the on-device one while it loads or once loaded).
-    var selectedEngineID: SpeechEngineID { synth.state.selectedEngineID }
+    /// The engine loaded or loading, for logs ("—" when none).
+    var engineLabel: String { activeLocalEngineID?.rawValue ?? "—" }
     /// The on-device engine is loaded and serves listening and bake-ahead.
     var usesLocalEngine: Bool { synth.state.readyEngineID != nil }
 
-    /// Dismiss the one-line crash banner (while paused for Retry, the banner is the way back, so
-    /// dismissing it is a Retry too: nothing stays paused without a visible reason).
-    func dismissCrashNotice() {
-        if isPausedForRetry { retryAfterEngineStop() } else { engineCrashNotice = nil }
-    }
-
-    /// While paused for retry, playback reached a spot with no rendered audio and paused there:
-    /// now the banner with Retry shows.
-    func playbackReachedUnrendered() {
-        guard isPausedForRetry else { return }
-        engineCrashNotice = retryNotice ?? KokoroCrashRecovery.pausedNotice
-        ListenTimingLog.log("engine_retry_needed", ["engine": selectedEngineID.rawValue])
-    }
-
-    /// The banner's Retry (or pressing play): a fresh engine session with the same engine and
-    /// voice, then rendering and prepared audio go on.
+    /// Retry, or any play while paused for it (`SpeechController.userPerform`): a fresh engine
+    /// session with the same engine and voice, then rendering and prepared audio go on.
     func retryAfterEngineStop() {
-        engineCrashNotice = nil
         guard isPausedForRetry else { return }
         isPausedForRetry = false
-        ListenTimingLog.log("engine_retry", ["engine": selectedEngineID.rawValue])
-        let id = selectedEngineID
+        ListenTimingLog.log("engine_retry", ["engine": engineLabel])
+        let id = activeLocalEngineID
         Task { [weak self] in
-            await self?.reloadEngine(id)
+            if let id { await self?.reloadEngine(id) }
             self?.synthQueue.isPausedForRetry = false
         }
     }
@@ -312,7 +238,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     var activeLocalEngineID: SpeechEngineID? { synth.state.activeEngineID }
 
     /// `ArticleAudioCache` engine key for the active local engine.
-    var cacheEngineID: String { (activeLocalEngineID ?? engines.defaultLocalEngineID).rawValue }
+    var cacheEngineID: String { (activeLocalEngineID ?? engines.defaultEngine.id).rawValue }
 
     var synthRenderer: SynthChunkRendering { synth }
 
@@ -349,17 +275,14 @@ final class LocalTTSCoordinator: SynthQueueContext {
         target(for: selection(for: cacheKey))
     }
 
-    /// The render target for `selection`; nil for Apple or when its engine isn't loaded.
     var engineReady: Bool { synth.state.readyEngineID != nil }
+
+    /// The render target for `selection`; nil when its engine isn't loaded.
 
     func target(for selection: VoiceSelection) -> RenderTarget? {
         guard synth.state.readyEngineID == selection.engine,
               let voice = cacheVoice(of: selection) else { return nil }
         return RenderTarget(engineID: selection.engine.rawValue, cacheVoice: voice, engineVoice: selection.voice)
-    }
-
-    func appleFallbackVoice(for paragraphs: [String]) -> String? {
-        appleVoiceForArticle?(paragraphs)
     }
 
     /// Paragraphs of `cacheKey` that still need audio in what renders now
@@ -407,28 +330,15 @@ final class LocalTTSCoordinator: SynthQueueContext {
         return true
     }
 
-    func localLanguageAllows(_ paragraphs: [String]) -> Bool {
-        localLanguageGate?(paragraphs) ?? true
-    }
-
     /// Load an on-device engine (C138a: only to speak an article in it, or the Settings default; never
     /// to choose what an article speaks in). Local engines download on first load + warm, and only one
     /// local engine's models stay loaded (the other host is dropped). Returns once the choice has
     /// settled (loaded, failed, or replaced by another pick).
     func loadEngine(_ id: SpeechEngineID) async {
-        guard engines.isOnDevice(id) else {
-            synth.turnOff()
-            return
-        }
+        guard engines.contains(id) else { return }
         guard engines.supports(id) else {
             synth.markUnavailable(id)
             return
-        }
-        if id == crashedEngineID {
-            // Picking the engine again after a crash fallback = a fresh try.
-            engineCrashNotice = nil
-            crashedEngineID = nil
-            engines.crashRetried(id)
         }
         switch synth.state {
         case .ready(id):
@@ -446,14 +356,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synth.load(id, voice: engineVoices[id])
     }
 
-    /// Persist the selection, let the controller move the live utterance, tell the render queue
-    /// what renders now (nothing unless an engine is loaded), and once a load finishes fold the
-    /// waiting bake jobs into the queue.
+    /// Tell the render queue what renders now (nothing unless an engine is loaded), and once a
+    /// load finishes fold the waiting bake jobs into the queue.
     private func engineStateChanged() {
         let state = synth.state
-        if let persisted = state.persistedSelection {
-            defaults.set(persisted.rawValue, forKey: Self.engineIDKey)
-        }
         synthQueue.renderTargetChanged()
         if case .ready = state {
             noteBakeMarksChanged()
@@ -465,7 +371,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Delete one local engine's downloaded models (default: the active local engine).
     /// Kept for Listen debug / CPU-route bench; Voice settings removes packs per voice instead.
     func deleteModel(_ engine: SpeechEngineID? = nil) throws {
-        let id = engine ?? activeLocalEngineID ?? engines.defaultLocalEngineID
+        let id = engine ?? activeLocalEngineID ?? engines.defaultEngine.id
         switch synth.state {
         case .warming(id, _, _), .ready(id), .failed(id, _):
             synth.turnOff()
@@ -555,7 +461,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// The next chapter of the book or series playing (`playing`) renders its opening before its
     /// turn (`GlobalSynthQueue.stageNext`), so it starts without waiting for the model. False when
-    /// nothing renders ahead (Apple, a model still loading, a language the engine doesn't speak),
+    /// nothing renders ahead (a model still loading, a language the engine doesn't speak),
     /// and for audio held for unfinished library work (`ArticleAudioCache.held`), which a render
     /// would overwrite before that work reads it.
     @discardableResult
@@ -573,7 +479,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// included, keeps its place and plan and just turns saved.
     func startBakeIfNeeded(articleID: UUID, paragraphs: [String]) {
         guard !paragraphs.isEmpty, rendersAhead(articleID, paragraphs: paragraphs) else { return }
-        loadEngineIfNeeded(peekSelection(of: articleID, paragraphs: paragraphs).engine)
+        loadEngineIfNeeded(effectiveSelection(of: articleID).engine)
         audioCache.markSaved(cacheKey: articleID)
         pendingBakes.enqueuePending(articleID: articleID, paragraphs: paragraphs, priorityStart: 0)
         // Still loading: the job joins the queue when the load finishes.
@@ -657,9 +563,9 @@ final class LocalTTSCoordinator: SynthQueueContext {
         }
     }
 
-    /// C138a: this device has an on-device engine, so articles in its voices render ahead (an
-    /// article in an Apple voice renders nothing ahead: `rendersAhead`).
-    var wantsLocalBake: Bool { engines.localDescriptors.contains { engines.supports($0.id) } }
+    /// This device can run one of the engines, so prepared audio renders (an article whose engine
+    /// can't run here renders nothing: `rendersAhead`).
+    var wantsLocalBake: Bool { engines.descriptors.contains { engines.supports($0.id) } }
 
     /// Persisted pending jobs → queue, once the engine is loaded and the launch hold is over. The
     /// focused (active) article stays #1; see `GlobalSynthQueue.adoptPending`. A job for audio

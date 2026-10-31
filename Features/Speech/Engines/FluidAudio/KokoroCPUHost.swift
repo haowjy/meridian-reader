@@ -175,7 +175,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
         if !KokoroCPUAudio.allFinite(raw) {
             // Should not happen with the patched model; never write NaN (it becomes a full-scale
             // pop + silence). Retry once at a 2 % different speed (different frame count / rounding),
-            // then give up so the queue speaks this chunk with Apple instead of dead air.
+            // then give up: the chunk fails and playback pauses there instead of playing dead air.
             ListenTimingLog.log("onnx_nonfinite", ["chars": text.count, "tokens": ids.count, "retry": true])
             var retryInputs = inputs
             retryInputs.speed = [1.02]
@@ -237,7 +237,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
         return pack
     }
 
-    /// After a healthy stretch, forget earlier ONNX-route crashes (the "two crashes → Apple" rule
+    /// After a healthy stretch, forget earlier ONNX-route crashes (the "two crashes → pause for Retry" rule
     /// counts crashes close together, not over the app's lifetime).
     private func noteHealthyCall() {
         let reached: Bool = lock.withLock {

@@ -139,12 +139,42 @@ enum AppComposition {
         tts.holdRenderingForLaunch()
         library.finishAudioWork()
         for migration in tts.engines.launchMigrations { migration.runIfNeeded(tts) }
+        removeAppleVoices(library: library, tts: tts)
         adoptArticleVoices(library: library, tts: tts)
         tts.audioCache.removeAllChunkScratch()
         let pruned = tts.audioCache.pruneEphemeral()
         if pruned.removed > 0 {
             ListenTimingLog.log("audio_cache_prune", ["removed": pruned.removed, "bytes": pruned.freedBytes])
         }
+    }
+
+    /// Apple's voices are gone (playback never reads in another voice; Phonon and Kokoro are the
+    /// voices). Once, marked done only when every step succeeded: articles and books stored in an
+    /// Apple voice ("apple/…") have none again, so they take the Settings default at their next
+    /// first use; audio filed under the Apple engine is deleted (held audio waits for a later
+    /// launch); the settings only Apple's voices used are removed. A stored default in an Apple
+    /// voice takes the built-in default at every launch it is found
+    /// (`LocalTTSCoordinator.loadDefaultSelection`).
+    static func removeAppleVoices(library: LibraryStore, tts: LocalTTSCoordinator) {
+        let doneKey = "reader.migration.appleVoicesRemoved.v1"
+        guard !tts.defaults.bool(forKey: doneKey) else { return }
+        let purged = tts.audioCache.purgeEngine("apple")
+        let cleared: Int
+        do {
+            cleared = try library.clearVoices { $0.hasPrefix("apple/") }
+        } catch {
+            ListenDebugLog.shared.append("Apple voices: clearing article voices failed, next launch tries again")
+            return
+        }
+        for key in ["reader.selectedVoiceIdentifier", "reader.languageAutomatic", "reader.selectedLanguageCode",
+                    "reader.tts.engineID"] {
+            tts.defaults.removeObject(forKey: key)
+        }
+        if purged.held == 0 { tts.defaults.set(true, forKey: doneKey) }
+        if purged.paragraphs > 0 || purged.orphanFiles > 0 { tts.noteBakeMarksChanged() }
+        tts.forgetArticleVoices()
+        ListenTimingLog.log("apple_voices_removed", ["voices_cleared": cleared, "cache_paragraphs": purged.paragraphs,
+                                                     "held": purged.held])
     }
 
     /// C138 migration, once: articles and books with audio take the voice most of it is in (with its
@@ -173,7 +203,6 @@ enum AppComposition {
         #if DEBUG
         let options = LaunchOptions.current
         var providers: [SpeechEngineProvider] = [
-            AppleSpeechProvider(),
             FluidAudioProvider(coreMLUnits: options.kokoroUnits,
                                keepsCoreMLStages: options.kokoroStress?.route == .coreml),
             PhononProvider(),
@@ -181,7 +210,7 @@ enum AppComposition {
         if options.usesTestVoice { providers.append(TestVoiceProvider()) }
         return providers
         #else
-        return [AppleSpeechProvider(), FluidAudioProvider(), PhononProvider()]
+        return [FluidAudioProvider(), PhononProvider()]
         #endif
     }
 
@@ -194,6 +223,6 @@ enum AppComposition {
         for directory in engineRegistry.regenerableDirectories + [AppDirectories.listenTiming] {
             BackupExclusion.exclude(directory)
         }
-        ListenTimingLog.log("app_launch", ["engine": tts.selectedEngineID.rawValue, "build": LocalTTSCoordinator.buildConfiguration])
+        ListenTimingLog.log("app_launch", ["engine": tts.engineLabel, "build": LocalTTSCoordinator.buildConfiguration])
     }
 }

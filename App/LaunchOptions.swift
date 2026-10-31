@@ -129,8 +129,8 @@ struct LaunchOptions: Equatable {
     var usesTestVoice = false
     /// `-showWhatsNew`: show the What's New sheet even under `-uiTesting`.
     var showsWhatsNew = false
-    /// `-selectEngine <engine id>` (`local.kokoro`, `apple`, `test.voice`): the engine to load at
-    /// launch, persisted as the selection.
+    /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
+    /// load at launch; its voice is the default for new articles.
     var selectsEngine: SpeechEngineID?
     /// `-kokoroUnits <label>`: compute units of Kokoro's Core ML route (`KokoroHost.unitsLabel`).
     var kokoroUnits: String?

@@ -90,10 +90,8 @@ struct ArticleVoiceChange {
     /// it and remakes the audio. Throws when the download fails.
     func apply(_ selection: VoiceSelection) async throws {
         guard selection != ownSelection else { return }
-        if !selection.isApple {
-            guard await tts.downloadVoice(selection.voice, for: selection.engine) else {
-                throw CocoaError(.fileReadUnknown)
-            }
+        guard await tts.downloadVoice(selection.voice, for: selection.engine) else {
+            throw CocoaError(.fileReadUnknown)
         }
         let keys = articles.map(\.listenKey)
         // Never two voices in one listen: what plays of it stops at once.
@@ -103,11 +101,10 @@ struct ArticleVoiceChange {
         case .folder(let f): library.setVoice(selection.stored, of: f)
         }
         tts.articleVoicesChanged()
-        if !selection.isApple { tts.loadEngineIfNeeded(selection.engine) }
+        tts.loadEngineIfNeeded(selection.engine)
         for key in keys {
             let prepared = preparedAudio.hasRecord(for: key)
-            // An Apple voice renders nothing ahead: its old audio can't be remade, so it goes.
-            if (selection.isApple || !prepared), tts.audioCache.bytes(for: key) > 0 {
+            if !prepared, tts.audioCache.bytes(for: key) > 0 {
                 try? tts.clearListenAudio(for: key)
             }
             if prepared { preparedAudio.reprepare(article: key) }

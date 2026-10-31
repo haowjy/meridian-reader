@@ -31,11 +31,20 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
         case queued
         /// Its audio was rendered in full (the voice is the audio cache's to say).
         case done
-        /// Its language isn't one the on-device voice speaks: it plays with Apple's voice, which
-        /// needs nothing prepared.
-        case speaksLive
-        /// Couldn't be fetched, or some of its audio couldn't be rendered (`failure` says which).
+        /// Couldn't be fetched, can't be read (its language, or its voice can't run here), or
+        /// some of its audio couldn't be rendered (`failure` says which).
         case failed
+
+        /// A list written while Apple's voices spoke pages in other languages stored those as
+        /// "speaksLive": they are queued again, and their turn decides them anew.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            guard let state = raw == "speaksLive" ? .queued : Self(rawValue: raw) else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown page state \(raw)")
+            }
+            self = state
+        }
     }
 
     struct Entry: Codable, Equatable {
@@ -101,7 +110,7 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
     /// Pages that ended without their audio.
     var failedCount: Int { entries.filter { $0.state == .failed }.count }
 
-    /// Pages whose turn has come and gone (done, speaking live or failed).
+    /// Pages whose turn has come and gone (done or failed).
     var finishedCount: Int { entries.filter { $0.state != .queued }.count }
 
     /// Audio in `voice` (a cache voice key) counts as this download's: it is the voice downloads

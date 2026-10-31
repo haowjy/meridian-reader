@@ -13,8 +13,8 @@ import UIKit
 /// terminated (`willTerminateNotification`: a swipe-kill of the running app) clears it and writes
 /// no other. At launch a marker left behind means the previous process died during a call, and
 /// `consumeCrashInfo` says whether the engine killed it (`MarkerVerdict`); only then does the
-/// coordinator switch away and tell the user. Which engines are guarded comes from
-/// `OnDeviceTraits.crashNotice`.
+/// coordinator recover (`CrashRecovery`) and tell the user. Which engines are guarded comes from
+/// `OnDeviceTraits.isCrashGuarded`.
 final class EngineCrashGuard: @unchecked Sendable {
     let directory: URL
     private let lock = NSLock()
@@ -196,30 +196,19 @@ final class EngineCrashGuard: @unchecked Sendable {
 
 /// What to do after the previous process died inside an engine's call (a provider's answer to
 /// `SpeechEngineProvider.recover(from:playing:)`).
+/// The engine and voice always stay (C129: never another engine or voice).
 enum CrashRecovery: Equatable {
-    /// Keep the engine selected, show `notice` (nil: a silent same-voice recovery, C129), and
-    /// reopen `resume` when there is one.
-    case stay(notice: String?, resume: ListenResumeTarget?)
-    /// Keep the engine and voice selected; the render queue (downloads, render-ahead) waits for
-    /// Retry, playback goes on through rendered audio and pauses where there is none, showing
-    /// `notice` then (C129: never fall to another engine or voice).
-    case pauseForRetry(notice: String, resume: ListenResumeTarget?)
-    /// Switch to `EngineRegistry.crashFallback` and show `notice`; picking the crashed engine
-    /// again is a fresh try.
-    case switchAway(notice: String)
-
-    var notice: String? {
-        switch self {
-        case .stay(let notice, _): return notice
-        case .pauseForRetry: return nil // shown only once playback reaches unrendered audio
-        case .switchAway(let notice): return notice
-        }
-    }
+    /// Go on as before, silently (the same voice and its cached audio, so nothing the user hears
+    /// changes), and reopen `resume` when there is one.
+    case stay(resume: ListenResumeTarget?)
+    /// The render queue (downloads, render-ahead) waits for Retry; playback goes on through
+    /// rendered audio and pauses where there is none, and the user is told then ("Kokoro
+    /// stopped.", with Retry).
+    case pauseForRetry(resume: ListenResumeTarget?)
 
     var resume: ListenResumeTarget? {
         switch self {
-        case .stay(_, let resume), .pauseForRetry(_, let resume): return resume
-        case .switchAway: return nil
+        case .stay(let resume), .pauseForRetry(let resume): return resume
         }
     }
 }

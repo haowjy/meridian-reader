@@ -15,7 +15,7 @@ import os
 /// `app_launch`, `kokoro_init_start/end`, `reader_open`, `play`, `first_audio`,
 /// `synth` (one engine call: chars, wall_ms, audio_s, ok, err), `chunk_ready`, `paragraph_ready`,
 /// `unit_wait` (producer waited for a chunk: wait_ms, worker_busy_other, other_key/p),
-/// `buffering` (Preparing next interval: p, dur_ms), `fallback_apple`, `skip`, `engine_probe`, `retired_engine_cleanup`,
+/// `buffering` (Preparing next interval: p, dur_ms), `playback_held` (the player paused where audio ran out: p, c, reason), `engine_probe`, `retired_engine_cleanup`,
 /// `chapter_advance` (a chapter ended: what plays next), `chapter_staged`, `chapter_boundary` (the
 /// next chapter became audible: gap_ms, deactivated, lock_screen_cleared).
 enum ListenTimingLog {

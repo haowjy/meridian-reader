@@ -42,7 +42,7 @@ final class PhononProvider: SpeechEngineProvider {
             cacheVoicePrefix: "phonon",
             cacheRevision: String(PhononModelStore.bundleBuilt),
             limits: .phonon,
-            crashNotice: "Phonon stopped unexpectedly")
+            isCrashGuarded: true)
     )
 
     var descriptors: [EngineDescriptor] { [Self.descriptor] }

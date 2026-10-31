@@ -2,10 +2,11 @@ import SwiftUI
 import SwiftData
 
 /// App root: the browser is the whole app (no tab bar); the reader and the library are surfaces
-/// over it (`ShellState`). Shows the local engine's crash notice on top.
+/// over it (`ShellState`). Shows playback's notices (`SpeechController.notice`) as the shell's
+/// toast, once each.
 struct RootView: View {
     @Environment(\.speechController) private var speech
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(ShellState.self) private var shell
     @State private var showsWhatsNew = false
     @State private var whatsNewStore = WhatsNewStore()
     /// Cellular / Low Data Mode confirm before Phonon / Kokoro model downloads.
@@ -14,17 +15,14 @@ struct RootView: View {
     var body: some View {
         BrowseStartView()
             .reportsChromeHome()
-            .overlay(alignment: .top) {
-                if let notice = speech.localTTS.engineCrashNotice {
-                    EngineNoticeBanner(text: notice,
-                                       onRetry: speech.localTTS.isPausedForRetry ? { speech.localTTS.retryAfterEngineStop(); speech.userPerform(.resume) } : nil) {
-                        speech.localTTS.dismissCrashNotice()
-                    }
-                        .padding(.horizontal, Spacing.s)
-                        .transition(.slideAndFade(from: .top, reduceMotion: reduceMotion))
-                }
+            .onChange(of: speech.notice, initial: true) { _, notice in
+                guard let notice else { return }
+                speech.noticeShown(notice.id)
+                shell.showToast(ShellToast(
+                    message: notice.message, systemImage: notice.offersRetry ? Icons.warning : Icons.listen,
+                    actionTitle: notice.offersRetry ? Verbs.retry : nil,
+                    action: notice.offersRetry ? { speech.retry() } : nil))
             }
-            .animation(Motion.snappy, value: speech.localTTS.engineCrashNotice)
             // The app's colour for system controls (`Palette.accent` reads the theme, so this
             // follows a change in Settings), and its appearance on every window.
             .tint(Palette.accent)
@@ -88,50 +86,6 @@ private struct LaunchTestHooks: ViewModifier {
     }
 }
 #endif
-
-/// One-line, dismissible notice (e.g. "Kokoro stopped unexpectedly; resumed on the stable route.").
-/// The ✕ fills a 44 pt square at the trailing end, so the banner is at least that tall.
-struct EngineNoticeBanner: View {
-    let text: String
-    /// Shown as a Retry button when the engine is paused for retry (C129).
-    var onRetry: (() -> Void)? = nil
-    let onDismiss: () -> Void
-
-    var body: some View {
-        HStack(spacing: Spacing.xs) {
-            Image(systemName: Icons.warning)
-                .foregroundStyle(Palette.caution)
-            Text(text)
-                .typeStyle(.caption)
-                .lineLimit(text.count <= 64 ? 1 : 3)
-                .minimumScaleFactor(0.75)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, Spacing.xs)
-            if let onRetry {
-                Button("Retry", action: onRetry)
-                    .typeStyle(.caption, weight: .semibold)
-                    .frame(minHeight: Control.tap)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Palette.accent)
-                    .accessibilityIdentifier("engineNoticeRetry")
-            }
-            Button(action: onDismiss) {
-                Image(systemName: Icons.close)
-                    .typeStyle(.caption, weight: .semibold)
-                    .foregroundStyle(Palette.secondaryInk)
-                    .frame(width: Control.tap, height: Control.tap)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Dismiss")
-            .accessibilityIdentifier("engineNoticeDismiss")
-        }
-        .padding(.leading, Spacing.s)
-        .background(.regularMaterial, in: Capsule())
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("engineNotice")
-    }
-}
 
 #Preview {
     let container = try! LibraryStoreConfiguration.makeInMemoryContainer()

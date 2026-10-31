@@ -19,8 +19,8 @@ enum LocalSynthError: LocalizedError {
     case emptyText
     case engineUnavailable(String)
     /// The app is in the background and the active host can't render there (Core ML: GPU
-    /// forbidden, CPU paths hit the libBNNS crash on iOS 26.4+). Callers fall back to Apple TTS or
-    /// defer. Hosts with `rendersInBackground` (ONNX CPU) never see this.
+    /// forbidden, CPU paths hit the libBNNS crash on iOS 26.4+). Playback pauses where
+    /// rendered audio runs out. Hosts with `rendersInBackground` (ONNX CPU) never see this.
     case deferredInBackground
 
     var errorDescription: String? {

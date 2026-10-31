@@ -7,7 +7,7 @@ import SwiftUI
 /// ```
 /// Listening                                  `SectionHeader` + `.listHeader()`
 /// ╭──────────────────────────────────────╮
-/// │ Apple                              ✓ │   rows on `.listCard()`
+/// │ Phonon                             ✓ │   rows on `.listCard()`
 /// ╰──────────────────────────────────────╯
 /// On-device voices prepare once, …          `.listFooter()`
 /// ```

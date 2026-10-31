@@ -1,4 +1,3 @@
-import AVFoundation
 import Foundation
 
 /// Launch work, run once by `ReaderApp` when the first window appears: the library's launch
@@ -65,32 +64,12 @@ enum AppLaunch {
         library.pruneUnsaved()
         library.retainRecent()
         tts.endLaunchHold()
-        Self.logAppleVoices()
     }
 
-    /// Which Apple voices this device offers apps (C129: Siri's aren't among them), off the main
-    /// thread, into the timing log, with the English default it resolves to (C139).
-    private static func logAppleVoices() {
-        Task.detached(priority: .utility) {
-            let all = AVSpeechSynthesisVoice.speechVoices()
-            let en = all.filter { $0.language.hasPrefix("en") }
-            let q: (AVSpeechSynthesisVoice) -> String = {
-                switch $0.quality { case .premium: "premium"; case .enhanced: "enhanced"; default: "default" }
-            }
-            let list = en.map { "\($0.identifier)|\($0.name)|\($0.language)|\(q($0))|\($0.gender.rawValue)" }
-            let resolved = VoiceCatalog.bestVoice(forLanguage: "en-US", from: all)
-            ListenTimingLog.log("apple_voices", [
-                "count": en.count, "siri": en.filter { $0.identifier.lowercased().contains("siri") }.count,
-                "resolved_en": resolved.map { "\($0.identifier)|\($0.name)" } ?? "nil",
-                "voices": list.joined(separator: ";"),
-            ])
-        }
-    }
-
-    /// Kokoro crashed last session: reopen the page in Now Playing at the paragraph that was
-    /// playing — playing again (on the ONNX route, once it's loaded) if the crash just happened,
-    /// else paused there. Runs after the layout migration, so the stored paragraph uses the
-    /// current numbering.
+    /// An engine crashed last session: reopen the page in Listen at the paragraph that was
+    /// playing, playing again if the crash just happened and the engine's recovery resumes
+    /// (Kokoro, once on the ONNX route), else paused there; a pause for Retry says so. Runs after
+    /// the layout migration, so the stored paragraph uses the current numbering.
     ///
     /// The paragraph counts only on a page holding the text it was played in (`LibraryStore.holds`):
     /// a key can hold other text by the time of the crash (the page was refreshed on open while an
@@ -101,6 +80,7 @@ enum AppLaunch {
     /// position. The position is the recorder's to store, from the session this binds.
     private static func resumeAfterCrash(library: LibraryStore, speech: SpeechController, shell: ShellState) async {
         let tts = speech.localTTS
+        if tts.isPausedForRetry, let engine = tts.launchCrash?.engine { speech.tellStopped(engine) }
         guard let target = tts.takePendingResume() else { return }
         guard let article = library.article(matching: target), article.hasText else {
             ListenTimingLog.log("kokoro_resume", ["ok": false, "why": "article not found", "key": String(target.articleKey.prefix(8))])
@@ -109,9 +89,9 @@ enum AppLaunch {
         let session = SpeechSession.article(article)
         let inText = target.text.map { library.holds(article, text: $0) } ?? (target.paragraph == article.positionParagraph)
         let p = inText ? min(max(0, target.paragraph), max(0, session.document.count - 1)) : article.positionParagraph
-        let autoPlay = inText && target.autoPlay
+        let autoPlay = inText && target.autoPlay && !tts.isPausedForRetry
         if autoPlay {
-            // The engine loads first, so the resume doesn't start on Apple.
+            // The engine loads first, so the resume starts at once.
             await tts.waitForEngineLoad(timeout: .seconds(20))
             speech.start(session, at: ListenSpot(paragraph: p))
         } else {

@@ -1,4 +1,3 @@
-import AVFoundation
 import Foundation
 
 /// C138a: one selection (engine + voice) per article and per book, resolved here and passed
@@ -15,50 +14,46 @@ extension LocalTTSCoordinator {
     }
 
     /// The selection the article with `key` speaks in from now on: its own, else (brand new) the
-    /// Settings default, which it keeps; Apple when the default's engine can't speak the
-    /// article's language (`paragraphs`, when known).
+    /// Settings default, which it keeps.
     @discardableResult
-    func selection(for key: UUID, paragraphs: [String]? = nil) -> VoiceSelection {
+    func selection(for key: UUID) -> VoiceSelection {
         if let stored = storedSelection(of: key) { return stored }
-        let first = peekSelection(of: key, paragraphs: paragraphs)
-        let locked = VoiceSelection(stored: lockArticleSelection(key, first.stored)) ?? first
+        let locked = VoiceSelection(stored: lockArticleSelection(key, defaultSelection.stored)) ?? defaultSelection
         selectionMemo[key] = .some(locked)
         return locked
     }
 
-    /// The selection `key` would speak in, without locking it (`selection(for:paragraphs:)`).
-    func peekSelection(of key: UUID, paragraphs: [String]? = nil) -> VoiceSelection {
-        if let stored = storedSelection(of: key) { return stored }
-        if !defaultSelection.isApple, let paragraphs, !localLanguageAllows(paragraphs) {
-            return VoiceSelection(engine: .apple, voice: "")
-        }
-        return defaultSelection
-    }
-
-    /// The article speaks in an on-device voice this device has: its audio renders ahead.
-    func rendersAhead(_ key: UUID, paragraphs: [String]) -> Bool {
-        let selection = peekSelection(of: key, paragraphs: paragraphs)
-        return engines.isOnDevice(selection.engine) && engines.supports(selection.engine)
-    }
-
-    /// What a menu's *Voice* row shows: the article's own, else the default it would take.
+    /// The selection `key` speaks in, without locking it (`selection(for:)`): its own, else the
+    /// default it would take. A menu's *Voice* row shows it.
     func effectiveSelection(of key: UUID) -> VoiceSelection {
         storedSelection(of: key) ?? defaultSelection
     }
 
-    /// The cache voice key of `selection`'s audio ("kokoro.af_heart"); nil for Apple.
+    /// Why the article with `key` and these `paragraphs` can't be read, as ▶'s toast and Prepare say
+    /// it: its voice library can't run on this device ("Kokoro needs an iPhone 13 or newer."), or
+    /// its language isn't one that library speaks ("Can't read French yet."). nil: it can be read.
+    func cantReadNotice(of key: UUID, paragraphs: [String]) -> String? {
+        let engine = effectiveSelection(of: key).engine
+        if let notice = engines.cantRunNotice(engine) { return notice }
+        guard let descriptor = engines.descriptor(engine) else { return nil }
+        return ListenLanguage.unspoken(in: paragraphs, by: descriptor).map(ListenLanguage.refusal)
+    }
+
+    /// The article can be read here (`cantReadNotice`): its audio renders ahead.
+    func rendersAhead(_ key: UUID, paragraphs: [String]) -> Bool {
+        cantReadNotice(of: key, paragraphs: paragraphs) == nil
+    }
+
+    /// The cache voice key of `selection`'s audio ("kokoro.af_heart"); nil when no registered
+    /// engine speaks it.
     func cacheVoice(of selection: VoiceSelection) -> String? {
         engines.descriptor(selection.engine)?.cacheVoiceID(engineVoice: selection.voice)
     }
 
     /// "kokoro.af_heart" → local.kokoro/af_heart (any revision of the engine's model); nil when no
-    /// installed engine wrote it.
+    /// registered engine wrote it.
     func selection(fromCacheVoice voice: String) -> VoiceSelection? {
-        for d in engines.localDescriptors {
-            guard let engineVoice = d.engineVoice(fromCacheVoice: voice) else { continue }
-            return VoiceSelection(engine: d.id, voice: engineVoice)
-        }
-        return nil
+        engines.selection(forCacheVoice: voice)
     }
 
     /// Settings picked a new default. Changes no article that already has a voice; loads its
@@ -66,52 +61,36 @@ extension LocalTTSCoordinator {
     func setDefaultSelection(_ selection: VoiceSelection) {
         defaultSelection = selection
         defaults.set(selection.stored, forKey: Self.defaultSelectionKey)
-        // A pick in Settings is a fresh try of a crashed engine too.
-        if engines.isOnDevice(selection.engine) { Task { await loadEngine(selection.engine) } }
+        Task { await loadEngine(selection.engine) }
         synthQueue.renderTargetChanged()
         noteBakeMarksChanged()
     }
 
-    /// The voice a fresh install starts with: Phonon Zoey when supported, else Kokoro Heart, else
-    /// Apple's best voice for the language. Settings shows "Default" while it is the pick.
-    var builtInDefaultSelection: VoiceSelection {
-        if engines.supports(.phonon) { return VoiceSelection(engine: .phonon, voice: PhononVoiceCatalog.defaultVoice) }
-        if engines.supports(.kokoro) { return VoiceSelection(engine: .kokoro, voice: KokoroVoiceCatalog.defaultVoice) }
-        return VoiceSelection(engine: .apple, voice: "")
+    /// The voice a fresh install starts with: the default engine's default voice (Phonon's
+    /// Zoey). Settings shows "Default" while it is the pick.
+    var builtInDefaultSelection: VoiceSelection { Self.builtInDefault(of: engines) }
+
+    static func builtInDefault(of engines: EngineRegistry) -> VoiceSelection {
+        let d = engines.defaultEngine
+        return VoiceSelection(engine: d.id, voice: d.defaultVoiceID ?? d.voices.first?.id ?? "")
     }
 
-    /// The stored default, else the built-in one (`builtInDefaultSelection`, first launch / unset
-    /// pick), where an older install's engine/voices or Apple voice take Apple's place.
-    /// Heart's bundled pack is always seeded when Kokoro is supported so switching engines
-    /// does not wait on that voice download.
-    func loadDefaultSelection(legacyEngine: SpeechEngineID, legacyAppleVoice: String?) {
+    /// The stored default, else the built-in one (`builtInDefaultSelection`), which is then
+    /// stored. A stored default in an engine no longer registered (a retired engine, Apple's
+    /// voices) takes the built-in one too, every launch it is found.
+    func loadDefaultSelection() {
         if let stored = defaults.string(forKey: Self.defaultSelectionKey).flatMap(VoiceSelection.init(stored:)),
            engines.contains(stored.engine) {
             defaultSelection = stored
-            // Keep Heart installed even when the stored pick is Phonon/Apple.
-            if engines.supports(.kokoro) { KokoroAssets.installBundledHeartIfNeeded() }
             return
         }
-        if engines.supports(.kokoro) {
-            KokoroAssets.installBundledHeartIfNeeded()
-            setEngineVoice(.kokoro, KokoroVoiceCatalog.defaultVoice)
-        }
-        let builtIn = builtInDefaultSelection
-        if builtIn.engine == .phonon { setEngineVoice(.phonon, builtIn.voice) }
-        if !builtIn.isApple {
-            defaultSelection = builtIn
-        } else if engines.isOnDevice(legacyEngine), let voice = engineVoices[legacyEngine] {
-            defaultSelection = VoiceSelection(engine: legacyEngine, voice: voice)
-        } else {
-            defaultSelection = VoiceSelection(engine: .apple, voice: legacyAppleVoice ?? "")
-        }
+        defaultSelection = builtInDefaultSelection
         defaults.set(defaultSelection.stored, forKey: Self.defaultSelectionKey)
     }
 
-    /// Load the on-device engine an article needs (one is loaded at a time). An engine that
-    /// crashed this session stays off until Retry or a pick in Settings.
+    /// Load the engine an article needs (one is loaded at a time).
     func loadEngineIfNeeded(_ id: SpeechEngineID) {
-        guard engines.isOnDevice(id), engines.supports(id), id != crashedEngineID else { return }
+        guard engines.contains(id), engines.supports(id) else { return }
         switch synth.state {
         case .warming(id, _, _), .ready(id): return
         default: Task { await loadEngine(id) }
@@ -119,11 +98,10 @@ extension LocalTTSCoordinator {
     }
 
     /// Wait until the engine the article with `key` speaks in is loaded; false when it can't be
-    /// (Apple, unsupported, crashed, failed).
+    /// (unsupported, failed).
     func awaitEngine(for key: UUID) async -> Bool {
         let engine = selection(for: key).engine
-        guard engines.isOnDevice(engine) else { return false }
-        guard engines.supports(engine), engine != crashedEngineID else { return false }
+        guard engines.contains(engine), engines.supports(engine) else { return false }
         await loadEngine(engine)
         return synth.state.readyEngineID == engine
     }
@@ -139,14 +117,15 @@ extension LocalTTSCoordinator {
     }
 
     /// What the screen calls a voice outside the Voice picker: "Default" while it is the built-in
-    /// default, else its voice library's short name ("Kokoro", "Apple"), as Settings › Voice says it;
+    /// default, else its voice library's short name ("Kokoro"), as Settings › Voice says it;
     /// never the voice's own name, which means nothing before you have heard it.
     func voiceSummary(of selection: VoiceSelection) -> String {
         selection == builtInDefaultSelection ? String(localized: "Default") : engines.shortName(selection.engine)
     }
 
-    /// The same for a cache voice key (prepared audio, audio from listening); an Apple voice's is "Apple".
+    /// The same for a cache voice key (prepared audio, audio from listening); one no registered
+    /// engine wrote is named as stored.
     func voiceSummary(ofCacheVoice voiceID: String) -> String {
-        voiceSummary(of: engines.selection(forCacheVoice: voiceID) ?? VoiceSelection(engine: .apple, voice: ""))
+        engines.selection(forCacheVoice: voiceID).map(voiceSummary(of:)) ?? voiceID
     }
 }

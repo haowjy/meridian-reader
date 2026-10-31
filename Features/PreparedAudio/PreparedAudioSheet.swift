@@ -250,15 +250,10 @@ struct PreparedAudioList: View {
         speech.localTTS.voiceSummary(ofCacheVoice: voice)
     }
 
+    /// This device can run none of the voice libraries (`wantsLocalBake`), so nothing renders.
     private var waitingNote: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(String(localized: "Prepared audio renders with an on-device voice. Choose one in Settings to go on."))
-            PillButton(Verbs.settings, systemImage: Icons.settings, style: .neutral, size: .compact) {
-                shell.showSettings()
-            }
-                .accessibilityIdentifier("downloadsSettings")
-        }
-        .padding(.top, Spacing.xxs)
+        Text(String(localized: "This device can’t run the voices, so nothing can be prepared."))
+            .padding(.top, Spacing.xxs)
     }
 
     // MARK: - A row
@@ -299,7 +294,7 @@ struct PreparedAudioList: View {
         case .fetching: return [String(localized: "Getting the article")]
         case .queued: return [voice].compactMap { $0 }
         case .paused: return [String(localized: "Paused"), voice].compactMap { $0 }
-        case .waitingForVoice: return [String(localized: "Needs a voice")]
+        case .waitingForVoice: return [String(localized: "Can’t prepare on this device")]
         case .done, .differentVoice:
             if item.failed { return [String(localized: "Couldn’t prepare")] }
             return [voice, sizes[item.key].map(FileSizes.label)].compactMap { $0 }

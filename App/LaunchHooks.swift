@@ -255,7 +255,7 @@ enum LaunchHooks {
     }
 
     /// `-chainDemoChapters`: plays the demo book from where Continue would (chapter 1 the first
-    /// time), after waiting (≤ 20 s) for the on-device engine so it doesn't start on Apple. Logged
+    /// time), after waiting (≤ 20 s) for the on-device engine so it starts at once. Logged
     /// as `debug_chain_demo_chapters`; each boundary then logs `chapter_boundary`.
     static func chainDemoChapters(library: LibraryStore, speech: SpeechController) async {
         guard let book = demoBooks(in: library).first, let start = await play(book, library: library, speech: speech) else {
@@ -269,7 +269,7 @@ enum LaunchHooks {
     }
 
     /// Plays `book` from where Continue would, unless something already plays, after waiting
-    /// (≤ 20 s) for the on-device engine so it doesn't start on Apple. Returns where it started.
+    /// (≤ 20 s) for the on-device engine so it starts at once. Returns where it started.
     private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) async -> (article: Article, spot: ListenSpot)? {
         guard speech.activeSessionID == nil, let start = library.continueStart(of: book) else { return nil }
         await speech.localTTS.waitForEngineLoad(timeout: .seconds(20))
