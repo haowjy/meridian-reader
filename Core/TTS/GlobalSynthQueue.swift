@@ -824,6 +824,7 @@ final class GlobalSynthQueue {
     private func candidates() -> [Unit] {
         placeStaged()
         guard let coordinator else { return [] }
+        resolveReadyWaiters()
         let playing = coordinator.playingCacheKey
         var waited: [UUID: Set<Int>] = [:]
         for key in chunkWaiters.keys { waited[key.cacheKey, default: []].insert(key.index) }
@@ -894,6 +895,18 @@ final class GlobalSynthQueue {
             }
         }
         return units
+    }
+
+    /// A paragraph can turn ready without this queue rendering it (a voice's audio restored, the
+    /// article's audio aligned with other text): its waiters get it here, before any job is judged
+    /// done. Otherwise a job could leave the queue with its waiters still suspended, and a first
+    /// Play, with no starve watch armed yet, would never start.
+    private func resolveReadyWaiters() {
+        var waited = Set(chunkWaiters.keys.map { ParagraphKey(cacheKey: $0.cacheKey, index: $0.index) })
+        if let expectedListener { waited.insert(expectedListener) }
+        for key in waited where paragraphResolution(cacheKey: key.cacheKey, index: key.index, chunk: 0) != nil {
+            resumeChunkWaitersWithParagraph(cacheKey: key.cacheKey, index: key.index)
+        }
     }
 
     private func resumeChunkWaiters(cacheKey: UUID, index: Int, chunk: Int, url: URL) {

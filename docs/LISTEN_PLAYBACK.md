@@ -915,7 +915,7 @@ Developer options on (`NAVIGATION.md` → "Developer options"):
   app phase, the engine and its host's routing), paragraphs ready ahead, what the last background stretch played, and recent log lines.
 - **Listen debug panel** (Settings › Developer › Listen Debug Panel, or long-press ▶︎): the same plus buffer / starve /
   handoff numbers, the audio-session state, each voice library's own sections
-  (`SpeechEngineProvider.debugSections`; Kokoro's route toggle and ONNX threads), and the last
+  (`SpeechEngineProvider.debugSections`; Kokoro's ONNX threads, live route, render speed and ONNX crash count), and the last
   lines of `ListenDebugLog`; Debug builds add the engine probe and Kokoro's CPU route benchmark.
 
 **Timing log.** `Application Support/ListenTiming/timing.jsonl` (rotates at 2 MB to

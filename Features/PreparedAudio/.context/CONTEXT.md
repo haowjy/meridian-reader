@@ -8,7 +8,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Prepared Audio"; how
   (`LocalTTSCoordinator.queuePrepare` → `startBakeIfNeeded`; `inFlight` holds them), and looks
   again at each render-queue change, a job's end included (`scheduleCheck(of:)`), at only the
   pages it names (a paragraph rendered names its page; nil, a voice change or a purge, means all):
-  with every page handed at once, a full look per paragraph grows with the backlog. Order behind the
+  with every page handed at once, a full look per paragraph grows with the backlog. The list itself
+  is walked for pages to hand over (`advance`) only on a list change, a page leaving the queue, or
+  an event naming no page (the app's phase, the engine's state, any audio). Order behind the
   playhead and the staged chapter, the thermal / Low Power hold and the background rule (calls
   only while audio plays) come from the queue's render policy. Don't add a loop that renders.
   `active` (the first page rendering, else the one fetching) is what the list shows as Now.

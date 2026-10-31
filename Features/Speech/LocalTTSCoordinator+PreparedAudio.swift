@@ -5,9 +5,6 @@ import Foundation
 /// it, held while the phone is hot or in Low Power Mode, in front and, while audio plays, in the
 /// background. Nothing here renders on its own.
 extension LocalTTSCoordinator: PrepareRendering {
-    /// The voice a new article's prepared audio renders in (the Settings default), as a cache voice key.
-    var prepareVoice: String? { cacheVoice(of: defaultSelection) }
-
     func queuePrepare(cacheKey: UUID, paragraphs: [String]) -> PrepareQueueing {
         guard wantsLocalBake else { return .notRendering }
         if let notice = cantReadNotice(of: cacheKey, paragraphs: paragraphs) { return .cantRead(notice) }

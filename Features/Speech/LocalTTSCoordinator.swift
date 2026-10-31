@@ -220,9 +220,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Local engine whose cache / chunk sizing applies right now (loaded or loading).
     var activeLocalEngineID: SpeechEngineID? { synth.state.activeEngineID }
 
-    /// `ArticleAudioCache` engine key for the active local engine.
-    var cacheEngineID: String { (activeLocalEngineID ?? engines.defaultEngine.id).rawValue }
-
     var synthRenderer: SynthChunkRendering { synth }
 
     var residentEngineID: String? { synth.residentEngineID?.rawValue }
@@ -254,9 +251,6 @@ final class LocalTTSCoordinator: SynthQueueContext {
     func cacheVoice(of id: SpeechEngineID) -> String? {
         engines.descriptor(id)?.cacheVoiceID(engineVoice: engineVoices[id])
     }
-
-    /// Cache voice key of the active local engine (loaded or loading): what bake marks count.
-    var activeCacheVoice: String? { activeLocalEngineID.flatMap(cacheVoice(of:)) }
 
     /// C138a: what renders for the article with `cacheKey`: its own selection, loaded or not (the
     /// render queue's worker loads it). Unlocked articles render in the default (which they then

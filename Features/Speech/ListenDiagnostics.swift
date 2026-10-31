@@ -59,11 +59,11 @@ final class ListenDiagnostics {
         let identityKey = articleID ?? queue.primaryCacheKey
         // The session's paragraphs; with no session, queue #1's paragraphs still to render.
         let total = paragraphs.isEmpty ? pending : paragraphs.count
-        // Rendered in the active engine's voice (the bake marks' count).
+        // Rendered in the article's own voice (`renderTarget(for:)`), whatever is loaded.
         let ready = identityKey.flatMap { key in
-            localTTS.activeCacheVoice.map {
-                localTTS.audioCache.readyIndices(articleID: key, paragraphCount: total, engineID: localTTS.cacheEngineID,
-                                                 voiceID: $0).count
+            localTTS.renderTarget(for: key).map {
+                localTTS.audioCache.readyIndices(articleID: key, paragraphCount: total, engineID: $0.engineID,
+                                                 voiceID: $0.cacheVoice).count
             }
         } ?? 0
 

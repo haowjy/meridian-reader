@@ -76,6 +76,9 @@ final class PrepareCenter {
     @ObservationIgnored private var checkScheduled = false
     /// The pages whose audio or job changed since the last check (`scheduleCheck`); nil: any may have.
     @ObservationIgnored private var changed: Set<UUID>? = []
+    /// An event since the last check named no page (the app's phase, the engine's state, any
+    /// audio): the check walks the list for the next pages to hand over (`advance`).
+    @ObservationIgnored private var walkList = false
     /// Times a page's job went back into the queue after leaving it unfinished.
     @ObservationIgnored private var requeued: [UUID: Int] = [:]
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
@@ -656,14 +659,17 @@ final class PrepareCenter {
     /// Looks at the pages handed to the render queue whose audio or job changed (`changed`): each
     /// is done once every paragraph with words has audio in the prepare voice. A job that left
     /// the queue unfinished (paragraphs the voice failed on, or a job something else dropped)
-    /// goes back once, then the page is marked failed. Then the next pages are handed over.
-    private func checkActive(_ changed: Set<UUID>?) {
+    /// goes back once, then the page is marked failed. The list is walked for the next pages
+    /// (`advance`) only when one left the queue or `walkList`: a paragraph rendered looks at its
+    /// own page alone, so its cost doesn't grow with the list's history.
+    private func checkActive(_ changed: Set<UUID>?, walkList: Bool) {
         guard rendering.wantsLocalBake else { return stop { _ in true } }
         let looked = { (key: UUID) in changed?.contains(key) ?? true }
         if let first = active, case .rendering(let paragraphs) = first.phase, looked(first.key) {
             sampleRate(key: first.key, paragraphs: paragraphs,
                        missing: rendering.missingPrepareParagraphs(cacheKey: first.key, paragraphs: paragraphs))
         }
+        let handed = inFlight.count
         for page in inFlight where looked(page.key) {
             guard case .rendering(let paragraphs) = page.phase else { continue }
             let missing = rendering.missingPrepareParagraphs(cacheKey: page.key, paragraphs: paragraphs)
@@ -680,7 +686,7 @@ final class PrepareCenter {
                 : String(localized: "\(missing) paragraphs couldn’t be prepared")
             finish(page.recordID, page.key, .failed, message)
         }
-        advance()
+        if walkList || inFlight.count < handed { advance() }
     }
 
     /// The render queue or the app's phase may have moved: look at the pages `keys` names (nil:
@@ -689,14 +695,16 @@ final class PrepareCenter {
     func scheduleCheck(of keys: Set<UUID>?) {
         guard isStarted else { return }
         if let keys { changed?.formUnion(keys) } else { changed = nil }
+        if keys?.isEmpty != false { walkList = true }
         guard !checkScheduled else { return }
         checkScheduled = true
         Task { @MainActor [weak self] in
             guard let self else { return }
             checkScheduled = false
-            let keys = changed
+            let (keys, walk) = (changed, walkList)
             changed = []
-            checkActive(keys)
+            walkList = false
+            checkActive(keys, walkList: walk)
         }
     }
 }
@@ -704,8 +712,6 @@ final class PrepareCenter {
 /// What prepared audio ask of the render queue (`LocalTTSCoordinator+Prepared audio` answers).
 @MainActor
 protocol PrepareRendering {
-    /// The voice downloads render in, as a cache voice key.
-    var prepareVoice: String? { get }
     /// This device can run a voice library, so prepared audio renders.
     var wantsLocalBake: Bool { get }
     /// The voice most of `key`'s audio is in.
