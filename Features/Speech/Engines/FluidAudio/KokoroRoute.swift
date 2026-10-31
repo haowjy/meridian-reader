@@ -8,7 +8,7 @@ struct KokoroRouteSettings {
     /// The ONNX route's tag in crash markers (`KokoroCPUHost.routeTag`). A Kokoro marker with
     /// another tag ("coreml") or none was written by an older build's Core ML route.
     static let onnxRouteTag = "onnx"
-    /// ONNX intra-op threads in front by default: every core but one (the UI, audio and the render
+    /// The most ONNX intra-op threads a call may use (the route's cap) by default: every core but one (the UI, audio and the render
     /// queue's own work keep that one), at least 3, at most 6. 5 on an iPhone 17 Pro (2
     /// performance + 4 efficiency cores). ORT splits a matrix multiply into one piece per thread,
     /// so the piece on an efficiency core finishes last and the rest wait for it: at 3 threads the
@@ -22,16 +22,6 @@ struct KokoroRouteSettings {
     static func foregroundThreads(cores: Int) -> Int {
         min(max(cores - 1, minimumForegroundThreads), threadRange.upperBound)
     }
-    /// ONNX intra-op threads while the app is in the background, whatever `cpuThreads` says: iOS
-    /// kills a backgrounded app that keeps several cores busy (it died about a minute after the
-    /// phone locked, rendering at 3 threads).
-    static let backgroundThreads = 1
-
-    /// Threads for a model call in `phase`: `configured` while the app is in front (inactive
-    /// included), `backgroundThreads` in the background.
-    static func onnxThreads(configured: Int, phase: AppRunState.Phase) -> Int {
-        phase == .background ? backgroundThreads : configured
-    }
 
     let defaults: UserDefaults
 
@@ -39,7 +29,8 @@ struct KokoroRouteSettings {
         self.defaults = defaults
     }
 
-    /// ONNX threads (debug override; 0/unset = default).
+    /// The route's thread cap (debug override, crash step-down; 0/unset = default). The render
+    /// policy gives a call fewer in the background (`SingleCallPolicy.backgroundThreads`).
     var cpuThreads: Int {
         get {
             let v = defaults.integer(forKey: Self.cpuThreadsKey)

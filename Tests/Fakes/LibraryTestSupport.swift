@@ -23,7 +23,8 @@ final class LibraryTestEnvironment {
             audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
             crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")),
             pendingBakes: PendingBakeJobStore(storeURL: dir.appending(path: "PendingBakeJobs.json"), defaults: defaults),
-            resumePoints: ListenResumePointStore(url: dir.appending(path: "listen_resume.json")))
+            resumePoints: ListenResumePointStore(url: dir.appending(path: "listen_resume.json")),
+            renderPolicy: SingleCallPolicy())
         let legacy = LegacyLibrarySources(bookmarksURL: dir.appending(path: "bookmarks.json"), defaults: defaults)
         library = LibraryStore(context: container.mainContext, audio: tts, legacy: legacy, now: { [unowned self] in now })
     }

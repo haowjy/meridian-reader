@@ -184,7 +184,7 @@ final class CPURouteBench {
     /// 190 and 501 renders. Holds `SynthRenderGate` throughout so no Core ML call overlaps.
     private nonisolated static func measure(_ config: Config, inputs: Inputs, modelURL: URL) async throws
         -> (fields: [String: Any], row: Row, longSamples: [Float]) {
-        await SynthRenderGate.shared.acquire()
+        await SynthRenderGate.of(.cpu).acquire()
         let sampler = FootprintSampler()
         sampler.start()
         let thermalStart = CPURouteMetrics.thermal
@@ -198,7 +198,7 @@ final class CPURouteBench {
             let warm190 = try await timed(session, inputs.short, qos: config.qos)
             let warm501 = try await timed(session, inputs.long, qos: config.qos)
             let mem = sampler.stop()
-            await SynthRenderGate.shared.release()
+            await SynthRenderGate.of(.cpu).release()
             let fp = ProcessMemory.footprint()
             func r2(_ v: Double) -> Double { (v * 100).rounded() / 100 }
             func r3(_ v: Double) -> Double { (v * 1000).rounded() / 1000 }
@@ -225,7 +225,7 @@ final class CPURouteBench {
             return (fields, row, warm501.samples)
         } catch {
             _ = sampler.stop()
-            await SynthRenderGate.shared.release()
+            await SynthRenderGate.of(.cpu).release()
             throw error
         }
     }
@@ -385,15 +385,15 @@ final class CPURouteBench {
             while !Task.isCancelled, ListenTimingLog.now() < deadline {
                 let inp = chunks % 2 == 0 ? inputs.long : inputs.short
                 let gateStart = ListenTimingLog.now()
-                await SynthRenderGate.shared.acquire()
+                await SynthRenderGate.of(.cpu).acquire()
                 let gateMs = ListenTimingLog.ms(since: gateStart)
                 let phaseBefore = AppRunState.shared.phase.rawValue
                 let r: Timed
                 do {
                     r = try await Self.timed(session, inp, qos: .userInitiated)
-                    await SynthRenderGate.shared.release()
+                    await SynthRenderGate.of(.cpu).release()
                 } catch {
-                    await SynthRenderGate.shared.release()
+                    await SynthRenderGate.of(.cpu).release()
                     throw error
                 }
                 let phase = AppRunState.shared.phase.rawValue

@@ -24,8 +24,11 @@ enum AppComposition {
                             crashGuard: .shared,
                             pendingBakes: PendingBakeJobStore(storeURL: AppDirectories.pendingBakeJobs, defaults: .standard),
                             resumePoints: ListenResumePointStore(url: AppDirectories.listenResumePoint),
-                            selecting: engine)
+                            renderPolicy: makeRenderPolicy(), selecting: engine)
     }
+
+    /// What the render queue renders next. A new policy is one type and this line.
+    static func makeRenderPolicy() -> RenderPolicy { SingleCallPolicy() }
 
     /// What you see. It asks the playback session what you hear, so the Reader of the playing
     /// page opens as Now Playing, and reopens on the surface you left (decision D10).

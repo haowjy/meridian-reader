@@ -3,22 +3,22 @@
 What the user sees is in `../../../docs/NAVIGATION.md` → "Prepared Audio"; how it renders is
 `../../../docs/LISTEN_PLAYBACK.md` → "Render queue" (Prepared Audio). Decision D16.
 
-- **No render path of its own.** `PrepareCenter` hands one page at a time to the render queue as
-  an ordinary bake job (`LocalTTSCoordinator.queuePrepare` → `startBakeIfNeeded`) and looks
-  again at each render-queue change, its job's end included (`scheduleCheck`). Priority behind
-  the playhead, the thermal / Low Power hold and the background rules (`RenderAdmission`: bursts
-  for the playing article, a prepare's turn while it is safely ahead, C94) come from the queue.
-  Don't add a loop that renders, and don't let a prepare job count as playing
-  (`playingCacheKeys`): it renders in the background only on its turn (`markPrepare`).
+- **No render path of its own.** `PrepareCenter` hands every waiting page whose text is in the
+  library to the render queue at once, in the list's order, each as an ordinary bake job
+  (`LocalTTSCoordinator.queuePrepare` → `startBakeIfNeeded`; `inFlight` holds them), and looks
+  again at each render-queue change, a job's end included (`scheduleCheck`). Order behind the
+  playhead and the staged chapter, the thermal / Low Power hold and the background rule (calls
+  only while audio plays) come from the queue's render policy. Don't add a loop that renders.
+  `active` (the first page rendering, else the one fetching) is what the list shows as Now.
 - **It asks the speech stack only through `PrepareRendering`** (the coordinator conforms in
   `LocalTTSCoordinator+PreparedAudio`); nothing hands it the render queue or the audio cache. It
   assigns nothing on its collaborators: `AppComposition.makePreparedAudio` wires the coordinator's
   `onRenderStateChange` to `scheduleCheck`, the library's `editStored` to `followLibrary`, and
   `needsAudio` from the session and the staged chapter. Both events do nothing until `start()`,
   which runs after the launch's library maintenance.
-- **In the background, only while audio plays on the CPU route** (`mayHandOver`,
-  `rendersPreparedAudioInBackground`, C94). A link article's fetch needs a window (`URLPageFetcher`) and
-  waits for the foreground. Otherwise prepared audio resume on the next phase change.
+- **Link pages are fetched one at a time, in front only.** A fetch needs a window
+  (`URLPageFetcher`), so `advance` starts none in the background; the next phase change to front
+  does. Pages already fetched are handed over in the background too, and render while audio plays.
 - **The list records intent and outcome, the cache answers voice and readiness.** A record's
   entries say queued / done / speaksLive / failed; which voice an article is in is read from its audio
   (`ArticleAudioCache.renderedVoice`), so a voice change shows without touching the list.
@@ -28,7 +28,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Prepared Audio"; how
   the observer.
 - **Prepared Audio never take away what listening needs** (`PrepareCenter.needsAudio`: the article bound
   to the session, in any phase, and the chapter staged after it). `purgeAudio` is the one way
-  an article's *Remove Prepared Audio* and a folder's *Remove Prepared Audio* (in their menus and the Prepared Audio list) delete audio, and it skips those keys; `stopActive` leaves
+  an article's *Remove Prepared Audio* and a folder's *Remove Prepared Audio* (in their menus and the Prepared Audio list) delete audio, and it skips those keys; `stop(where:)` leaves
   their job in the queue (`removeBakeJob` takes any other out: removing a job fails its chunk
   waiters). *Remove Prepared Audio* on the playing article still takes it out of every prepare; its
   audio stays for the session, saved or ephemeral as the library keeps the article.

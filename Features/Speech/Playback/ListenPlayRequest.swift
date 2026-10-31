@@ -27,7 +27,6 @@ struct ListenEngineDebug {
     var starveEventCount = 0
     /// How audio is produced right now (route, app phase).
     var renderMode = ""
-    /// Paragraphs after the playhead already rendered in the current voice (a count, for the
-    /// debug panel; the listening time ready ahead is `LocalListenPlayer.readyAheadSeconds`).
+    /// Paragraphs after the playhead already rendered in the current voice (debug panel).
     var renderedParagraphsAhead = 0
 }

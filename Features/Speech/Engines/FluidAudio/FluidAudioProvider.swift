@@ -96,13 +96,19 @@ final class FluidAudioProvider: SpeechEngineProvider {
 
     // MARK: - Route knobs (Listen debug panel)
 
-    /// Sets the ONNX threads in front; true when that changed them, and the live Kokoro host must
-    /// be rebuilt (`LocalTTSCoordinator.reloadEngine`).
+    /// Sets the most ONNX threads a call may use; true when that changed them, and the live Kokoro
+    /// host must be rebuilt (`LocalTTSCoordinator.reloadEngine`).
     func setCPUThreads(_ threads: Int) -> Bool {
         guard routeSettings.cpuThreads != threads else { return false }
         routeSettings.cpuThreads = threads
         ListenTimingLog.log("kokoro_threads_change", ["threads": routeSettings.cpuThreads])
         return true
+    }
+
+    /// ONNX Runtime on the CPU, up to the configured thread count (`KokoroRouteSettings.cpuThreads`,
+    /// which crash recovery steps down); the render policy hands each call its count.
+    var routes: [RenderRoute] {
+        [RenderRoute(id: "kokoro.onnx", engine: .kokoro, lane: .cpu, threads: .honored(cap: routeSettings.cpuThreads))]
     }
 
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {

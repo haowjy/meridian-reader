@@ -3,9 +3,10 @@ import Foundation
 
 /// The on-device engine's file player and producer. Each play binds one `ListenUnitSource`; the
 /// producer fills `ChunkPlaybackQueue` from it in reading order: rendered paragraphs, then chunks
-/// as they are rendered. Where the engine can't give the next audio (it stopped, failed, or may
-/// not run in the background), the player plays what is queued and stops there (`onStalled`),
-/// never skipping text and never in another voice. It reports unit starts, stalls and the
+/// as they are rendered. Where the engine can't give the next audio (it stopped or failed), the
+/// player plays what is queued and stops there (`onStalled`); in the background, where nothing on
+/// screen can say "Preparing next…", it pauses where the audio runs out before the next chunk is
+/// rendered (`ListenStall.cantKeepUp`). Never skipping text and never in another voice. It reports unit starts, stalls and the
 /// article's end; `LocalListenEngine` turns those into session events. The model and the render queue live behind the source. See docs/LISTEN_PLAYBACK.md.
 @MainActor
 final class LocalListenPlayer {
@@ -26,6 +27,9 @@ final class LocalListenPlayer {
     private var producerTask: Task<Void, Never>?
     /// Generation for starved-watchdog tasks; bumped whenever we leave play/resume paths.
     private var starveWatchGeneration = 0
+    /// A unit has played since the last play or resume: running dry now is a gap in what was
+    /// audible, not the wait for the first audio.
+    private var playedSinceResume = false
 
     /// What the listener wants of the player, independent of the produce epoch: audio moving
     /// (`playing`: sounding, or waiting for its next unit), held (`paused`), or nothing.
@@ -70,7 +74,7 @@ final class LocalListenPlayer {
     var playingArticleID: UUID? { state == .playing ? source?.articleID : nil }
 
     /// `player` is injectable so tests can end units without waiting for real audio; `runState` is
-    /// the render queue's (units played in the background are counted for the debug panel).
+    /// the render queue's (the background's gap pause, and its units counted for the debug panel).
     init(player injected: ChunkPlaybackQueue? = nil, runState: AppRunState = .shared) {
         self.player = injected ?? ChunkPlaybackQueue(maxBuffered: 8)
         self.runState = runState
@@ -80,6 +84,7 @@ final class LocalListenPlayer {
             self.noteUnitStartedForTiming(item)
             self.noteUnitKind(item)
             self.state = .playing
+            self.playedSinceResume = true
             self.onUnitStarted?(item.paragraphIndex)
             // Start / keep producing the next units as soon as one begins playing.
             self.ensureProducerRunning()
@@ -112,33 +117,6 @@ final class LocalListenPlayer {
     /// The next paragraph the producer will enqueue.
     var nextParagraphToProduce: Int { nextProduceIndex }
 
-    /// Listening time the player can play from here without another render, in seconds at the
-    /// listen speed: the rest of the unit playing, the units queued, then the paragraphs after them
-    /// already rendered, up to the first that isn't (one with nothing speakable is no gap). Counts
-    /// up to `limit`; 0 when stopped. The render queue's background bursts start and stop on it.
-    func readyAheadSeconds(upTo limit: TimeInterval) -> TimeInterval {
-        guard let source else { return 0 }
-        let rate = Double(max(player.playbackRate, 0.1))
-        var audio = player.bufferedSecondsAhead
-        var index = nextProduceIndex
-        if nextProduceChunk > 0 {
-            // Mid-paragraph: the rest of it counts once it is stitched (chunk durations known).
-            guard let durations = source.renderedParagraph(index)?.chunkDurations,
-                  durations.count > nextProduceChunk else { return audio / rate }
-            audio += durations[nextProduceChunk...].reduce(0, +)
-            index += 1
-        }
-        while index < source.paragraphs.count, audio / rate < limit {
-            if let rendered = source.renderedParagraph(index) {
-                audio += rendered.duration
-            } else if !source.chunks(paragraph: index).isEmpty {
-                break
-            }
-            index += 1
-        }
-        return audio / rate
-    }
-
     // MARK: - Listen debug
     var debugEpoch: Int { epoch }
     var debugCurrentCAF: String { player.currentFileName ?? "—" }
@@ -165,6 +143,7 @@ final class LocalListenPlayer {
         player.awaitingMore = true
         speakRequestedAt = ListenTimingLog.now()
         starvedAt = nil
+        playedSinceResume = false
         ListenDebugLog.shared.append("speak start=\(start) c\(chunk) +\(Int(fractionInChunk * 100))% count=\(paragraphs.count) epoch=\(e)")
         ensureProducerRunning(epoch: e)
     }
@@ -180,6 +159,7 @@ final class LocalListenPlayer {
 
     func resume() {
         state = .playing
+        playedSinceResume = false
         player.resume()
         // Same epoch — do not cancel in-flight produce or skip units.
         player.awaitingMore = nextProduceIndex < paragraphs.count
@@ -239,6 +219,14 @@ final class LocalListenPlayer {
         if let stall = heldStall {
             heldStall = nil
             onStalled?(stall)
+            return
+        }
+        // In the background the audio ran out before the next chunk was rendered: pause at the
+        // gap. Its request stays pending, and ▶ plays on from it in the same voice.
+        if runState.phase == .background, state == .playing, playedSinceResume {
+            ListenTimingLog.log("playback_held", ["p": nextProduceIndex, "c": nextProduceChunk, "reason": "cant_keep_up",
+                                                  "buffered": 0])
+            onStalled?(.cantKeepUp)
             return
         }
         if starvedAt == nil, state == .playing { starvedAt = ListenTimingLog.now() }
@@ -362,9 +350,7 @@ final class LocalListenPlayer {
                 } catch {
                     guard e == epoch else { return }
                     ListenDebugLog.shared.append("p\(index) c\(k) \(source.engineName) gave no audio: \(error.localizedDescription)")
-                    var stall = ListenStall.engineStopped
-                    if case LocalSynthError.deferredInBackground = error { stall = .background }
-                    hold(stall, paragraph: index, chunk: k)
+                    hold(.engineStopped, paragraph: index, chunk: k)
                     return
                 }
                 continue

@@ -4,17 +4,16 @@ import Observation
 /// Prepared audio (decision D16): a page, a folder, a book or a followed story made ready to play
 /// offline, its text fetched (a link page gets its text in place, through Follow's one fetch
 /// queue: `FollowCenter.fill`) and its whole audio rendered ahead in the prepare voice. The list
-/// is kept on the device (`PrepareListStore`) and worked through in order, one page at a time. A
+/// is kept on the device (`PrepareListStore`) and worked through in order: every queued page with
+/// its text goes to the render queue at once, and link pages are fetched one at a time. A
 /// folder's prepare is its Prepare toggle: on, the pages added to the folder later join it
 /// (`takeInNewArticles`); off, nothing new joins and what is prepared stays.
 ///
 /// It renders nothing itself: each page's audio is an ordinary bake job in the one render queue
-/// (`PrepareRendering.queuePrepare`), so the article playing and the chapter staged after it
-/// always go first, bake-ahead holds on a hot phone and in Low Power Mode apply, and in the
-/// background the playing article renders first, in bursts (`RenderAdmission`); while it is
-/// safely ahead and audio plays on the CPU route, a prepare's job takes the same one-thread
-/// worker, and the next page is handed over then too (C94; a link page's fetch waits for the
-/// foreground). Paused or stopped in the background, nothing goes on (iOS suspends the app).
+/// (`PrepareRendering.queuePrepare`), rendered in the order handed, so the article playing and the
+/// chapter staged after it always go first, and bake-ahead holds on a hot phone and in Low Power
+/// Mode apply. In the background the queue goes on while audio plays; a link page's fetch waits
+/// for the foreground. Paused or stopped in the background, nothing goes on (iOS suspends the app).
 ///
 /// The voice each prepare's audio is in comes from the audio cache, not from here, so a voice
 /// change shows at once (`PrepareOverview`'s *Different voice*), and *Prepare Again* or *Keep*
@@ -22,7 +21,7 @@ import Observation
 @MainActor
 @Observable
 final class PrepareCenter {
-    /// The page being fetched or rendered now.
+    /// A page being fetched, or handed to the render queue.
     struct Active: Equatable {
         enum Phase: Equatable {
             case fetching
@@ -52,7 +51,13 @@ final class PrepareCenter {
     private(set) var records: [PrepareRecord] {
         didSet { store.save(records) }
     }
-    private(set) var active: Active?
+    /// The pages handed to the render queue, in the order they render, and the link page being
+    /// fetched.
+    private(set) var inFlight: [Active] = []
+    /// The page the list shows rendering (the first handed), else the one being fetched.
+    private var active: Active? {
+        inFlight.first { if case .rendering = $0.phase { true } else { false } } ?? inFlight.first
+    }
 
     @ObservationIgnored let library: LibraryStore
     @ObservationIgnored private let rendering: any PrepareRendering
@@ -66,7 +71,8 @@ final class PrepareCenter {
     /// does takes either away.
     @ObservationIgnored private let needsAudio: (UUID) -> Bool
     @ObservationIgnored private var isStarted = false
-    @ObservationIgnored private var runner: Task<Void, Never>?
+    /// The link page's fetch in flight: one at a time.
+    @ObservationIgnored private var fetch: Task<Void, Never>?
     @ObservationIgnored private var checkScheduled = false
     /// Times a page's job went back into the queue after leaving it unfinished.
     @ObservationIgnored private var requeued: [UUID: Int] = [:]
@@ -133,7 +139,7 @@ final class PrepareCenter {
         records.first { $0.target == target }
     }
 
-    /// `id`'s prepare has the page being fetched or rendered now.
+    /// `id`'s prepare has the page the list shows being fetched or rendered now.
     func isActive(_ id: UUID) -> Bool { active?.recordID == id }
 
     /// The prepare covering `target` is still to finish.
@@ -308,7 +314,7 @@ final class PrepareCenter {
     /// prepared stays, and the Prepared Audio list keeps it.
     func turnOff(_ folder: Folder) {
         guard let record = record(for: .folder(folder.id)), record.followsFolder else { return }
-        if active?.recordID == record.id { stopActive() }
+        stop { $0.recordID == record.id }
         updateRecords { records in
             guard let index = records.firstIndex(where: { $0.id == record.id }) else { return }
             records[index].followsFolder = false
@@ -378,7 +384,7 @@ final class PrepareCenter {
     func followLibrary() {
         guard isStarted else { return }
         let gone = Set(records.filter { !isInLibrary($0.target) }.map(\.id))
-        if let active, gone.contains(active.recordID) || !isInLibrary(.article(active.key)) { stopActive() }
+        stop { gone.contains($0.recordID) || !isInLibrary(.article($0.key)) }
         updateRecords { records in records.removeAll { gone.contains($0.id) } }
         takeInNewArticles()
         advance()
@@ -406,7 +412,7 @@ final class PrepareCenter {
     func setPaused(_ id: UUID, _ paused: Bool) {
         guard records.contains(where: { $0.id == id && $0.isPaused != paused }) else { return }
         withRecord(id) { $0.isPaused = paused }
-        if paused, active?.recordID == id { stopActive() }
+        if paused { stop { $0.recordID == id } }
         advance()
     }
 
@@ -415,7 +421,7 @@ final class PrepareCenter {
         updateRecords { records in
             for index in records.indices where records[index].hasQueuedArticles { records[index].isPaused = paused }
         }
-        if paused, active != nil { stopActive() }
+        if paused { stop { _ in true } }
         advance()
     }
 
@@ -431,7 +437,7 @@ final class PrepareCenter {
         case .folder(let folderID):
             if let folder = library.folder(id: folderID) { return deletePreparedAudio(of: folder) }
         }
-        if active?.recordID == id { stopActive() }
+        stop { $0.recordID == id }
         let record = records.remove(at: index)
         let kept = Set(records.flatMap { $0.entries.map(\.key) })
         purgeAudio(record.entries.map(\.key).filter { !kept.contains($0) })
@@ -443,7 +449,7 @@ final class PrepareCenter {
     func reprepare(_ id: UUID) {
         guard let record = records.first(where: { $0.id == id }),
               let (title, keys) = articles(of: record.target), !keys.isEmpty else { return }
-        if active?.recordID == id { stopActive() }
+        stop { $0.recordID == id }
         withRecord(id) {
             $0.title = title
             $0.requeue(keys)
@@ -482,7 +488,7 @@ final class PrepareCenter {
     /// *Remove Prepared audio* on a folder: its prepare goes (its toggle off), its pages leave every
     /// other prepare (`forget`), and their audio goes (unless listening needs it, `purgeAudio`).
     func deletePreparedAudio(of folder: Folder) {
-        if let record = record(for: .folder(folder.id)), active?.recordID == record.id { stopActive() }
+        if let record = record(for: .folder(folder.id)) { stop { $0.recordID == record.id } }
         records.removeAll { $0.target == .folder(folder.id) }
         let keys = library.articles(in: folder).map(\.listenKey)
         forget(keys)
@@ -501,7 +507,7 @@ final class PrepareCenter {
     /// stay). Playback of a deleted article stops (`LibraryStore.deleteWithoutSaving`).
     func deleteAll() throws {
         let keys = heldArticleKeys
-        if active != nil { stopActive() }
+        stop { _ in true }
         requeued = [:]
         records = []
         try library.deleteAll(keys.compactMap(library.article(key:)))
@@ -514,7 +520,7 @@ final class PrepareCenter {
     /// renders a page whose prepared audio were deleted.
     private func forget(_ keys: [UUID]) {
         let keys = Set(keys)
-        if let active, keys.contains(active.key) { stopActive() }
+        stop { keys.contains($0.key) }
         for key in keys { requeued[key] = nil }
         updateRecords { records in
             for index in records.indices { records[index].entries.removeAll { keys.contains($0.key) } }
@@ -556,72 +562,72 @@ final class PrepareCenter {
 
     // MARK: - Working through the list
 
-    /// The page whose turn it is: the first queued page of the first prepare not paused.
-    private func nextQueued() -> (recordID: UUID, key: UUID)? {
-        for record in records where !record.isPaused {
-            if let entry = record.entries.first(where: { $0.state == .queued }) { return (record.id, entry.key) }
+    /// The queued pages of the prepares not paused, in list order, that aren't in flight (a page
+    /// two prepares hold is handed once).
+    private func waitingPages() -> [(recordID: UUID, key: UUID)] {
+        let inFlightKeys = Set(inFlight.map(\.key))
+        return records.filter { !$0.isPaused }.flatMap { record in
+            record.entries.filter { $0.state == .queued && !inFlightKeys.contains($0.key) }.map { (record.id, $0.key) }
         }
-        return nil
     }
 
-    /// The next page may be handed to the render queue: in front, or in the background while
-    /// audio plays on a route that renders there (C94; the render queue still puts the playing
-    /// article first and yields to it).
-    private var mayHandOver: Bool { runState.phase != .background || rendering.rendersPreparedAudioInBackground }
-
+    /// Hands every waiting page with its text to the render queue, then fetches the first link
+    /// page (in front only: a fetch needs a window), which is handed once its text is in.
     private func advance() {
-        guard isStarted, runner == nil, active == nil, mayHandOver else { return }
-        runner = Task { [weak self] in
-            await self?.runQueue()
-            self?.runner = nil
-        }
-    }
-
-    /// Hands pages to the render queue until one is rendering (its `bakeCompleted` brings the
-    /// next), the list is done, or no voice renders prepared audio.
-    private func runQueue() async {
-        while mayHandOver, rendering.wantsLocalBake, active == nil, let next = nextQueued() {
-            let (recordID, key) = (next.recordID, next.key)
+        guard isStarted, rendering.wantsLocalBake else { return }
+        var link: (recordID: UUID, key: UUID, article: Article)?
+        for (recordID, key) in waitingPages() where !inFlight.contains(where: { $0.key == key }) {
             guard let article = library.article(key: key), article.isInLibrary else {
                 finish(recordID, key, .failed, String(localized: "It’s no longer in the Library"))
                 continue
             }
-            // A fetch needs a window: a link page waits for the foreground.
-            if article.isLink, runState.phase == .background { return }
             if article.isLink {
-                active = Active(recordID: recordID, key: key, phase: .fetching)
-                let failure = await fill(article)
-                // Paused, removed or its prepared audio deleted while it loaded: it isn't rendered.
-                guard active == Active(recordID: recordID, key: key, phase: .fetching) else { continue }
-                active = nil
-                if let failure {
-                    finish(recordID, key, .failed, failure)
-                    continue
-                }
-            }
-            guard let article = library.article(key: key), article.isInLibrary, article.hasText else {
-                finish(recordID, key, .failed, String(localized: "Couldn’t get its text"))
+                if link == nil { link = (recordID, key, article) }
                 continue
             }
-            let paragraphs = article.listenDocument().paragraphs
-            guard !paragraphs.isEmpty else {
-                finish(recordID, key, .failed, String(localized: "Nothing to listen to"))
-                continue
-            }
-            switch rendering.queuePrepare(cacheKey: key, paragraphs: paragraphs) {
-            case .ready:
-                finish(recordID, key, .done)
-            case .cantRead(let notice):
-                finish(recordID, key, .failed, notice)
-            case .held:
-                finish(recordID, key, .failed, String(localized: "Couldn’t prepare it now"))
-            case .notRendering:
-                return
-            case .rendering:
-                active = Active(recordID: recordID, key: key, phase: .rendering(paragraphs))
-                ListenTimingLog.log("download_page", ["key": ListenTimingLog.shortKey(key), "paragraphs": paragraphs.count])
-            }
+            guard handOver(recordID, key) else { return }
         }
+        guard let link, fetch == nil, runState.phase != .background else { return }
+        let fetching = Active(recordID: link.recordID, key: link.key, phase: .fetching)
+        inFlight.append(fetching)
+        fetch = Task { [weak self] in
+            guard let self else { return }
+            let failure = await fill(link.article)
+            fetch = nil
+            // Paused, removed or its prepared audio deleted while it loaded: it isn't rendered.
+            if let index = inFlight.firstIndex(of: fetching) {
+                inFlight.remove(at: index)
+                if let failure { finish(link.recordID, link.key, .failed, failure) } else { _ = handOver(link.recordID, link.key) }
+            }
+            advance()
+        }
+    }
+
+    /// Queues the page's render; false when no voice renders prepared audio here.
+    private func handOver(_ recordID: UUID, _ key: UUID) -> Bool {
+        guard let article = library.article(key: key), article.isInLibrary, article.hasText else {
+            finish(recordID, key, .failed, String(localized: "Couldn’t get its text"))
+            return true
+        }
+        let paragraphs = article.listenDocument().paragraphs
+        guard !paragraphs.isEmpty else {
+            finish(recordID, key, .failed, String(localized: "Nothing to listen to"))
+            return true
+        }
+        switch rendering.queuePrepare(cacheKey: key, paragraphs: paragraphs) {
+        case .ready:
+            finish(recordID, key, .done)
+        case .cantRead(let notice):
+            finish(recordID, key, .failed, notice)
+        case .held:
+            finish(recordID, key, .failed, String(localized: "Couldn’t prepare it now"))
+        case .notRendering:
+            return false
+        case .rendering:
+            inFlight.append(Active(recordID: recordID, key: key, phase: .rendering(paragraphs)))
+            ListenTimingLog.log("download_page", ["key": ListenTimingLog.shortKey(key), "paragraphs": paragraphs.count])
+        }
+        return true
     }
 
     private func finish(_ recordID: UUID, _ key: UUID, _ state: PrepareRecord.ArticleState, _ failure: String? = nil) {
@@ -633,39 +639,44 @@ final class PrepareCenter {
         }
         guard finished == true else { return }
         requeued[key] = nil
-        if active?.recordID == recordID, active?.key == key { active = nil }
+        inFlight.removeAll { $0.recordID == recordID && $0.key == key }
     }
 
-    /// The page rendering now stops (paused, removed): its job leaves the queue, unless listening
-    /// needs it (`needsAudio`). It stays queued in its prepare.
-    private func stopActive() {
-        if let active, case .rendering = active.phase, !needsAudio(active.key) { rendering.removeBakeJob(cacheKey: active.key) }
-        active = nil
+    /// The pages in flight that `matching` picks stop (paused, removed): a handed page's job leaves
+    /// the queue, unless listening needs it (`needsAudio`). They stay queued in their prepare.
+    private func stop(where matching: (Active) -> Bool) {
+        for page in inFlight where matching(page) {
+            if case .rendering = page.phase, !needsAudio(page.key) { rendering.removeBakeJob(cacheKey: page.key) }
+        }
+        inFlight.removeAll(where: matching)
     }
 
-    /// Looks at the page rendering now: done once every paragraph with words has audio in the
-    /// prepare voice. A job that left the queue unfinished (paragraphs the voice failed on, or a
-    /// job something else dropped) goes back once, then the page is marked failed.
+    /// Looks at the pages handed to the render queue: each is done once every paragraph with
+    /// words has audio in the prepare voice. A job that left the queue unfinished (paragraphs the
+    /// voice failed on, or a job something else dropped) goes back once, then the page is marked
+    /// failed. Then the next pages are handed over.
     private func checkActive() {
-        guard let active, case .rendering(let paragraphs) = active.phase else { return advance() }
-        guard rendering.wantsLocalBake else {
-            stopActive()
-            return
+        guard rendering.wantsLocalBake else { return stop { _ in true } }
+        if let first = active, case .rendering(let paragraphs) = first.phase {
+            sampleRate(key: first.key, paragraphs: paragraphs,
+                       missing: rendering.missingPrepareParagraphs(cacheKey: first.key, paragraphs: paragraphs))
         }
-        let missing = rendering.missingPrepareParagraphs(cacheKey: active.key, paragraphs: paragraphs)
-        sampleRate(key: active.key, paragraphs: paragraphs, missing: missing)
-        if missing == 0 {
-            finish(active.recordID, active.key, .done)
-            return advance()
+        for page in inFlight {
+            guard case .rendering(let paragraphs) = page.phase else { continue }
+            let missing = rendering.missingPrepareParagraphs(cacheKey: page.key, paragraphs: paragraphs)
+            if missing == 0 {
+                finish(page.recordID, page.key, .done)
+                continue
+            }
+            guard rendering.bakeJobEnded(cacheKey: page.key) else { continue }
+            if requeued[page.key, default: 0] < 1 {
+                requeued[page.key, default: 0] += 1
+                if rendering.queuePrepare(cacheKey: page.key, paragraphs: paragraphs) == .rendering { continue }
+            }
+            let message = missing == 1 ? String(localized: "1 paragraph couldn’t be prepared")
+                : String(localized: "\(missing) paragraphs couldn’t be prepared")
+            finish(page.recordID, page.key, .failed, message)
         }
-        guard rendering.bakeJobEnded(cacheKey: active.key) else { return }
-        if requeued[active.key, default: 0] < 1 {
-            requeued[active.key, default: 0] += 1
-            if rendering.queuePrepare(cacheKey: active.key, paragraphs: paragraphs) == .rendering { return }
-        }
-        let message = missing == 1 ? String(localized: "1 paragraph couldn’t be prepared")
-            : String(localized: "\(missing) paragraphs couldn’t be prepared")
-        finish(active.recordID, active.key, .failed, message)
         advance()
     }
 
@@ -693,8 +704,6 @@ protocol PrepareRendering {
     func renderedVoice(of key: UUID) -> String?
     /// C138: the voice `key`'s audio renders in (its own, its book's, else the prepare voice).
     func prepareVoice(of key: UUID) -> String?
-    /// Prepared audio may go on in the background now: audio plays on a route that renders there (C94).
-    var rendersPreparedAudioInBackground: Bool { get }
     /// Queues `paragraphs` of `cacheKey` to render in full in the prepare voice.
     func queuePrepare(cacheKey: UUID, paragraphs: [String]) -> PrepareQueueing
     /// Paragraphs that still need audio in the prepare voice; a view reading it follows the render.

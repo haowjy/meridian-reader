@@ -106,8 +106,6 @@ extension SpeechController {
             chapterFlow.boundary = nil
             return
         }
-        // In the background on a route that can't render there (Core ML), the chapter plays what
-        // is rendered of it (its staged opening) and pauses where that runs out.
         speak(fromUTF16Offset: 0, startPaused: false)
     }
 
@@ -121,7 +119,7 @@ extension SpeechController {
 
     /// Once the chapter's rendering has reached two paragraphs before its end, the next chapter
     /// is staged behind it in the render queue (`GlobalSynthQueue.stageNext`), so its opening is
-    /// on disk when it starts, in the background too on the ONNX route. Only on the on-device
+    /// on disk when it starts, in the background too. Only on the on-device
     /// engine, not for audio held for unfinished library work; once per chapter.
     func stageNextChapterIfDue() {
         guard let key = playback.articleID, let folderID = playback.folderID, let library = nextChapters,

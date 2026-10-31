@@ -13,8 +13,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Every engine + its capabilities. Injected from the composition root.
     let engines: EngineRegistry
     let audioCache: ArticleAudioCache
-    /// Single global Core ML work queue — actions reshuffle; one worker drains #1.
+    /// The one render queue: actions reshuffle it; its worker renders what the policy picks.
     let synthQueue = GlobalSynthQueue()
+    /// Decides what the render queue renders next (`AppComposition.makeRenderPolicy`).
+    let renderPolicy: RenderPolicy
     /// Engine selection, voices and launch-step flags (a suite in tests).
     let defaults: UserDefaults
     let crashGuard: EngineCrashGuard
@@ -28,7 +30,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// Every chunk plan, by engine (the render queue, the player, alignment, readiness).
     let chunkPlans: ChunkPlans
     /// The listen player (set by `LocalListenEngine`): the render queue asks it which article is
-    /// playing (listener priority, background bake scope).
+    /// playing (its demand, and whether calls may start in the background).
     @ObservationIgnored weak var listenPlayer: LocalListenPlayer?
     /// Called when a bake job leaves the queue and when the render queue's state may have moved
     /// (audio rendered or deleted, the engine or voice changed). Often, and inside the queue's own
@@ -84,9 +86,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
         crashGuard: EngineCrashGuard,
         pendingBakes: PendingBakeJobStore,
         resumePoints: ListenResumePointStore,
+        renderPolicy: RenderPolicy,
         selecting launchEngine: SpeechEngineID? = nil
     ) {
         self.engines = engines
+        self.renderPolicy = renderPolicy
         self.defaults = defaults
         self.audioCache = audioCache
         self.crashGuard = crashGuard
@@ -113,12 +117,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
         if let launchCrash { recover(from: launchCrash, playing: playing) }
     }
 
-    /// The previous process died inside `crash.engine`. Its provider decides (Kokoro: resume on the
-    /// stable route first); by default the engine and voice stay and it pauses for Retry (C129:
-    /// never another voice).
+    /// The previous process died inside `crash.engine`. Its provider decides (Kokoro: one thread
+    /// fewer first); by default, and when several calls were in flight (it can't say which one did
+    /// it), the engine and voice stay and it pauses for Retry (C129: never another voice).
     private func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) {
         guard let engine = crash.engine else { return }
-        let recovery = engines.recover(from: crash, playing: playing)
+        let recovery = (crash.isAmbiguous ? nil : engines.recover(from: crash, playing: playing))
             ?? .pauseForRetry(resume: ListenResumeTarget.forCrash(article: crash.articleKey, paragraph: crash.paragraph,
                                                                   crashAt: crash.at, playing: playing))
         ListenDebugLog.shared.append("\(engines.shortName(engine)) crash detected → \(recovery)")
@@ -204,14 +208,12 @@ final class LocalTTSCoordinator: SynthQueueContext {
         synthQueue.dropHost(engineID: id.rawValue)
     }
 
-    // MARK: - SynthQueueContext (route-aware background)
-
-    var activeRouteRendersInBackground: Bool { synth.rendersInBackground }
+    // MARK: - SynthQueueContext
 
     var playingCacheKey: UUID? { listenPlayer?.playingArticleID }
 
-    func readyAheadSeconds(upTo limit: TimeInterval) -> TimeInterval {
-        listenPlayer?.readyAheadSeconds(upTo: limit) ?? 0
+    func routes(for engineID: String) -> [RenderRoute] {
+        engines.routes(for: SpeechEngineID(rawValue: engineID))
     }
 
     /// Local engine whose cache / chunk sizing applies right now (loaded or loading).

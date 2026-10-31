@@ -7,7 +7,6 @@ final class ListenDiagnostics {
     private unowned let speech: SpeechController
     /// What the last stretch in the background played (debug panel).
     private(set) var lastBackgroundSummary = "—"
-    private var deferralsAtBackground = 0
 
     init(speech: SpeechController) {
         self.speech = speech
@@ -20,7 +19,6 @@ final class ListenDiagnostics {
     /// background stretch played.
     func appPhaseChanged(_ phase: AppRunState.Phase) {
         let player = speech.localEngine.player
-        let deferrals = localTTS.synthQueue.backgroundDeferrals
         var fields: [String: Any] = [
             "phase": phase.rawValue, "listen": String(describing: playback.phase),
             "engine": speech.activeEngine?.name ?? "—", "p": playback.playhead,
@@ -28,11 +26,10 @@ final class ListenDiagnostics {
         switch phase {
         case .background:
             player.backgroundStats = .init()
-            deferralsAtBackground = deferrals
             fields["rendered_paragraphs_ahead"] = speech.activeEngine?.debug.renderedParagraphsAhead ?? 0
         case .active:
-            if player.backgroundStats != .init() || deferrals > deferralsAtBackground {
-                lastBackgroundSummary = player.backgroundStats.label + ", deferred \(deferrals - deferralsAtBackground)"
+            if player.backgroundStats != .init() {
+                lastBackgroundSummary = player.backgroundStats.label
                 fields["bg_summary"] = lastBackgroundSummary
             }
         case .inactive:

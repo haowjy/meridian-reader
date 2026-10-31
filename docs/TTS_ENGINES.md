@@ -39,7 +39,7 @@ FluidAudio's Core ML Kokoro, so audio rendered on it stays valid.
 
 | Route | Host | Notes |
 |---|---|---|
-| **ONNX CPU** | `KokoroCPUHost` | ONNX Runtime on the CPU execution provider, onnx-community `model_fp16.onnx` (≈163 MB, downloaded into `Application Support/CPURoute/kokoro-82m-v1.0-onnx/`, SHA-256 checked, excluded from backup), every core but one in front (3 to 6: 5 on an iPhone 17 Pro, so the work an efficiency core holds is a smaller piece; `reader.tts.kokoro.cpuThreads` overrides it in the debug panel) and 1 in the background (the session is rebuilt at the first call after a phase change, `KokoroONNXSessionSlot`). Each run shrinks ORT's CPU arena when it ends (`memory.enable_memory_arena_shrinkage`), so the footprint between calls stays near where it started; a memory warning lets go of the session, which the next call builds again (≈0.5 s; `kokoro_cpu_session_released`, `kokoro_cpu_session_rebuilt`). Frontend `KokoroAneCPUFrontend` (vendored FluidAudio patch: Misaki lexicon + a pure-Swift BART G2P that reads the Core ML G2P weights as data; heteronyms such as read, live, close, record pick Misaki's part-of-speech pronunciation per sentence from Apple's `NLTagger`, with auxiliary rules for past `read`, from the bundled `Resources/KokoroHeteronyms.json`, C132; an OOV `-s`/`-ed`/`-ing` word is built from its known stem by Misaki's suffix rules, a heteronym's VERB reading as the stem, so `lived` is lˈɪvd, and `c.`/`ca.` before a number reads "circa", C137), so no Core ML runs on this route. Renders in the background, in bursts that start below 4 min of listening ready ahead and stop at 8 min (LISTEN_PLAYBACK.md → "Rendering in the background"). |
+| **ONNX CPU** | `KokoroCPUHost` | ONNX Runtime on the CPU execution provider, onnx-community `model_fp16.onnx` (≈163 MB, downloaded into `Application Support/CPURoute/kokoro-82m-v1.0-onnx/`, SHA-256 checked, excluded from backup), every core but one in front (3 to 6: 5 on an iPhone 17 Pro, so the work an efficiency core holds is a smaller piece; `reader.tts.kokoro.cpuThreads` overrides it in the debug panel) and 1 in the background, as the render policy passes per call, never more than that setting (the session is rebuilt at the first call at a new count, `KokoroONNXSessionSlot`). Route `kokoro.onnx`, `ThreadControl.honored`. Each run shrinks ORT's CPU arena when it ends (`memory.enable_memory_arena_shrinkage`), so the footprint between calls stays near where it started; a memory warning lets go of the session, which the next call builds again (≈0.5 s; `kokoro_cpu_session_released`, `kokoro_cpu_session_rebuilt`). Frontend `KokoroAneCPUFrontend` (vendored FluidAudio patch: Misaki lexicon + a pure-Swift BART G2P that reads the Core ML G2P weights as data; heteronyms such as read, live, close, record pick Misaki's part-of-speech pronunciation per sentence from Apple's `NLTagger`, with auxiliary rules for past `read`, from the bundled `Resources/KokoroHeteronyms.json`, C132; an OOV `-s`/`-ed`/`-ing` word is built from its known stem by Misaki's suffix rules, a heteronym's VERB reading as the stem, so `lived` is lˈɪvd, and `c.`/`ca.` before a number reads "circa", C137), so no Core ML runs on this route. Renders in the background, chunk after chunk while audio plays (LISTEN_PLAYBACK.md → "Rendering in the background"). |
 
 Measured with `-KokoroStress` (320 fixed calls, app in front, iPhone 17 Pro, iOS 26.6.2, Release
 build with the Debug hooks, 2026-10-11):
@@ -96,11 +96,12 @@ chunk (playback pauses there with Retry), and `LocalPCMWriter` writes non-finite
 ### Crashes
 
 The libBNNS crash kills the process; nothing catches it. `EngineCrashGuard` writes an in-flight
-marker (`ListenTiming/engine_inflight.json`) around every call of an engine whose descriptor sets
+marker (`ListenTiming/engine_inflight/<call id>.json`, one per call) around every call of an engine whose descriptor sets
 `OnDeviceTraits.isCrashGuarded` (Phonon, Kokoro), with the route, article, paragraph, app phase and
 memory footprint (`phys_footprint`), and removes it when the call returns, so it exists only
 while a call is in flight. Termination (`willTerminateNotification`, e.g. a swipe-kill while the
-app runs, playing or rendering) removes it and lets no call write another.
+app runs, playing or rendering) removes them and lets no call write another. A marker an older
+build left (`ListenTiming/engine_inflight.json`) is read the same way.
 
 A marker found at launch counts as a crash only when the engine killed the process
 (`MarkerVerdict`); otherwise it is logged (`engine_marker_dismissed`) and the launch is a normal
@@ -111,6 +112,10 @@ one: no notice, no crash count, nothing reopened:
 - **memory kill:** the call started in the background with a footprint of 1,000 MB or more: iOS
   reclaiming memory (jetsam), not the engine;
 - **engine crash:** anything else.
+
+When more than one marker reads as an engine crash (more than one call was in flight), it is one
+crash, ambiguous (`CrashInfo.isAmbiguous`): it can't say which call did it, so the provider's
+recovery doesn't run and the article pauses for Retry in the same voice.
 
 A crash never changes the engine or the voice. The provider decides how it resumes
 (`SpeechEngineProvider.recover(from:playing:)`, a `CrashRecovery`). An engine without a hook
@@ -129,7 +134,7 @@ same voice and plays on. Kokoro answers with `KokoroCrashRecovery`:
 
 A process that dies while suspended
 mid-call (no notice, no time to clear) can't be told from a crash, but the render queue holds a
-background task while a call is in flight as the app leaves the front, so the call ends first.
+background task around every call in the background (`ReaderSynthDrain`), so the call ends first.
 
 ### Launch steps
 
@@ -165,7 +170,7 @@ install when the engine is supported); Kokoro Heart is the second default. iOS 1
 | Bundle export | At ptts v0.6.0: `cargo build -j 2 --release -p ptts --example export_coreml --features hub`, then `export_coreml --max-tokens 200 phonon-31m-en-coreml` (its default checkpoint, `hf://gradium/phonon-31m-en@8c64b55ec301728e2d1695bfea87a08a267d0c2d`). The checkpoint carries only its `default` voice, so the other 37 voice files are copied unchanged from upstream's v0.4.0 bundle and added to `bundle.json`'s `files` and `voices`; `source.json` records the sources. Zipped with the root folder `phonon-31m-en-coreml`. The release notes give the details and hashes. |
 | Cache revision | Cache voice keys carry the bundle's `built` stamp (`phonon@1793455047.Zoey`, `OnDeviceTraits.cacheRevision`), so audio a different bundle rendered never plays or counts as prepared, and renders again. Keys without a revision (`phonon.Zoey`) were rendered by upstream's 0.4.0 bundle and were renamed once at launch to its stamp, `phonon@1792483937` (`PhononCacheRevision`). |
 | Chunking | `TextChunker.Limits.phonon`: target 1200, `hardMax` 1600, whole-paragraph calls (no short first clip). |
-| Background | Yes (`rendersInBackground`): the CPU path renders in the background, in the same bursts as Kokoro (LISTEN_PLAYBACK.md → "Rendering in the background"). |
+| Background | Route `phonon.cpu`, `ThreadControl.uncapped`: the CPU path renders in the background as in front, chunk after chunk while audio plays (LISTEN_PLAYBACK.md → "Rendering in the background"). |
 | Launch steps | `PhononDownloadLeftovers`, `PhononCacheRevision`, then `CoreMLCompileCacheJanitor` (Core ML's compiled-model cache, once per install, in the background; `LISTEN_PLAYBACK.md` → "Audio cache"). |
 | Probe | `-engineProbe -probeOnly Phonon,Kokoro` (the short names; the log line `compute units=` shows the routing label). |
 
@@ -229,7 +234,7 @@ LocalSynthHost (thin: load + ONE call)
 Every engine is on-device (`OnDeviceTraits`): it renders ahead into the audio cache through the
 render queue. The registry needs at least one; its `defaultEngine` is the recommended one that
 runs here, else the first. The shared core has no `import FluidAudio` and no switch on engine types: `GlobalSynthQueue`
-(`SynthQueueContext` and its `RenderTarget`, `RenderAdmission`), `ArticleAudioCache` keys, `TextChunker`,
+(`SynthQueueContext` and its `RenderTarget`, the `RenderPolicy` and its routes), `ArticleAudioCache` keys, `TextChunker`,
 `LocalChunkRenderer`, `EngineCrashGuard`, `SynthRenderGate`, the Settings voice list, the engine
 probe, the Listen debug panel. Library code lives only under `Features/Speech/Engines/<Library>/`,
 including its crash policy, its launch steps and its debug-panel sections. The provider protocol
@@ -263,8 +268,9 @@ voice takes the built-in default as any unregistered engine's does.
    `Features/Speech/Engines/<Library>/`.
 2. **Host.** Implement `LocalSynthHost`: `prepare()` (prepare and load through a
    `SingleFlightLoad`, so callers share one load and a cancel reaches it; hold
-   `SynthRenderGate.shared` while loading Core ML; report `onProgress`), `synthesizeOnce(text:)`
-   (one call → `SynthesizedPCM`; map the library's "input too long" error to
+   the lane's `SynthRenderGate.of(.cpu)` while loading Core ML; report `onProgress`),
+   `synthesizeOnce(text:priority:threads:)` (one call at the QoS and, for a route that takes a
+   count, the threads the policy passes → `SynthesizedPCM`; map the library's "input too long" error to
    `LocalSynthError.inputTooLong` so the shared renderer re-splits), `setVoice`, `unload` (for good:
    close the load first, so a load in flight can't set the models again).
 3. **Descriptor.** A new, never-changing `id` (e.g. `local.<engine>`), `hardware`, and
@@ -272,7 +278,9 @@ voice takes the built-in default as any unregistered engine's does.
    `cacheRevision` when the model can change under the same voices, `<short>@<revision>.<voice>`), chunk
    `limits` sized from the per-call cap (measure chars or phonemes per second of audio on a
    device), and `isCrashGuarded` if the library can die uncatchably.
-4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`;
+4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
+   `routes` (a `RenderRoute` per engine: its lane, `.cpu`, and whether it takes a thread count;
+   the registry refuses an engine without one);
    override `recover(from:playing:)` if a crash needs more than a pause for Retry,
    `launchMigrations` for the library's launch steps (`LaunchMigration`s, run after retired
    engines' cleanup), `debugSections(speech:)` for its own Listen debug panel sections, and

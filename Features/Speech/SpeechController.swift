@@ -122,6 +122,9 @@ final class SpeechController {
 
     /// What the shell shows next as a toast (`noticeShown` once it has).
     private(set) var notice: ListenNotice?
+    /// A notice told while the app was in the background: it shows when the app is open again,
+    /// so its time on screen isn't spent where nobody sees it.
+    @ObservationIgnored private var backgroundNotice: ListenNotice?
 
     /// The shell showed `notice` (`RootView`).
     func noticeShown(_ id: UUID) {
@@ -129,7 +132,8 @@ final class SpeechController {
     }
 
     func tell(_ message: String, offersRetry: Bool = false) {
-        notice = ListenNotice(message: message, offersRetry: offersRetry)
+        let told = ListenNotice(message: message, offersRetry: offersRetry)
+        if localTTS.synthQueue.runState.phase == .background { backgroundNotice = told } else { notice = told }
     }
 
     /// `engine` stopped (it failed, or killed the last process): playback is paused for Retry.
@@ -548,6 +552,10 @@ final class SpeechController {
     private func appRunStateChanged() {
         let phase = localTTS.synthQueue.runState.phase
         diagnostics.appPhaseChanged(phase)
+        if phase == .active, let told = backgroundNotice {
+            backgroundNotice = nil
+            notice = told
+        }
     }
 
     // MARK: - Intent execution
@@ -619,8 +627,8 @@ final class SpeechController {
             let engine = boundSelection?.engine ?? localTTS.defaultSelection.engine
             switch stall {
             case .engineStopped: tellStopped(engine)
-            case .background:
-                tell(String(localized: "\(localTTS.engines.shortName(engine)) can’t read in the background."))
+            case .cantKeepUp:
+                tell(String(localized: "\(localTTS.engines.shortName(engine)) can’t keep up in the background."))
             }
         case .finished:
             pageEnded(restartBake: true)

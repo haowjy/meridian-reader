@@ -77,13 +77,6 @@ final class ChunkPlaybackQueue: NSObject, AVAudioPlayerDelegate {
 
     var bufferedCount: Int { queue.count + (current == nil ? 0 : 1) }
 
-    /// Seconds of audio queued ahead of the playhead (rest of the current unit + queued units).
-    var bufferedSecondsAhead: TimeInterval {
-        var total = 0.0
-        if let player, current != nil { total += max(0, player.duration - player.currentTime) }
-        for item in queue { total += max(0, item.duration - item.startTime) }
-        return total
-    }
     var canAcceptMore: Bool { bufferedCount < maxBuffered }
     var isAudible: Bool { player?.isPlaying == true }
     var currentParagraphIndex: Int? { current?.paragraphIndex }

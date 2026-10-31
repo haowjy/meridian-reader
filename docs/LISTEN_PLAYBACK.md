@@ -14,7 +14,7 @@ UI ──intent──► SpeechController ──command──► bound LocalList
                 └──────────────────────┴── engine events (PlaybackEngineEvent)
 
 Render queue: GlobalSynthQueue renders chunks ahead of the playhead (and bakes saved articles)
-into ArticleAudioCache, admitted by RenderAdmission.
+into ArticleAudioCache, one model call at a time, as the render policy plans (SingleCallPolicy).
 ```
 
 ### Playback session (the one source of truth)
@@ -285,13 +285,10 @@ Headphone and lock-screen skips stay paragraph skips (D4).
 **Rendering across the boundary.** Once the chapter's rendering has reached two paragraphs before
 its end, the next chapter is staged in the render queue (`GlobalSynthQueue.stageNext`, "Render
 queue"), so its opening is on disk when it starts; not when its audio is held for unfinished
-library work (`ArticleAudioCache.held`), which a render would overwrite. On a host that can't render in
-the background, no model call starts there, so a chapter not rendered in full (a
-paragraph with words still needs audio, "Audio cache") plays its rendered audio and pauses where
-that runs out ("Background listening"). Phonon and Kokoro both render on the CPU, in the
-background too, and keep their voice; there the next chapter's opening
-renders in a background burst, once less than 4 min of the chapter playing is ready ahead
-("Rendering in the background"). The catch-up bake at the end of a
+library work (`ArticleAudioCache.held`), which a render would overwrite. Phonon and Kokoro both
+render on the CPU, in the background too, and keep their voice; there the next chapter's opening
+renders as soon as the chapter playing has rendered to its end ("Rendering in the background").
+The catch-up bake at the end of a
 page runs only for pages outside books and series, and finished chapters more than 2 behind the
 book's place lose their audio, keeping their text (D7), except audio held for unfinished library
 work.
@@ -307,7 +304,8 @@ happen; "Diagnostics").
 
 One **`GlobalSynthQueue`** owns all on-device synthesis, live and ahead. A single worker renders
 one **chunk** per iteration, so the playhead can preempt bake-ahead between chunks; two model
-calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue through one
+calls never run at once (`GlobalSynthQueue.maxCallsInFlight` = 1, and the lane's gate,
+`SynthRenderGate.of(.cpu)`, around every call and load). Actions reorder the queue through one
 upsert, `enqueue(at:)` with a placement (`.front`, `.back`, `.behind` the playing chapter), and
 `focusPlayhead`; nothing builds its own render loop. The coordinator's one entry for the Reader
 opening an article and for listening starting or jumping is `LocalTTSCoordinator.openArticle`.
@@ -346,16 +344,14 @@ shortened by the queue's own publish; not rescanned per chunk.
 3. Open another article → new #1; the previous one is demoted (its cache is kept).
 4. The next chapter of a book or series is **staged** (`stageNext`) directly behind the job of
    the chapter playing, or at the front once that job is done (its audio all rendered), and kept
-   there as the queue changes: ahead of demoted save and bake jobs, which in the background may
-   park and would hold it back. It renders at bake-ahead priority (never listener), and only its
+   there as the queue changes: ahead of demoted save and bake jobs. It renders at bake-ahead priority (never listener), and only its
    first 3 paragraphs until it plays and becomes #1; at that cap it steps aside, so jobs behind it
    run. Its opening goes before the playing chapter's paragraphs above the playhead (the plan's
    fill from the top): listening reaches the next chapter before it comes back to them. So the
    playing chapter renders from its playhead to its end, then the next chapter's opening, then
    the playing chapter above its playhead, and only then the jobs behind them (saves,
    prepared audio). A later stage replaces it; another article playing, or the end of the book, unstages
-   it (a job that was queued before stays). It counts as playing for admission (`playingCacheKeys`: the
-   article playing and the staged chapter).
+   it (a job that was queued before stays).
 5. Pending jobs fold in once the launch's maintenance has finished, and when library audio work
    lets go of held audio (`adoptPending`; Audio cache, Pending jobs): the article being listened
    to stays #1; any
@@ -374,23 +370,19 @@ missing paragraphs above it:
 Saving an article that is already queued, #1 included, keeps its place and plan; the job turns
 saved (`.back` keeps a queued job where it is).
 
-**Prepared Audio** (decision D16, `PrepareCenter`) add no render path of their own. The prepare list
-(`Downloads.json`, `PrepareListStore`) is worked through one page at a time: a link page's text is
-fetched through Follow's one fetch queue (`FollowCenter.fill` → `FetchQueue`, one fetch at a time,
-paced per site) and stored in place, then the article's paragraphs go
-to the queue as an ordinary bake job (`LocalTTSCoordinator.queuePrepare` → `startBakeIfNeeded`, a
+**Prepared Audio** (decision D16, `PrepareCenter`) add no render path of their own. Every
+waiting page of the prepare list (`Downloads.json`, `PrepareListStore`) whose text is in the
+library goes to the queue at once, in the list's order; a link page's text is fetched first,
+one page at a time and only in front (it needs a window), through Follow's one fetch queue
+(`FollowCenter.fill` → `FetchQueue`, one fetch at a time, paced per site), stored in place, and
+then handed over the same way. Each article's paragraphs go to the queue as an ordinary bake job (`LocalTTSCoordinator.queuePrepare` → `startBakeIfNeeded`, a
 plan from paragraph 0, queued at the back (#1 when nothing else is), and kept in the pending
 jobs until it is done). When the job leaves the queue (`bakeCompleted`, through
 `LocalTTSCoordinator.onRenderStateChange`) the article is done once no paragraph needs audio in the
 prepare voice (the one rule, `ArticleAudioCache.missingParagraphs`); a job that left unfinished goes back once, then
 the article is marked failed. So the article playing and the staged chapter always go first, the
-thermal / Low Power hold applies. In the background a prepare's job parks, except on its turn
-(C94): while audio plays on a route that renders there (Kokoro's ONNX CPU route) and the playing
-article needs nothing now (no burst: at least the low-water mark ahead; or nothing of it left), the
-same one-thread worker renders it, weighed again before every chunk, so a burst of the playing
-article takes the worker back at once (`bg_prepare_turn` / `bg_prepare_yield`). Then the next
-article is handed over in the background too; a link article's fetch waits for the foreground (it needs
-a window). Paused or stopped in the background, nothing goes on. Nothing renders for prepared audio while
+thermal / Low Power hold applies, and in the background prepares render on after them, chunk
+after chunk, while audio plays. Paused or stopped in the background, nothing renders. Nothing renders for prepared audio while
 the device can run no voice (`wantsLocalBake`). Pause and *Remove* take the article's job out of the queue
 (`removeBakeJob`), and *Remove Prepared Audio* and *Remove Prepared Audio* delete audio (`PrepareCenter.purgeAudio`),
 never for what listening needs (`needsAudio`: the article bound to the session, playing, paused or
@@ -406,25 +398,42 @@ stay. Turned back on over a folder all prepared (`PrepareCenter.prepare(folder)`
 its done pages and *Keep* stay as they are and only pages it doesn't list join; otherwise
 *Prepare Audio* on a folder queues every article it covers afresh (`PrepareRecord.requeue`).
 
-**Priority and admission.** Chunks of an article someone is listening to (a producer waits on
-one, or its audio is playing) render at `RenderPriority.listener` (`.userInitiated`); bake-ahead
-runs at `.utility`. Bake-ahead is held while the thermal state is `.serious` or worse or Low Power
-Mode is on (`BakeConditions`) and resumes on the change notification. Before every chunk, in
-`ensureChunk`, on every app-phase change and when a render fails, one pure rule decides
-(`RenderAdmission.decide`):
+**The render policy.** Before every chunk, on every app-phase change, a hold's change and a
+resume, the worker asks one policy what to do next (`RenderPolicy.plan`, `Core/TTS/RenderPolicy.swift`):
+it hands over the situation (`RenderSituation`: the app phase, whether audio plays, a hold, the
+engine to preload, the candidates, each lane's calls in flight and resident engine, the most calls
+in flight, the cores) and gets back calls to start and loads to run (`RenderPlan`). The queue
+checks the plan before it acts (`RenderPlan.violation`: no more calls than `maxCallsInFlight`, a
+route of the candidate's own engine, that engine resident on the route's lane), and a plan that
+breaks one is dropped and logged (`render_plan_refused`; a Debug build stops on it). The candidates are a waited chunk
+(`listener`), the playing article from its playhead (`playing`), the staged chapter's opening
+(`staged`), and the first unit of the queue after them (`queued`), in that order of demand. The
+one policy is `SingleCallPolicy` (`AppComposition.makeRenderPolicy`); another is one type and that
+one line.
 
-| App phase | Phonon, Kokoro (render in background) | A host that can't render in the background |
-|---|---|---|
-| active | render | render |
-| inactive | render | listener's chunks only; bake-ahead parks |
-| background | listener's chunks; bake-ahead of the playing article and the staged next chapter during a burst (below); other articles park | no model call (`.deferred`): playback plays what is rendered, then pauses; bake-ahead parks |
+`SingleCallPolicy`:
 
-Admission doesn't wait for an engine: it reads the resident host (with none loaded, the right-hand
-column), and the worker loads the unit's engine before its call (Render queue → "Loads").
+- One model call at a time on the CPU, for every engine, in front and in the background, in
+  demand order.
+- QoS from demand: a listener's chunk (a producer waits on it) at `RenderPriority.listener`
+  (`.userInitiated`), everything else at `.utility`.
+- Holds: while the thermal state is `.serious` or worse or Low Power Mode is on (`BakeConditions`)
+  only `listener` and `playing` work renders; it resumes on the change notification.
+- In the background a call starts only while the player is playing (or waiting to play): iOS
+  suspends the app soon after audio stops, and a call cut there would read as a crash at the next
+  launch. Paused or stopped there, nothing renders until play or the foreground.
+- Threads, for a route that takes a count (Kokoro's ONNX): every core but one in front and
+  inactive, one in the background, never more than the route's own setting. A route that takes no
+  count (Phonon's Core ML) runs as it is.
+- `cpuDutyCycle` names the share of wall time a later throttle may give the lane per phase; it
+  is empty, so the holds are the only brakes.
 
-The renderer checks it again right before each model call (`LocalChunkRenderer`,
-`RenderAdmission.modelCallsAllowed`). Both engines render on the CPU alone (Phonon on Core ML's
-CPU path, Kokoro on ONNX Runtime's), so neither needs the GPU, which isn't available in the background.
+**Routes and lanes.** Each engine declares where its calls run (`SpeechEngineProvider.routes`,
+`RenderRoute`: an id for the log, the engine, a `Lane`, and `ThreadControl`, `.honored(cap:)` or
+`.uncapped`); the registry refuses an engine without one. The one lane is `.cpu`; the queue keeps
+its calls in flight and its gate per lane (`SynthRenderGate.of(_:)`). Both engines render on the
+CPU alone (Phonon on Core ML's CPU path, Kokoro on ONNX Runtime's), so neither needs the GPU,
+which isn't available in the background.
 
 **Producer.** The player keeps a short buffer of rendered units and stops producing when it is
 full. Chunk 0 plays as soon as it is rendered; the producer doesn't wait for the paragraph. Seek /
@@ -640,7 +649,7 @@ by `RootView`):
 |---|---|
 | The engine is still loading, or rendering is behind | Playback waits ("Preparing the voice", "Preparing next…") and plays on in the same voice |
 | The engine fails to load, a chunk can't be rendered, or the last process crashed in it | Paused at that spot; "Phonon stopped." with *Retry* (Retry, or any play, loads the engine afresh in the same voice) |
-| The app is in the background on an engine that can't render there (none of the shipped ones) | Rendered audio plays out, then a pause; "<voice library> can’t read in the background." Play in front goes on |
+| In the background, the audio runs out before the next chunk is rendered | Paused at the gap; "Phonon can’t keep up in the background." when the app is opened again; Play goes on in the same voice |
 | The article's language isn't one its voice reads | Listen doesn't start (what plays plays on): "Can’t read French yet." Prepare marks the article failed with the same words |
 | The device can't run the article's voice library | Listen doesn't start: "Kokoro needs …" (the hardware it needs); Settings › Voice says the same on that library |
 
@@ -724,38 +733,32 @@ and resume goes through session intents):
 | Media services reset | Reconfigure the category; the engine drops its dead audio objects, and an article playing or paused is bound again paused at its spot, so Play speaks through new ones |
 
 **Rendering in the background.** `AppRunState` mirrors `UIApplication` (active / inactive /
-background), thread-safe; admission follows the table in "Render queue". On a host that can't render in the background
-(none of the shipped engines; the test voice by default) the player plays what is rendered, then
-pauses where a paragraph still needs audio (`stalled(.background)`: "<voice library> can’t read in
-the background."); back in front, play goes on in the same voice.
+background), thread-safe. In the background the queue renders on as in front, one call after
+another in demand order, while audio plays (the render policy, "Render queue"): the playing
+article from its playhead, the staged chapter's opening, the article above its playhead, then
+saves and prepared audio. The brakes are `.utility` QoS, the thermal and
+Low Power holds and, on Kokoro, one ONNX thread.
 
-Phonon (Core ML's CPU path, about 1.7 cores) and Kokoro (ONNX) render in the background, within
-limits: rendering a whole article back to back there on Kokoro got the app killed by iOS about a
-minute after the phone locked (3 threads, 1.0–1.3 GB). So in the background:
+- **One ONNX thread.** Kokoro's session runs the thread count the policy passes per call: 1 in
+  the background, every core but one in front, never more than the configured count (3 to 6: 5
+  on an iPhone 17 Pro; `KokoroRouteSettings.defaultThreads`). ONNX Runtime fixes the count when a
+  session is built, so the first call at a new count rebuilds the session, between chunks
+  (`KokoroONNXSessionSlot`, `kokoro_cpu_threads_switch`); the old session is released first.
+- **A background task per call.** Playing audio keeps the app alive while it renders.
+  `BackgroundGrace` (`beginBackgroundTask`) holds `ReaderSynthDrain` around each call in the
+  background, so the call in flight when audio stops can finish and write its CAF, and
+  `ReaderListenGap` while the player waits for audio in the background; neither permits GPU work.
+- **Can't keep up.** When the background renders slower than the audio plays (a fast listen
+  speed, a slow engine), the player plays what is rendered and pauses at the gap
+  (`stalled(.cantKeepUp)`, `playback_held` with `cant_keep_up`), in the same voice, never another.
+  The toast, "<voice library> can’t keep up in the background.", is kept until the app is in front
+  again (`SpeechController.tell`). Play goes on from the gap. In front, a gap waits ("Preparing
+  next…").
 
-- **One thread.** Kokoro's ONNX session runs 1 intra-op thread in the background and the
-  configured count in front (every core but one, 3 to 6: 5 on an iPhone 17 Pro;
-  `KokoroRouteSettings.defaultThreads`). ONNX Runtime fixes the count when a session is built, so the
-  first call after a phase change rebuilds the session, between chunks (`KokoroONNXSessionSlot`,
-  `kokoro_cpu_threads_switch`); the old session is released first.
-- **Bursts between watermarks** (`BackgroundRenderWatermarks`, `BackgroundRenderBursts`). The
-  measure is the listening time ready ahead: the rest of the unit playing, the units queued in the
-  player and the rendered paragraphs after them up to the first gap, in seconds at the listen
-  speed (`LocalListenPlayer.readyAheadSeconds`). Bake-ahead of the playing article (and of the
-  staged next chapter) starts a burst below 4 min and renders chunk after chunk until 8 min are
-  ready; between the two marks nothing new starts. Between bursts the worker is idle: each unit
-  that starts playing, and a resume, wakes it if less than 4 min is left (no timer, no polling).
-  A chunk the player is waiting for renders whatever is ready ahead. Only paragraphs from the
-  playhead on render in the background: after listening from mid-article, the paragraphs above
-  the playhead wait for the foreground (they add nothing ahead, so a burst rendering them would
-  never reach 8 min). In front (inactive included) the marks don't apply.
-- **No background task per chunk.** Playing audio keeps the app alive while it renders.
-  `BackgroundGrace` (`beginBackgroundTask`) holds `ReaderSynthDrain` only so the chunk in flight
-  when the app leaves the foreground can finish and write its CAF, and `ReaderListenGap` while the
-  player waits for audio in the background; neither permits GPU work.
-
-When rendering can't keep up (one thread, a fast listen speed), playback waits for the next
-chunk and plays on in the same voice ("Preparing next…").
+Each stretch of background rendering is logged as `bg_render_window` (`BackgroundRenderWindow`):
+on the first chunk after a minute, and when the app comes back to front, with `reason` (minute /
+front), `wall_s`, `cpu_s`, `cpu_pct` (the process's CPU over wall time, 100 = one core),
+`chunks`, `audio_s`, `rtf`, `mem_mb` and `route`.
 
 ## Diagnostics
 
@@ -777,9 +780,8 @@ phonemes, `mem_mb`), chunk / paragraph ready and failed, waits, first audio, buf
 before a pause (`playback_held`), a refusal (`listen_refused`), app phase and background events, remote commands, interruptions, migrations,
 cache prunes, chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`), a
 session stopped rather than moved onto a key holding other text (`session_rekey`), background
-bursts (`bg_render_burst_start` with `ready_ahead_s`; `bg_render_burst_stop` with `ready_ahead_s`,
-`reason`, `chunks`, `wall_s`, `cpu_s` and `cpu_pct`, the process's CPU over wall time, 100 = one
-core) and ONNX thread switches (`kokoro_cpu_threads_switch`).
+rendering windows (`bg_render_window`, "Rendering in the background") and ONNX thread switches
+(`kokoro_cpu_threads_switch`). Every `synth` line carries its `route`, `qos` and `threads`.
 A few lines (`chapter_advance`, `chapter_boundary`) also go to the unified log, readable live in
 Console.app with the filter `subsystem:com.jimmyyao.Reader category:ListenTiming`. Pull the
 file from a device:
@@ -850,9 +852,10 @@ To use these tools in an optimized build, build Release with `READER_EXTRA_CONDI
 - A French article doesn't start: "Can’t read French yet."
 - Skip / jump re-prioritizes from the new playhead; after listening from mid-article, rendering
   returns to the top (in front) so the whole article ends up on disk.
-- Background: baked audio plays, the playing article renders in bursts (`bg_render_burst_*`
-  lines; the app survives a locked listen): Kokoro on one ONNX thread, Phonon on Core ML's CPU
-  path, no "can’t read in the background." pause.
+- Background: baked audio plays, the playing article renders on chunk after chunk
+  (`bg_render_window` lines; the app survives a locked listen): Kokoro on one ONNX thread, Phonon
+  on Core ML's CPU path; where it can't keep up, a pause at the gap and "<voice library> can’t
+  keep up in the background." on return.
 
 Playback is verified by probing the running app (the launch arguments above, the debug log,
 `ListenTiming`) and on the phone for timing and background behavior. Unit tests pin only the

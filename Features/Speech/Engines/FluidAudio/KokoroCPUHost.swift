@@ -8,8 +8,7 @@ import UIKit
 ///
 /// - Synthesis: ONNX Runtime CPU execution provider (`KokoroONNXSession`,
 ///   `onnx-community/Kokoro-82M-v1.0-ONNX` fp16, 163 MB, downloaded by `KokoroONNXModelStore`).
-///   No Core ML, Espresso or BNNS anywhere in the call → immune to the iOS 26.4+ libBNNS SIGSEGV,
-///   and allowed in the background (CPU work while audio plays), so `rendersInBackground`.
+///   No Core ML, Espresso or BNNS anywhere in the call → immune to the iOS 26.4+ libBNNS SIGSEGV.
 /// - Text frontend: FluidAudio's English frontend rebuilt without Core ML
 ///   (`KokoroAneCPUFrontend`, a Reader patch in `Vendor/FluidAudio`): NeMo/regex normalizer,
 ///   Misaki lexicon, and a pure-Swift port of the BART G2P for out-of-vocabulary words, with
@@ -18,26 +17,24 @@ import UIKit
 /// - Style vector = voice-pack row `len(phonemes) − 1` (FluidAudio / kokoro-onnx rule); output ×0.69
 ///   to match FluidAudio's Core ML Kokoro loudness, the level the cached audio has (ONNX measured
 ///   ≈3 dB louder).
-/// - Threads: `KokoroRouteSettings.cpuThreads` (default: every core but one, 5 on an iPhone 17
-///   Pro) while the app is in front, one in the
-///   background (`KokoroRouteSettings.onnxThreads`). ORT fixes the count when a session is
-///   created, so the first call after a phase change rebuilds the session at the other count
-///   (`KokoroONNXSessionSlot`, ≈0.5 s on device; logged `kokoro_cpu_threads_switch`). Sessions are
+/// - Threads: each call is handed its count by the render policy (`SingleCallPolicy`: up to
+///   `KokoroRouteSettings.cpuThreads` in front, 1 in the background). The load builds the session
+///   at `threads`, the route's cap. ORT fixes the count when a session is created, so a call
+///   asking for another count rebuilds it first (`KokoroONNXSessionSlot`, ≈0.5 s on device;
+///   logged `kokoro_cpu_threads_switch`). Sessions are
 ///   created on a `.userInitiated` queue, so ORT's pool threads (spawned then) keep that QoS. Each
 ///   run is called from a queue of the call's `RenderPriority`: `.utility` for bake-ahead lowers
 ///   only the calling thread's share (ORT has no per-run thread QoS or count). One call at a time
 ///   (render gate).
 /// - Memory: each run shrinks ORT's arena when it ends (`KokoroONNXSession`). A memory warning
 ///   lets go of the session (≈160 MB of weights plus the arena); the next call builds it again
-///   (≈0.5 s), at the phase's thread count. Logged `kokoro_cpu_session_released`.
+///   (≈0.5 s), at that call's thread count. Logged `kokoro_cpu_session_released`.
 final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .kokoro
     var onProgress: (@Sendable (Double) -> Void)?
-    /// Threads while the app is in front (`KokoroRouteSettings.cpuThreads`).
+    /// The most threads a call may use (`KokoroRouteSettings.cpuThreads`): the load's count.
     let threads: Int
     let sessionQoS: DispatchQoS.QoSClass = .userInitiated
-    /// Read before each call: the background gets one thread.
-    private let runState: AppRunState
     /// Calls above this many tokens are re-split by the renderer (`inputTooLong`). Chunks are
     /// ≤ 280 units (`TextChunker.Limits.kokoroCPU`, whole-paragraph profile, ≈1.0–1.3 tokens per char); this only catches
     /// phoneme-dense text (numbers, acronyms). Kokoro's own cap is 510 phonemes.
@@ -59,15 +56,13 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     private var memoryWarning: NSObjectProtocol?
 
     var routingLabel: String? { "onnxCPU t\(lock.withLock { sessions }?.threads ?? threads)" }
-    var rendersInBackground: Bool { true }
     var routeTag: String? { KokoroRouteSettings.onnxRouteTag }
 
     init(voice: String = KokoroVoiceCatalog.defaultVoice, threads: Int = KokoroRouteSettings.defaultThreads,
-         crashCount: KokoroRouteSettings? = nil, runState: AppRunState = .shared) {
+         crashCount: KokoroRouteSettings? = nil) {
         self.voice = voice
         self.threads = threads
         self.crashCount = crashCount
-        self.runState = runState
         #if canImport(UIKit)
         memoryWarning = NotificationCenter.default.addObserver(
             forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: nil
@@ -85,9 +80,6 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
         ListenTimingLog.log("kokoro_cpu_session_released", ["reason": reason, "mem_mb": ProcessMemory.footprintMB])
     }
 
-    /// Threads for a call now.
-    private var phaseThreads: Int { KokoroRouteSettings.onnxThreads(configured: threads, phase: runState.phase) }
-
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
     private var currentVoice: String { lock.withLock { voice } }
     var isPrepared: Bool { load.isLoaded }
@@ -95,7 +87,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     func prepare() async throws {
         let progress = onProgress
         let voice = currentVoice
-        let threads = phaseThreads
+        let threads = self.threads
         let qos = self.sessionQoS
         try await load.run {
             let t0 = ListenTimingLog.now()
@@ -154,7 +146,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
         }
     }
 
-    func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String, priority: RenderPriority, threads wanted: Int?) async throws -> SynthesizedPCM {
         let (fe, sessions) = lock.withLock { (frontend, self.sessions) }
         let qos = priority.qos
         guard let fe, let sessions else { throw LocalSynthError.engineUnavailable("Kokoro (CPU) not loaded") }
@@ -169,7 +161,7 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
         }
         let pack = try voicePack(voice)
         let inputs = try KokoroCPUTensorBuilder.build(tokenIDs: ids, phonemeCount: phonemes.count, voicePack: pack)
-        let session = try await sessionForPhase(sessions)
+        let session = try await threadedSession(sessions, threads: min(wanted ?? threads, threads))
         let tRun = ListenTimingLog.now()
         var raw = try await KokoroONNXSession.onQueue(qos) { try session.run(inputs) }
         var nanRetry = false
@@ -202,10 +194,9 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
         )
     }
 
-    /// The session at the thread count of the app's phase now, rebuilt first after a phase change.
-    /// A failed rebuild leaves the host unloaded: the next render loads it again.
-    private func sessionForPhase(_ sessions: KokoroONNXSessionSlot<KokoroONNXSession>) async throws -> KokoroONNXSession {
-        let wanted = phaseThreads
+    /// The session at `wanted` threads, rebuilt first when it was built at another count. A failed
+    /// rebuild leaves the host unloaded: the next render loads it again.
+    private func threadedSession(_ sessions: KokoroONNXSessionSlot<KokoroONNXSession>, threads wanted: Int) async throws -> KokoroONNXSession {
         let t0 = ListenTimingLog.now()
         let wasReleased = sessions.threads == nil
         do {
@@ -216,10 +207,10 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
                 ])
             }
             if let rebuiltFrom {
-                // The head-start rule's pace was measured at the other thread count.
+                // The debug panel's pace was measured at the other thread count.
                 RenderPace.shared.reset()
                 ListenTimingLog.log("kokoro_cpu_threads_switch", [
-                    "from": rebuiltFrom, "to": wanted, "phase": runState.phase.rawValue,
+                    "from": rebuiltFrom, "to": wanted,
                     "ms": ListenTimingLog.ms(since: t0), "mem_mb": ProcessMemory.footprintMB,
                 ])
             }

@@ -98,11 +98,11 @@ enum KokoroStressRun {
                 await waitUntilActive(log: log, run: runID)
                 let chunk = corpus[index]
                 log.append(["ev": "begin", "run": runID, "i": index, "chars": chunk.text.count, "para": chunk.paragraph])
-                await SynthRenderGate.shared.acquire()
+                await SynthRenderGate.of(.cpu).acquire()
                 let tCall = ListenTimingLog.now()
                 var fields: [String: Any] = ["ev": "end", "run": runID, "i": index, "chars": chunk.text.count]
                 do {
-                    let pcm = try await host.synthesizeOnce(text: chunk.text, priority: .listener)
+                    let pcm = try await host.synthesizeOnce(text: chunk.text, priority: .listener, threads: nil)
                     let wallMs = (ListenTimingLog.now() - tCall) * 1000
                     fields["ok"] = true
                     fields["wall_ms"] = Int(wallMs.rounded())
@@ -119,7 +119,7 @@ enum KokoroStressRun {
                     fields["wall_ms"] = ListenTimingLog.ms(since: tCall)
                     fields["err"] = error.localizedDescription
                 }
-                await SynthRenderGate.shared.release()
+                await SynthRenderGate.of(.cpu).release()
                 fields["thermal"] = ProcessInfo.processInfo.thermalState.rawValue
                 fields["mem_mb"] = ProcessMemory.footprintMB
                 if index == start { fields["first_audio_ms"] = ListenTimingLog.ms(since: t0) }

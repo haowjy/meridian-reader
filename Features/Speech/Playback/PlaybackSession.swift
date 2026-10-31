@@ -43,9 +43,9 @@ enum ListenStall: Equatable {
     /// The engine failed, stopped (C129: paused for Retry after a crash) or couldn't load. Retry
     /// (any play) asks it again.
     case engineStopped
-    /// The app is in the background and the engine makes no model calls there (Core ML). Playing
-    /// on in front renders it.
-    case background
+    /// In the background, the audio ran out before the next chunk was rendered: it pauses at the
+    /// gap, in the same voice, and ▶ plays on from there.
+    case cantKeepUp
 }
 
 /// Live snapshot of the active adapter — used to decide toggle/pause without trusting phase alone.

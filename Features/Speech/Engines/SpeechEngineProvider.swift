@@ -10,6 +10,9 @@ protocol SpeechEngineProvider: AnyObject {
     var descriptors: [EngineDescriptor] { get }
     /// Engines this provider removed; cleaned up once at launch (selection, cache, files).
     var retiredEngines: [RetiredEngine] { get }
+    /// How each of its engines runs (its lane, whether it takes a thread count), as data. The
+    /// render policy picks among an engine's own routes only.
+    var routes: [RenderRoute] { get }
     /// New synth host for `id` (nil for an unknown id).
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost?
     /// Model files for `id` look present on disk.
@@ -79,6 +82,14 @@ final class EngineRegistry {
         }
         byID = map
         descriptors = all.sorted { ($0.sortOrder, $0.displayName) < ($1.sortOrder, $1.displayName) }
+        for d in all {
+            precondition(map[d.id]?.1.routes.contains { $0.engine == d.id } == true, "No route for \(d.id)")
+        }
+    }
+
+    /// `id`'s routes, from its provider (read each time: a route's thread cap is a setting).
+    func routes(for id: SpeechEngineID) -> [RenderRoute] {
+        byID[id]?.1.routes.filter { $0.engine == id } ?? []
     }
 
     func descriptor(_ id: SpeechEngineID) -> EngineDescriptor? { byID[id]?.0 }

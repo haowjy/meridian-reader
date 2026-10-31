@@ -3,24 +3,16 @@ import Foundation
 import UIKit
 #endif
 
-/// Foreground / background state that gates on-device synthesis.
+/// The app's phase (active / inactive / background), mirrored from `UIApplication`. The render
+/// policy reads it (`RenderSituation.phase`): fewer threads in the background, and calls there
+/// only while audio plays; the crash guard records it in each call's marker.
 ///
-/// iOS forbids GPU work in the background, so a host that can't render there
-/// (`rendersInBackground` false) starts no model call while the app is in the background:
-/// listening continues from rendered audio and pauses where it runs out (see `GlobalSynthQueue`,
-/// docs/LISTEN_PLAYBACK.md).
+/// - `active`: on screen.
+/// - `inactive` (Control Center, call banner, app switcher; also on the way to background): as
+///   in front.
+/// - `background`: the app runs only while audio plays (or a short `BackgroundGrace`).
 ///
-/// - `active`: everything runs (live chunks + bake-ahead).
-/// - `inactive` (Control Center, call banner, app switcher; also on the way to background):
-///   only chunks a listener is waiting for; bake-ahead waits, unless the host renders in the
-///   background.
-/// - `background`: on a host that can't render there, live requests are deferred (playback
-///   pauses there).
-///
-/// The on-device engines render on the CPU and do render in the background; `RenderAdmission`
-/// holds the full rule.
-///
-/// Thread-safe: `LocalChunkRenderer` checks it off the main actor right before each call.
+/// Thread-safe: read off the main actor too.
 final class AppRunState: @unchecked Sendable {
     enum Phase: String, Sendable {
         case active, inactive, background
@@ -78,7 +70,7 @@ final class AppRunState: @unchecked Sendable {
 
 #if canImport(UIKit)
 /// `beginBackgroundTask` wrapper: a short grace period so work in flight when the app leaves the
-/// foreground (a Core ML chunk + its CAF write) finishes instead of being suspended mid-way. Does NOT permit GPU work.
+/// foreground (a model call + its CAF write) finishes instead of being suspended mid-way.
 @MainActor
 final class BackgroundGrace {
     let name: String

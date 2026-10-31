@@ -31,8 +31,8 @@ final class LocalListenEngine {
     private var lastStatus: Status?
     private var runStateObserver: NSObjectProtocol?
     #if canImport(UIKit)
-    /// Keeps the app alive while the player waits for audio in the background (a chunk the ONNX
-    /// route is rendering): with nothing audible iOS may suspend the app.
+    /// Keeps the app alive while the player waits for its first audio in the background (a
+    /// chapter's opening rendering): with nothing audible iOS may suspend the app.
     private lazy var gapGrace = BackgroundGrace(name: "ReaderListenGap")
     #endif
 
@@ -53,8 +53,6 @@ final class LocalListenEngine {
             self.reportPosition(force: true)
             self.onEvent?(.becameAudible)
             self.updateGapGrace()
-            // In the background the render queue idles between bursts; playing on may wake it.
-            self.coordinator.synthQueue.playbackAdvanced()
         }
         player.onStarved = { [weak self] in self?.updateGapGrace() }
         player.rendersPausedForRetry = { [weak coordinator] in coordinator?.isPausedForRetry ?? false }
@@ -139,7 +137,8 @@ final class LocalListenEngine {
         player.resume()
         startClock()
         if player.isAudible { onEvent?(.becameAudible) }
-        coordinator.synthQueue.playbackAdvanced()
+        // In the background the render queue starts calls only while audio plays.
+        coordinator.synthQueue.playbackResumed()
     }
 
     func stop() {
@@ -190,18 +189,13 @@ final class LocalListenEngine {
             renderedParagraphsAhead: renderedParagraphsAhead)
     }
 
-    /// How audio is produced right now: the app phase, then the engine and its host's routing.
+    /// How audio is produced right now: the app phase, the render policy, then the engine and its
+    /// host's routing.
     private var renderMode: String {
         let phase = coordinator.synthQueue.runState.phase
-        let synth = coordinator.synth
-        let route = "\(name) (\(synth.hostRoutingLabel ?? "default"))"
+        let route = "\(name) (\(coordinator.synth.hostRoutingLabel ?? "default"))"
         let pace = RenderPace.shared.snapshot.speed.map { String(format: ", %.1f× real time", $0) } ?? ""
-        switch (phase, synth.rendersInBackground) {
-        case (.active, _), (.inactive, true): return "\(phase.rawValue), \(route)\(pace)"
-        case (.inactive, false): return "inactive, \(name) for playhead only, bake-ahead held"
-        case (.background, true): return "background, \(route), playing article in bursts\(pace)"
-        case (.background, false): return "background, no model calls: rendered audio, then a pause"
-        }
+        return "\(phase.rawValue), \(coordinator.renderPolicy.name), \(route)\(pace)"
     }
 
     /// Consecutive paragraphs after the playing one already rendered in the current voice.

@@ -50,13 +50,6 @@ extension GlobalSynthQueue {
             kept.indexChanges = after
             missing = kept
         }
-
-        /// Of `work` (missing paragraphs in plan order), those that may render now: below `cap`
-        /// (a staged chapter's opening), and with `aheadOnly` only from the plan's start (the
-        /// playhead) on.
-        func renderable(_ work: [Int], cap: Int?, aheadOnly: Bool) -> [Int] {
-            work.filter { $0 < (cap ?? .max) && !(aheadOnly && $0 < plan.priorityStart) }
-        }
     }
 
     /// A job's paragraphs that still need audio in `target`'s voice

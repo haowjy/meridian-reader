@@ -32,8 +32,7 @@ provider owns its host, model store, voice catalog and chunk limits.
   (`finishSession` is the end only); locked listening depends on it, and the
   `chapter_boundary` timing line checks it on a device. The library is reached only through
   `NextChapterProviding`. A staged next chapter must never render at listener priority, and sits
-  right behind the playing chapter's job (at the front once that is done), never behind a job that
-  parks in the background, and its opening goes before the playing chapter's paragraphs above
+  right behind the playing chapter's job (at the front once that is done), and its opening goes before the playing chapter's paragraphs above
   the playhead; prepared audio come after all of it. Playback never waits for a fetch: a followed
   story's chapter still waiting for its text ends playback there (`ChapterAdvance.Next.waiting`);
   a silent wait would need the app in front, and iOS may suspend an app holding a silent session.
@@ -86,8 +85,7 @@ provider owns its host, model store, voice catalog and chunk limits.
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the
   paragraph count.
 - **Phonon (the default engine).** Core ML's CPU path (`PhononHost.computeUnit` is `.cpu`), in front
-  and in the background, one-call-at-a-time like the rest; it renders in the background in the
-  same bursts as Kokoro. Its cache key doesn't name the compute unit (the owner heard no difference
+  and in the background, one-call-at-a-time like the rest (route `phonon.cpu`, no thread count). Its cache key doesn't name the compute unit (the owner heard no difference
   from Neural Engine audio): a Neural Engine route coming back doesn't need a new cache revision. Its limits
   (`TextChunker.Limits.phonon`: target 1200, hardMax 1600, whole paragraphs) belong to
   `PhononProvider`; `PhononSpokenText` may change case and drop redundant punctuation, never words
@@ -102,8 +100,10 @@ provider owns its host, model store, voice catalog and chunk limits.
   speakable-text pass: engines own normalization (`docs/TTS_ENGINES.md` → "Text prep for speech").
 - **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
   (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again.
-  One call at a time (`SynthRenderGate`). Every engine renders on the CPU alone, so it may render in
-  the background; a host that needs the GPU or Neural Engine must say `rendersInBackground` false.
+  One call at a time (`GlobalSynthQueue.maxCallsInFlight`, and the lane's `SynthRenderGate`).
+  Every engine renders on the CPU alone (lane `.cpu`), so it may render in the background; a route
+  on the GPU or Neural Engine would need its own lane and a policy that keeps it out of the
+  background, not a flag on the host.
   Every extra call is exposure to an uncatchable engine crash, so don't add re-renders: probe a
   change that could add calls by counting them in the timing log.
 - **Only a death inside the engine is a crash.** The in-flight marker exists only during a
@@ -111,19 +111,24 @@ provider owns its host, model store, voice catalog and chunk limits.
   background memory kill (`EngineCrashGuard.MarkerVerdict`). Anything that adds a long wait inside
   a guarded call, or changes what the resume point records, moves those verdicts: keep calls far
   under `EngineCrashGuard.callBound`.
-- **Thread counts are per phase.** In front the ONNX session runs every core but one (3 to 6,
-  `KokoroRouteSettings.defaultThreads`), in the background one; the first call after a phase
-  change rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route
+- **Thread counts come from the policy, per call.** `SingleCallPolicy.threads(on:in:)` passes
+  every core but one in front and one in the background, never more than the route's cap (the
+  Kokoro setting, 3 to 6, `KokoroRouteSettings.defaultThreads`); the host reads no app phase. The
+  first call at a new count rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route
   benchmark on a device, not from the Mac (a Mac has more performance cores than an iPhone's
   two).
-- **Background rendering is budgeted.** Kokoro's ONNX session gets one thread in the background, and
-  bake-ahead runs only in bursts between the watermarks (`BackgroundRenderWatermarks`); between
-  bursts the worker is idle until playback wakes it (`GlobalSynthQueue.playbackAdvanced`, called
-  by `LocalListenEngine` on each unit start and resume). Back-to-back background rendering got the
-  app killed by iOS. Anything new that renders in the background goes through the queue's
-  admission, and nothing holds a background task per chunk. Prepared Audio (`../../Prepared Audio/`) are
-  ordinary bake jobs (`LocalTTSCoordinator+PreparedAudio`): in the background they render only on
-  their prepare turn while audio plays (`RenderAdmission`), and never count as playing.
+- **What renders, when, is the render policy's call** (`RenderPolicy`, `SingleCallPolicy`, built
+  in `AppComposition.makeRenderPolicy`). The queue offers candidates by demand and checks the plan
+  (`RenderPlan.violation`) before it acts; a new rule goes in the policy, a new policy is one type
+  and that line. In the background it renders continuously while audio plays, one call at a time,
+  Kokoro on one ONNX thread: back-to-back rendering on three threads got the app killed by iOS
+  (1.0–1.3 GB), so a higher background budget needs an hour's locked listen on the phone first.
+  `cpuDutyCycle` is the named spot for a later throttle. Each background call runs under the
+  `ReaderSynthDrain` grace, so audio stopping doesn't cut it. When rendering falls behind there,
+  the player pauses at the gap (`ListenStall.cantKeepUp`) and the toast waits for the front
+  (`SpeechController.backgroundNotice`). Prepared Audio (`../../PreparedAudio/`) are ordinary bake
+  jobs (`LocalTTSCoordinator+PreparedAudio`), rendered after the playing article and the staged
+  chapter.
 - **`onRenderStateChange` is called inside the queue's work** (`noteBakeMarksChanged` runs mid
   drain, `bakeCompleted` from the worker): its handler acts later, never re-entering the queue in
   the call.

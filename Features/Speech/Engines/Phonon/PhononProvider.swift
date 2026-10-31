@@ -49,6 +49,9 @@ final class PhononProvider: SpeechEngineProvider {
 
     var regenerableDirectories: [URL] { [PhononModelStore.rootDirectory] }
 
+    /// Core ML's CPU path, which takes no thread count.
+    var routes: [RenderRoute] { [RenderRoute(id: "phonon.cpu", engine: .phonon, lane: .cpu, threads: .uncapped)] }
+
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
         guard id == .phonon else { return nil }
         return PhononHost(voice: voice ?? PhononVoiceCatalog.defaultVoice)

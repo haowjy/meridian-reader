@@ -8,8 +8,6 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .phonon
     static let computeUnit: ComputeUnit = .cpu
     var routingLabel: String? { "phonon-31m cpu" }
-    /// The CPU path runs while the app is in the background (no GPU or Neural Engine there).
-    var rendersInBackground: Bool { true }
     var onProgress: (@Sendable (Double) -> Void)?
 
     private let load = SingleFlightLoad()
@@ -42,7 +40,7 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
                 try await PhononModelStore.ensureInstalled()
                 try Task.checkCancellation()
                 progress?(0.80)
-                await SynthRenderGate.shared.acquire()
+                await SynthRenderGate.of(.cpu).acquire()
                 let loaded: Phonon
                 do {
                     let needs = Phonon.needsCompiling(PhononModelStore.modelsDirectory)
@@ -57,9 +55,9 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
                     if voice != loaded.voice {
                         try await loaded.setVoice(voice)
                     }
-                    await SynthRenderGate.shared.release()
+                    await SynthRenderGate.of(.cpu).release()
                 } catch {
-                    await SynthRenderGate.shared.release()
+                    await SynthRenderGate.of(.cpu).release()
                     throw error
                 }
                 self.lock.withLock { self.tts = loaded }
@@ -79,7 +77,8 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
         }
     }
 
-    func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
+    /// Core ML takes no thread count: `threads` is nil for its route.
+    func synthesizeOnce(text: String, priority: RenderPriority, threads: Int?) async throws -> SynthesizedPCM {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw LocalSynthError.emptyText }
         guard let tts = lock.withLock({ self.tts }) else {

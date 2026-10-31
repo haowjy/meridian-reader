@@ -39,8 +39,6 @@ final class LocalSynthService: SynthChunkRendering {
     var residentEngineID: SpeechEngineID? { state.readyEngineID }
     /// Routing label of the live host (debug).
     var hostRoutingLabel: String? { renderer?.host.routingLabel }
-    /// The live host keeps rendering in the background.
-    var rendersInBackground: Bool { renderer?.host.rendersInBackground ?? false }
 
     // MARK: - Lifecycle
 
@@ -165,13 +163,13 @@ final class LocalSynthService: SynthChunkRendering {
 
     private func currentRenderer() throws -> LocalChunkRenderer {
         if let renderer, renderer.engineID == engineID { return renderer }
-        guard let descriptor = engines.descriptor(engineID),
+        guard let descriptor = engines.descriptor(engineID), let route = engines.routes(for: engineID).first,
               let host = engines.makeHost(for: engineID, voice: engineVoice)
         else {
             throw LocalSynthError.engineUnavailable(
                 engines.blockReason(engineID) ?? "\(engines.shortName(engineID)) isn’t available on this device.")
         }
-        let made = LocalChunkRenderer(host: host, descriptor: descriptor, crashGuard: crashGuard)
+        let made = LocalChunkRenderer(host: host, descriptor: descriptor, route: route, crashGuard: crashGuard)
         host.onProgress = { [weak self] fraction in
             Task { @MainActor in self?.noteLoadProgress(fraction) }
         }

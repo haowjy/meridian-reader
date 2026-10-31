@@ -35,22 +35,17 @@ protocol SynthQueueContext: AnyObject {
     func noteBakeMarksChanged()
     /// An article is fully baked (drop its persisted pending job).
     func bakeCompleted(cacheKey: UUID)
-    /// The active local host may render while the app is backgrounded (Kokoro ONNX CPU route).
-    var activeRouteRendersInBackground: Bool { get }
-    /// Article whose audio is playing right now (nil = none): its renders run at listener
-    /// priority, and it is the only article baked ahead in the background.
+    /// Article whose audio is playing right now (nil = none): its units ahead of the playhead
+    /// have `playing` demand, and in the background calls start only while it is set.
     var playingCacheKey: UUID? { get }
-    /// Listening time ready ahead of the playhead of the article playing: seconds of rendered
-    /// audio the player can play without another render, at the listen speed. Counted up to
-    /// `limit`; 0 when nothing plays. Background bursts start and stop on it
-    /// (`BackgroundRenderWatermarks`).
-    func readyAheadSeconds(upTo limit: TimeInterval) -> TimeInterval
+    /// `engineID`'s routes (`SpeechEngineProvider.routes`): the only ones offered for its work.
+    func routes(for engineID: String) -> [RenderRoute]
+    /// Decides what renders next (`AppComposition.makeRenderPolicy`).
+    var renderPolicy: RenderPolicy { get }
 }
 
 extension SynthQueueContext {
     func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget? { renderTarget(for: cacheKey) }
-    var activeRouteRendersInBackground: Bool { false }
-    var playingCacheKey: UUID? { nil }
 }
 
 /// Renders one synth chunk with the resident engine, at 1×: the listen speed is a time-stretch on

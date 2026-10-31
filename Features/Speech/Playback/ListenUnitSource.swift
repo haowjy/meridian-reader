@@ -10,8 +10,6 @@ protocol ListenUnitSource: AnyObject {
     var paragraphs: [String] { get }
     /// Short name of the engine rendering this audio (logs, listen-bar notes).
     var engineName: String { get }
-    /// The engine keeps rendering while the app is in the background (Kokoro ONNX CPU route).
-    var rendersInBackground: Bool { get }
 
     /// The engine of this play isn't the loaded one: audio still to render waits for the render
     /// queue's worker to load it ("Preparing the voice"). Rendered audio plays without it
@@ -77,7 +75,6 @@ final class QueueUnitSource: ListenUnitSource {
     func rekey(to id: UUID) { articleID = id }
 
     var engineName: String { coordinator.synth.engineShortName }
-    var rendersInBackground: Bool { coordinator.synth.rendersInBackground }
 
     var waitsForVoice: Bool { coordinator.synth.residentEngineID != selection.engine }
 

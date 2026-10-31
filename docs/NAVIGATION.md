@@ -826,9 +826,9 @@ inks and accent. Nothing is modal:
 while prepared audio run, a 2 pt jade line along the top edge of the bottom chrome (the browser's, the
 Library's, the Reader's) fills as they get on, and fades when nothing is queued, everything queued
 is paused, or no on-device voice is selected (VoiceOver reads it as *Prepared Audio, N percent*, a
-button that opens the list). Rendering happens while the app is in front: the article playing and the
-chapter after it always go first, a hot phone or Low Power Mode holds it, and in the background
-prepared audio wait (only what plays renders there, in bursts; LISTEN_PLAYBACK.md).
+button that opens the list). The article playing and the chapter after it always go first, a hot
+phone or Low Power Mode holds it, and in the background it goes on while audio plays; a link
+article's text is fetched only while the app is in front (LISTEN_PLAYBACK.md).
 
 ```
 Prepared Audio                                       ( Done )
