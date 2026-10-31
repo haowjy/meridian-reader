@@ -12,8 +12,9 @@ import SwiftUI
 ///     example.org
 /// ```
 ///
-/// The column is `Glyph.slot` wide and the row at least `Control.tap` tall (on a card list the
-/// list's minimum, `cardListStyle`, is the taller one); both grow with the text up to `Control.maxTextGrowth`. Without a leading view (`symbol` nil)
+/// The column is `Glyph.slot` wide. The row's minimum is `rowMinimum`: `Control.bar` on a card list
+/// (`cardListStyle`, the one card-row policy), `Control.tap` elsewhere (the ⋯ panel, the search
+/// suggestions); both grow with the text up to `Control.maxTextGrowth`. Without a leading view (`symbol` nil)
 /// the text starts at the row's edge: a card's rows either all lead with a symbol or none does.
 /// The row adds no horizontal padding (its list or panel has its own) and no tap: the caller
 /// wraps it in a `Button`, `NavigationLink` or `Toggle`. On the reading page it takes the
@@ -30,6 +31,7 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
 
     @Environment(\.readingPalette) private var reading
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.rowMinimum) private var minimum
     @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.slot
     /// How much the row type has grown (1 at the default size).
     @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var growth: CGFloat = 1
@@ -64,7 +66,7 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         }
         .foregroundStyle(ink ?? reading?.ink ?? Palette.ink)
-        .frame(minHeight: Control.grown(Control.tap * growth, from: Control.tap))
+        .frame(minHeight: Control.grown(minimum * growth, from: minimum))
         .contentShape(Rectangle())
     }
 }

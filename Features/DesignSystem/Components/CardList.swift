@@ -15,14 +15,17 @@ extension View {
     /// Grouped cards on paper, at the page margin, `Spacing.m` between sections, every row at
     /// least `Control.bar` tall (the proportions of the system's Settings); a row taller by its
     /// content (two lines, a control, large text) keeps its height. With `listCard()` this is the one
-    /// card-row policy: no row sets a height of its own.
+    /// card-row policy: no row sets a height of its own; the List's minimum and `SymbolRow`'s
+    /// (`rowMinimum`, which grows with the text) are this one value.
     func cardListStyle() -> some View {
-        listStyle(.insetGrouped)
+        let minimum = Control.bar
+        return listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
             .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
             .listSectionSpacing(Spacing.m)
-            .environment(\.defaultMinListRowHeight, Control.bar)
+            .environment(\.defaultMinListRowHeight, minimum)
+            .environment(\.rowMinimum, minimum)
     }
 
     /// A section's rows on the card's fill, `Spacing.m` in from its sides and no List inset above
@@ -54,4 +57,10 @@ extension View {
             .textCase(nil)
             .listRowInsets(EdgeInsets(top: Spacing.xs, leading: 0, bottom: 0, trailing: 0))
     }
+}
+
+extension EnvironmentValues {
+    /// A `SymbolRow`'s minimum height at the default text size: the tap floor, `Control.tap`, outside a
+    /// card list; a card list's row minimum on one (`cardListStyle`).
+    @Entry var rowMinimum: CGFloat = Control.tap
 }
