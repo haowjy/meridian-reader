@@ -94,6 +94,10 @@ struct LibraryCreateMenu {
                 return MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.importFile) { [library, shell] in
                     BookImportActions(library: library, shell: shell).pickBook(into: folder)
                 }
+            case .addLink:
+                return MenuRow(id: "moreAddLink", title: Verbs.addLink, icon: Icons.link) { [screen] in
+                    screen.addLink(into: folder)
+                }
             default:
                 return MenuRow(id: "morePasteText", title: Verbs.pasteText, icon: Icons.paste) { [screen] in
                     screen.pasteText(into: folder)

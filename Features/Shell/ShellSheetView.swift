@@ -42,6 +42,9 @@ struct ShellSheetView: View {
                 open(visit.url)
             } onDone: {
                 shell.sheet = nil
+            } onOpenLibrary: {
+                shell.sheet = nil
+                shell.showLibrary(at: [])
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)

@@ -96,7 +96,7 @@ enum Icons {
     static let photos = "photo.on.rectangle"
     /// Choose from Files (a file picker; a Library folder is `folder`).
     static let files = "doc"
-    /// A web address standing in for a page with no title.
+    /// A web address: one standing in for a page with no title, and *Add Link…*.
     static let link = "link"
     static let paste = "doc.on.clipboard"
     /// Follow a story (⋯ → *Follow…*), a followed story's status line; Unfollow.

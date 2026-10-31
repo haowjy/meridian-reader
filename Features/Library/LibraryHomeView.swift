@@ -11,6 +11,7 @@ import SwiftUI
 struct LibraryHomeView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
+    @Environment(LibraryScreenState.self) private var screen
 
     @Query private var queriedFolders: [Folder]
     @Query private var queriedArticles: [Article]
@@ -105,13 +106,18 @@ struct LibraryHomeView: View {
         } else {
             EmptyState(tab == .recent ? String(localized: "No History") : String(localized: "Start Your Library"),
                        description: tab == .recent
-                           ? Text("Articles you play without saving show up here for 7 days.") : nil) {
+                           ? Text("Articles you play without saving show up here for 7 days.")
+                           : Text("Save articles from the web, a file, text or a link.")) {
                 ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser, prominent: true,
                            identifier: "libraryEmptyBrowse") { shell.showBrowser() }
-                ActionTile(title: String(localized: "Import a Book"), symbol: Icons.book,
+                ActionTile(title: String(localized: "Import a File"), symbol: Icons.importFile,
                            identifier: "libraryEmptyImport") {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }
+                ActionTile(title: String(localized: "Paste Text"), symbol: Icons.paste,
+                           identifier: "libraryEmptyPaste") { screen.pasteText(into: nil) }
+                ActionTile(title: String(localized: "Add a Link"), symbol: Icons.link,
+                           identifier: "libraryEmptyLink") { screen.addLink(into: nil) }
             }
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)

@@ -21,7 +21,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 - **Folder header More**: Play from Start, Remove Prepared Audio, Voice: <name> (a book or series), Move to…, Edit Details…, Delete, then the create group into this folder (C126).
 - **Library home ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Listen]; on compact width (the title line's ⋯, a system menu) the create group first, then Sort ›, Prepared Audio, Saved, History, Listen (no Settings: the chrome's pill has it; regular width has 🕘). Listen goes to Now Playing when audio is playing, greyed otherwise. Saved opens the Library home (already there: harmless).
 - **Folder screen ⋯**: Sort ›, Prepared Audio, then [Settings][Saved][Listen]; on compact width (beside Edit in the navigation bar, and Library Read's round ⋯) as the Library home's. Listen goes to Now Playing when audio is playing, greyed otherwise.
-- **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB/PDF file picker), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127). Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; shown in every folder including imported EPUBs and followed stories (C149). Follow… and Save from Website… are not here; users do those from the browser.
+- **Create group** (C126, `LibraryCreateMenu`, one definition at `.add` and `.edit`): New Folder…, Import from… (the EPUB/PDF file picker), Paste Text… (a sheet: optional title, the text, prefilled from the clipboard; Save makes a text article here; never grey, C127). Add Link… (an alert: the address, prefilled from the clipboard; Save keeps it here as a link page, its text fetched when it first plays; never grey). Shown by ＋ (Library home and folder screen), a folder header's More and Edit's ＋; shown in every folder including imported EPUBs and followed stories (C149). Follow… is not here; users do that from the browser.
 - **Folder header More** ends with Delete Folder… alone at the bottom, after the create group (C130). Mark as Finished uses the outline `checkmark.circle` (C130).
 - **Edit bar** (folder screen in Edit): Move to… (slot 1), Mark as Finished (middle), ＋ (slot 4: the create group; its New Folder… files the selection into the new folder, C122), Remove.
 - **Reader / Now Playing ⋯** (`ReadingPageMoreButton`, the transport's ⋯ at regular width): the article's options, then the Reader's Prepared Audio, then [Settings][Saved][Listen]. Listen is disabled (already there). Website stays reachable via Share in the article's own rows.
@@ -192,6 +192,7 @@ The row is the second path to the panel: Aa in the address field (`readerAppeara
 | newFolder | never | never |
 | importFile | never | never |
 | pasteText | never | never |
+| addLink | never | never |
 
 ### screen at edit
 
@@ -200,6 +201,7 @@ The row is the second path to the panel: Aa in the address field (`readerAppeara
 | newFolder | never | never |
 | importFile | never | never |
 | pasteText | never | never |
+| addLink | never | never |
 
 ## Prepared Audio list ⋯ (C135)
 

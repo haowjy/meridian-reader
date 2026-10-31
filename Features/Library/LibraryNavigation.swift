@@ -29,10 +29,12 @@ struct FolderGoneView: View {
     @Environment(ShellState.self) private var shell
 
     var body: some View {
-        EmptyState(String(localized: "This Folder Is Gone")) {
+        EmptyState(String(localized: "This Folder Is Gone"),
+                   description: String(localized: "It was deleted.")) {
             ActionTile(title: String(localized: "Open Library"), symbol: Icons.library, prominent: true) {
                 shell.showLibrary(at: [])
             }
+            ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser) { shell.showBrowser() }
         }
         .padding(.horizontal, Spacing.pageMargin)
     }

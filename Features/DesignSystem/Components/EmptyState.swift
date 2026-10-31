@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Every empty screen says so the same way: a heading, a line under it when there is something to
-/// say, and the ways to fill it as `ActionTile`s, two to a row (stacked at the accessibility sizes,
+/// Every empty screen says so the same way: a heading, one line under it, and its ways out as
+/// `ActionTile`s, two to a row (one at the accessibility sizes,
 /// where two side by side would break their words). It sits a fixed way down from the top of
 /// whatever holds it, never centred, so every empty screen lines up. Search results with no match
 /// use the system's search view instead. It takes the width it is given: in a card list that is the
@@ -37,11 +37,9 @@ struct EmptyState<Tiles: View>: View {
             }
             .multilineTextAlignment(.center)
             .accessibilityElement(children: .combine)
-            if typeSize.isAccessibilitySize {
-                VStack(spacing: Spacing.s) { tiles() }
-            } else {
-                HStack(spacing: Spacing.s) { tiles() }
-            }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.s),
+                                     count: typeSize.isAccessibilitySize ? 1 : 2),
+                      spacing: Spacing.s) { tiles() }
         }
         .padding(.top, Spacing.xl * 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

@@ -352,7 +352,7 @@ the same spot. ⋯ is never replaced.
   pages visited, newest first, as Library rows (the site under a titled visit, none under an
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
   and long press are the article's menu ("Menus", below; on the Library's article for the address when
-  it has one), then *Remove from History*. Empty, it says *No History Yet* over one *Browse the Web* tile, which closes it.
+  it has one), then *Remove from History*. Empty, it says *No History Yet*, "Pages you open show up here.", over *Browse the Web* (closes it) and *Open Library*.
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work; over the in-place
   reader, a swipe from the left edge does what ‹ does.
@@ -476,7 +476,7 @@ Follow…, Prepared Audio, Settings*, and the big buttons **Saved**, **History**
 as the chrome's Browser.
 
 ```
-Library                                ⋯   ⋯ on compact width: New Folder…, Import from…, Paste Text…, Sort, …
+Library                                ⋯   ⋯ on compact width: New Folder…, Import from…, Paste Text…, Add Link…, Sort, …
 Library  History
 ▣ Pride and Prejudice              ⋯   tap opens; its cover never changes (C102)
 ▣ Tide Tables                      ⋯
@@ -501,12 +501,13 @@ commas.
   long-press) has *Save to Library*, which moves the article into the Library (it stays in History), *Save to Folder…*, and *Remove from History* (the same remove as *Remove from
   Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
-  isn't in History. Every empty screen looks the same (`EmptyState`): a heading, a line under it when
-  there is something to say, and its ways in as tiles (`ActionTile`), two to a row (stacked at the
+  isn't in History. Every empty screen looks the same (`EmptyState`): a heading, one line under it, and
+  its ways in as tiles (`ActionTile`), side by side (stacked at the
   accessibility text sizes), the first accent-tinted, 96 pt below what is above it. An empty Library says
-  *Start Your Library* over *Browse the Web* (the Browser) and *Import a Book* (the Files picker, as *Import
-  from…*); History says *No History*, "Articles you play without saving show up here for 7 days.", over
-  the same two. Search with no match is the system's search view.
+  *Start Your Library*, "Save articles from the web, a file, text or a link.", over four tiles, two by two:
+  *Browse the Web* (the Browser), *Import a File* (as *Import from…*), *Paste Text* (as *Paste Text…*)
+  and *Add a Link* (as *Add Link…*); History says *No History*, "Articles you play without saving show
+  up here for 7 days.", over the same four. Search with no match is the system's search view.
   Search filters the tab on screen: on
   Everything the Library's folders and pages across the tree, on
   History its pages; folders by name, then pages by title (the newest first among equal
@@ -519,7 +520,7 @@ commas.
   Book…* on one action row. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
-  default, or *Title*), *New Folder…, Import from…, Paste Text…, Prepared Audio*.
+  default, or *Title*), *New Folder…, Import from…, Paste Text…, Add Link…, Prepared Audio*.
 - **A folder** (`FolderScreen`, books and series included): a centred header (YouTube Music's
   album header), then subfolders first (by their order), then pages by the folder's sort. The
   header is the title and counts; a folder with details has its cover above them (below). Once
@@ -572,12 +573,12 @@ commas.
   (🗑, ⋯'s slot) as symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
   their delete is saved (*Cancel* keeps them selected). ⋯: the folder's own menu, then *Sort ›,
-  New Folder…, Import from…, Paste Text…, Prepared Audio*. Every ⋯ ends with *Prepared Audio,
+  New Folder…, Import from…, Paste Text…, Add Link…, Prepared Audio*. Every ⋯ ends with *Prepared Audio,
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
   every empty screen has (`EmptyState`): *This Folder Is Empty*, *Move articles here, or save them
-  here from the Reader's 🔖* (the toolbar's symbol), over *Browse the Web* and *Import a Book* (into
+  here from the Reader's 🔖* (the toolbar's symbol), over the same four tiles as the Library's (into
   the folder).
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
@@ -865,7 +866,7 @@ page's, or the folder's, which lists the folder's pages afresh). A page
 that couldn't be fetched or rendered is counted ("2 couldn’t prepare"), and *Prepare Again* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
 nothing in it, it says *Nothing Prepared* (`EmptyState`): prepare an article from its ⋯, or a
-folder or a book from its screen's ↓, over one *Open Library* tile.
+folder or a book from its screen's ↓, over *Open Library* and *Browse the Web*.
 
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…* (titled *Move to*) and every *Save
 to Folder…* (an article's menu out of the Library, 🔖 held; titled *Save to Folder*); the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋

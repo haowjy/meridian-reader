@@ -32,7 +32,7 @@ import Foundation
 /// | Rename…, Edit Details… | `Icons.rename`, `Icons.editDetails` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
 /// | Pause (a prepare), Prepare Again | `Icons.pause`, `Icons.reprepare` |
-/// | New Folder…, Import from…, Paste Text…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.paste`, `Icons.follow` |
+/// | New Folder…, Import from…, Paste Text…, Add Link…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.paste`, `Icons.link`, `Icons.follow` |
 /// | Prepared audio, Settings | `Icons.preparedAudio`, `Icons.settings` |
 enum Verbs {
     // MARK: A page
@@ -116,6 +116,7 @@ enum Verbs {
     static let newFolder = String(localized: "New Folder…")
     static let importBook = String(localized: "Import from…")
     static let pasteText = String(localized: "Paste Text…")
+    static let addLink = String(localized: "Add Link…")
     static let create = String(localized: "Add")
     /// A story's table of contents, read into a folder of chapters.
     static let follow = String(localized: "Follow…")

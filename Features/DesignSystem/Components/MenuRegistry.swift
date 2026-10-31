@@ -52,7 +52,7 @@ enum MenuRegistry {
         // A prepare
         case reprepare, removePrepare
         // A screen's own rows
-        case newFolder, importFile, pasteText, textAppearance, follow, sort, reload, preparedAudio, settings
+        case newFolder, importFile, pasteText, addLink, textAppearance, follow, sort, reload, preparedAudio, settings
         // The Prepared Audio list's own ⋯ (C135)
         case deleteAllPrepared, clearListeningAudio
     }
@@ -185,6 +185,7 @@ enum MenuRegistry {
         Spec(option: .newFolder, kind: .screen, places: [.add, .edit]),
         Spec(option: .importFile, kind: .screen, places: [.add, .edit]),
         Spec(option: .pasteText, kind: .screen, places: [.add, .edit]),
+        Spec(option: .addLink, kind: .screen, places: [.add, .edit]),
         Spec(option: .textAppearance, kind: .screen, places: [.browser],
              applies: { $0.inReaderMode }, hiddenIf: "the browser shows the web page, not its reader"),
         Spec(option: .follow, kind: .screen, places: [.browser],

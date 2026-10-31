@@ -37,6 +37,9 @@ final class LibraryScreenState {
     var pastingText: Folder??
     var pastedTitle = ""
     var pastedText = ""
+    /// *Add Link…*'s alert: the folder it saves into (`.some(nil)`: the top level).
+    var addingLink: Folder??
+    var linkText = ""
 
     /// The row being dragged, from the moment it lifts (`libraryDrag`) until it is let go: the
     /// drop zone takes the drop only meanwhile (`libraryDropZone`).
@@ -128,6 +131,22 @@ final class LibraryScreenState {
         pastedText = UIPasteboard.general.hasStrings ? UIPasteboard.general.string ?? "" : ""
         pastingText = .some(folder)
     }
+
+    /// Opens *Add Link…*, its field holding the pasteboard's address if it has one.
+    func addLink(into folder: Folder?) {
+        linkText = UIPasteboard.general.hasURLs ? UIPasteboard.general.url?.absoluteString ?? "" : ""
+        addingLink = .some(folder)
+    }
+
+    /// The typed address as a web address: `https://` added when it has no scheme; nil when it
+    /// isn't one (no host with a dot).
+    static func linkURL(_ text: String) -> URL? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withScheme = trimmed.contains("://") ? trimmed : "https://" + trimmed
+        guard let url = URL(string: withScheme), let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https", let host = url.host, host.contains(".") else { return nil }
+        return url
+    }
 }
 
 extension View {
@@ -216,6 +235,24 @@ private struct LibraryDialogs: ViewModifier {
                         state.selection = []
                     }
                 }
+            }
+            .alert(Verbs.title(Verbs.addLink), isPresented: Binding(get: { state.addingLink != nil },
+                                                             set: { if !$0 { state.addingLink = nil } })) {
+                TextField(String(localized: "example.com/article"), text: $state.linkText)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("addLinkField")
+                Button(Verbs.cancel, role: .cancel) { state.addingLink = nil }
+                Button(Verbs.save) {
+                    if case .some(let folder) = state.addingLink, let url = LibraryScreenState.linkURL(state.linkText) {
+                        shell.attempt(String(localized: "Couldn’t save")) { try library.saveLink(url, in: folder) }
+                    }
+                    state.addingLink = nil
+                }
+                .disabled(LibraryScreenState.linkURL(state.linkText) == nil)
+            } message: {
+                Text("Its text is fetched when you first play it.")
             }
             .sheet(isPresented: Binding(get: { state.pastingText != nil }, set: { if !$0 { state.pastingText = nil } })) {
                 PasteTextSheet(state: state) {
