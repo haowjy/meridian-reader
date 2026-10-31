@@ -78,7 +78,8 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     }
 }
 
-/// Jump to Audio: a thin accent pill in caption type, "↑ Jump to Audio", floating in the
+/// Jump to Audio: a thin accent pill, "↑ Jump to Audio", in the pills' type (row, semibold, as
+/// the readers' "▶ Listen") with just 4 pt above and below, floating in the
 /// middle of the line above what floats at the foot (the card, or the strip in full screen), its
 /// arrow pointing to the spoken sentence. It shows only while the text is away from the audio
 /// (`shows`), and fades in and out.
@@ -95,7 +96,7 @@ struct JumpToAudioButton: View {
             if shows {
                 Button(action: action) {
                     Label(Verbs.jumpToAudio, systemImage: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown)
-                        .typeStyle(.caption, weight: .semibold)
+                        .typeStyle(.row, weight: .semibold)
                         .labelStyle(.titleAndIcon)
                         .foregroundStyle(reading?.onAccent ?? Palette.onAccent)
                         .padding(.horizontal, Spacing.s)

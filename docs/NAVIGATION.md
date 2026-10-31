@@ -227,7 +227,7 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   the speed (1×) over Aa at the left, Voice (VoiceOver: "Voice", never a voice's name) over ⋯ at the
   right; between them ⏮, a 62 pt ▶ / ⏸ and ⏭ (`NowPlayingTransport`'s `card` size), centred across
   both rows. **Jump to Audio** is not in the card: scrolled away from the audio, a thin accent pill,
-  "↑ Jump to Audio" or "↓ Jump to Audio" in caption type (`JumpToAudioButton`, the same on regular width;
+  "↑ Jump to Audio" or "↓ Jump to Audio" in the pills' type (as "▶ Listen"), 4 pt above and below (`JumpToAudioButton`, the same on regular width;
   its tap area 44 pt), floats in the middle 12 pt above the card (above
   the home indicator's strip in full screen) and brings the text back to the spoken sentence; while the text follows the audio, or once the article has finished, it isn't there.
   ⋯ (`listenMore`) is a system menu, a section per
