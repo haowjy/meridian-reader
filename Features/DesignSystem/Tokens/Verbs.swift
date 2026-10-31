@@ -94,7 +94,7 @@ enum Verbs {
 
     /// *Delete Folder…* / *Delete Book…*: a book is named as one.
     static func deleteFolder(isBook: Bool) -> String {
-        String(localized: "Delete Folder…")
+        isBook ? String(localized: "Delete Book…") : String(localized: "Delete Folder…")
     }
 
     // MARK: Playing
@@ -135,10 +135,11 @@ enum Verbs {
     /// The ⋯ panel's last rows and the screens they open.
     static let preparedAudio = String(localized: "Prepared Audio")
     static let settings = String(localized: "Settings")
-    /// The browser's: pages visited.
-    /// The visits sheet's button and title: *Recent*, as the Library's tab (C100).
+    /// The Library's tab of pages played or opened and not kept (C100).
     static let history = String(localized: "History")
-    static let removeFromHistory = String(localized: "Remove from History")
+    /// The browser's pages visited: its sheet's title and the buttons and menu rows that open it.
+    static let browsingHistory = String(localized: "Browsing History")
+    static let removeFromBrowsingHistory = String(localized: "Remove from Browsing History")
     /// The start page's and the search layer's section of searches made, and its action.
     static let recentSearches = String(localized: "Recent Searches")
     /// The start page's sites with the most pages in History.

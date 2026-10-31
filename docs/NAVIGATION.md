@@ -6,12 +6,12 @@ grabber), you can pull it down.** Either gesture must do exactly what tapping th
 Listen on compact width slides up over everything (the chrome too) and follows the sheet rule
 without a button: a grabber, and a pull down that closes it (VoiceOver: the escape gesture;
 "Bottom chrome", below).
-Regular width keeps the Reader and Now Playing sheets ("iPad and regular width").
+Regular width keeps the Reader and Listen sheets ("iPad and regular width").
 
 | Button | Presentation | Gesture | Provided by |
 |--------|--------------|---------|-------------|
 | ‹ | real push in a `NavigationStack` (`NavigationLink` / `navigationDestination`) | left-edge swipe-back | UIKit, with the system back button |
-| ✕ | modal: `.sheet`, or the design system's `Sheet` (Follow's chapter preview; the regular-width Reader and Now Playing) | swipe down | `.sheet` does it natively; `Sheet` implements it (see below) |
+| ✕ | modal: `.sheet`, or the design system's `Sheet` (Follow's chapter preview; the regular-width Reader and Listen) | swipe down | `.sheet` does it natively; `Sheet` implements it (see below) |
 
 ## ‹ = push + swipe-back
 
@@ -33,10 +33,10 @@ Regular width keeps the Reader and Now Playing sheets ("iPad and regular width")
 ## ✕ = modal + swipe-down
 
 - `.sheet`: swipe-down is built in (show the grabber), from the header or from a scrolling body at
-  its top: the Move tree, the import sheet (except while it works), History,
+  its top: the Move tree, the import sheet (except while it works), Browsing History,
   Settings, Prepared Audio, Edit Details. Their *Done*, *Cancel*, *Save* and *Import* are one
   pill, the neutral one the Reader's close pill is (`SheetBarButton`).
-- The design system's `Sheet` (Follow's chapter preview, and the Reader and Now Playing on regular width,
+- The design system's `Sheet` (Follow's chapter preview, and the Reader and Listen on regular width,
   in place, not a `.sheet` or `fullScreenCover`): pulling the header (grabber or the top bar) down calls
   the same close action as its button. Closing never stops audio.
 - **The text pulls the sheet too, from its top**, so a sheet closes one-handed from the lower half
@@ -45,7 +45,7 @@ Regular width keeps the Reader and Now Playing sheets ("iPad and regular width")
   the sheet first, then scrolls the text again. A drag that begins anywhere else in the text only
   scrolls, even once the text reaches its top: reading back up never closes the sheet. Sideways
   drags, text selection and ☝︎ taps are untouched, and the scrubber and the bottom row aren't
-  text, so they never pull. In Now Playing a pull alone keeps following the audio (it moves
+  text, so they never pull. In Listen a pull alone keeps following the audio (it moves
   nothing); once the drag moves the text, following stops as for any drag. In full screen the
   text hands no pull to the sheet: a pull down at its top only rubber-bands and brings the bars
   back, and a pull that begins with them showing closes the sheet as above. (Compact full screen,
@@ -117,7 +117,7 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
 - **Settings** (compact width) is a destination like the other two: its pill segment shows it in place under
   the same chrome (`ShellState.Surface.settings`, remembered for the next launch as `settings`), Library and
   Browser leave it, and it scrolls under the chrome and folds like the Library. Its title heads the list with ⋯ at
-  the end of the line (Settings has no rows of its own, so the app-wide ones: Library, History, Listen). Row 1 is
+  the end of the line (Settings has no rows of its own, so the app-wide ones: Library, Browsing History, Listen). Row 1 is
   **Search Settings**, which filters the list as you type: a row shows when its title or its section's title
   contains the text, sections without a match go, and nothing matching says *No Results for "…"* (the
   Library search's view). Starting a search shows the list (a pushed page goes); the pages it pushes (Voice,
@@ -288,14 +288,14 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   system menu (`MenuRows`, `TitleMenuButton`), the panel's big buttons as its last section:
   - the Library home: ⋯ at the end of the title's line (`libraryMore`); a folder's screen: ⋯ beside Edit in its
     navigation bar; Library Read: a round ⋯ at the top right. The Library's menu adds *New Folder…*,
-    *Import from…* and *Paste Text…* to its screen's rows, and *History* is among its last rows. *Paste
+    *Import from…* and *Paste Text…* to its screen's rows, and *Browsing History* is among its last rows. *Paste
     Text…*'s *Save* opens the new article in Library Read.
   - Settings: ⋯ at the end of its title's line (`settingsMore`).
   - the Browser (page, start page, reader mode): a press and hold on the field's leading glyph (the reader
     icon, or 🔍 where there is none, `addressMenu`); a tap on the reader icon still toggles reader mode.
     Its rows: *Open in Reader* (or *Show Web Page*), *Listen* (Listen over the page you hear; another readable
     page is extracted and plays, and Listen rises once it starts), then the page's menu and the screen's rows
-    regular width's ⋯ shows (*Save to Folder…*, *Follow…*, *Reload*, …), then *Library* and *History*.
+    regular width's ⋯ shows (*Save to Folder…*, *Follow…*, *Reload*, …), then *Library* and *Browsing History*.
   Compact width has no *Settings* row anywhere: the pill has it.
 - The field's and Listen's card's text grows with Dynamic Type up to *xxxLarge* inside
   the fixed pieces (larger clips or overlaps); every glyph offers the large content viewer. Every tap target is at least 44 pt.
@@ -334,7 +334,7 @@ dock, whose toolbar has one role per slot on both surfaces:
 | 1 | ‹ web back | ‹ up a level (dimmed at the home) |
 | 2 | › web forward | › (always dimmed: the Library has no forward) |
 | 3 | 🔖 save the article / remove it (held: *Save to Folder…*) | ＋ *New Folder…*, *Import from…* |
-| 4 | 🕘 History | 🕘 History |
+| 4 | 🕘 Browsing History | 🕘 Browsing History |
 | 5 | ⋯ | ⋯ |
 
 A slot with nothing to do is dimmed in place, never removed, so nothing shifts.
@@ -360,11 +360,11 @@ the same spot. ⋯ is never replaced.
   suggestions follow the same rule (`BrowseURLParser`).
 - **🔖** (regular width, slot 3; on compact width ⋯ has the page's *Save to Folder…*) is the Reader's 🔖 for the article on screen: tap saves it to the Library's top level
   (extracted first; 🔖 spins), or removes it when it is saved (filled, jade); held, it opens the
-  Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4; on compact width a tile of ⋯) opens History: the
+  Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4; on compact width a row of ⋯) opens Browsing History: the
   pages visited, newest first, as Library rows (the site under a titled visit, none under an
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
   and long press are the article's menu ("Menus", below; on the Library's article for the address when
-  it has one), then *Remove from History*. Empty, it says *No History Yet*, "Pages you open show up here.", over the four tiles every empty screen has; each closes it first (*Browse the Web* to the Browser).
+  it has one), then *Remove from Browsing History*. Empty, it says *No Browsing History Yet*, "Pages you open show up here.", over the four tiles every empty screen has; each closes it first (*Browse the Web* to the Browser).
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work; over the in-place
   reader, a swipe from the left edge does what ‹ does.
@@ -379,7 +379,7 @@ the same spot. ⋯ is never replaced.
   `isProbablyReaderable` check extraction uses, run after each load / same-document URL change);
   otherwise the lock / search glyph is there. Tapping it shows the page's reader view in place on
   compact width ("Bottom chrome", above) and opens the Reader sheet on regular width (a spinner
-  replaces it while the article is extracted); on the article that is playing it opens Now Playing.
+  replaces it while the article is extracted); on the article that is playing it opens Listen.
 - **🎧** (headphones, trailing end of the address field; regular width only, compact has ↻ there)
   also shows only on readable pages. It is
   the article's own play button: grey when the article isn't what you hear (tap: listen now: a spinner
@@ -393,16 +393,16 @@ the same spot. ⋯ is never replaced.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
   the article's own menu (the same rows as everywhere the article's menu shows: "Menus", below), then
   *New Search, Follow…, Reload, Prepared Audio, Settings*, then a row of big buttons **Library**,
-  **History**, and **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). The page's
+  **Browsing History**, and **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). The page's
   *Save to Library* and *Save to Folder…* extract it first. *Follow…* reads the story the article
   belongs to ("Follow a story", below). On the start page there is no page, so no page rows;
   *Follow…*, *Reload* and the Reader toggle show dimmed; the Reader toggle is dimmed on pages that
-  aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, History, the Move tree)
+  aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, Browsing History, the Move tree)
   run after the panel has closed.
 - **The ⋯ panel** (`MorphMenuOverlay`: one overlay for the browser toolbar ⋯, the library
-  toolbar ⋯, the Reader's ⋯ and regular width's Now Playing ⋯; its rows come from the surface that opened it,
+  toolbar ⋯, the Reader's ⋯ and regular width's Listen ⋯; its rows come from the surface that opened it,
   `MenuContext`: the item's menu, the screen's rows, the big buttons) is not a popover: it is placed so the bottom-right button's icon (Reader,
-  or Website in the Reader and Now Playing — marked with `morphMenuFocus`) sits slightly up and to
+  or Website in the Reader and Listen — marked with `morphMenuFocus`) sits slightly up and to
   the left of the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it.
   Like every menu in the app (the long-press ones too), it keeps its shape (decision DR-09): a row
   that applies to what the menu is for but can't run now shows dimmed, and only a row that can
@@ -422,16 +422,16 @@ the same spot. ⋯ is never replaced.
   so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
   jump. The sheets' pull-down follows the same rules. Light glass on iOS 26 (thick material
   before). Debug › is a native `Menu`.
-- **One saved state**: the browser's 🔖 and ⋯, the Reader and Now Playing all read "is this page
+- **One saved state**: the browser's 🔖 and ⋯, the Reader and Listen all read "is this page
   saved?" from the article for its address, else its key (`ArticleActions`, `ArticleLookup`), the article
   Save saves into and *Remove from Library* removes, and they follow a change made anywhere at
   once.
 - **One library**: everything is an article in a folder (or in none). An article is a *link* (an address
   you kept, such as an address saved from a website: no text or audio), *saved* (text and audio kept), or played
   without saving (kept while in the last 50 of History, listed in the Library's History tab, and in the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
-  Edit, 🔖, the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar's long-press):
+  Edit, 🔖, the ⋯ of the browser, the Reader and Listen, the Now Playing bar's long-press):
   the article leaves its folder and every Library list it was in, History too; if it is what you hear, playback stops, as for
-  *Stop Listening*, and Now Playing closes. It is kept while it is in the last 50 of History (C134) (an article never
+  *Stop Listening*, and Listen closes. It is kept while it is in the last 50 of History (C134) (an article never
   played goes at the next launch) but the bar doesn't offer it, and it comes back only when you
   save it or listen to it again (🎧, the Reader's Listen). There is one article per address: saving
   a link saves it in place. 🔖 = saved.
@@ -442,21 +442,21 @@ the same spot. ⋯ is never replaced.
   site and the time left (two parts set apart by space, the time in lighter ink; at the playback
   speed, written as rows write it: "9 min left", "6 h 10 min left"), a groove progress line (4 pt,
   matching the scrub track) inside the card, and play/pause. At the end of an article it stays,
-  reading ◉ Finished, and ▶ plays the article again. Tap or swipe up → Now Playing; long-press →
+  reading ◉ Finished, and ▶ plays the article again. Tap or swipe up → Listen; long-press →
   the article's menu ("Menus", below; its *Remove from Library* stops the article you hear, as
-  anywhere else), then *Stop Listening* (unloads the article). It hides on Now Playing, under other
+  anywhere else), then *Stop Listening* (unloads the article). It hides on Listen, under other
   sheets and once nothing is loaded. Elsewhere on compact width the chrome's Listen does its job,
   and on regular width the clustered dock does.
 
 **Start page** (no page loaded), Safari-style:
-1. **Frequently Visited**: the sites you visit most, from the browser's History (no tracking of
-   its own): History keeps one visit per page, the last 30, so a site counts its pages there, the
+1. **Frequently Visited**: the sites you visit most, from Browsing History (no tracking of
+   its own): it keeps one visit per page, the last 30, so a site counts its pages there, the
    most first, then the most recently visited. One tile per site (`www.` folded in): its icon (the
    newest visit's that fills a tile, else the letter tile) and its host below. 4 per row, up to 8
    (at the accessibility sizes one per row, the host beside its tile).
-   While fewer than 4 sites are in History, starter tiles fill the first row: *Wikipedia*,
+   While fewer than 4 sites are in Browsing History, starter tiles fill the first row: *Wikipedia*,
    *Standard Ebooks*, *Project Gutenberg* (letter tiles). A tile opens the site's home page in
-   Browse; it has no long-press menu. Show All opens History (`FrequentlyVisited`).
+   Browse; it has no long-press menu. Show All opens Browsing History (`FrequentlyVisited`).
 2. **Recent Searches** (local, newest first, *Clear All*; each a 🔍 row, as in the search layer).
 
 ## The Library
@@ -471,21 +471,21 @@ everything under it, and says so (*Search Demo Finance*): the results stand unde
 name, each row showing where it is below the folder (its site when it is in the folder itself);
 the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. The History tab is everything you opened or started (C104); the browser's
-*History* (🕘 on regular width, a row of the compact menus) is its pages visited. The two share a name (the
-owner's choice, 2026-10-30). From the Library, 🕘 opens History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ shows as in any folder (C149); a folder header's More ends with *Delete Folder…* alone at the bottom, after the create group. On
+*Browsing History* (🕘 on regular width, a row of the compact menus) is its pages visited. From the
+Library, 🕘 opens Browsing History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ shows as in any folder (C149); a folder header's More ends with *Delete Folder…* (*Delete Book…* on a book) alone at the bottom, after the create group. On
 History and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
-parent. Going to a place in the Library (Now Playing's ⋯ → *Go to …*, the title on Listen's card,
+parent. Going to a place in the Library (Listen's ⋯ → *Go to …*, the title on Listen's card,
 an imported book) opens it on Library, where every place shows; Library
 comes back to the tab you left. Either way a page open in Library Read closes first, so the place
 asked for shows. The tab is remembered with the surface. On compact width the chrome's row 1 is the search
-field and the title line's ⋯ holds the creating rows, with *History* among its last rows ("Bottom chrome", above); on regular width the
+field and the title line's ⋯ holds the creating rows, with *Browsing History* among its last rows ("Bottom chrome", above); on regular width the
 band and dock are the browser's: the search field and `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
 (*New Folder…* in a folder) and *Import from…*, both made in the folder on screen (a book's too). Browser shows the browser as
 it was; Library there comes back to the same folder. The
 ⋯ panel follows the screen on top (below): a folder's screen starts with the folder's own menu,
 then every screen has *Sort ›, New Folder…**, Import from…,
-Follow…, Prepared Audio, Settings*, and the big buttons **Library**, **History**, **Browser**; nothing in it acts on the page under the Library. History closes the Library first; Browser is the same
+Follow…, Prepared Audio, Settings*, and the big buttons **Library**, **Browsing History**, **Browser**; nothing in it acts on the page under the Library. Browsing History closes the Library first; Browser is the same
 as the chrome's Browser.
 
 ```
@@ -718,10 +718,10 @@ bar's ⏸ is; a long press opens the same menu (the item's one menu, "Menus" bel
 D11), and a long press that moves lifts the row into a drag (below). **Tapping an article
 row plays it** (replacing what plays; in a folder it carries on through the folder) and, on compact
 width, slides Listen up over the Library, except the
-article you hear, which opens Now Playing (a stray tap never pauses); a link page (*Add Link…*'s,
+article you hear, which opens Listen (a stray tap never pauses); a link page (*Add Link…*'s,
 a story's chapter waiting for its text) is fetched first, its row saying *Downloading…* (or why it
 couldn't be had), then plays, Listen staying down; a skipped page plays when tapped. *Read*, the menu's first row, opens
-it (the Reader; Now Playing for the page you hear; the browser for a link). **Tapping a folder
+it (the Reader; Listen for the page you hear; the browser for a link). **Tapping a folder
 row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own last row,
 by its name: an article's *Remove from Library* (or *Remove from History*), which takes its row out of
 every list once it is saved, and leaves it, with a toast, when it can't be; a folder's *Delete
@@ -743,7 +743,7 @@ article, then stops; an article in no folder plays to its end and stops. Every f
 which is yours (a book's starts as the book's order). Link pages are passed over (a followed
 story's stop playback until their text is in), and so are pages marked *Skip When Playing*. The page that last played is the folder's place: its
 row shows the place and the time left and *Continue* resumes there, as a book's does; before
-anything in it has played, the first article starts where it was left. Now Playing's "Playing
+anything in it has played, the first article starts where it was left. Listen's "Playing
 from" names the folder.
 
 **Dragging rows** (decision D15), on the home and folder screens, without Edit: a
@@ -761,9 +761,9 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 | Row | Tap | Swipe left |
 |---|---|---|
 | Folder, book or series | opens it (push) | *Delete Folder…* / *Delete Folder…* |
-| Saved article (including a chapter) | plays it (Now Playing if it's what you hear) | *Remove from Library* |
-| History article (played without saving) | plays it (Now Playing if it's what you hear) | *Remove from History* |
-| Link page | fetches its text, then plays it (Now Playing if it's what you hear; ⋯ *Read* opens it in the browser) | *Remove from Library* |
+| Saved article (including a chapter) | plays it (Listen if it's what you hear) | *Remove from Library* |
+| History article (played without saving) | plays it (Listen if it's what you hear) | *Remove from History* |
+| Link page | fetches its text, then plays it (Listen if it's what you hear; ⋯ *Read* opens it in the browser) | *Remove from Library* |
 
 ### Menus
 
@@ -772,16 +772,16 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 An item has one menu wherever it shows (decision C4): an article's (`ArticleMenu`), a folder's
 (`FolderMenu`, books and series too) and a prepare's (`PrepareMenu`). The same rows, in the same
 order, with the same names and symbols, in a row's ⋯ and its long press, a
-History visit, the Now Playing bar's long press, a folder header's *More* and the top of every ⋯
-panel that is about one item (the browser's page, the Reader's, Now Playing's, a folder's screen).
+Browsing History visit, the Now Playing bar's long press, a folder header's *More* and the top of every ⋯
+panel that is about one item (the browser's page, the Reader's, Listen's, a folder's screen).
 A place only hides a row that can never apply there or dims one that can't run now (DR-09); what
 a place adds of its own comes after, set apart by a divider (the ⋯ panel's screen rows and big
-buttons, the bar's *Stop Listening*, History's *Remove from History*). Rows that delete something
+buttons, the bar's *Stop Listening*, Browsing History's *Remove from Browsing History*). Rows that delete something
 are red everywhere.
 
 | An article's menu | Where it shows |
 |---|---|
-| *Read* / *Go to <place>* | *Read* (the Reader; Now Playing for the page you hear; the browser for a link or an address the Library hasn't) where the page isn't open; Now Playing has *Go to* its folder or the Library in its place; neither on the Reader or the browser |
+| *Read* / *Go to <place>* | *Read* (the Reader; Listen for the page you hear; the browser for a link or an address the Library hasn't) where the page isn't open; Listen has *Go to* its folder or the Library in its place; neither on the Reader or the browser |
 | *Play from Here* | an article in a folder, in a Library list |
 | *Prepare Audio* / *Remove Prepared Audio* (red) | a page out of the Library is saved first (C104); dimmed only on a browser page not yet loaded as a page |
 | *Move to…* / *Save to Folder…* | *Save to Folder…* out of the Library (the Move tree, titled *Save to Folder*, saves it there), *Move to…* in it |
@@ -817,10 +817,10 @@ story its chapters that play and aren't finished, one page at a time, and while 
 pages added later too. A prepare starting (or a paused one going on) shows no toast: the row's
 mark and the folder header's Prepare control already show it, and that control, while its
 prepare runs, is captioned with the count ("2 of 3") and opens the Prepared Audio list (C96). Other
-toasts (*already preparing*, *Nothing to prepare*) float just above the Now Playing
+toasts (*already preparing*, *Nothing to prepare*) float just above the Listen
 bar (never over it), as every toast does, and goes after a few seconds. A toast's message wraps
 between words, never inside one: when a word wouldn't fit beside *View* (the largest text sizes),
-*View* goes under the message, and then the symbol goes. Over the Reader and Now Playing a
+*View* goes under the message, and then the symbol goes. Over the Reader and Listen a
 toast, like the Now Playing bar and the play controls there, takes the reading theme's card,
 inks and accent. Nothing is modal:
 while prepared audio run, a 2 pt jade line along the top edge of the bottom chrome (the browser's, the
@@ -849,7 +849,7 @@ Different Voice  1
 ```
 
 **⋯ › Prepared Audio** (`PreparedAudioSheet`, every ⋯ panel: the browser's, the Library's on every screen,
-the Reader's, Now Playing's; medium, grows to large; also Settings › Prepared Audio & Storage ›
+the Reader's, Listen's; medium, grows to large; also Settings › Prepared Audio & Storage ›
 Prepared Audio, pushed) lists one row per page (C110: a folder's pages each on their own row, never a folder total;
 line two its folder's name, or its site for an article in no folder; the status mark before it:
 spinner waiting, accent ↓ filling while it renders, filled once done), in sections shown only
@@ -905,14 +905,14 @@ article is extracted first (⋯ spins).
 **A change that can't be saved** (a move, *New Folder*, *Rename*, *Edit Details*, *Sort*, a drop on a folder or
 between rows, a
 mark, *Remove*, a delete, saving or unsaving with 🔖
-(the browser's, the Reader's or Now Playing's), *Save to Folder…*, ⋯ → *Save to Library* / *Remove from Library*) isn't stored: the
+(the browser's, the Reader's or Listen's), *Save to Folder…*, ⋯ → *Save to Library* / *Remove from Library*) isn't stored: the
 library reads as it did before it, and a toast says so ("Couldn’t move", "Couldn’t save") where
 a success would have shown. *Remove* of several pages is one change: all go, or none. A folder's
 screen doesn't follow a move that didn't happen, the Move tree stays up, and 🔖 keeps what it showed. In Edit, the selection stays when its change can't
 be saved; Edit's *Remove* is two changes, the pages first and then, after the question, the
   folders, so a folder delete that can't be saved leaves the folders selected but doesn't bring back
   pages already removed. The toast shows over the Move tree, the import sheet
-and Now Playing too. Listening goes on being kept meanwhile: where you are in an article, when you last played it and
+and Listen too. Listening goes on being kept meanwhile: where you are in an article, when you last played it and
 whether you finished it are stored once saving works again, even across failed changes.
 
 **Library search** is the bottom field, the same session as the browser's (`SearchSession`,
@@ -947,33 +947,33 @@ tree in the selected tab, each with its location.
   afterwards; its `.playback`/`.spokenAudio` session is restored. Nothing is submitted
   automatically.
 
-## The Reader and Now Playing (what you see, what you hear)
+## The Reader and Listen (what you see, what you hear)
 
 What you **see** and what you **hear** are separate, in three layers: the surface (the browser or
-the Library), the **Reader** for reading any article, and **Now Playing** (Listen) for what you hear.
+the Library), the **Reader** for reading any article, and **Listen** for what you hear.
 Navigating never changes what you hear, and a play button never navigates (a Library row's tap, which
 plays, slides Listen up on compact width). The Reader never shows
 the article you hear: opening the Reader of that article (📄, a Library row) opens
-Now Playing instead.
+Listen instead.
 
 The two widths present them differently:
 
 | | Compact width | Regular width |
 |---|---|---|
 | Reader | In place, under the bottom chrome (`ReaderSurface`): the Browser's reader mode and Library Read ("Bottom chrome", above). No sheet, grabber, close pill, top bar or bottom band: Aa is in the chrome's field, ‹ starts row 1, the heading reads the title, then "site  length", and "▶ Listen" floats above the chrome | A `Sheet` over the surface that opened it (`ReaderSheetScreen`): grabber, close pill, top bar, bottom band |
-| Now Playing | Listen: a `Sheet` that covers the screen and the chrome, with a grabber, the article's title at the top of its text and the player card at its foot; a pull down closes it ("Bottom chrome", above) | A `Sheet` over everything that shrinks back into the Now Playing bar; its close pill names where it plays from |
-| Into Now Playing | The chrome's round Listen, a reader's ▶ Listen, a Library row | The Now Playing bar (tap, swipe up), the Reader's ▶ |
+| Listen | Listen: a `Sheet` that covers the screen and the chrome, with a grabber, the article's title at the top of its text and the player card at its foot; a pull down closes it ("Bottom chrome", above) | A `Sheet` over everything that shrinks back into the Now Playing bar; its close pill names where it plays from |
+| Into Listen | The chrome's round Listen, a reader's ▶ Listen, a Library row | The Now Playing bar (tap, swipe up), the Reader's ▶ |
 
 The rest of this section describes the regular-width sheets unless it names compact width; the
 compact readers and Listen are described under "Bottom chrome".
 
-**On regular width the Reader and Now Playing share their chrome** (decision D24), so Listen turns the Reader into Now Playing
+**On regular width the Reader and Listen share their chrome** (decision D24), so Listen turns the Reader into Listen
 with nothing moving but what has to: the same top bar (the close pill at the top left, **Aa** then ☝︎ at the top right, at the article margin), one shared bottom band
 (`ReadingBottomBand`: integrated controls flat on the page background, separated by a hairline
 divider — title row, scrub track, transport row, no card, no shadow), the same
-⋯ menu (Now Playing adds *Go to*), and the same colours and type (the reading theme, below). They
-differ where the job does: Now Playing's transport has 🔖, ⏮, the round ⏸ / ▶, ⏭ and ⋯, the
-Reader has ⋯, disabled ⏮/⏭ and a round ▶ that starts Listen; Now Playing has the scrub row with
+⋯ menu (Listen adds *Go to*), and the same colours and type (the reading theme, below). They
+differ where the job does: Listen's transport has 🔖, ⏮, the round ⏸ / ▶, ⏭ and ⋯, the
+Reader has ⋯, disabled ⏮/⏭ and a round ▶ that starts Listen; Listen has the scrub row with
 the speed, and its text follows the audio (the Reader's sits under a heading and never moves by
 itself).
 
@@ -1015,15 +1015,15 @@ synthesis").
 - **Listen** (the round ▶ in the transport) starts at the article's saved spot
   (at the playback speed, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
   at large text sizes), or *▶ Listen Again* for a finished one. It starts at the article's saved spot, makes the article what you
-  hear (replacing what plays) and turns the Reader into Now Playing in place, where the Reader was
+  hear (replacing what plays) and turns the Reader into Listen in place, where the Reader was
   (decision D2):
   - **At the Reader's top** (its first line of text not yet scrolled above the top of the reading
-    area, so the title may be part way up), Now Playing opens at its top.
+    area, so the title may be part way up), Listen opens at its top.
   - **Scrolled into the text**, the same line stays at the same place on screen.
-  - **When that place can't be reached** (past either end of Now Playing's article), the article goes
+  - **When that place can't be reached** (past either end of Listen's article), the article goes
     as far as it can that way, so the line stays in view as near its place as possible.
 
-  Now Playing sets that position once its article is laid out and holds it while the layout
+  Listen sets that position once its article is laid out and holds it while the layout
   settles (the header, a text size change: each keeps the same line).
   It drops it if you drag, scrub, Jump to Audio, the audio moves on or the article reloads first. ☝︎ in the top bar, then a tap on a paragraph, listens from that
   paragraph (a hint banner with Cancel sits under the top bar meanwhile, at the article margin, as part
@@ -1035,28 +1035,27 @@ synthesis").
   An article not yet started, or finished, opens at its top.
 - **After that the Reader never scrolls by itself** and has no speed or skip buttons; reading
   text never moves under you. A text size change (Dynamic Type) keeps the line at the top of the reading
-  area where it is, to the character; an article at its top stays at its top. Now Playing does the
+  area where it is, to the character; an article at its top stays at its top. Listen does the
   same, or, while it follows the audio, centres the spoken sentence again.
 - 🔖 saves / unsaves (tap; filled = saved), or files the article (long-press → *Save to Folder…*,
   the Move tree: saved there, or moved there when already saved); it keeps the screen as it is,
   and playback too, except that unsaving the article you hear stops it.
-- **⋯** (slot 5, the browser's ⋯ spot; Now Playing's is the same): rows *Save / Remove from Library, Move to…* (dimmed until
+- **⋯** (slot 5, the browser's ⋯ spot; Listen's is the same): rows *Save / Remove from Library, Move to…* (dimmed until
   the article is saved)*, Share, Prepare / Remove Prepared Audio* (dimmed until the article
   is saved; *Remove Prepared Audio* while it prepared audio or is prepared, as its Library row's menu
   shows)*, Prepared Audio, Settings*; big buttons
-  **Saved / History / Website** — *Website* (the Reader off) shows the page in the browser,
-  wherever the Reader was opened from; from the library, the library closes first. Playback
-  never stops.
+  **Settings / Library / Listen** (compact width: **Library / Browsing History / Listen**). The
+  page's website is reachable through *Share*. Playback never stops.
 - The text fills the page down to the screen's foot and runs under the header and the bottom
   band, which are drawn over it (the header on the article's colour, the band on its tinted bar
   material); its first line starts below the header and its last line scrolls clear of the band.
   A tap in the middle goes full screen (below).
 - **Links** in the text open in the browser when they lead to a web page (as ⋯ → Website does:
-  the Reader leaves, Now Playing too); a link to a place on the same page goes there (in Pages, to
+  the Reader leaves, Listen too); a link to a place on the same page goes there (in Pages, to
   the page holding it) and stops following the audio as a page turn does; any other link (mail,
   a book's links between its own chapters) does nothing. The text never leaves its article.
 
-### Now Playing
+### Listen
 
 The regular-width sheet (on compact width it is Listen, a cover with no pill: "Bottom chrome", above):
 
@@ -1100,7 +1099,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
 - **On regular width the close pill names where it plays from** (*⌄ Pride and Prejudice*; VoiceOver: *Close Now
   Playing*, *Playing from …*): the folder the article is in, a book, a series or one you
   made; *Library* for a saved article in no folder; the site for an article you haven't saved. Tapping
-  it only closes. **⋯ → *Go to <name>*** (the first row) closes Now Playing onto the Library at
+  it only closes. **⋯ → *Go to <name>*** (the first row) closes Listen onto the Library at
   that folder, or the Library's home, on Everything; for an article that plays from its site it reads
   *Go to Library*, dimmed until the page is saved, and ⋯ → *Website* opens the site in the browser.
   The Reader's ⋯ has no *Go to*.
@@ -1108,7 +1107,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   tap on a paragraph, plays from that paragraph.
 - **🔖** (slot 1, as in the Reader) saves / unsaves (tap) or files the article (long-press →
   *Save to Folder…*, the Move tree); saving never touches playback, and unsaving (*Remove from
-  Library*, here or in ⋯) stops the article, so Now Playing closes.
+  Library*, here or in ⋯) stops the article, so Listen closes.
 - **The text follows the audio.** It opens with the spoken sentence near the middle (the
   paragraph, until the sentence is worked out a moment later), from the bar, from opening the
   article that is playing and from crash resume; Listen in the Reader opens where the Reader was
@@ -1129,7 +1128,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   the text scrolls to just above the pill, and the text on screen doesn't move as it comes and goes.
   VoiceOver: "Jump to Audio", hint "Scrolls up / down to the sentence being read". Tap it (or start another page) and
   following resumes: the text scrolls so the spoken sentence is in the middle of the visible
-  text (between the top of the screen and the bottom chrome), as when Now Playing opens, and
+  text (between the top of the screen and the bottom chrome), as when Listen opens, and
   stops at the document's ends where it can't centre. Scrubbing scrolls to the paragraph under
   the thumb.
 - **At the end** it stays on the article: the text stays, all of it in full ink, the band
@@ -1144,7 +1143,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
 - **Status notes** ("Preparing next…", "Preparing the voice", the developer-only Debug chip) sit **above** the transport row so appearing text never pushes it.
 - **⋯**: the article's menu ("Menus", above) for the article you hear, with *Go to <name>* first (when
   it plays from a folder or the Library), then *Prepared Audio, Settings*; big buttons
-  **Saved / History / Website**.
+  **Settings / Library / Listen**.
 - A **prepare progress line** runs along the top edge of the bottom band while prepared audio run,
   as on the other surfaces, in the theme's accent.
 - **Scrubber** (sentence-precise; the track runs inside the band): fill = progress
@@ -1179,11 +1178,11 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   (`reader.rateMultiplier`) and the lock screen's playback rate follows it (and can set it).
 - An article played without saving is kept while it is in the last 50 of Recent (C134), with its text and its
   spot: after a relaunch it is at the top of the Library's *Pages*, opens in the Reader where it was, and
-  Now Playing shows its text.
+  Listen shows its text.
 
-### Full screen (the Reader and Now Playing)
+### Full screen (the Reader and Listen)
 
-The Reader and Now Playing read full screen the same way (`ReadingChrome`); Follow's chapter preview doesn't.
+The Reader and Listen read full screen the same way (`ReadingChrome`); Follow's chapter preview doesn't.
 
 - **Full screen is a tap in the middle of the text, in and out, and nothing else.** In a compact
   in-place reader it removes the whole bottom chrome: its rows (or bubble), the fade and the status bar
@@ -1206,12 +1205,12 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   whole line at the top: below the top bar, or below the fade in full screen; on the
   `Motion.standard` spring, a jump under Reduce Motion, never past either end), the middle enters or
   leaves full screen. The first 48 pt from the left edge do nothing, so an edge swipe never turns a
-  page. Edge taps leave the bars as they are. In Now Playing a page turn stops following the audio
+  page. Edge taps leave the bars as they are. In Listen a page turn stops following the audio
   as a drag does, and *Jump to Audio* appears.
 - **A small ▶ / ⏸ floats at the bottom right** in full screen, in Listen and on regular width (never in
   a compact in-place reader) (a 44 pt accent disc with the
-  shadow, above the home indicator, at the article margin): Now Playing's plays and pauses
-  what you hear; the Reader's is its Listen (and turns it into Now Playing). In Now Playing, *Jump to
+  shadow, above the home indicator, at the article margin): Listen's plays and pauses
+  what you hear; the Reader's is its Listen (and turns it into Listen). In Listen, *Jump to
   Audio* (while the text is away from the audio) comes and goes with it, as one group. It fades out 3 s
   after full screen begins; a scroll, an edge tap (a page turn), or a tap on it, brings it back for
   another 3 s. A
@@ -1221,12 +1220,12 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   back; scrolling never leaves it, and compact full screen is left by the middle tap alone
   (on regular width it never closes the sheet; a pull that begins with the bars showing closes it as
   usual, and while it pulls the sheet it never hides or shows the bars).
-- The floating *Jump to Audio* (Now Playing, both widths) shows only while the text is away from
+- The floating *Jump to Audio* (Listen, both widths) shows only while the text is away from
   the audio, centred just above the card or band, and in Scroll's full screen above the home
   indicator's strip, on the line of the floating ▶. Pages mode's full screen floats nothing over the
   text (the ▶ neither).
 
-### Pages (the Reader and Now Playing)
+### Pages (the Reader and Listen)
 
 With **Scroll / Pages** on *Pages* (Aa, Settings › Reading) both sheets show the text a page at a
 time; Follow's chapter preview always scrolls.
@@ -1277,9 +1276,9 @@ time; Follow's chapter preview always scrolls.
   vertically, so a pull down on the text doesn't close a regular-width sheet there (the grabber and
   the close pill do).
 - **No following, nothing over the text** (C108): Pages is for reading. It never turns by itself
-  with the audio: once the voice leaves the article shown, Now Playing offers *Jump to Audio* in
+  with the audio: once the voice leaves the article shown, Listen offers *Jump to Audio* in
   its usual place above the band, as in Scroll (only while the bars show, C111), which shows the spoken sentence's page once. Neither
-  the floating *Jump to Audio* nor the floating play / pause shows in Pages. Opening Now Playing
+  the floating *Jump to Audio* nor the floating play / pause shows in Pages. Opening Listen
   in Pages still opens on the page you hear, or the Reader's handed-over line (D2).
 - **Play from Here** (C109): selecting text (both modes) adds *Play from Here* to the system edit
   menu, before Copy; it plays from the start of the sentence holding the selection's start (the
@@ -1300,7 +1299,7 @@ spacing change reflows the text and keeps the line on screen where it was).
 
 - **Theme**: *Match App* (the app's paper and ink in its appearance and colour; the default),
   *Light*, *Sepia*, *Dark*, *Black*. One token set each (`ReadingPalette`: background, card,
-  ink, secondary and tertiary ink, dimmed ink, highlight, accent) for the Reader and Now Playing
+  ink, secondary and tertiary ink, dimmed ink, highlight, accent) for the Reader and Listen
   alike. The spoken paragraph sits on the highlight; every paragraph is in full ink (C105); the spoken
   sentence is underlined in the theme's accent (one underline colour per theme). Light, Dark and
   Black take the app's colour as their accent; Sepia has its own. Each is a swatch named under
@@ -1314,7 +1313,7 @@ spacing change reflows the text and keeps the line on screen where it was).
 - **Scroll / Pages**: one long column you scroll (the default), or a page of whole lines at a
   time (Pages, above).
 
-Aa sits in the top bar, not the bottom row: Now Playing's five slots are full (🔖, ⏮, ⏸, ⏭, ⋯)
+Aa sits in the top bar, not the bottom row: Listen's five slots are full (🔖, ⏮, ⏸, ⏭, ⋯)
 and the bottom chrome never moves, and the top bar is the one row the two sheets already share
 control for control.
 
@@ -1340,7 +1339,7 @@ a symbol. Top to bottom:
     message sits in the footer (on a device that can't run the library, what it needs). The row's
     value never names the voice: *Default* while the built-in voice is the pick (Zoey, else
     Heart), else its voice library (*Kokoro*).
-  - *Speed ›* (the speeds Now Playing lists, 0.75× to 2×, the
+  - *Speed ›* (the speeds Listen lists, 0.75× to 2×, the
     chosen one ✓).
 - **Appearance ›** and **Reading ›**, one card (nested pages, not inline rows):
   *Appearance* (`AppearanceSettingsPage`) holds *Theme* System / Light / Dark (the app's windows
@@ -1395,7 +1394,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
   phone's play button and carries the surface's toolbar beside it. It shows the playing
   article, or a resume bar for the last-played one, or "Nothing playing / Pick something to play".
   At the accessibility text sizes the toolbar takes a row of its own above the player.
-  It steps aside under a sheet or Now Playing.
+  It steps aside under a sheet or Listen.
 - **Reader.** The text sits in a ~700 pt readable column, centred, and the Reader's player
   controls are held to the dock's width.
 - **Voice and Settings** open as form sheets (`.presentationSizing(.form)`, ~600 pt, drag indicator
@@ -1410,10 +1409,10 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 |--------|--------|--------------|
 | Browser (start page / web page) | — | root |
 | Browser → editing the address | Cancel (text), right of the field | in place; tap outside or drag down |
-| Browser ⋯ / Reader ⋯ / Now Playing ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
-| ⋯ → Website (Reader, Now Playing) | no shortcut | leaves the Reader (the sheet closes on regular width, and the library) and shows / loads the page in the browser; audio continues |
+| Browser ⋯ / Reader ⋯ / Listen ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
+| ⋯ → Website (Reader, Listen) | no shortcut | leaves the Reader (the sheet closes on regular width, and the library) and shows / loads the page in the browser; audio continues |
 | ⋯ → Settings (`SettingsView`); on iPad also the sidebar's Settings | Done | `.sheet` (a form sheet on iPad); Voice, Language, Speed, Appearance, Reading, Prepared Audio and Acknowledgements push inside it |
-| Reader / Now Playing → Aa (`TextAppearanceControl`); Browser reader mode → Aa in the address field, or ⋯ → Text Appearance | tap outside | popover from Aa |
+| Reader / Listen → Aa (`TextAppearanceControl`); Browser reader mode → Aa in the address field, or ⋯ → Text Appearance | tap outside | popover from Aa |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | Done (grabber) | `.sheet`, medium/large |
 | Library (`LibrarySurface`): the home | the chrome's Browser (the sidebar's on iPad) | in-place surface (shared bottom chrome); leave restores browse |
@@ -1425,7 +1424,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it holding the chapter's article, pulled down to close (from its top) |
 | Following (`FollowingSheet`): a story's status line | Done | `.sheet`, medium and large |
 | Reader (`ReaderSheetScreen`), regular width: 📄, ⋯ → Reader, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface, pull the header down (compact width reads in place: `ReaderSurface`) |
-| Listen / Now Playing (`NowPlayingScreen`): the chrome's Listen, a reader's ▶ Listen, a Library row, the bar, the Reader of the playing article, crash resume | compact: none (pull down; VoiceOver: escape); regular: *⌄ <playing from>* pill, top left | compact: a `Sheet` that covers the screen and the chrome, pull down to close; regular: `Sheet` over everything, pull the header down |
+| Listen (`NowPlayingScreen`): the chrome's Listen, a reader's ▶ Listen, a Library row, the bar, the Reader of the playing article, crash resume | compact: none (pull down; VoiceOver: escape); regular: *⌄ <playing from>* pill, top left | compact: a `Sheet` that covers the screen and the chrome, pull down to close; regular: `Sheet` over everything, pull the header down |
 | Listen debug panel | Done | `.sheet` (over Settings when opened from it) |
 | Speed picker | — | popover |
 

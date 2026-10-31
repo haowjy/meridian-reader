@@ -132,7 +132,7 @@ struct ArticleMenu: View {
             return MenuRow(id: "menuStopListening", title: Verbs.stopListening, icon: Icons.stop) { onStop?() }
         case .removeFromHistory:
             guard case .history(let onRemove) = place else { break }
-            return MenuRow(id: "menuRemoveFromHistory", title: Verbs.removeFromHistory, icon: Icons.delete,
+            return MenuRow(id: "menuRemoveFromHistory", title: Verbs.removeFromBrowsingHistory, icon: Icons.delete,
                            isDestructive: true, action: onRemove)
         default: break
         }
@@ -156,7 +156,7 @@ struct ArticleMenu: View {
 
 extension ArticleActions {
     /// The ⋯ panel of the Reader and regular width's Now Playing (decision D24, C140): the page's
-    /// menu, then the screen's rows (the Reader's *Prepared Audio*), then `[Settings][Saved][Listen]`.
+    /// menu, then the screen's rows (the Reader's *Prepared Audio*), then `[Settings][Library][Listen]`.
     /// Listen is disabled: already reading. Website is reachable via Share in the article's own menu rows.
     func readingPageMenu(_ place: ArticleMenu.Place) -> MenuContext {
         let reader = MenuRow(id: "moreListen", title: Verbs.listen, icon: Icons.listen,

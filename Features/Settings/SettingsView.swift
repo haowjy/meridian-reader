@@ -449,7 +449,7 @@ private struct DeveloperSettingsSection: View {
         } header: {
             SectionHeader(title: Self.group.title, size: .settings).listHeader()
         } footer: {
-            Text("Listen Debug shows a Debug chip on Now Playing for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes every extraction fail (Reader, Save, Follow, Prepared Audio) until the app quits.")
+            Text("Listen Debug shows a Debug chip on Listen for a live render queue overlay; a long-press on ▶ there opens the panel. Fake Extraction Failure makes every extraction fail (Reader, Save, Follow, Prepared Audio) until the app quits.")
                 .listFooter()
         }
         .listCard()

@@ -216,7 +216,7 @@ private struct ClosePill: View {
     private var label: String {
         switch close {
         case .back(let title): String(localized: "Back to \(title)")
-        case .collapse: String(localized: "Close Now Playing")
+        case .collapse: String(localized: "Close Listen")
         }
     }
 

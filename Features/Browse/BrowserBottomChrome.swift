@@ -71,7 +71,7 @@ struct BrowserBottomChrome: View {
                              onToggle: onToggleSave, onSaveToFolder: onSaveToFolder)
                 .disabled(!web.hasPage || shell.busy != nil)
                 .toolbarSlot(2)
-            BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
+            BandToolbarButton(systemImage: Icons.history, label: Verbs.browsingHistory,
                               identifier: "browseHistory") { shell.present(.history) }
                 .toolbarSlot(3)
             MoreMenuButton(id: "browseMore", menu: menu)

@@ -29,7 +29,7 @@ into ArticleAudioCache, admitted by RenderAdmission.
 | `playhead` + `utf16Offset` | The position: paragraph and document UTF-16 offset of the spot being spoken |
 | `phase` | `idle → prepared → playing ↔ paused → finished` |
 
-The scrubber, the paragraph highlight, Now Playing and crash resume all read the position from
+The scrubber, the paragraph highlight, Listen and crash resume all read the position from
 here, and every change is published synchronously. `resumePoint` (article + paragraph while
 playing, with the text fingerprint; nil otherwise) is what crash resume reopens; the controller
 writes it to `ListenResumePointStore` whenever it changes.
@@ -78,12 +78,12 @@ Rules:
   the title, else the source, else the address; what the bar and the lock screen name it by), byline (the lock screen's subtitle), artwork, where it plays from
   (`PlayingFrom.folder(id:name:)` for an article in a folder, else `.site(host:)`), whether it is a chapter (an article of a
   book or series) and phase. nil only before anything has played and after Stop
-  Listening or the article's removal or delete. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "◉ Finished".
+  Listening or the article's removal or delete. `isFinished` (phase `.finished`) is what the bar and Listen read for "◉ Finished".
 - **Time left** is `ListeningTime`'s: one reading rate (180 words a minute, a word being 6 UTF-16
   units of the listen text; an article not yet played by its stored word count), one way to write it
   ("9 min left", "6 h 10 min left"), and an explicit playback rate at every call. Every surface
   passes the current speed (`SpeechController.rateMultiplier`): rows, folder headers, the resume
-  bar, the Reader's length and Listen, the bar and Now Playing all count at the speed you hear,
+  bar, the Reader's length and Listen, the bar and Listen all count at the speed you hear,
   lengths and time left alike, and follow a speed change at once.
 - **`playState(of:)`** for a `ListenTarget` (`.article(key)`, `.webPage(canonicalURL:)`, compared
   as strings so a saved article with a pre-v2 random id still matches its article, or `.folder(id)`,
@@ -105,11 +105,11 @@ Rules:
   starts it at its top. A library article starts at `Article.listenStart`: its saved spot, or its top
   once it is finished; the Reader's Listen label, its underlined sentence, a row's ▶ and 🎧 all use
   it. Continue on a folder starts at `LibraryStore.continueStart`'s spot.
-- Now Playing's reading content isn't the controller's: Now Playing looks the playing article up by
+- Listen's reading content isn't the controller's: Listen looks the playing article up by
   its key when it changes (`LibraryStore.nowPlayingContent(for:)`). The library has every article
   that has played (an article played without saving, or removed from the Library, is kept while it is in the last 50 of Recent (C134)
   after its last play), so it is there after a relaunch too. When nothing is bound any more
-  (the article you heard removed or deleted) Now Playing closes itself.
+  (the article you heard removed or deleted) Listen closes itself.
 
 ### The engine adapter (`LocalListenEngine`)
 
@@ -171,8 +171,8 @@ player and the lock screen agree. The engine reports facts; it owns no bake poli
 
 Views bind to `phase` and the position (and the paragraph highlight derived from them), never a
 second "is playing" flag. The live offset is read only in small leaf views (`PlayheadReader`, the
-Now Playing bar's progress, Now Playing's sentence underline), so a tick redraws only those. The
-Reader never scrolls by itself once open (it opens at a saved spot's sentence); Now Playing
+Now Playing bar's progress, Listen's sentence underline), so a tick redraws only those. The
+Reader never scrolls by itself once open (it opens at a saved spot's sentence); Listen
 follows the spoken sentence until you scroll (`NAVIGATION.md`).
 
 While the phase is playing but nothing is audible and more units remain (`isBufferingNext`), the
@@ -234,7 +234,7 @@ minutes ago while playing, when the engine's recovery resumes) or opens paused t
 that pauses for Retry (Phonon's always, Kokoro's after a second crash) opens it paused and says
 "<voice library> stopped." with *Retry*. On an article holding other text by then
 (refreshed on open while an older session played on, another chapter brought back under its key)
-the article opens in Now Playing paused at its own stored spot, paragraph and offset, and keeps it;
+the article opens in Listen paused at its own stored spot, paragraph and offset, and keeps it;
 nothing plays until ▶. A target that names no text (the crash marker's, used when nothing was
 playing, or a resume file an older build wrote) counts only when it is the article's own stored
 paragraph, which the recorder writes on every paragraph; otherwise it opens the article paused at its
@@ -249,7 +249,7 @@ order.
 `SpeechSession.folder` (`PlaybackFolder`: id, name, whether it is a book or series) says which
 folder an article is in: a library article's session fills it (`SpeechSession.article`), and `listen(to:)`
 asks the library for an article started from an article (the Reader's Listen, 🎧). A book's name is
-the bar's source; any other folder's pages keep their site there, and Now Playing's "Playing
+the bar's source; any other folder's pages keep their site there, and Listen's "Playing
 from" names the folder either way. The rule is `ChapterAdvance`, pure, on a snapshot of the
 folder's pages in their full play order (`LibraryStore.chapterSnapshot`, skipped ones included
 and flagged): after an article, the next one that isn't skipped: an article with text plays; a followed
@@ -657,7 +657,7 @@ The version row at the bottom of Settings toggles developer options (a 2 s long-
 
 ## Background listening
 
-Leaving the app (Home, lock, app switcher) keeps Listen playing. Closing Now Playing or a Reader
+Leaving the app (Home, lock, app switcher) keeps Listen playing. Closing Listen or a Reader
 keeps it playing too; the Now Playing bar shows it.
 
 **Audio session** (`ListenAudioSession`): `UIBackgroundModes: [audio]` (`project.yml`). Category
@@ -685,7 +685,7 @@ wasn't holding is released, so other apps' audio can resume.
   previousTrack (previous paragraph; off at the first, as ⏮ is) and changePlaybackRate (snapped to
   the listen-bar rates). Skip, seek and position commands are off.
 - Every command goes through `SpeechController.handleRemoteCommand` → `RemoteCommand.intent` →
-  `userPerform` → `PlaybackSessionState.handle`, the same path as the on-screen buttons. Now Playing is
+  `userPerform` → `PlaybackSessionState.handle`, the same path as the on-screen buttons. Listen is
   re-derived from `playback` on every change; identical updates are skipped.
 
 **Interruptions and route changes** (`ListenInterruptionPolicy`, a pure rule; every pause

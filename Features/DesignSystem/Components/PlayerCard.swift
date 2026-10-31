@@ -171,7 +171,7 @@ struct ReaderPlayerCardGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("Not started") { card(state: .idle, detail: ["example.org", "9 min"]) }
-            PreviewState("Now Playing, saved") {
+            PreviewState("Listen, saved") {
                 card(state: .playing, detail: ["example.org", "6 min left"], saved: true)
                     .onReadingPreview(.sepia)
             }

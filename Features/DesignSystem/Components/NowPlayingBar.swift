@@ -107,7 +107,7 @@ struct NowPlayingBar: View {
                 .allowsHitTesting(!isPlaceholder)
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(isPlaceholder ? [] : .isButton)
-                .accessibilityHint(isPlaceholder ? "" : "Opens Now Playing")
+                .accessibilityHint(isPlaceholder ? "" : String(localized: "Opens Listen"))
                 .accessibilityAction(.default, onOpen)
                 .accessibilityIdentifier(identifier + "Open")
 

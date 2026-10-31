@@ -95,12 +95,12 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 
 - **`ShellState` owns navigation** (what you see): which surface shows (browser or library) and
   the Library's path and its home's tab (Library or History), the Reader sheet and what it
-  sits over, whether Now Playing is up, the one other sheet (and the debug panel over it), the toast. It remembers the surface for the next launch. Views ask it;
+  sits over, whether Listen is up, the one other sheet (and the debug panel over it), the toast. It remembers the surface for the next launch. Views ask it;
   they don't keep their own presentation flags.
 - **`PlaybackSessionState` owns what you hear**: the playing article, its position (paragraph +
   UTF-16 offset) and phase. Engines report events; the session decides. Nothing else stores or
   guesses the playing article or a playhead: every ▶ / ⏸ asks `SpeechController.playState(of:)`, the
-  bar and Now Playing read `nowPlaying`, and `ListeningProgressRecorder` saves the position.
+  bar and Listen read `nowPlaying`, and `ListeningProgressRecorder` saves the position.
 - **Playback never changes the voice on its own.** An article plays in its own voice
   (`LocalTTSCoordinator.selection(for:)`) or not at all: when that voice's engine is behind, still
   loading, fails, crashes, can't run on the device, can't run in the background, or can't read

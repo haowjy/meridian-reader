@@ -30,7 +30,7 @@ struct LibraryScreenMenu {
     }
 
     /// The screen's rows (C98, C100): *Sort ›*,
-    /// *Prepared Audio*; then `[Settings][Saved][Reader]` (`[Settings][Saved][History][Reader]` on compact width). Reader opens Now Playing when audio
+    /// *Prepared Audio*; then `[Settings][Library][Reader]` (`[Library][Browsing History][Reader]` on compact width). Reader opens Now Playing when audio
     /// is playing, greyed otherwise.
     func menu(compact: Bool) -> MenuContext {
         let folder = topFolder

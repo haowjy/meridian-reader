@@ -38,16 +38,16 @@ struct MenuContext {
         }
     }
 
-    /// The tile buttons `[Settings][Library][last]` on regular width, `[Library][History][last]` on compact
-    /// (`compact`); `last` is the surface's own focus tile. Every ⋯ panel uses these same tiles in this
-    /// order (C140). Compact width has Settings in the chrome's pill and no 🕘 button, so its menus drop
-    /// *Settings* and add *History* before `last`.
+    /// The tile buttons `[Settings][Library][last]` on regular width, `[Library][Browsing History][last]`
+    /// on compact (`compact`); `last` is the surface's own focus tile. Every ⋯ panel uses these same tiles
+    /// in this order (C140). Compact width has Settings in the chrome's pill and no 🕘 button, so its
+    /// menus drop *Settings* and add *Browsing History* before `last`.
     @MainActor
     static func tiles(_ shell: ShellState, compact: Bool, last: MenuRow) -> [MenuRow] {
-        let saved = MenuRow(id: "moreSaved", title: Verbs.library, icon: Icons.library) { shell.openLibrary() }
+        let library = MenuRow(id: "moreLibrary", title: Verbs.library, icon: Icons.library) { shell.openLibrary() }
         guard compact else {
-            return [MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings, action: shell.showSettings), saved, last]
+            return [MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings, action: shell.showSettings), library, last]
         }
-        return [saved, MenuRow(id: "moreHistory", title: Verbs.history, icon: Icons.history) { shell.present(.history) }, last]
+        return [library, MenuRow(id: "moreHistory", title: Verbs.browsingHistory, icon: Icons.history) { shell.present(.history) }, last]
     }
 }

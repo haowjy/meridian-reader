@@ -3,6 +3,7 @@ import Foundation
 /// What deleting folders asks (`libraryDialogs`): its title, the line saying what goes, and the
 /// one choice. Deleting a folder (a book or series as any other, decision D19) always deletes what
 /// it holds: *Delete Folder and Contents*, plus Cancel. There is no keep-contents choice (D18).
+/// Books alone are named as books (*Delete Book and Contents*), as their menu row is.
 struct FolderDeletePrompt: Equatable {
     struct Choice: Equatable {
         var title: String
@@ -26,14 +27,26 @@ struct FolderDeletePrompt: Equatable {
             inside.articleKeys.formUnion(inner.articleKeys)
         }
         let one = folders.count == 1
-        title = one ? "Delete the folder “\(folders[0].name)”?" : "Delete \(folders.count) folders?"
+        let books = folders.allSatisfy { $0.kind == .book }
+        if books {
+            title = one ? String(localized: "Delete the book “\(folders[0].name)”?")
+                : String(localized: "Delete \(folders.count) books?")
+        } else {
+            title = one ? String(localized: "Delete the folder “\(folders[0].name)”?")
+                : String(localized: "Delete \(folders.count) folders?")
+        }
         var lines: [String] = []
         if let summary = inside.summary {
             lines.append("Everything in \(one ? "it" : "them") is deleted too: \(summary).")
         }
         if isPlaying(inside.articleKeys) { lines.append("What’s playing stops.") }
         message = lines.joined(separator: " ")
-        choices = [Choice(title: one ? "Delete Folder and Contents" : "Delete Folders and Contents",
-                          id: "deleteFolderAndContents")]
+        let choice = switch (books, one) {
+        case (true, true): String(localized: "Delete Book and Contents")
+        case (true, false): String(localized: "Delete Books and Contents")
+        case (false, true): String(localized: "Delete Folder and Contents")
+        case (false, false): String(localized: "Delete Folders and Contents")
+        }
+        choices = [Choice(title: choice, id: "deleteFolderAndContents")]
     }
 }
