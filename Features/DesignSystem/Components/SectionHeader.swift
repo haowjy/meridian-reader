@@ -8,7 +8,8 @@ import SwiftUI
 /// ```
 ///
 /// A count sits after the title in the title's size, regular weight and tertiary ink, so it
-/// reads as a quieter label of its own rather than part of the title.
+/// reads as a quieter label of its own rather than part of the title. The title wraps between
+/// words; when its longest word and the action can't share the line, the action goes under it.
 struct SectionHeader: View {
     enum Size {
         /// Under a screen title (the Library's lists): `row` semibold in secondary ink, so the
@@ -44,38 +45,56 @@ struct SectionHeader: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                Text(title)
-                    .typeStyle(titleStyle, weight: size == .page ? nil : .semibold)
-                    .foregroundStyle(size == .page ? Palette.ink : Palette.secondaryInk)
-                if let count {
-                    Text("\(count)")
-                        .typeStyle(titleStyle, weight: .regular)
-                        .monospacedDigit()
-                        .foregroundStyle(Palette.tertiaryInk)
-                        .fixedSize()
-                }
+        // The title wraps between words, never inside one (its ideal width is its widest word): when
+        // that word and the action don't fit side by side, the action moves under the title.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline) {
+                label
+                Spacer(minLength: Spacing.xs)
+                actionButton
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(count.map { "\(title), \($0)" } ?? title)
-            .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: Spacing.xs)
-            if let actionTitle {
-                Button(action: action) {
-                    HStack(spacing: Spacing.xxs) {
-                        Text(actionTitle)
-                        if actionNavigates {
-                            Image(systemName: Icons.disclosure).font(.caption.weight(.semibold))
-                        }
+            VStack(alignment: .leading, spacing: 0) {
+                label
+                actionButton
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var label: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+            WholeWordsText(title)
+                .typeStyle(titleStyle, weight: size == .page ? nil : .semibold)
+                .foregroundStyle(size == .page ? Palette.ink : Palette.secondaryInk)
+            if let count {
+                Text("\(count)")
+                    .typeStyle(titleStyle, weight: .regular)
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.tertiaryInk)
+                    .fixedSize()
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(count.map { "\(title), \($0)" } ?? title)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    @ViewBuilder
+    private var actionButton: some View {
+        if let actionTitle {
+            Button(action: action) {
+                HStack(spacing: Spacing.xxs) {
+                    Text(actionTitle).fixedSize()
+                    if actionNavigates {
+                        Image(systemName: Icons.disclosure).font(.caption.weight(.semibold))
                     }
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.accent)
-                    .tapTarget(actionHeight)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier(actionIdentifier ?? "")
+                .typeStyle(.row)
+                .foregroundStyle(Palette.accent)
+                .tapTarget(actionHeight)
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(actionIdentifier ?? "")
         }
     }
 }

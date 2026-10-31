@@ -16,7 +16,8 @@ import SwiftUI
 ///
 /// The row draws; tapping it is the caller's (a `NavigationLink` behind it, `opensOnTap`). A
 /// page's row is exactly two lines: its title on one line (truncated), then one line of what it
-/// is and where it stands; its thumbnail is as tall as the two lines. The second line's parts are
+/// is and where it stands; its thumbnail is as tall as the two lines. At the accessibility sizes
+/// the title runs the row's width on up to three lines, over the thumbnail, line two and the ⋯. The second line's parts are
 /// spaced apart, never joined by a separator: the first in secondary ink, the rest in tertiary,
 /// the status in the accent while it is what you hear ("Playing", "Paused"). The leading parts
 /// give way first, and at accessibility sizes the status shows alone.
@@ -105,48 +106,26 @@ struct ListRow: View {
     @State private var width: CGFloat = 0
 
     var body: some View {
-        HStack(spacing: Spacing.s) {
-            // The title is the row's one VoiceOver element, its status the value (the rest is
-            // hidden); the ⋯ stays its own.
-            HStack(spacing: Spacing.s) {
-                prepareLeading
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title)
-                        .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
-                        .foregroundStyle(titleColor)
-                        .lineLimit(1)
-                        .accessibilityValue(accessibilityStatus)
-                    secondLine
-                        .accessibilityHidden(true)
+        Group {
+            if typeSize.isAccessibilitySize {
+                accessibilityLayout
+            } else {
+                HStack(spacing: Spacing.s) {
+                    HStack(spacing: Spacing.s) {
+                        prepareLeading
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 0) {
+                            titleText
+                                .lineLimit(1)
+                            secondLine
+                                .accessibilityHidden(true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // The separator under the row starts at the title, for every kind of row.
+                        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+                    }
+                    trailingControls
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                // The separator under the row starts at the title, for every kind of row.
-                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
-            }
-            if hasListeningColumn {
-                listeningMark
-                    .frame(width: Glyph.regular)
-                    .accessibilityHidden(true)
-            }
-            if let accessory {
-                accessory
-                    .frame(width: Control.tap, height: Control.tap)
-            }
-            if let menu {
-                Menu { menu } label: {
-                    Image(systemName: Icons.more)
-                        .glyphSize(Glyph.regular, weight: .semibold)
-                        .foregroundStyle(Palette.secondaryInk)
-                        .frame(width: Control.tap, height: Control.tap)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(Verbs.more)
-                .accessibilityIdentifier("rowMore")
-                .background { menuAnchor }
-            } else if let editHandle {
-                editHandle
             }
         }
         .background { if menu == nil { menuAnchor } }
@@ -167,6 +146,65 @@ struct ListRow: View {
         .sensoryFeedback(.selection, trigger: insertionEdge) { _, edge in edge != nil }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .accessibilityElement(children: .contain)
+    }
+
+    /// At the accessibility sizes the title takes the row's whole width, up to three lines, and
+    /// the thumbnail, the second line and the trailing controls go on a line under it: beside them
+    /// a title would have room for a word or two.
+    private var accessibilityLayout: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            titleText
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+            HStack(spacing: Spacing.s) {
+                prepareLeading
+                    .accessibilityHidden(true)
+                secondLine
+                    .accessibilityHidden(true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                trailingControls
+            }
+        }
+        .padding(.vertical, Spacing.xs)
+    }
+
+    /// The title is the row's one VoiceOver element, its status the value (the rest is hidden); the
+    /// ⋯ stays its own.
+    private var titleText: some View {
+        Text(title)
+            .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
+            .foregroundStyle(titleColor)
+            .accessibilityValue(accessibilityStatus)
+    }
+
+    /// The listening column, the row's own control and the ⋯ (or Edit's handle).
+    @ViewBuilder
+    private var trailingControls: some View {
+        if hasListeningColumn {
+            listeningMark
+                .frame(width: Glyph.regular)
+                .accessibilityHidden(true)
+        }
+        if let accessory {
+            accessory
+                .frame(width: Control.tap, height: Control.tap)
+        }
+        if let menu {
+            Menu { menu } label: {
+                Image(systemName: Icons.more)
+                    .glyphSize(Glyph.regular, weight: .semibold)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .frame(width: Control.tap, height: Control.tap)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(Verbs.more)
+            .accessibilityIdentifier("rowMore")
+            .background { menuAnchor }
+        } else if let editHandle {
+            editHandle
+        }
     }
 
     /// Trailing padding that centres the 44 pt trailing column on the toolbar's ⋯ slot, for a
@@ -204,7 +242,7 @@ struct ListRow: View {
                     .frame(height: Glyph.stroke)
             }
             // The ring just before the title, the line from the title's leading edge on.
-            .padding(.leading, Spacing.m + thumbnailSide + Spacing.s - Spacing.xs)
+            .padding(.leading, Spacing.m - Spacing.xs + (typeSize.isAccessibilitySize ? 0 : thumbnailSide + Spacing.s))
             .padding(.trailing, Spacing.m)
             // Centred on the edge, half in this row and half in its neighbour's gap.
             .offset(y: (insertionEdge == .bottom ? 1 : -1) * Spacing.xs / 2)

@@ -9,7 +9,8 @@ import SwiftUI
 /// Jane Austen   Book   61 chapters
 /// ```
 ///
-/// The first part (the lead) is what gives way: it truncates when the rest need the room. The
+/// The first part (the lead) is what gives way: it truncates when the rest need the room (alone,
+/// at the accessibility sizes, it has nothing to give way to and takes up to three lines). The
 /// other parts never truncate; when they would leave the lead less than a third of the line
 /// (large text), the parts wrap onto further lines instead (`DetailLineLayout`). A list row's
 /// line (`wraps` false) never wraps: the parts give way in order, the last (its status) last.
@@ -20,6 +21,7 @@ struct DetailLine: View {
     var wraps = true
 
     @Environment(\.readingPalette) private var reading
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// `Spacing.s` at the default text size, growing with the caption it separates.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var spacing = Spacing.s
 
@@ -49,7 +51,7 @@ struct DetailLine: View {
                 }
                 .foregroundStyle(part.isLit ? reading?.accent ?? Palette.accent
                                  : index == 0 ? DetailLine.leadInk(reading) : DetailLine.restInk(reading))
-                .lineLimit(index == 0 || !wraps ? 1 : nil)
+                .lineLimit(!wraps ? 1 : index > 0 ? nil : parts.count == 1 && typeSize.isAccessibilitySize ? 3 : 1)
             }
         }
         .accessibilityElement(children: .ignore)

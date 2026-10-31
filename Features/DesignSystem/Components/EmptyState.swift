@@ -3,7 +3,8 @@ import SwiftUI
 /// Every empty screen says so the same way: a heading, one line under it, and its ways out as
 /// `ActionTile`s, two to a row (one at the accessibility sizes,
 /// where two side by side would break their words). It sits a fixed way down from the top of
-/// whatever holds it, never centred, so every empty screen lines up. Search results with no match
+/// whatever holds it (less at the accessibility sizes), never centred, so every empty screen lines up,
+/// and scrolls when what holds it is too short for it. Search results with no match
 /// use the system's search view instead. It takes the width it is given: in a card list that is the
 /// cards' width; elsewhere the caller pads it by `Spacing.pageMargin`, the same edge.
 struct EmptyState<Tiles: View>: View {
@@ -24,6 +25,17 @@ struct EmptyState<Tiles: View>: View {
     }
 
     var body: some View {
+        // Where what holds it is too short for all of it (Listen's sheet on a small phone at the
+        // largest sizes) it scrolls, rather than cut its heading or its line short.
+        ViewThatFits(in: .vertical) {
+            content
+            ScrollView { content }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .accessibilityElement(children: .contain)
+    }
+
+    private var content: some View {
         VStack(spacing: Spacing.m) {
             VStack(spacing: Spacing.xs) {
                 Text(title)
@@ -41,9 +53,8 @@ struct EmptyState<Tiles: View>: View {
                                      count: typeSize.isAccessibilitySize ? 1 : 2),
                       spacing: Spacing.s) { tiles() }
         }
-        .padding(.top, Spacing.xl * 4)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .accessibilityElement(children: .contain)
+        // Less at the accessibility sizes, where the heading, its line and the tiles need the height.
+        .padding(.top, typeSize.isAccessibilitySize ? Spacing.xl : Spacing.xl * 4)
     }
 }
 

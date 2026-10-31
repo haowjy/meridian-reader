@@ -151,8 +151,13 @@ enum ReadingStyle {
                          background: var(--accent); color: var(--on-accent);
                          font-family: inherit; font-size: var(--row); font-weight: 600; line-height: 1; white-space: nowrap;
                          display: inline-flex; align-items: center; gap: \(Int(Spacing.xs))px; cursor: pointer; }
-        /* Clear of Library Read's ⋯, which sits on the title's line at the top right. */
-        .reader-detail:has(.reader-listen) { padding-top: \(Int(Spacing.xs))px; }
+        /* Clear of Library Read's ⋯ (a `Control.bar` circle at the top right, `Spacing.bandMargin` in from the edge,
+           level with the text's top): the title's lines beside it wrap short of it, however large the text, and
+           the source line starts under it. The Browser's reader mode keeps the same room, so the two read alike. */
+        body:has(.reader-listen)::before { content: ""; float: right;
+                         width: \(Int(Control.bar + Spacing.bandMargin - Spacing.pageMargin + Spacing.xs))px;
+                         height: \(Int(Control.bar - Spacing.xs))px; }
+        .reader-detail { clear: right; }
         .reader-listen::after { content: ""; position: absolute; left: 0; right: 0; top: 50%;
                          height: max(100%, \(Int(Control.tap))px); transform: translateY(-50%); }
         .reader-listen:active { opacity: \(Palette.pressedOpacity); }

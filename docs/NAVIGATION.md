@@ -447,7 +447,8 @@ the same spot. ⋯ is never replaced.
 1. **Frequently Visited**: the sites you visit most, from the browser's History (no tracking of
    its own): History keeps one visit per page, the last 30, so a site counts its pages there, the
    most first, then the most recently visited. One tile per site (`www.` folded in): its icon (the
-   newest visit's that fills a tile, else the letter tile) and its host below. 4 per row, up to 8.
+   newest visit's that fills a tile, else the letter tile) and its host below. 4 per row, up to 8
+   (at the accessibility sizes one per row, the host beside its tile).
    While fewer than 4 sites are in History, starter tiles fill the first row: *Wikipedia*,
    *Standard Ebooks*, *Project Gutenberg* (letter tiles). A tile opens the site's home page in
    Browse; it has no long-press menu. Show All opens History (`FrequentlyVisited`).
@@ -509,8 +510,9 @@ commas.
   Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
   isn't in History. Every empty screen looks the same (`EmptyState`): a heading, one line under it, and
-  its ways in as tiles (`ActionTile`), side by side (stacked at the
-  accessibility text sizes), the first accent-tinted, 96 pt below what is above it. An empty Library says
+  its ways in as tiles (`ActionTile`), side by side (at the accessibility text sizes stacked, each a
+  row with its symbol beside its label), the first accent-tinted, 96 pt below what is above it (24 pt
+  at the accessibility sizes). An empty Library says
   *Start Your Library*, "Save articles from the web, a file, text or a link.", over four tiles, two by two:
   *Browse the Web* (the Browser), *Import a File* (as *Import from…*), *Paste Text* (as *Paste Text…*)
   and *Add a Link* (as *Add Link…*); History says *No History*, "Articles you play without saving show
@@ -695,7 +697,8 @@ row's second line is what is in it ("2 folders   3 articles", "Empty"), in Edit 
 play shows its place and time left there instead. Every row's separator starts at its title. A
 article row (a chapter too) is exactly two lines (decision D21): its title (its site, or its book, when it has none) on one line, truncated,
 then one short line of what it is and where it stands, with a small thumbnail as tall as the two
-lines. Its site comes first on that line everywhere (none for an article without a title, whose
+lines. At the accessibility text sizes the title runs the row's width on up to three lines instead,
+over the thumbnail, the second line and the ⋯. Its site comes first on that line everywhere (none for an article without a title, whose
 first line already is its site), except in a book or series, whose header names the source once;
 on History and in search an article in a folder shows its folder's path there instead. The listening mark stands in a
 fixed-width column at the row's trailing edge, just before the ⋯, so the rings line up down the list
@@ -1372,7 +1375,8 @@ iPhone and compact widths keep the chrome host ("Bottom chrome"), unchanged. The
 sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 
 - **Sidebar** (`RegularShellSidebar`, ~280 pt, left of the main pane, hosted by `BrowseStartView`):
-  the app name and *Hide sidebar*; *Library* and *Browser* (the two surfaces; what the pill's
+  the app name (one line, a little smaller rather than broken where the text is very large) and
+  *Hide sidebar*; *Library* and *Browser* (the two surfaces; what the pill's
   Library and Browser do on a phone); *Search*; a *Folders* list (the top-level folders; a tap opens
   that folder in the Library); and *Settings* at the bottom. *Hide sidebar* collapses it for focus
   reading and a floating *Show sidebar* button brings it back; the collapse is not remembered
@@ -1382,6 +1386,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 - **Clustered player dock** (`ClusteredPlayerDock`, ~520 pt, bottom of the main pane) replaces the
   phone's play button and carries the surface's toolbar beside it. It shows the playing
   article, or a resume bar for the last-played one, or "Nothing playing / Pick something to play".
+  At the accessibility text sizes the toolbar takes a row of its own above the player.
   It steps aside under a sheet or Now Playing.
 - **Reader.** The text sits in a ~700 pt readable column, centred, and the Reader's player
   controls are held to the dock's width.

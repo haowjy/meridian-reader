@@ -163,8 +163,9 @@ struct SwatchPicker<Option: Identifiable & Hashable, Face: View>: View {
 
 /// A choice among a few options: equal segments on a card capsule, the chosen one on the page
 /// colour with its label in ink, the others in secondary ink. One line while every label fits
-/// whole; otherwise the segments go in rows (half as many to a row, then a third, … one), so a
-/// label never shrinks or truncates while a narrower arrangement would show it whole.
+/// whole; otherwise the segments go in full rows (6 → 3 + 3, 2 + 2 + 2, then one to a row; 3 → one
+/// to a row, never 2 + 1), so a label never shrinks or truncates while a narrower arrangement would
+/// show it whole.
 struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
     let options: [Option]
     @Binding var selection: Option
@@ -175,14 +176,9 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
     @Environment(\.readingPalette) private var reading
     @ScaledMetric(relativeTo: .callout) private var height: CGFloat = 40
 
-    /// How many segments to a row, widest arrangement first: 6 → 6, 3, 2, 1.
+    /// How many segments to a row, widest arrangement first, every row full: 6 → 6, 3, 2, 1.
     private var perRow: [Int] {
-        var counts: [Int] = []
-        for parts in 1...max(1, options.count) {
-            let count = (options.count + parts - 1) / parts
-            if counts.last != count { counts.append(count) }
-        }
-        return counts
+        (1...max(1, options.count)).reversed().filter { options.count % $0 == 0 }
     }
 
     var body: some View {
@@ -199,8 +195,6 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
             ForEach(rows.indices, id: \.self) { index in
                 EqualSegmentsLayout(spacing: Spacing.xxs) {
                     ForEach(rows[index]) { segment($0) }
-                    // A short last row keeps the others' segment width.
-                    ForEach(rows[index].count..<count, id: \.self) { _ in Color.clear.frame(height: 0) }
                 }
             }
         }

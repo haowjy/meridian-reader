@@ -61,7 +61,8 @@ enum FrequentlyVisited {
 }
 
 /// Frequently Visited as Safari draws it: a grid of icon tiles, four to a row, each opening its
-/// site in the browser.
+/// site in the browser. At the accessibility sizes four names can't share a row without breaking
+/// their words, so each site takes a row of its own: its tile, then its name beside it.
 struct FrequentlyVisitedGrid: View {
     let sites: [FrequentSite]
     var onOpen: (FrequentSite) -> Void
@@ -69,31 +70,40 @@ struct FrequentlyVisitedGrid: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.xs, alignment: .top),
-                                 count: FrequentlyVisited.rowLength),
-                  spacing: Spacing.m) {
-            ForEach(sites) { site in
-                Button { onOpen(site) } label: {
-                    VStack(spacing: Spacing.xs) {
-                        ArtworkTile(image: site.icon.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
-                                    letter: site.name, size: Glyph.siteTile)
-                        // A host breaks after a dot ("news." / "example.com"), never mid-word.
-                        Text(site.name.replacingOccurrences(of: ".", with: ".\u{200B}"))
-                            .typeStyle(.caption)
-                            .foregroundStyle(Palette.ink)
-                            // At accessibility sizes a second line would only hold a word broken
-                            // mid-way; one truncated line reads better.
-                            .lineLimit(typeSize.isAccessibilitySize ? 1 : 2)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(site.name)
-                .accessibilityHint(String(localized: "Opens in Browse"))
-                .accessibilityIdentifier("frequentSiteTile")
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                ForEach(sites) { tile($0) }
+            }
+        } else {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.xs, alignment: .top),
+                                     count: FrequentlyVisited.rowLength),
+                      spacing: Spacing.m) {
+                ForEach(sites) { tile($0) }
             }
         }
+    }
+
+    private func tile(_ site: FrequentSite) -> some View {
+        let inRow = typeSize.isAccessibilitySize
+        let layout = inRow ? AnyLayout(HStackLayout(spacing: Spacing.s))
+            : AnyLayout(VStackLayout(spacing: Spacing.xs))
+        return Button { onOpen(site) } label: {
+            layout {
+                ArtworkTile(image: site.icon.flatMap(UIImage.init(data:)).map(Image.init(uiImage:)),
+                            letter: site.name, size: Glyph.siteTile)
+                // A host breaks after a dot ("news." / "example.com"), never mid-word.
+                Text(site.name.replacingOccurrences(of: ".", with: ".\u{200B}"))
+                    .typeStyle(.caption)
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(inRow ? nil : 2)
+                    .multilineTextAlignment(inRow ? .leading : .center)
+                    .frame(maxWidth: .infinity, alignment: inRow ? .leading : .center)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(site.name)
+        .accessibilityHint(String(localized: "Opens in Browse"))
+        .accessibilityIdentifier("frequentSiteTile")
     }
 }

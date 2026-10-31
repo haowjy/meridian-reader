@@ -7,6 +7,7 @@ struct RegularShellSidebar: View {
     @Environment(ShellState.self) private var shell
     @Environment(LibraryStore.self) private var library
     @Query(LibraryQueries.folders) private var allFolders: [Folder]
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var topFolders: [Folder] {
         LibraryStore.ordered(LibraryQueries.topLevel(allFolders.filter(\.isLive)))
@@ -63,12 +64,18 @@ struct RegularShellSidebar: View {
 
     private var brand: some View {
         HStack(spacing: Spacing.xs) {
-            Image(systemName: Icons.library)
-                .foregroundStyle(Palette.accent)
-                .glyphSize(Glyph.regular)
+            // At the accessibility sizes the name needs the room: the symbol only decorates it.
+            if !typeSize.isAccessibilitySize {
+                Image(systemName: Icons.library)
+                    .foregroundStyle(Palette.accent)
+                    .glyphSize(Glyph.regular)
+            }
+            // One word: smaller rather than broken where the column can't hold it.
             Text("Meridian")
                 .typeStyle(.heading, weight: .bold)
                 .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             Spacer(minLength: 0)
             Button {
                 withAnimation(Motion.snappy) { shell.sidebarCollapsed = true }
@@ -110,23 +117,15 @@ struct RegularShellSidebar: View {
     private func sidebarButton(title: String, symbol: String, identifier: String, selected: Bool,
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: symbol)
-                    .frame(width: Glyph.slot, alignment: .center)
-                Text(title)
-                    .typeStyle(.row, weight: selected ? .semibold : .regular)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(selected ? Palette.accent : Palette.ink)
-            .padding(.horizontal, Spacing.s)
-            .padding(.vertical, Spacing.xs)
-            .frame(maxWidth: .infinity, minHeight: Control.tap, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .fill(selected ? Palette.playingTint : Color.clear)
-            )
-            .contentShape(Rectangle())
+            // The symbol column and the title grow with the text together (two lines at the
+            // accessibility sizes), so neither runs into the other.
+            SymbolRow(title, symbol: symbol, ink: selected ? Palette.accent : nil)
+                .padding(.horizontal, Spacing.s)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .fill(selected ? Palette.playingTint : Color.clear)
+                )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
