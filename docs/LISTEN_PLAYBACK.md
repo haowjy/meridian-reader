@@ -265,7 +265,8 @@ and flagged): after an article, the next one that isn't skipped: an article with
 story's chapter still waiting for its text (a link, `Article.isWaitingChapter`) ends playback there,
 so a story is never heard out of order (Follow fetches the chapter after the article playing ahead
 of the others, `FollowCenter`, and ▶ on a waiting chapter fetches it, then plays it). A link article
-anywhere else (a saved address) is skipped. Continue on a folder (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
+anywhere else (a saved address, *Add Link…*'s) is skipped in a folder's carry-on; ▶ on it fetches
+its text through the same `FollowCenter.play`, then plays it. Continue on a folder (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
 place (the article that last played, which the recorder keeps), at the saved spot while
 unfinished, else at the next page; with no place yet, at the first page's own saved spot; a
 finished folder starts again from its first article. Catch-up baking at the end of an article, and the

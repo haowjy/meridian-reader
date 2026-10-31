@@ -712,8 +712,9 @@ bar's ⏸ is; a long press opens the same menu (the item's one menu, "Menus" bel
 D11), and a long press that moves lifts the row into a drag (below). **Tapping an article
 row plays it** (replacing what plays; in a folder it carries on through the folder) and, on compact
 width, slides Listen up over the Library, except the
-article you hear, which opens Now Playing (a stray tap never pauses), and a link that can't play,
-which opens in the browser; a skipped page plays when tapped. *Read*, the menu's first row, opens
+article you hear, which opens Now Playing (a stray tap never pauses); a link page (*Add Link…*'s,
+a story's chapter waiting for its text) is fetched first, its row saying *Fetching text…* (or why it
+couldn't be had), then plays, Listen staying down; a skipped page plays when tapped. *Read*, the menu's first row, opens
 it (the Reader; Now Playing for the page you hear; the browser for a link). **Tapping a folder
 row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own last row,
 by its name: an article's *Remove from Library* (or *Remove from History*), which takes its row out of

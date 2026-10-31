@@ -2,8 +2,8 @@ import SwiftUI
 
 /// What the Library's rows, headers and Edit's bar do, in one place: open a page (the
 /// Reader, Now Playing when it is what you hear, the browser for a link), play a page or a book
-/// (a followed story's chapter still waiting for its text is fetched first, then plays:
-/// `FollowCenter.play`),
+/// (a link page, *Add Link…*'s or a followed story's chapter still waiting for its text, is
+/// fetched first, then plays: `FollowCenter.play`),
 /// mark and remove pages, delete folders, file things with the Move tree. Opening never plays;
 /// a row's tap plays and slides Listen up (`tap`), and nothing else that plays navigates. Each edit is one save: one that can't be saved changes nothing
 /// and shows a toast, and what follows its success runs only after the save.
@@ -37,11 +37,11 @@ struct LibraryActions {
         shell.openSaved(article.listenKey, in: library, inPlace: true)
     }
 
-    /// A row's tap: the page you hear opens Listen, a link that can't play opens in the browser
-    /// (`open`); anything else plays and, on compact width, Listen slides up over the Library. A
-    /// chapter waiting for its text plays once it is in, and Listen stays down meanwhile.
+    /// A row's tap: the page you hear opens Listen (`open`); anything else plays and, on compact
+    /// width, Listen slides up over the Library. A link page plays once its text is in, and Listen
+    /// stays down meanwhile (its ⋯ *Read* opens it in the browser).
     func tap(_ article: Article) {
-        if playState(of: article).isCurrent || (article.isLink && !article.isWaitingChapter) {
+        if playState(of: article).isCurrent {
             open(article)
             return
         }
@@ -76,12 +76,12 @@ struct LibraryActions {
 
     /// *Play from Here* on a page in a folder: from its start, carrying on through the folder.
     func playFromStart(_ article: Article) {
-        if article.isWaitingChapter { follow.play(article) } else { speech.playArticle(article.listenKey) }
+        if article.isLink { follow.play(article) } else { speech.playArticle(article.listenKey) }
     }
 
-    /// Plays `article` from `spot`, replacing what plays; a chapter waiting for its text once it is in.
+    /// Plays `article` from `spot`, replacing what plays; a link page once its text is in.
     private func start(_ article: Article, at spot: ListenSpot) {
-        if article.isWaitingChapter { follow.play(article) } else { speech.start(.article(article), at: spot) }
+        if article.isLink { follow.play(article) } else { speech.start(.article(article), at: spot) }
     }
 
     // MARK: - Folders

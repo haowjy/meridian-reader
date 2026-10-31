@@ -78,7 +78,7 @@ final class FollowCenter {
     private(set) var checking: Set<UUID> = []
     /// Stories whose last check this launch failed.
     private(set) var checkFailures: [UUID: CheckFailure] = [:]
-    /// ▶ on a waiting chapter: being fetched first, then played (unless something else started
+    /// ▶ on a link page: being fetched first, then played (unless something else started
     /// since). Its row shows ▶ preparing.
     private(set) var playWhenFetched: UUID?
 
@@ -187,8 +187,9 @@ final class FollowCenter {
 
     // MARK: - Fetching chapters
 
-    /// ▶ on a chapter waiting for its text: it is fetched now, ahead of background work (a failure
-    /// this launch is forgotten), then plays, unless something else has started by then.
+    /// ▶ on a link page (*Add Link…*'s, a chapter waiting for its text): it is fetched now, ahead of
+    /// background work (a failure this launch is forgotten), then plays, unless something else has
+    /// started by then.
     func play(_ article: Article) {
         let key = article.listenKey
         let playingWhenAsked = playingKey()
@@ -292,10 +293,11 @@ final class FollowCenter {
         article.isWaitingChapter && article.isInLibrary && !article.skipsInPlayback && failures[article.listenKey] == nil
     }
 
-    /// Where `article` stands when it is a followed story's chapter waiting for its text, not skipped;
-    /// nil for any other page. The one rule rows, headers and the Following sheet read.
+    /// Where `article` stands when it is a link page still to fetch, not skipped: a followed story's
+    /// chapter always, any other link only while ▶ fetches it or once that failed; nil for any other
+    /// page. The one rule rows, headers and the Following sheet read.
     func status(of article: Article) -> ChapterStatus? {
-        guard article.isWaitingChapter, !article.skipsInPlayback else { return nil }
+        guard article.isLink, !article.skipsInPlayback else { return nil }
         let key = article.listenKey
         if fetching.contains(key) {
             if retrying.contains(key), let url = article.url, let backOff = queue.backOff(of: FetchQueue.site(of: url)) {
@@ -304,7 +306,7 @@ final class FollowCenter {
             return .fetching
         }
         if let failure = failures[key] { return .failed(failure) }
-        return .waiting
+        return article.isWaitingChapter ? .waiting : nil
     }
 
     /// `articles` (a story's, in its order) counted: skipped chapters left out.

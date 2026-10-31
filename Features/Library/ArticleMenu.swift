@@ -61,7 +61,7 @@ struct ArticleMenu: View {
         facts.offersSave = actions.offersSave
         facts.canSave = actions.canSave
         facts.inFolder = article?.folder != nil
-        facts.canPlay = actions.isSaved || article?.isWaitingChapter == true
+        facts.canPlay = actions.isSaved || article?.isLink == true
         facts.hasVoices = true // C138a: every article has a voice (an Apple one too)
         facts.hasShareURL = actions.shareURL != nil
         facts.inRecent = !facts.inLibrary && article.map(LibraryQueries.isInRecent) == true
@@ -112,7 +112,7 @@ struct ArticleMenu: View {
                 if let article { library.markAllAbove(article) }
             }
         case .skip:
-            // A waiting chapter too: one whose text can't be had is skipped so playback goes past it.
+            // A link page too: one whose text can't be had is skipped so playback goes past it.
             let skips = article?.skipsInPlayback == true
             return MenuRow(id: "menuSkip", title: skips ? Verbs.playInPlayback : Verbs.skipInPlayback,
                            icon: skips ? Icons.includeInPlayback : Icons.skipInPlayback) {

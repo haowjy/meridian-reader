@@ -23,6 +23,8 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching an article out of sight" and 
   switch decides audio. The chapter keeps its key, title and place.
 - **A story is `FolderKind.series` with a `FollowState`.** The waiting-chapter rule is one
   property, `Article.isWaitingChapter`; playback stops before such a chapter (`ChapterAdvance`).
+  `play` and `status(of:)` take any link page (*Add Link…*'s too): ▶ fetches it, then plays; only a
+  story's chapters are fetched by the loop or show *Waiting*.
 - **Follow covers the screen** (`ShellSheet.coversTheScreen`): inside a card sheet the system's
   pan takes the preview `Sheet`'s pull down.
 - **The preview is the chapter's page in Browse's `WebView`** with its own
