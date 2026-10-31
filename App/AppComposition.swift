@@ -132,7 +132,7 @@ enum AppComposition {
     /// (`ArticleAudioCache.held`), for a later launch. Then the
     /// launch steps (`EngineRegistry.launchMigrations`, which can purge an engine's audio and
     /// orphan files, held audio excepted), the chunk scratch (nothing plays at launch) and the
-    /// prune of unsaved audio (7 days, 500 MB; held audio excepted). First of all the cache is kept
+    /// prune of unsaved audio (7 days, 2 GB; held audio excepted). First of all the cache is kept
     /// out of backups: it is audio the app can render again (`BackupExclusion`).
     static func prepareAudioCache(library: LibraryStore, tts: LocalTTSCoordinator) {
         tts.audioCache.excludeFromBackup()

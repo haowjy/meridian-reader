@@ -498,7 +498,7 @@ extension ArticleAudioCache {
     @discardableResult
     func pruneEphemeral(
         maxAge: TimeInterval = 7 * 24 * 60 * 60,
-        maxBytes: Int64 = 500 * 1024 * 1024
+        maxBytes: Int64 = 2 * 1024 * 1024 * 1024
     ) -> (removed: Int, freedBytes: Int64) {
         let root = self.root
         guard let dirs = try? fileManager.contentsOfDirectory(
