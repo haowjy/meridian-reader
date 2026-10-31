@@ -112,7 +112,7 @@ struct ListRow: View {
             } else {
                 HStack(spacing: Spacing.s) {
                     HStack(spacing: Spacing.s) {
-                        prepareLeading
+                        leading
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 0) {
                             titleText
@@ -158,7 +158,7 @@ struct ListRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             HStack(spacing: Spacing.s) {
-                prepareLeading
+                leading
                     .accessibilityHidden(true)
                 secondLine
                     .accessibilityHidden(true)
@@ -387,14 +387,6 @@ struct ListRow: View {
         if playState.isCurrent { return Palette.accent }
         if case .finished = progress { return Palette.secondaryInk }
         return Palette.ink
-    }
-
-    /// The thumbnail, dimmed under the prepare's `PrepareMark` while it prepared audio (C90): the ↓
-    /// filling with its real progress while it renders now, grey while paused. Waiting its turn
-    /// leaves the tile alone: the spinner is in the badge slot (C93).
-    private var prepareLeading: some View {
-        // The tile is never covered or dimmed by a prepare (C102): its state is the line-two mark.
-        leading
     }
 
     /// The line-two prepare mark's side: as tall as the caption text.

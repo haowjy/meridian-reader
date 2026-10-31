@@ -16,9 +16,9 @@ import UIKit
 /// ```
 ///
 /// Scrolling down folds it a step at a time (never in a reader's Pages mode, on the Browser's
-/// start page, or with VoiceOver on: those stay expanded). Scrolling up never unfolds it
-/// (`ChromeScroll`): a tap on the bubble does (until the next short scroll down), and so does the top
-/// of the text, a new page and opening the search (while searching, a swipe up on the row lowers the
+/// start page, or with VoiceOver on: those stay expanded). A scroll up of 24 pt brings both rows back
+/// (`ChromeScroll.revealDistance`), and so do a tap on the bubble (a short scroll down after it is
+/// ignored), the top of the text, a new page and opening the search (while searching, a swipe up on the row lowers the
 /// keyboard). The host never changes the size of what is under it, but for the Browser's page, which
 /// keeps clear of the step drawn (`ChromeHome.footprint(step:)`): screens reserve
 /// `ChromeHome.clearance(step: 0)` above the safe area and scroll under it. Reduce Motion: no travel, every

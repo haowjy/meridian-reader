@@ -12,7 +12,8 @@ enum ChromeDestination: CaseIterable, Equatable {
 struct ChromeState: Equatable {
     var destination: ChromeDestination
     /// How far a scroll down has folded the rows: 0 two rows, 0.5 one row, 1 the bubble.
-    /// Continuous, driven by scrolling (`ChromeScroll`); scrolling up never brings a row back.
+    /// Continuous, driven by scrolling down (`ChromeScroll`); a scroll up of `revealDistance` brings
+    /// both rows back at once.
     var progress: CGFloat = 0
     /// An in-place reader's full screen: nothing is drawn.
     var fullScreen = false

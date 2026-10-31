@@ -28,14 +28,15 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   `Palette.destructive`: with the role, *Cancel* would leave the row missing and the delete abort
   in UIKit. An article's *Remove from Library* takes the tint too: its row goes once the remove is stored, and a
   save that fails keeps it (a toast says so); with the role, the List would have taken the row
-  out first and aborted on the update. `CoreFlowsUITests` swipe-removes a playing article, which stops.
+  out first and aborted on the update. A swipe-remove of the playing article stops it (checked by hand: no UI tests).
 - **The home's lists are `LibraryQueries`' too**: the
   top level's folders (`topLevel`, a filter after the fetch: no predicate on `parent`), and the
-  search (`searchPages`, `searchFolders`). The home picks the descriptors in its `init` from the
+  search (`searchArticles`, `searchFolders`). The home picks the descriptors in its `init` from the
   tab and the search text; it filters nothing itself but `isLive`.
-- **Which lists an article is in is `LibraryQueries`' alone** (in the Library, played without saving,
-  or removed: in none, nor the bar's resume, `lastPlayed`). *Remove* is one `LibraryStore.remove`
-  from every path (rows, Edit, the Now Playing bar, and `PageActions`' 🔖 and ⋯ through
+- **Which lists an article is in is `LibraryQueries`' alone**: the Library (saved, `addedAt`), History
+  (`recent`: played, saved or not; an unsaved one in no folder until the 7-day prune), or, removed,
+  none, nor the bar's resume (`lastPlayed`). *Remove* is one `LibraryStore.remove`
+  from every path (rows, Edit, the Now Playing bar, and `ArticleActions`' 🔖 and ⋯ through
   `LibraryActions.remove`); it never deletes. Once it is saved, the article you
   hear stops through the store's one playback hook (`stopPlaybackIfPlaying`, as a delete), and so
   does a session a waiting merge would move onto it (`keysWaitingToMerge`), so nothing shows a
@@ -88,16 +89,16 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   none, a tap still follows it (and Edit's selection still takes the tap), and the row's ⋯
   (a `Menu`, which takes its own taps) stays centred on the toolbar's ⋯ slot
   (`ListRow.trailingColumnPadding`).
-- **One menu definition per item kind** (decision C4): `PageMenu` and `FolderMenu` are each one
+- **One menu definition per item kind** (decision C4): `ArticleMenu` and `FolderMenu` are each one
   ordered `[MenuRow]` (`rows`), and every way to that item's menu renders it: as a view
   (`MenuRows`) in a row's ⋯ and `.contextMenu`, the folder header's *More*, a
   History visit, the Now Playing bar; as the item block of the ⋯ panel (the folder's screen, the
-  Reader, Now Playing, the browser). A place passes a `PageMenu.Place`, which only hides or dims
+  Reader, Now Playing, the browser). A place passes a `ArticleMenu.Place`, which only hides or dims
   rows; its own rows go in a block after. Add a row in the definition, never at an entry point.
-  They take their collaborators as values (`PageActions`, `LibraryActions`, `PrepareCenter`,
+  They take their collaborators as values (`ArticleActions`, `LibraryActions`, `PrepareCenter`,
   `LibraryScreenState`), not from the environment, which a menu's content may not get, and build
   their rows only when shown (the views' bodies), not on each row redraw. In Edit a row passes no
-  ⋯ (`ListRow.menu` nil). An article's actions are `PageActions`' ("this article" anywhere: a row's
+  ⋯ (`ListRow.menu` nil). An article's actions are `ArticleActions`' ("this article" anywhere: a row's
   Library page, the Reader's article, the browser's page, which saves by extracting first).
 - **The home never changes size with playback** (decision D14): no section depends on what is
   playing or part-way. An article played without saving joins Recent (`LibraryQueries.recent`) on
@@ -123,7 +124,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   (`LibrarySurface`). Each host keeps the folder being asked about in its own `@State`, so only
   that one presents; `FolderMenu` reports the tap through `onTurnOffPrepare`.
 - **Books and series are folders** (decision D19): one screen (`FolderScreen`), one article row
-  (`LibraryPageRow`), one ⋯ (`FolderMenu`), one delete question. Nothing refuses
+  (`LibraryArticleRow`), one ⋯ (`FolderMenu`), one delete question. Nothing refuses
   a move, a drop, a sort or a subfolder because of `kind`: only cycles, and an article out of the
   Library, which has no place in the tree (`LibraryTreeError`).
   `kind` is a hint of where a folder came from
@@ -136,12 +137,13 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   picks the header's look (`FolderHeaderStyle.detailed`: the cover above the title), a book's too.
 - **Rows, the article menu and the header ask `PrepareCenter.state(of:)`** (an article; a folder with
   the pages its row or screen already holds) for the one `PrepareState`; `ListRow` only draws
-  the mark it is given (dimmed tile and ↓ while preparing, ✓ badge once prepared).
+  the mark it is given, on line two, before its text (a spinner waiting, the accent ↓ filling while it
+  renders, filled once prepared); the thumbnail is never dimmed or covered.
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
-  (`PageProgress.of`); counts come from relationships, not fetches.
+  (`ArticleProgress.of`); counts come from relationships, not fetches.
 - **D20 home:** `LibraryHomeView` renders the Everything / Recent tab (shown as Library / History)
   (`ShellState.homeTab`, a `LibraryHomeTab`) over one folder/article collection, filtered by the
-  band's search within that tab (`ShellState.librarySearch`, D22; `LibraryQueries.searchPages(_:in:)`).
+  band's search within that tab (`ShellState.librarySearch`, D22; `LibraryQueries.searchArticles(_:in:)`).
   Filtered (Recent or a search), the list sets
   `LibraryScreenKey.filtered(under: nil)` and the rows read it: none lifts or takes a drop, a row
   in a folder shows the folder's path (`place(of:)`), and a folder row pushes
@@ -152,6 +154,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   header has Prepare, the big ▶ (Continue) and More.
 - **D21: action rows never wrap; article rows are two lines.** A row of buttons is an
   `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a
-  stack that can wrap; give every button a symbol. An article row is its title on one line and one
+  stack that can wrap; give every button a symbol. An article row is its title on one line (up to
+  three at the accessibility sizes, with the thumbnail, status line and ⋯ on a line under it) and one
   status line, the second its site everywhere except in a book or series (`kind.isBookOrSeries`), whose header names the source; a folder you made mixes sites, so its rows keep theirs. Imported pages are standard page rows; folder sort remains
   the source chapter order until the user changes it.
