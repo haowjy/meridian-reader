@@ -21,7 +21,7 @@ import SwiftUI
 /// (`ReaderPlayerCard`), its tools beside the transport.
 ///
 /// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
-/// `playState` / `onPlayPause`, at the bottom right. Jump to Audio (`JumpToAudioButton`, a thin accent pill, "↑ Jump to Audio") floats
+/// `playState` / `onPlayPause`, at the bottom right. Jump to Audio (an `OverTextPill`, "↑ Jump to Audio") floats
 /// centred over the text while it is away from the audio, 12 pt above the card, or above the home
 /// indicator's strip in full screen; its arrow points to the sentence (`direction`). On regular
 /// width the pill, the grabber and a pull down shrink it
@@ -70,65 +70,17 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
             // Both sit on the same line above the card (above the strip in full screen): Jump to
             // Audio in the middle, the floating play / pause at the right edge.
             ZStack {
-                JumpToAudioButton(shows: showsJumpToAudio, direction: jumpDirection, action: onJumpToAudio)
+                OverTextPill(label: Verbs.jumpToAudio,
+                             symbol: jumpDirection == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown,
+                             shows: showsJumpToAudio,
+                             hint: jumpDirection == .up
+                                 ? String(localized: "Scrolls up to the sentence being read.")
+                                 : String(localized: "Scrolls down to the sentence being read."),
+                             identifier: "nowPlayingJumpToAudio", action: onJumpToAudio)
                 FloatingPlayButton(state: playState, action: onPlayPause)
             }
             .frame(maxHeight: .infinity, alignment: .bottom)
         }
-    }
-}
-
-/// Jump to Audio: a thin accent pill, "↑ Jump to Audio", in the pills' type (row, semibold, as
-/// the readers' "▶ Listen") with just 4 pt above and below, floating in the
-/// middle of the line above what floats at the foot (the card, or the strip in full screen), its
-/// arrow pointing to the spoken sentence. It shows only while the text is away from the audio
-/// (`shows`), and fades in and out; in full screen only with the floating play / pause
-/// (`ReadingChrome.showsFloating`), so the two come and go together. While it shows, Scroll mode's text leaves its line clear at the
-/// end (`ReadingChrome.jumpClearance`).
-struct JumpToAudioButton: View {
-    let shows: Bool
-    let direction: JumpDirection
-    let action: () -> Void
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.readingPalette) private var reading
-    @Environment(\.readingChrome) private var chrome
-
-    private var visible: Bool {
-        guard shows, let chrome, chrome.hidden else { return shows }
-        return chrome.showsFloating
-    }
-
-    var body: some View {
-        ZStack {
-            if visible {
-                Button(action: action) {
-                    Label(Verbs.jumpToAudio, systemImage: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown)
-                        .typeStyle(.row, weight: .semibold)
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(reading?.onAccent ?? Palette.onAccent)
-                        .padding(.horizontal, Spacing.s)
-                        .padding(.vertical, Spacing.xxs)
-                        .background(reading?.accent ?? Palette.accent, in: Capsule(style: .continuous))
-                        // Thin, but its tap area is the tap floor.
-                        .contentShape(Capsule().inset(by: -Spacing.s))
-                }
-                .buttonStyle(PillPressStyle())
-                .accessibilityLabel(Verbs.jumpToAudio)
-                .accessibilityHint(direction == .up
-                    ? String(localized: "Scrolls up to the sentence being read.")
-                    : String(localized: "Scrolls down to the sentence being read."))
-                .accessibilityIdentifier("nowPlayingJumpToAudio")
-                .transition(.opacity)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        // The text's end scrolls clear of the pill while it shows (0 tall when it doesn't).
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-            chrome?.jumpClearance = height > 0 ? height + Spacing.s : 0
-        }
-        // Reduce Motion: a cross-fade, no spring.
-        .animation(visible ? (reduceMotion ? Motion.fadeIn : Motion.snappy) : Motion.fadeOut, value: visible)
     }
 }
 

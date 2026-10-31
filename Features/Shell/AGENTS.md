@@ -11,7 +11,8 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   `LibraryTitleMenu`, drawing `MenuContext.blocks`); the Browser's is `AddressField`'s `holdMenu`. One state (`ChromeState`), one pure layout (`ChromeLayout`, from
   `ChromeMetrics`, Safari's sizes: `Control.bar` 48, 108 pt of rows ending on the home indicator's strip) and one scroll controller (`ChromeScroll`: a
   scroll down folds it; a scroll up of `revealDistance`, the bubble's tap or the top of the text expand it); Library Read and Browse reader
-  mode open in place via `ReaderSurface` and feed it. The host draws translucent glass (`ChromeSkin`; App
+  mode open in place via `ReaderSurface` and feed it; their ▶ Listen floats just above the chrome (the reading page's
+  overText, an `OverTextPill`, placed from `bottomClearance`, the chrome as drawn). The host draws translucent glass (`ChromeSkin`; App
   sets `ChromeSkin.forcesMaterial` for `-chromeFallback`) with only a gradient fade behind. Screens reserve
   `ChromeHome.clearance(step: 0)` above the safe area (`CompactChromeInsets`) and report their scroll with
   `CompactChromeScroll`. Listen and Library Read's ⋯ share one round face, `ChromeCircleFace`. Change the host, never one screen.

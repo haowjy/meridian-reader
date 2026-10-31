@@ -99,7 +99,7 @@ extension LibraryTitleMenu where Face == TitleMenuGlyph {
 }
 
 /// The Library's Read, row 1's field: Aa (the text appearance panel) and the page's site, as the
-/// Browser's reader mode shows Aa with its address. Listening starts from the heading's ▶ Listen.
+/// Browser's reader mode shows Aa with its address. Listening starts from the floating ▶ Listen.
 private struct LibraryReaderField: View {
     let article: ReaderArticle
 

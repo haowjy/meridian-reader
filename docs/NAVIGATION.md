@@ -231,7 +231,7 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   the speed (1×) over Aa at the left, Voice (VoiceOver: "Voice", never a voice's name) over ⋯ at the
   right; between them ⏮, a 62 pt ▶ / ⏸ and ⏭ (`NowPlayingTransport`'s `card` size), centred across
   both rows. **Jump to Audio** is not in the card: scrolled away from the audio, a thin accent pill,
-  "↑ Jump to Audio" or "↓ Jump to Audio" in the pills' type (as "▶ Listen"), 4 pt above and below (`JumpToAudioButton`, the same on regular width;
+  "↑ Jump to Audio" or "↓ Jump to Audio" in the pills' type, 4 pt above and below (an `OverTextPill`, the in-place readers' "▶ Listen" its twin; the same on regular width;
   its tap area 44 pt), floats in the middle 12 pt above the card (above
   the home indicator's strip in full screen) and brings the text back to the spoken sentence; while the text follows the audio, or once the article has finished, it isn't there.
   ⋯ (`listenMore`) is a system menu, a section per
@@ -251,7 +251,7 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
 - **Starting something new** (compact width): a Library row's tap plays the article or chapter and slides
   Listen up (a followed story's chapter still waiting for its text plays once it is in, and Listen stays
   down); a reader's ▶ Listen does the same; a page shared from Safari opens in the Browser straight in
-  reader view (once it has loaded and if it is readable; else the page itself), its heading's ▶ Listen
+  reader view (once it has loaded and if it is readable; else the page itself), its ▶ Listen floating
   there; *Paste Text…* saves, then opens the new article in Library Read; *Import from…* and a shared book
   file close the import sheet on the new book's screen.
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
@@ -260,16 +260,18 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   text is a reading page like the Reader's (`ReadingPage`, in place): Pages or Scroll as the
   Appearance setting says, the footer, a tap in the middle for full screen, *Play from Here* on a
   selection, and it opens at the page's saved listening spot, underlined. The reader's theme runs up
-  under the status bar. Under the title the source line reads "site  length" and ends in ▶ Listen, an
-  accent-filled capsule (on-accent text, semibold; 36 pt tall at the default text size, growing with it
-  up to 1.5×; a 44 pt tap) at the line's right end, centred on it: a long site gives way first (an
-  ellipsis), and the pill never wraps or shrinks. It is a `<button>` in the page's heading, so it scrolls
-  with the text and is never read aloud, and its label stays "▶ Listen" while the page plays. It plays the
-  page from its saved spot and slides Listen up; for the page you hear it only slides Listen up. The
+  under the status bar. Under the title the source line reads "site  length" (a long site gives way
+  first, an ellipsis). **▶ Listen** is a thin accent pill floating centred just above the chrome, Jump to
+  Audio's twin (`OverTextPill`: its type, padding, press style and 44 pt tap), in Scroll and Pages; it rides
+  the chrome as it folds and unfolds (above two rows, one, the bubble). It plays the page from its saved
+  spot and slides Listen up. It is gone once this page is what you hear (the chrome's round Listen then
+  opens it), in full screen, and while the page has no text to read. In Scroll the end of the text scrolls
+  to just above it; in Pages the card (the overview) is centred between the top and the pill, so it ends
+  above it, and the footer shows only in full screen, where the pill isn't. The
   reader stays a plain reader while its page plays: no spoken paragraph, underlined sentence, following
   or Jump to Audio (the playhead is Listen's), and no saved-spot underline (a page that isn't playing
   keeps its saved spot underlined); *Play from Here* moves the playhead and slides Listen up. The end of the text scrolls to just above the chrome as it is drawn
-  (two rows, one, the bubble). Full screen is the text alone, down to the screen's foot, where its end then scrolls: no floating
+  (two rows, one, the bubble), and the ▶ Listen pill while it shows. Full screen is the text alone, down to the screen's foot, where its end then scrolls: no floating
   ▶ / ⏸ (that is Listen's and the regular-width sheets'). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor. Aa is in the address field beside ↻ (`readerAppearance`), and ⋯ → *Text Appearance* opens the same panel, a popover pointing at Aa either way. The web page
   under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
   what ‹ does (back, which closes the reader).
@@ -278,7 +280,7 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   with its scroll; the chrome folds to a bubble naming the article on a scroll down in Scroll mode and stays expanded in Pages mode (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
   or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][Aa  site][Listen]`, as the
   Browser's reader mode: Aa opens the text appearance panel. The Library's ⋯ is a round glass face at the
-  top right, on the title's line, gone in full screen. The heading's ▶ Listen starts it, as in the
+  top right, on the title's line, gone in full screen. The floating ▶ Listen starts it, as in the
   Browser's reader mode. Nothing plays until then. Opening a saved page anywhere else on compact width
   (Prepared Audio's rows) opens it here too. At regular width Read keeps opening the sheet.
   A search in the Library ends when Read opens, so the chrome shows the reader's row and not the keyboard form.
@@ -956,7 +958,7 @@ The two widths present them differently:
 
 | | Compact width | Regular width |
 |---|---|---|
-| Reader | In place, under the bottom chrome (`ReaderSurface`): the Browser's reader mode and Library Read ("Bottom chrome", above). No sheet, grabber, pill, top bar or bottom band: Aa is in the chrome's field, ‹ starts row 1, and the heading reads the title, then "site  length  ▶ Listen" | A `Sheet` over the surface that opened it (`ReaderSheetScreen`): grabber, close pill, top bar, bottom band |
+| Reader | In place, under the bottom chrome (`ReaderSurface`): the Browser's reader mode and Library Read ("Bottom chrome", above). No sheet, grabber, close pill, top bar or bottom band: Aa is in the chrome's field, ‹ starts row 1, the heading reads the title, then "site  length", and "▶ Listen" floats above the chrome | A `Sheet` over the surface that opened it (`ReaderSheetScreen`): grabber, close pill, top bar, bottom band |
 | Now Playing | Listen: a `Sheet` that covers the screen and the chrome, with a grabber, the article's title at the top of its text and the player card at its foot; a pull down closes it ("Bottom chrome", above) | A `Sheet` over everything that shrinks back into the Now Playing bar; its close pill names where it plays from |
 | Into Now Playing | The chrome's round Listen, a reader's ▶ Listen, a Library row | The Now Playing bar (tap, swipe up), the Reader's ▶ |
 
@@ -1118,7 +1120,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
   doesn't move the text, so following goes on). Then *Jump to Audio* shows, on both widths: a thin accent pill
-  (`JumpToAudioButton`, the "▶ Listen" pill's type, 4 pt above and below its label) floating centred on the line just
+  (`OverTextPill`, the in-place readers' "▶ Listen" its twin, 4 pt above and below its label) floating centred on the line just
   above what floats at the text's foot (compact Listen's player card, regular width's band; the home indicator's strip
   in full screen), with an arrow that points to the spoken sentence, ↑ when it is above the visible text and ↓ when
   below (Pages: on an earlier or a later page). While it shows, Scroll mode's text leaves its line clear: the end of

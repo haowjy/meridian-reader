@@ -10,7 +10,7 @@ enum ReadingShowing {
     /// on glass at the foot, with what it was over left as it was.
     case cover(onClose: () -> Void)
     /// Compact width's in-place readers (the Library's Read, the Browser's reader mode): under the
-    /// bottom chrome. No sheet, pill, grabber or pull down, and nothing over the text.
+    /// bottom chrome. No sheet, pill, grabber or pull down; over the text only `overText` (Listen's pill).
     case inPlace(ReadingInPlace)
 
     /// The sheet's close pill, at the leading edge of its top bar:
@@ -49,8 +49,8 @@ struct ReadingInPlace {
 ///
 /// Regular width puts it in a `Sheet` with a grabber and a close pill. Compact width's Listen is
 /// the same sheet as a cover, the grabber alone at its top and its band a card on glass. Compact
-/// width's in-place readers draw it edge to edge with nothing but the text: the top bar, the
-/// `band`, `floating` and `overText` are the sheet's, and what is around the text is the chrome's.
+/// width's in-place readers draw it edge to edge with the text and `overText` alone: the top bar,
+/// the `band` and `floating` are the sheet's, and what is around the text is the chrome's.
 struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floating: View,
                    OverText: View>: View {
     let showing: ReadingShowing
@@ -124,6 +124,8 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
                 banner
             } content: {
                 text
+            } overText: {
+                overText
             }
         }
     }
@@ -131,12 +133,13 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
 
 /// The page drawn in place: the page's colour edge to edge, `ReadingBars` over it, the status bar
 /// and home indicator following full screen, and the chrome host told what the text does.
-private struct InPlaceFrame<Header: View, Content: View>: View {
+private struct InPlaceFrame<Header: View, Content: View, OverText: View>: View {
     let place: ReadingInPlace
     let chrome: ReadingChrome
     let palette: ReadingPalette
     @ViewBuilder var header: Header
     @ViewBuilder var content: Content
+    @ViewBuilder var overText: OverText
 
     @State private var statusBarHeight: CGFloat = 0
 
@@ -146,7 +149,7 @@ private struct InPlaceFrame<Header: View, Content: View>: View {
     var body: some View {
         ReadingBars(chrome: chrome, headerBackground: palette.background, headerSlide: statusBarHeight,
                     bottomClearance: place.bottomClearance, homeIndicator: place.homeIndicator, header: header,
-                    content: content, band: Color.clear.frame(height: 0), overText: EmptyView())
+                    content: content, band: Color.clear.frame(height: 0), overText: overText)
             .background(palette.background.ignoresSafeArea())
             .readingSurface(palette)
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { statusBarHeight = $0 }

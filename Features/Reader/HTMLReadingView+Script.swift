@@ -308,14 +308,7 @@ extension HTMLReadingWebView {
             var sel = window.getSelection();
             hadSelection = !!(sel && !sel.isCollapsed);
           }, { passive: true });
-          // The heading's ▶ Listen: its own message, never a tap on the text.
           document.addEventListener('click', function(ev) {
-            if (!(ev.target && ev.target.closest && ev.target.closest('.reader-listen'))) return;
-            ev.preventDefault();
-            window.webkit.messageHandlers.readerBridge.postMessage({ listen: true });
-          });
-          document.addEventListener('click', function(ev) {
-            if (ev.target && ev.target.closest && ev.target.closest('.reader-listen')) return;
             if (window.__readerJump) return;
             if (touchAfterScroll || hadSelection || Date.now() - lastScroll < 250) return;
             var s2 = window.getSelection();
@@ -393,10 +386,9 @@ extension HTMLReadingWebView.Coordinator {
             .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
     }
 
-    /// The title (hidden when the player card shows it) and the source line, ending in the ▶ Listen pill
-    /// when the heading has it (a button, so VoiceOver offers it; its triangle is drawn, never an emoji).
+    /// The title (hidden when the player card shows it) and the source line.
     private static func headerHTML(_ heading: ReaderHeading) -> String {
-        var html = "<header class=\"reader-heading\">"
+        var html = heading.besideMenu ? "<header class=\"reader-heading beside-menu\">" : "<header class=\"reader-heading\">"
         if let title = heading.title {
             html += heading.titleHidden
                 ? "<div class=\"reader-title\" data-hidden=\"1\" style=\"display:none\">\(escape(title))</div>"
@@ -404,11 +396,6 @@ extension HTMLReadingWebView.Coordinator {
         }
         html += "<div class=\"reader-detail\">"
         html += heading.detail.filter { !$0.isEmpty }.map { "<span>\(escape($0))</span>" }.joined()
-        if heading.listens {
-            html += "<button type=\"button\" class=\"reader-listen\">"
-                + "<svg viewBox=\"0 0 10 12\" aria-hidden=\"true\"><path d=\"M0 0L10 6L0 12Z\"/></svg>"
-                + escape(Verbs.listen) + "</button>"
-        }
         return html + "</div></header>"
     }
 }

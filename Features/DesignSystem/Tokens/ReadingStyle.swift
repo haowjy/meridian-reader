@@ -136,32 +136,20 @@ enum ReadingStyle {
         .reader-heading { margin: 0 0 \(Int(Spacing.xl))px; }
         .reader-title { font-size: calc(var(--title) * var(--scale)); font-weight: 700; line-height: 1.15;
                         margin: 0 0 \(pad)px; }
-        /* One line: the site gives way first (an ellipsis), the length never wraps, ▶ Listen ends it. */
+        /* One line: the site gives way first (an ellipsis), the length never wraps. */
         .reader-detail { font-family: -apple-system, system-ui, sans-serif; font-size: var(--caption);
                          color: var(--tertiary); display: flex; align-items: center;
                          column-gap: calc(var(--caption) * \(Int(Spacing.s)) / \(Int(TypeStyle.caption.size))); }
         .reader-detail span { flex: 0 0 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .reader-detail span:first-child { flex-shrink: 1; color: var(--secondary); }
-        /* ▶ Listen: an accent capsule (`PillButton`'s compact filled pill: `Control.small` at the default size, growing
-           with its text), at the line's end; its tap reaches \(Int(Control.tap)) pt tall. */
-        .reader-listen { -webkit-appearance: none; appearance: none; border: 0; flex: none; margin-left: auto;
-                         position: relative; box-sizing: border-box;
-                         height: calc(var(--row) * \(Control.small / TypeStyle.row.size));
-                         padding: 0 \(Int(Spacing.m))px; border-radius: 9999px;
-                         background: var(--accent); color: var(--on-accent);
-                         font-family: inherit; font-size: var(--row); font-weight: 600; line-height: 1; white-space: nowrap;
-                         display: inline-flex; align-items: center; gap: \(Int(Spacing.xs))px; cursor: pointer; }
         /* Clear of Library Read's ⋯ (a `Control.bar` circle at the top right, `Spacing.bandMargin` in from the edge,
            level with the text's top): the title's lines beside it wrap short of it, however large the text, and
-           the source line starts under it. The Browser's reader mode keeps the same room, so the two read alike. */
-        body:has(.reader-listen)::before { content: ""; float: right;
+           the source line starts under it. The Browser's reader mode keeps the same room, so the two read alike.
+           On the body, not the header: the leading-heading dedupe can move the header below the article's heading. */
+        body:has(.beside-menu)::before { content: ""; float: right;
                          width: \(Int(Control.bar + Spacing.bandMargin - Spacing.pageMargin + Spacing.xs))px;
                          height: \(Int(Control.bar - Spacing.xs))px; }
         .reader-detail { clear: right; }
-        .reader-listen::after { content: ""; position: absolute; left: 0; right: 0; top: 50%;
-                         height: max(100%, \(Int(Control.tap))px); transform: translateY(-50%); }
-        .reader-listen:active { opacity: \(Palette.pressedOpacity); }
-        .reader-listen svg { width: 0.7em; height: 0.8em; fill: currentColor; }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
         html.reader-paged [data-reader-index] { transition: none; }

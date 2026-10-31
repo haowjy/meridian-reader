@@ -13,7 +13,8 @@ import SwiftUI
 /// `Sheet` and `ReadingInPlace` (compact width's readers) both draw this; they differ in what
 /// surrounds it. `bottomClearance` is the room under the band that something else occupies (the
 /// compact chrome at its current fold step, whose card is the band there).
-/// What floats over the text (Jump to Audio, the play button in full screen) sits above the band
+/// What floats over the text (Jump to Audio or the in-place readers' Listen, the play button in full
+/// screen) sits above the band
 /// and that room while the bars show, above the strip in full screen.
 struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: View, OverText: View>: View {
     let chrome: ReadingChrome
@@ -49,11 +50,14 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .ignoresSafeArea(.container, edges: .bottom)
             // Pages mode is for reading: nothing floats over its text while the bars are hidden
-            // (C108); with them shown, Jump to Audio sits above the band, as in Scroll.
+            // (C108); with them shown, the pill (Jump to Audio, Listen) sits above the band, as in Scroll.
             if appearance.layout != .pages || !hidden {
+                // Placed from the home indicator's strip, not the safe area: a page in place may be
+                // laid out through the bottom safe area (the Browser's reader mode is) or not (Library Read).
                 overText
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, (hidden ? chrome.pageFooter : bandHeight + bottomClearance) + Spacing.s)
+                    .padding(.bottom, bottomInset + (hidden ? chrome.pageFooter : bandHeight + bottomClearance) + Spacing.s)
+                    .ignoresSafeArea(.container, edges: .bottom)
                     // A keyboard left up elsewhere (Browse's field) must not lift it: the floating ⏸
                     // in full screen rode up by the keyboard height.
                     .ignoresSafeArea(.keyboard)
@@ -94,10 +98,11 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
     }
 
     /// What floats over the foot of the text: the band and the room under it, above the home
-    /// indicator's strip; in Scroll mode's full screen the strip alone. In Scroll mode Jump to Audio's
-    /// line too while it shows, so the last line ends above the pill (Pages keeps its cut).
+    /// indicator's strip; in Scroll mode's full screen the strip alone. In Scroll mode the floating
+    /// pill's line too while it shows (`OverTextPill`), so the last line ends above it (Pages keeps
+    /// its cut; its card makes room instead, `ReadingPagesCard`).
     private func floatingBottom(hidden: Bool) -> CGFloat {
         guard appearance.layout != .pages else { return bandHeight + bottomInset + bottomClearance }
-        return (hidden ? bottomInset : bandHeight + bottomInset + bottomClearance) + chrome.jumpClearance
+        return (hidden ? bottomInset : bandHeight + bottomInset + bottomClearance) + chrome.overTextClearance
     }
 }

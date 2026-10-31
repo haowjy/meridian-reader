@@ -7,12 +7,15 @@ import SwiftUI
 /// screen's foot: nothing floats over it), and *Play from Here* on a selection; the text opens at
 /// the page's saved listening spot, underlined.
 ///
-/// The title, then "site  length  ▶ Listen" (an accent pill), are the first thing in the text and
-/// scroll with it. ▶ Listen plays the page from its saved spot (`QuickListen`) and slides Listen up
-/// over this surface, which stays mounted under it: closing Listen shows it again where it was. What
-/// is around the text is the chrome's (the field with Aa, ‹). It is a plain reader whatever plays: the
-/// playhead (the spoken paragraph, its underlined sentence, the text following the audio, Jump to
-/// Audio) is Listen's alone. Links navigate the browser.
+/// The title, then "site  length", are the first thing in the text and scroll with it. "▶ Listen",
+/// a thin accent pill (an `OverTextPill`, Jump to Audio's twin), floats centred just above the
+/// chrome, riding it as it folds, in Scroll and Pages, until this page is what you hear (then the
+/// chrome's round Listen opens it); not in full screen. It plays the page from its saved spot
+/// (`QuickListen`) and slides Listen up over this surface, which stays mounted under it: closing
+/// Listen shows it again where it was. What is around the text is the chrome's (the field with Aa,
+/// ‹). It is a plain reader whatever plays: the playhead (the spoken paragraph, its underlined
+/// sentence, the text following the audio, Jump to Audio) is Listen's alone. Links navigate the
+/// browser.
 struct ReaderSurface: View {
     let article: ReaderArticle
     let speech: SpeechController
@@ -46,7 +49,8 @@ struct ReaderSurface: View {
         } floating: {
             EmptyView()
         } overText: {
-            EmptyView()
+            OverTextPill(label: Verbs.listen, symbol: Icons.play, shows: !hearing && !listen.isDisabled && !chrome.hidden,
+                         identifier: "inPlaceListen", holdsPagesRoom: true, action: listen.press)
         }
         .overlay(alignment: .leading) { edgeSwipe }
         .accessibilityElement(children: .contain)
@@ -71,9 +75,9 @@ struct ReaderSurface: View {
     private func text(_ listen: QuickListen, hearing: Bool) -> some View {
         HTMLReadingView(
             html: article.readingHTML,
-            heading: ReaderHeading(title: article.title, detail: detail(listen), listens: !listen.isDisabled),
+            heading: ReaderHeading(title: article.title, detail: detail(listen), besideMenu: true),
             activeParagraphIndex: nil, sentence: hearing ? nil : savedSentence(listen.start), opensAtSentence: !hearing,
-            onOpenLink: { shell.navigate(to: $0) }, onListen: listen.press,
+            onOpenLink: { shell.navigate(to: $0) },
             pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in
                 ListeningTime.leftLabel(in: document, paragraph: $0, offset: $1, rate: rate, chapter: false)
             },

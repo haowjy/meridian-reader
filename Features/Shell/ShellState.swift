@@ -177,7 +177,7 @@ final class ShellState {
     private(set) var pageReader: ReaderArticle?
     /// A Library page read in place (Library *Read*): its text replaces the Library's content, like the
     /// Browser's reader mode, under the same chrome with the Library segment lit. Nothing plays until
-    /// the heading's ▶ Listen (which raises Now Playing over it); ‹ (or the edge swipe) puts the
+    /// the floating ▶ Listen (which raises Now Playing over it); ‹ (or the edge swipe) puts the
     /// Library back as it was.
     private(set) var libraryReader: ReaderArticle?
     /// Compact width reads in place (`libraryReader`, `pageReader`) and has Settings as a destination;

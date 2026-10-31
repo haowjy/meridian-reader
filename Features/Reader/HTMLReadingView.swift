@@ -13,9 +13,8 @@ struct ReaderHeading: Equatable {
     /// The title shows elsewhere (C141: the player card), so neither it nor the article's own
     /// matching leading heading shows in the text.
     var titleHidden = false
-    /// The in-place readers' start: a "▶ Listen" accent capsule at the end of the source line
-    /// (`HTMLReadingView.onListen`). A fixed label, so the page never reloads as playback changes.
-    var listens = false
+    /// A ⋯ floats at the text's top right (the in-place readers): the title wraps short of it.
+    var besideMenu = false
 }
 
 /// Lets the owner read where the text is scrolled to (the Reader hands it to Now Playing, D2).
@@ -79,8 +78,6 @@ struct HTMLReadingView: View {
     var onSpotSide: (JumpDirection) -> Void = { _ in }
     /// A link on the page was tapped (the reading view never follows one).
     var onOpenLink: (URL) -> Void = { _ in }
-    /// The heading's ▶ Listen was tapped (`ReaderHeading.listens`).
-    var onListen: () -> Void = {}
     /// Pages mode's footer: the time left from a page's first character (its listen paragraph and
     /// the UTF-16 offset in it), "2 min left" ("2 min left in chapter" for a chapter); nil shows the
     /// page alone.
@@ -130,12 +127,12 @@ struct HTMLReadingView: View {
             onUserScroll: onUserScroll,
             onSpotSide: onSpotSide,
             onOpenLink: onOpenLink,
-            onListen: onListen,
             onPlaySelection: onPlaySelection,
             onTapParagraph: onTapParagraph
         )
         .background(palette.background)
         .modifier(ReadingPagesCard(active: paged, overview: chrome?.hidden == false, insets: chrome?.insets ?? ReaderTextInsets(),
+                                   clearance: chrome?.pageCardClearance ?? 0,
                                    cardHeight: paged ? pages.cardHeight : 0))
         .overlay {
             if paged { ReadingPageFrame(pages: pages, palette: palette, timeLeft: pageTimeLeft) }
@@ -204,7 +201,6 @@ struct HTMLReadingWebView: UIViewRepresentable {
     var onUserScroll: () -> Void = {}
     var onSpotSide: (JumpDirection) -> Void = { _ in }
     var onOpenLink: (URL) -> Void = { _ in }
-    var onListen: () -> Void = {}
     var onPlaySelection: ((_ paragraph: Int, _ offset: Int) -> Void)?
     let onTapParagraph: (Int) -> Void
 
@@ -267,7 +263,6 @@ struct HTMLReadingWebView: UIViewRepresentable {
         c.onUserScroll = onUserScroll
         c.onSpotSide = onSpotSide
         c.onOpenLink = onOpenLink
-        c.onListen = onListen
         c.chrome = chrome
         // In full screen a pull at the top only rubber-bands (and brings the bars back); a drag
         // in progress keeps the hand-off it began with (`ScrollPullHandoff`).

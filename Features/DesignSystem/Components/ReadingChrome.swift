@@ -45,9 +45,14 @@ final class ReadingChrome {
     /// Pages mode's footer, above the home indicator (0 in Scroll mode), measured by the reading
     /// view: in full screen what floats over the text sits above it.
     var pageFooter: CGFloat = 0
-    /// Jump to Audio's line while it shows (its pill and the gap under it), set by `JumpToAudioButton`:
-    /// in Scroll mode the end of the text scrolls clear of it (`ReadingBars`).
-    var jumpClearance: CGFloat = 0
+    /// The line of the pill floating over the text while it shows (Jump to Audio, the in-place
+    /// readers' Listen: the pill and the gap under it), set by `OverTextPill`: in Scroll mode the
+    /// end of the text scrolls clear of it (`ReadingBars`).
+    var overTextClearance: CGFloat = 0
+    /// The same line, for a pill that stays while the page shows (the in-place readers' Listen):
+    /// Pages' card ends above it (`ReadingPagesCard`). 0 for Jump to Audio, which may float over
+    /// the card's foot.
+    var pageCardClearance: CGFloat = 0
     /// What floats over the text shows (only in full screen).
     private(set) var floatingControl = false
     /// When it fades: each reveal pushes this on, so a scroll's many reveals share one timer.
