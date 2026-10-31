@@ -8,7 +8,7 @@ enum LibraryItemID: Hashable {
 
 /// What the Library's screens share with their surface:
 /// Edit's selection, which the bottom bar acts on, and the dialogs a row or a menu asks for
-/// (delete, rename, new folder), shown once by `libraryDialogs`. *Turn Off Prepare* is asked
+/// (delete, rename, new folder), shown once by `libraryDialogs`. *Stop Preparing* is asked
 /// where it was tapped instead (`turnOffPrepareQuestion`).
 @MainActor
 @Observable
@@ -184,8 +184,8 @@ extension View {
         modifier(LibraryDialogs(state: state, onDeleted: onDeleted))
     }
 
-    /// *Turn Off Prepare*'s question for `folder` (nil: not asked), asked first since what
-    /// prepared audio next stops: *Turn Off Prepare* (`PrepareCenter.turnOff`, what is prepared
+    /// *Stop Preparing*'s question for `folder` (nil: not asked), asked first since what
+    /// prepared audio next stops: *Stop Preparing* (`PrepareCenter.turnOff`, what is prepared
     /// stays) or *Cancel*. One question for every way in, each attaching it to the control that
     /// asks (on iOS 26 it shows as a popover pointing there): the folder header's Prepare control
     /// and *More*, a folder row's ⋯ (its long press too), the screen's ⋯.
@@ -265,7 +265,7 @@ private struct LibraryDialogs: ViewModifier {
                 }
                 .disabled(LibraryScreenState.linkURL(state.linkText) == nil)
             } message: {
-                Text("Its text is fetched when you first play it.")
+                Text("Its text downloads when you first play it.")
             }
             .sheet(isPresented: Binding(get: { state.pastingText != nil }, set: { if !$0 { state.pastingText = nil } })) {
                 PasteTextSheet(state: state) {

@@ -62,9 +62,8 @@ struct FollowSheet: View {
         case .address:
             FollowAddressStep(flow: flow)
         case .reading(let url):
-            FollowMessage(symbol: nil, title: String(localized: "Reading table of contents…"),
-                          detail: ShellState.addressText(for: url),
-                          note: String(localized: "One request, signed in as in the browser."))
+            FollowMessage(symbol: nil, title: String(localized: "Finding the chapters…"),
+                          detail: ShellState.addressText(for: url))
                 .accessibilityIdentifier("followReading")
         case .failed(let url, let message):
             FollowMessage(symbol: Icons.warning, title: message, detail: ShellState.addressText(for: url)) {
@@ -79,9 +78,9 @@ struct FollowSheet: View {
                 }
             }
         case .alreadyFollowing(let id):
-            FollowMessage(symbol: Icons.follow, title: String(localized: "You follow this story already"),
+            FollowMessage(symbol: Icons.follow, title: String(localized: "You already follow this story"),
                           detail: library.folder(id: id)?.name ?? "") {
-                PillButton(String(localized: "Open Its Folder"), systemImage: Icons.folder, expands: true) { open(id) }
+                PillButton(String(localized: "Open Folder"), systemImage: Icons.folder, expands: true) { open(id) }
                     .accessibilityIdentifier("followOpenExisting")
             }
         case .review(let contents):
@@ -132,7 +131,7 @@ private struct FollowAddressStep: View {
                 SectionHeader(title: String(localized: "Story Address"))
                     .listHeader()
             } footer: {
-                Text("A page that lists the story’s chapters: a Royal Road story page, or another site’s table of contents.")
+                Text("The page that lists the story’s chapters, such as its Royal Road page.")
                     .listFooter()
             }
             .listRowInsets(EdgeInsets())
@@ -140,7 +139,7 @@ private struct FollowAddressStep: View {
         }
         .cardListStyle()
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            PillButton(String(localized: "Read Contents"), systemImage: Icons.follow, expands: true, action: read)
+            PillButton(String(localized: "Find Chapters"), systemImage: Icons.follow, expands: true, action: read)
                 .disabled(flow.typedURL == nil)
                 .padding(.horizontal, Spacing.pageMargin)
                 .padding(.vertical, Spacing.s)
@@ -182,7 +181,7 @@ private struct FollowReview: View {
         .cardListStyle()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("A folder is made at once. The chapters’ text is fetched one at a time while the app is open.")
+                Text("The chapters download one at a time while the app is open.")
                     .footnote()
                 PillButton(Verbs.ok, detail: String(localized: "Follow \(keptCount) Chapters"),
                            systemImage: Icons.follow, expands: true, action: onFollow)
@@ -280,7 +279,6 @@ private struct FollowMessage<Actions: View>: View {
     let symbol: String?
     let title: String
     let detail: String
-    var note: String?
     @ViewBuilder var actions: Actions
 
     var body: some View {
@@ -303,12 +301,6 @@ private struct FollowMessage<Actions: View>: View {
                 .foregroundStyle(Palette.secondaryInk)
                 .lineLimit(2)
                 .truncationMode(.middle)
-            if let note {
-                Text(note)
-                    .typeStyle(.caption)
-                    .foregroundStyle(Palette.tertiaryInk)
-                    .multilineTextAlignment(.center)
-            }
             actions
                 .padding(.top, Spacing.s)
         }
@@ -319,7 +311,7 @@ private struct FollowMessage<Actions: View>: View {
 }
 
 extension FollowMessage where Actions == EmptyView {
-    init(symbol: String?, title: String, detail: String, note: String? = nil) {
-        self.init(symbol: symbol, title: title, detail: detail, note: note) { EmptyView() }
+    init(symbol: String?, title: String, detail: String) {
+        self.init(symbol: symbol, title: title, detail: detail) { EmptyView() }
     }
 }

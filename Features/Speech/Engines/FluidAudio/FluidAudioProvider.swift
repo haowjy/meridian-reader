@@ -56,16 +56,15 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// libBNNS (FluidAudio #844).
     static let kokoroDescriptor = EngineDescriptor(
         id: .kokoro,
-        displayName: "Kokoro (on-device)",
+        displayName: "Kokoro",
         shortName: "Kokoro",
-        subtitle: "~175 MB download",
         isRecommended: false,
         sortOrder: 20,
         voices: kokoroVoices,
         defaultVoiceID: KokoroVoiceCatalog.defaultVoice,
         voiceDefaultsKey: "reader.tts.kokoroVoice", // pre-DI key, keep
         hardware: HardwareRequirement(minimumOSMajor: 17, minimumChip: .a15, allowsSimulator: true,
-                                      summary: "iPhone 13 or newer (A15+)"),
+                                      summary: "an iPhone 13 or newer"),
         // Reader loads FluidAudio's `.english` variant only: Misaki US lexicon + BART G2P
         // fallback. British packs (bf_/bm_) change the timbre, not the pronunciation.
         // FluidAudio also has separate Mandarin/Japanese Kokoro variants (other model bundles,

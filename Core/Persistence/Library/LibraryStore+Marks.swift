@@ -23,7 +23,7 @@ extension LibraryStore {
         try setFinished(Array(order[..<index]), true)
     }
 
-    /// *Skip in Playback*: carrying on through its folder passes over the page (it still plays
+    /// *Skip When Playing*: carrying on through its folder passes over the page (it still plays
     /// when started directly).
     func setSkipsInPlayback(_ article: Article, _ skips: Bool) throws {
         guard article.skipsInPlayback != skips else { return }

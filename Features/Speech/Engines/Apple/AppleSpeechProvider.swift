@@ -11,7 +11,6 @@ final class AppleSpeechProvider: SpeechEngineProvider {
         id: .apple,
         displayName: "Apple",
         shortName: "Apple",
-        subtitle: "System voices, always available",
         sortOrder: 0,
         onDevice: nil
     )

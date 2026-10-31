@@ -27,7 +27,7 @@ struct BrowseStartView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     /// The Library's screen state, shared by its screens and the bottom chrome (which the shell owns).
     @State private var libraryScreen = LibraryScreenState()
-    /// The Library ⋯'s *Turn Off Prepare* asked: the question shows by the ⋯.
+    /// The Library ⋯'s *Stop Preparing* asked: the question shows by the ⋯.
     @State private var turningOff: Folder?
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
@@ -582,7 +582,7 @@ struct BrowseStartView: View {
         case .finished(let file):
             BookImportActions(library: library, shell: shell).importPrepared(file)
         case .failed(let name):
-            shell.showToast(ShellToast(message: String(localized: "Couldn't download “\(name)”"),
+            shell.showToast(ShellToast(message: String(localized: "Couldn’t download “\(name)”"),
                                        systemImage: Icons.warning))
         }
     }

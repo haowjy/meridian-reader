@@ -103,7 +103,6 @@ struct FrequentlyVisitedGrid: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(site.name)
-        .accessibilityHint(String(localized: "Opens in Browse"))
         .accessibilityIdentifier("frequentSiteTile")
     }
 }

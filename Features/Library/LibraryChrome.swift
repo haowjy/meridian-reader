@@ -12,7 +12,7 @@ struct LibraryChrome {
     let preparedAudio: PrepareCenter
     let screen: LibraryScreenState
     let topLevelSort: Binding<String>
-    /// *Turn Off Prepare* asked from the ⋯: the question shows by it.
+    /// *Stop Preparing* asked from the ⋯: the question shows by it.
     let turningOff: Binding<Folder?>
 
     var search: SearchSession { shell.librarySearch }
@@ -79,7 +79,7 @@ extension EnvironmentValues {
 }
 
 /// The ⋯ on a Library screen's title line (compact width): the menu of the screen on top, the same
-/// rows in the same order as the chrome's ⋯ had (`compactMenu`). *Turn Off Prepare* asks by it.
+/// rows in the same order as the chrome's ⋯ had (`compactMenu`). *Stop Preparing* asks by it.
 /// `face`: how it is drawn (the title's glyph; a glass circle over Library Read's text).
 struct LibraryTitleMenu<Face: View>: View {
     @ViewBuilder var face: Face

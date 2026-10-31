@@ -50,7 +50,7 @@ struct PreparedAudioSheet: View {
 /// row is one page (C110), a folder's pages each on their own row: its status mark before line
 /// two (a spinner waiting, the accent ↓ filling with its own progress, filled once done), line two
 /// its folder's name (its site when it is in no folder). Waiting is in the order pages render.
-/// A folder's own prepare (its toggle, *Turn Off Prepare*) stays on the folder's screen.
+/// A folder's own prepare (its toggle, *Stop Preparing*) stays on the folder's screen.
 struct PreparedAudioList: View {
     @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(LibraryStore.self) private var library
@@ -101,7 +101,7 @@ struct PreparedAudioList: View {
                         headerID: "downloadsDoneHeader") {
                     let total = overview.done.compactMap { sizes[$0.key] }.reduce(0, +)
                     if total > 0 {
-                        Text(String(localized: "\(FileSizes.label(total)) on this iPhone"))
+                        Text(String(localized: "\(FileSizes.label(total)) on this device"))
                             .accessibilityIdentifier("downloadsStorage")
                             .listFooter()
                     }
@@ -120,8 +120,8 @@ struct PreparedAudioList: View {
                         .accessibilityIdentifier("preparedListeningHeader")
                 } footer: {
                     let total = listening.compactMap { listeningSizes[$0] }.reduce(0, +)
-                    Text(String(localized: "Audio made while you listen. It’s cleared once its article leaves the last \(LibraryStore.recentLimit) in History.")
-                         + (total > 0 ? " " + String(localized: "\(FileSizes.label(total)) on this iPhone.") : ""))
+                    Text(String(localized: "Audio made while you listen. It’s deleted when its article leaves the last \(LibraryStore.recentLimit) in History.")
+                         + (total > 0 ? " " + String(localized: "\(FileSizes.label(total)) on this device.") : ""))
                         .listFooter()
                 }
             }
@@ -129,7 +129,7 @@ struct PreparedAudioList: View {
                 section(overview.differentVoice,
                         header: SectionHeader(title: String(localized: "Different Voice"), count: overview.differentVoice.count),
                         headerID: "downloadsDifferentVoiceHeader") {
-                    Text(String(localized: "Its audio isn’t in its article’s voice, so it doesn’t play. Prepare Again makes it in that voice."))
+                    Text(String(localized: "This audio is in a different voice from its article, so it won’t play. Prepare Again makes it in the article’s voice."))
                         .listFooter()
                 }
             }

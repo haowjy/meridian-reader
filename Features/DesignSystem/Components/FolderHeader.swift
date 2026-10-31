@@ -247,7 +247,7 @@ struct FolderHeaderGallery: View {
                              progressLabel: ["24 of 108", "20%", "41 h left"],
                              actions: .init(prepare: .prepared, prepareIsOn: true, onPrepare: {}, play: .playing,
                                             onPlay: {})) {
-                    HeaderLink(symbol: Icons.follow, parts: ["Following", "41 of 108 fetched"]) {}
+                    HeaderLink(symbol: Icons.follow, parts: ["Following", "41 of 108 downloaded"]) {}
                 } more: {
                     Button(Verbs.playFromStart, systemImage: Icons.previous) {}
                 }

@@ -91,7 +91,7 @@ struct VoicePage: View {
         List {
             VoiceSelectionList(
                 speech: speech, current: localTTS.defaultSelection, preparingID: localTTS.voiceDownloadID,
-                footer: String(localized: "New articles and books speak in this voice. One already with audio keeps its own: change it from its More menu › Voice."),
+                footer: String(localized: "New articles and books use this voice. To change it for one you’ve already listened to, use Voice in its ⋯ menu."),
                 error: localTTS.voiceDownloadError, preview: preview
             ) { selection in
                 Task {
@@ -124,7 +124,7 @@ struct LanguagePage: View {
         List {
             Section {
                 SettingsChoiceRow(
-                    title: String(localized: "Automatic (match article)"),
+                    title: String(localized: "Automatic"),
                     subtitle: DetailPart(automaticSubtitle),
                     selected: speech.languageAutomatic,
                     accessibilityID: "languageRow-automatic"

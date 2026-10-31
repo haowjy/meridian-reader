@@ -32,7 +32,7 @@ struct HardwareRequirement: Sendable, Equatable {
     var minimumOSMajor: Int = 17
     var minimumChip: DeviceChipGeneration? = nil
     var allowsSimulator: Bool = true
-    /// Short human requirement, e.g. "iPhone 13 or newer (A15+)".
+    /// What the device needs, after "Needs": "an iPhone 13 or newer".
     var summary: String = ""
 
     static let none = HardwareRequirement()
@@ -42,12 +42,10 @@ struct HardwareRequirement: Sendable, Equatable {
 /// capabilities; it never switches on concrete engine types.
 struct EngineDescriptor: Sendable, Identifiable {
     let id: SpeechEngineID
-    /// Settings row title ("Kokoro (on-device)").
+    /// Settings section title ("Kokoro").
     let displayName: String
     /// Debug overlay / logs / "Preparing X…" ("Kokoro").
     let shortName: String
-    /// Settings subtitle before the model is downloaded.
-    let subtitle: String
     /// Shows "Ready (recommended)" and wins `EngineRegistry.defaultLocalEngineID`.
     var isRecommended = false
     /// Settings order among engines (ascending).

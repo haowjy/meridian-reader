@@ -122,7 +122,7 @@ struct ChromePieces: View, Animatable {
             .frame(width: piece.rect.width, height: piece.rect.height + 2 * outset)
             .offset(x: piece.rect.minX, y: piece.rect.minY - outset)
             .accessibilityLabel(title)
-            .accessibilityHint(String(localized: "Shows the bar"))
+            .accessibilityHint(String(localized: "Shows the controls"))
             .accessibilityIdentifier("chromeBubble")
             .transition(.opacity)
         }

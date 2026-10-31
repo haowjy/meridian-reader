@@ -36,8 +36,8 @@ struct VoicePickerSheet: View {
                 if let change {
                     VoiceSelectionList(
                         speech: speech, current: change.selection, preparingID: preparingID,
-                        footer: change.isBook ? String(localized: "Every chapter speaks in this voice.")
-                            : String(localized: "All of this article speaks in this voice."),
+                        footer: change.isBook ? String(localized: "Every chapter uses this voice.")
+                            : String(localized: "The whole article uses this voice."),
                         error: error, preview: preview
                     ) { pick($0, change: change) }
                 }

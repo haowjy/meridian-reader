@@ -24,9 +24,8 @@ final class PhononProvider: SpeechEngineProvider {
 
     static let descriptor = EngineDescriptor(
         id: .phonon,
-        displayName: "Phonon (on-device)",
+        displayName: "Phonon",
         shortName: "Phonon",
-        subtitle: "Recommended, built in",
         isRecommended: true,
         sortOrder: 10,
         voices: PhononVoiceCatalog.curated,
@@ -37,7 +36,7 @@ final class PhononProvider: SpeechEngineProvider {
             minimumOSMajor: 18,
             minimumChip: nil,
             allowsSimulator: true,
-            summary: "iOS 18+ (Phonon Core ML)"),
+            summary: "iOS 18 or later"),
         supportedLanguages: ["en"],
         onDevice: OnDeviceTraits(
             cacheVoicePrefix: "phonon",

@@ -43,7 +43,7 @@ struct FollowStatus: View {
         if progress.failed > 0 { parts.append(FollowText.couldNotLoad(progress.failed)) }
         // The Following sheet's words for the same count.
         if progress.fetching != nil || progress.toFetch > 0 {
-            parts.append(String(localized: "\(progress.withText) of \(progress.chapters) fetched"))
+            parts.append(String(localized: "\(progress.withText) of \(progress.chapters) downloaded"))
         } else if follow.checking.contains(folder.id) {
             parts.append(String(localized: "checking for new chapters"))
         } else if state?.isFollowing == true, let checked = state?.lastCheckedAt {
@@ -94,14 +94,14 @@ enum FollowText {
     static func backOffNotice(site: String, status: Int?, chapter: FollowCenter.Progress.Fetching,
                               wait: TimeInterval) -> String {
         let site = site.prefix(1).uppercased() + site.dropFirst()
-        let name = chapter.title.map { "“\($0)”" } ?? String(localized: "The next chapter")
+        let name = chapter.title.map { "“\($0)”" } ?? String(localized: "the next chapter")
         let after = countdown(wait)
         guard let status else {
-            return String(localized: "\(site) isn’t answering. \(name) is tried again in \(after).")
+            return String(localized: "\(site) isn’t answering. Trying \(name) again in \(after).")
         }
         return status == 429
-            ? String(localized: "\(site) asked to slow down (429). \(name) in \(after), then slower.")
-            : String(localized: "\(site) had a problem (\(status)). \(name) in \(after), then slower.")
+            ? String(localized: "\(site) asked to slow down. Trying \(name) again in \(after), more slowly.")
+            : String(localized: "\(site) had a problem. Trying \(name) again in \(after), more slowly.")
     }
 
     /// "1 chapter couldn’t load", "3 chapters couldn’t load": the status line's part, and the
@@ -114,8 +114,8 @@ enum FollowText {
     /// being fetched, retried after its site's back-off, waiting, or why it couldn't be had.
     static func rowNote(_ status: FollowCenter.ChapterStatus, now: Date) -> String {
         switch status {
-        case .fetching: String(localized: "Fetching text…")
-        case .retrying(let until): String(localized: "Retrying in \(countdown(until.timeIntervalSince(now)))")
+        case .fetching: String(localized: "Downloading…")
+        case .retrying(let until): String(localized: "Trying again in \(countdown(until.timeIntervalSince(now)))")
         case .waiting: String(localized: "Waiting")
         case .failed(let message): message
         }

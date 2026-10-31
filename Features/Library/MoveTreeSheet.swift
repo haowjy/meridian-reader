@@ -82,7 +82,7 @@ struct MoveTreeList: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("moveNewFolder")
-                place(String(localized: "Library (no folder)"), symbol: Icons.library, depth: 0,
+                place(String(localized: "Library"), symbol: Icons.library, depth: 0,
                       isCurrent: current == .topLevel, isEnabled: true, id: "moveTopLevel") { pick(nil) }
                 ForEach(tree, id: \.folder.id) { entry in
                     let folder = entry.folder

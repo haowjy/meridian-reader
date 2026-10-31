@@ -50,7 +50,7 @@ struct FollowingSheet: View {
             Section {
                 fact(String(localized: "Last Checked"), state.lastCheckedAt.map { FollowText.when($0) } ?? String(localized: "Not yet"))
                 fact(String(localized: "Next Check"), nextCheck(folder))
-                fact(String(localized: "Chapter Text"), chapterText(progress))
+                fact(String(localized: "Chapters"), chapterText(progress))
                 fact(String(localized: "Last New Chapters"), state.lastAddedAt.map {
                     String(localized: "\(FollowText.when($0)), \(state.lastAddedCount) added")
                 } ?? String(localized: "None yet"))
@@ -83,7 +83,7 @@ struct FollowingSheet: View {
                             .foregroundStyle(Palette.caution)
                             .accessibilityIdentifier("followingCheckFailed")
                     }
-                    Text("Each check reads the whole table of contents, so no chapter is missed after a long gap. Chapters you left out in Review stay out. Unfollowing stops the checks and keeps every chapter added.")
+                    Text("Chapters you left out when you followed stay out. Unfollow stops the checks and keeps the chapters you have.")
                 }
                 .listFooter()
             }
@@ -98,10 +98,10 @@ struct FollowingSheet: View {
         return next <= .now ? String(localized: "When the app is next open") : FollowText.when(next)
     }
 
-    /// "41 of 107 fetched", then ", 1 chapter couldn’t load" when one couldn't: one phrase, as a
+    /// "41 of 107 downloaded", then ", 1 chapter couldn’t load" when one couldn't: one phrase, as a
     /// fact's value is.
     private func chapterText(_ progress: FollowCenter.Progress) -> String {
-        let fetched = String(localized: "\(progress.withText) of \(progress.chapters) fetched")
+        let fetched = String(localized: "\(progress.withText) of \(progress.chapters) downloaded")
         guard progress.failed > 0 else { return fetched }
         return String(localized: "\(fetched), \(FollowText.couldNotLoad(progress.failed))")
     }

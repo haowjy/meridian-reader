@@ -634,7 +634,7 @@ Logs `coreml_cache_prune`.
   `Article.detectedLanguageCode` (written with the listen blocks, backfilled on open for older
   pages); articles the library doesn't have use an in-memory memo. Passed through
   `SpeechSession.detectedLanguage`.
-- **Resolution** (`ListenLanguageResolution.resolve`): "Automatic (match article)" (the default,
+- **Resolution** (`ListenLanguageResolution.resolve`): "Automatic" (the default,
   `reader.languageAutomatic`) or a manual language. If the selected engine doesn't speak it
   (`EngineDescriptor.supportedLanguages`; Kokoro is English only), that article speaks with the
   best Apple voice for the language, without changing settings, and the listen bar and the
@@ -849,5 +849,5 @@ engine crash guard's marker (`EngineCrashGuardTests`).
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
 - **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
-- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice (C138). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio From Listening…** (that audio only), each shown only when its section has rows.
+- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice (C138). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
 - **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

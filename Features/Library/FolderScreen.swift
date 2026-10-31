@@ -60,7 +60,7 @@ struct FolderScreen: View {
 
     private func commitEdit() {
         screen.commitEditing()
-        shell.attempt(String(localized: "Couldn't save")) { try library.commitEditSession() }
+        shell.attempt(String(localized: "Couldn’t save")) { try library.commitEditSession() }
     }
 
     var body: some View {
@@ -156,7 +156,7 @@ private struct FolderContentsList: View {
     @Query private var queriedArticles: [Article]
 
     @Binding var headerTitleHidden: Bool
-    /// *Turn Off Prepare* asked from the header's Prepare control, or from *More*: the question
+    /// *Stop Preparing* asked from the header's Prepare control, or from *More*: the question
     /// shows by the control that asked.
     @State private var turningOffFromControl: Folder?
     @State private var turningOffFromMore: Folder?

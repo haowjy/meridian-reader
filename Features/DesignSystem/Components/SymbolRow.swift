@@ -122,7 +122,7 @@ struct SymbolRowGallery: View {
                 }
             }
             PreviewState("with a subtitle, no symbol") {
-                SymbolRow("Kokoro (on-device)", subtitle: "Recommended, ~175 MB download", symbol: nil)
+                SymbolRow("Kokoro", subtitle: "About 175 MB to download", symbol: nil)
             }
             PreviewState("a site tile, an accent action") {
                 SymbolRow("Notes on Tides", subtitle: "example.org") {

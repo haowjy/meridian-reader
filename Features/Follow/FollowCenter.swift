@@ -218,7 +218,7 @@ final class FollowCenter {
             do { try library.keepCachedText(article) } catch { return String(localized: "Couldn’t save it") }
             return nil
         }
-        guard let url = article.url else { return String(localized: "It has no address") }
+        guard let url = article.url else { return String(localized: "It has no web address") }
         let task = Task { await self.fetchText(key: key, url: url, priority: priority) }
         inFlight[key] = task
         let failure = await task.value
@@ -354,10 +354,10 @@ final class FollowCenter {
         case URLPageFetcher.FetchError.status(let code, _):
             return code == 429 ? String(localized: "The site asked to slow down")
                 : code == 404 || code == 410 ? String(localized: "The page isn’t there")
-                : code == 401 || code == 403 ? String(localized: "The site refused (sign in in the browser?)")
-                : String(localized: "The site answered with an error (\(code))")
+                : code == 401 || code == 403 ? String(localized: "The site refused. Try signing in to it in the Browser.")
+                : String(localized: "The site returned error \(code)")
         case URLPageFetcher.FetchError.noWindow:
-            return String(localized: "The app wasn’t in front")
+            return String(localized: "The app was in the background")
         case is NavigationWait.Failure, URLPageFetcher.FetchError.timedOut:
             return String(localized: "The site didn’t answer")
         default:

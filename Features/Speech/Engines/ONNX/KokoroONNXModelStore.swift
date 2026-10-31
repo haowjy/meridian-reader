@@ -231,7 +231,8 @@ final class KokoroONNXModelStore {
         do {
             let size = (try fm.attributesOfItem(atPath: staged.path)[.size] as? NSNumber)?.int64Value ?? 0
             guard size == expectedBytes else {
-                throw LocalSynthError.engineUnavailable("Downloaded \(size) bytes, expected \(expectedBytes)")
+                ListenTimingLog.log("kokoro_model_bad_download", ["bytes": size, "expected": expectedBytes])
+                throw LocalSynthError.engineUnavailable("The download didn’t finish. Try again.")
             }
             let handle = try FileHandle(forReadingFrom: staged)
             defer { try? handle.close() }
@@ -240,7 +241,10 @@ final class KokoroONNXModelStore {
                 hasher.update(data: chunk)
             }
             let hex = hasher.finalize().map { String(format: "%02x", $0) }.joined()
-            guard hex == sha256 else { throw LocalSynthError.engineUnavailable("SHA-256 mismatch (\(hex.prefix(12))…)") }
+            guard hex == sha256 else {
+                ListenTimingLog.log("kokoro_model_bad_download", ["sha256": String(hex.prefix(12))])
+                throw LocalSynthError.engineUnavailable("The download was damaged. Try again.")
+            }
             var dir = directory
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
             var values = URLResourceValues()
@@ -296,7 +300,7 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unc
             finished(.success(staged))
         } else {
             let code = (task.response as? HTTPURLResponse)?.statusCode ?? -1
-            finished(.failure(LocalSynthError.engineUnavailable("Download failed (HTTP \(code))")))
+            finished(.failure(LocalSynthError.engineUnavailable("The download failed (error \(code)). Try again.")))
         }
     }
 }

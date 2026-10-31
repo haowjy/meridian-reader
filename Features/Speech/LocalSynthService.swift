@@ -86,7 +86,7 @@ final class LocalSynthService: SynthChunkRendering {
     /// `id` can't run on this device.
     func markUnavailable(_ id: SpeechEngineID) {
         cancelLoad()
-        setState(.failed(id, message: engines.blockReason(id) ?? "\(engines.displayName(id)) is not available on this device."))
+        setState(.failed(id, message: engines.blockReason(id) ?? "\(engines.shortName(id)) isn’t available on this device."))
     }
 
     /// Settings: stop the model download / load in flight; Apple speaks.
@@ -166,7 +166,7 @@ final class LocalSynthService: SynthChunkRendering {
     private func friendlyError(_ error: Error, engine: SpeechEngineID) -> String {
         if let reason = engines.blockReason(engine) { return reason }
         let text = error.localizedDescription
-        if text.isEmpty { return "\(engines.displayName(engine)) failed to load. Tap to retry." }
+        if text.isEmpty { return "\(engines.shortName(engine)) couldn’t load. Pick one of its voices to try again." }
         return "\(engines.shortName(engine)): \(text)"
     }
 
@@ -179,7 +179,7 @@ final class LocalSynthService: SynthChunkRendering {
               let made = LocalChunkRenderer(host: host, descriptor: descriptor, crashGuard: crashGuard)
         else {
             throw LocalSynthError.engineUnavailable(
-                engines.blockReason(engineID) ?? "\(engines.displayName(engineID)) is not available on this device.")
+                engines.blockReason(engineID) ?? "\(engines.shortName(engineID)) isn’t available on this device.")
         }
         host.onProgress = { [weak self] fraction in
             Task { @MainActor in self?.noteLoadProgress(fraction) }

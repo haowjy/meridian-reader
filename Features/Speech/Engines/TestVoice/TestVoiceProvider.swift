@@ -12,7 +12,7 @@ final class TestVoiceProvider: SpeechEngineProvider {
 
     static let descriptor = EngineDescriptor(
         id: id,
-        displayName: "Test Voice (UI tests)", shortName: "Test Voice", subtitle: "A tone, for UI tests",
+        displayName: "Test Voice (UI tests)", shortName: "Test Voice",
         sortOrder: 90,
         voices: [EngineVoice(id: "one", label: "One"), EngineVoice(id: "two", label: "Two")],
         defaultVoiceID: "one",

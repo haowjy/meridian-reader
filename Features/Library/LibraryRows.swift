@@ -122,7 +122,7 @@ struct LibraryFolderRow: View {
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
     @Environment(\.libraryScreenKey) private var screenKey
-    /// Its menu's *Turn Off Prepare* asked: the question shows by its ⋯.
+    /// Its menu's *Stop Preparing* asked: the question shows by its ⋯.
     @State private var turningOff: Folder?
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }

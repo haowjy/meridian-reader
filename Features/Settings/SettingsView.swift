@@ -143,11 +143,11 @@ struct SettingsView: View {
     }
 
     /// The title line's ⋯ in place: Settings has no rows of its own (its list holds Prepared Audio),
-    /// so the app-wide ones that remain on compact width: Saved, History, Listen.
+    /// so the app-wide ones that remain on compact width: Library, History, Listen.
     private var titleMenu: [[MenuRow]] {
         let listen = MenuRow(id: "moreListen", title: Verbs.listen, icon: Icons.listen,
                              availability: MenuAvailability(when: speech.nowPlaying != nil),
-                             accessibilityHint: String(localized: "Go to Now Playing"), action: shell.showNowPlaying)
+                             action: shell.showNowPlaying)
         return MenuContext(screen: [], tiles: MenuContext.tiles(shell, compact: true, last: listen)).blocks
     }
 
@@ -283,7 +283,7 @@ private struct ReadingSettingsPage: View {
                 ReadingAppearancePanel(appearance: appearance)
                     .listRowInsets(EdgeInsets())
             } footer: {
-                Text("How the Reader and Now Playing show articles. Aa at the top of either changes the same settings.")
+                Text("How articles look when you read or listen. Aa on a reading page changes these too.")
                     .listFooter()
             }
             .listCard()
@@ -318,8 +318,8 @@ private struct BrowsingSettingsSection: View {
                 SectionHeader(title: Self.group.title, size: .settings).listHeader()
             } footer: {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("Blocks ads and trackers on pages loaded after you change this.")
-                    Text("Search Suggestions sends what you type in the address field to Google to suggest searches.")
+                    Text("Blocks ads and trackers. A page that’s already open changes when you reload it.")
+                    Text("Search Suggestions sends what you type in the address field to Google.")
                 }
                 .listFooter()
             }
@@ -340,8 +340,8 @@ private struct StorageSettingsSection<VersionRow: View>: View {
     @State private var preparedBytes: Int64?
     @State private var listeningBytes: Int64?
 
-    private static var preparedSize: String { String(localized: "Prepared Audio") }
-    private static var listeningSize: String { String(localized: "Audio From Listening") }
+    private static var preparedSize: String { String(localized: "Size of Prepared Audio") }
+    private static var listeningSize: String { String(localized: "Size of Audio from Listening") }
     static var group: SettingsSearch.Group {
         SettingsSearch.Group(title: String(localized: "Prepared Audio & Storage"),
                              rows: [Verbs.preparedAudio, preparedSize, listeningSize, DeveloperSettings.versionLabel])
@@ -373,7 +373,7 @@ private struct StorageSettingsSection<VersionRow: View>: View {
         } header: {
             SectionHeader(title: group.title, size: .settings).listHeader()
         } footer: {
-            Text("Prepared stays until you delete it. Listening audio clears when it leaves History.")
+            Text("Prepared audio stays until you delete it. Audio from listening is deleted when its article leaves History.")
                 .listFooter()
         }
         .listCard()

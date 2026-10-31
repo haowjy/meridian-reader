@@ -8,7 +8,7 @@ struct WhatsNewSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("What's New")
+            Text("What’s New")
                 .typeStyle(.heading)
                 .foregroundStyle(Palette.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -52,7 +52,7 @@ struct WhatsNewSheet: View {
 #if DEBUG
 #Preview("What's New · light") {
     WhatsNewSheet(notes: [
-        "Listen to web articles with high-quality on-device voices.",
+        "Listen to articles in natural voices that run on your device.",
         "Save articles and listen offline. No account needed.",
         "Follow web serials and get new chapters automatically.",
         "Import EPUB books and listen chapter by chapter.",
@@ -62,7 +62,7 @@ struct WhatsNewSheet: View {
 
 #Preview("What's New · dark") {
     WhatsNewSheet(notes: [
-        "Listen to web articles with high-quality on-device voices.",
+        "Listen to articles in natural voices that run on your device.",
         "Save articles and listen offline. No account needed.",
     ]) {}
     .previewVariant(.dark)

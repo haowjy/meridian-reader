@@ -65,7 +65,7 @@ enum PhononModelStore {
         guard let source = shippedBundle else {
             assertionFailure("PhononBundle is missing from the app: run tools/fetch-phonon-bundle.sh")
             ListenTimingLog.log("phonon_install_failed", ["err": "no PhononBundle in the app"])
-            throw LocalSynthError.engineUnavailable("The voice is missing from this build")
+            throw LocalSynthError.engineUnavailable("Phonon’s voices are missing from this copy of the app.")
         }
         let shipped = built(at: source)
         if shipped != bundleBuilt {

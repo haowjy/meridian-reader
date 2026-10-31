@@ -138,7 +138,7 @@ final class WebViewStore {
     /// The page as extraction reads it (`PageSnapshot`).
     func snapshotHTML() async throws -> String {
         guard let webView else {
-            throw ExtractionError.engineFailed(message: "WebView isn’t ready yet.")
+            throw ExtractionError.engineFailed(message: "The page isn’t ready yet. Try again in a moment.")
         }
         return try await PageSnapshot.html(of: webView)
     }

@@ -17,7 +17,7 @@ struct LibraryScreenMenu {
     let topLevelSort: Binding<String>
     /// A folder moved from its own screen: show it where it went.
     let showMoved: (Folder) -> Void
-    /// *Turn Off Prepare*: the surface asks `turnOffPrepareQuestion` by the ⋯.
+    /// *Stop Preparing*: the surface asks `turnOffPrepareQuestion` by the ⋯.
     let onTurnOffPrepare: (Folder) -> Void
 
     /// The folder whose screen is on top (nil: the home). New folders and imported books go in
@@ -39,8 +39,7 @@ struct LibraryScreenMenu {
             option == .sort ? sortRow(folder) : nil
         }
         let reader = MenuRow(id: "moreListen", title: Verbs.listen, icon: Icons.listen,
-                             availability: MenuAvailability(when: speech.nowPlaying != nil),
-                             accessibilityHint: String(localized: "Go to Now Playing")) { [shell] in
+                             availability: MenuAvailability(when: speech.nowPlaying != nil)) { [shell] in
             shell.showNowPlaying()
         }
         return MenuContext(screen: screenRows, tiles: MenuContext.tiles(shell, compact: compact, last: reader))

@@ -56,7 +56,7 @@ enum IncomingOpen {
     private static func openBookFile(_ url: URL, library: LibraryStore, shell: ShellState) {
         guard SharedInbox.isBookFileURL(url) || SharedInbox.isBookFileName(url.lastPathComponent) else {
             library.log("openURL: not a book file \(url.lastPathComponent)")
-            shell.showToast(ShellToast(message: String(localized: "Meridian can open PDF and EPUB files"),
+            shell.showToast(ShellToast(message: String(localized: "Only PDF and EPUB files can be opened"),
                                        systemImage: Icons.warning))
             return
         }

@@ -162,7 +162,7 @@ enum MenuRegistry {
         // A folder. Its row's tap opens it; its header has ▶ and Prepare beside *More*.
         Spec(option: .continueFolder, kind: .folder, places: [.row], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
         Spec(option: .playFromStart, kind: .folder, places: [.header], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
-        // One row: Prepare, Turn Off Prepare while on, Remove Prepared audio once all is prepared.
+        // One row: Prepare, Stop Preparing while on, Remove Prepared audio once all is prepared.
         Spec(option: .folderPrepare, kind: .folder, places: [.row],
              enabled: { $0.prepareIsOn || $0.hasPreparedAudio || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
         Spec(option: .removePreparedAudio, kind: .folder, places: [.header], enabled: { $0.hasPreparedAudio }, greyIf: "nothing downloaded or downloading"),

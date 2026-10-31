@@ -21,7 +21,7 @@ import Foundation
 /// | Continue | `Icons.play` |
 /// | Play from Here, Play from Start | `Icons.play`, `Icons.previous` |
 /// | Prepare / Remove Prepare (a page, its menu and its prepare in the list) | `Icons.prepare` / `Icons.removePrepare` |
-/// | Prepare / Turn Off Prepare (a folder) | `Icons.prepare` / `Icons.turnOffPrepare` |
+/// | Prepare / Stop Preparing (a folder) | `Icons.prepare` / `Icons.turnOffPrepare` |
 /// | Remove Prepared audio (a folder, its menu and its prepare in the list) | `Icons.removePrepare` |
 /// | Move to… / Save to Folder… | `Icons.move` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
@@ -58,24 +58,24 @@ enum Verbs {
     /// The Prepared Audio list's row action (C135): the audio only, never the article.
     static let deleteAudio = String(localized: "Delete Audio")
     static let deleteAllPrepared = String(localized: "Delete All…")
-    static let clearListeningAudio = String(localized: "Clear Audio From Listening…")
+    static let clearListeningAudio = String(localized: "Clear Audio from Listening…")
     /// A folder's, in its menu and in the Prepared Audio list: its prepare off and gone, and
     /// *Remove Prepare* for each of its pages.
     static let removePreparedAudio = String(localized: "Remove Prepared Audio")
     /// A prepare done: the Prepared Audio list's section, a folder header's control, the ↓ VoiceOver
     /// reads before a prepared row's line two.
     static let prepared = String(localized: "Prepared")
-    static let turnOffPrepare = String(localized: "Turn Off Prepare Audio")
+    static let turnOffPrepare = String(localized: "Stop Preparing Audio")
     static let moveTo = String(localized: "Move to…")
     /// The Move tree when it saves a page into the folder picked (🔖 held, a menu's row).
     static let saveToFolder = String(localized: "Save to Folder…")
     static let markFinished = String(localized: "Mark as Finished")
     static let markUnfinished = String(localized: "Mark as Unfinished")
     static let markAllAboveFinished = String(localized: "Mark All Above as Finished")
-    static let skipInPlayback = String(localized: "Skip in Playback")
+    static let skipInPlayback = String(localized: "Skip When Playing")
     /// The submenu holding a chapter's rare playback rows (C98).
     static let playback = String(localized: "Playback")
-    static let playInPlayback = String(localized: "Play in Playback")
+    static let playInPlayback = String(localized: "Don’t Skip")
     static let share = String(localized: "Share")
     static let select = String(localized: "Select")
     static let saveToLibrary = String(localized: "Save to Library")

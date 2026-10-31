@@ -7,7 +7,7 @@ struct BrowseAlerts: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .alert("Couldn’t extract", isPresented: Binding(
+            .alert("Couldn’t Read This Page", isPresented: Binding(
                 get: { extractionError != nil },
                 set: { if !$0 { extractionError = nil } }
             )) {

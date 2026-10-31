@@ -118,9 +118,9 @@ final class EngineRegistry {
     }
 
     func blockReason(_ id: SpeechEngineID) -> String? {
-        guard let d = descriptor(id) else { return "Unknown voice engine." }
+        guard let d = descriptor(id) else { return "This voice isn’t available." }
         guard !gate(d.hardware) else { return nil }
-        return "Insufficient hardware. Needs \(d.hardware.summary)."
+        return "Needs \(d.hardware.summary)."
     }
 
     func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {

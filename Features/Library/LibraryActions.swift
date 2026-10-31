@@ -135,9 +135,9 @@ struct LibraryActions {
         shell.attempt(String(localized: "Couldn’t mark as finished")) { try library.markAllAbove(article) }
     }
 
-    /// *Skip in Playback* / *Play in Playback* on a page in a folder.
+    /// *Skip When Playing* / *Don’t Skip* on a page in a folder.
     func toggleSkipsInPlayback(_ article: Article) {
-        shell.attempt(String(localized: "Couldn’t change Skip in Playback")) {
+        shell.attempt(String(localized: "Couldn’t save the change")) {
             try library.setSkipsInPlayback(article, !article.skipsInPlayback)
         }
     }

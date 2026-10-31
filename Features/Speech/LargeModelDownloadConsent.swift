@@ -17,7 +17,7 @@ final class LargeModelDownloadConsent {
 
         var message: String {
             let size = FileSizes.label(bytes)
-            return String(localized: "\(engineName) needs about \(size). You're not on Wi‑Fi.")
+            return String(localized: "\(engineName) needs about \(size). You’re not on Wi‑Fi.")
         }
     }
 

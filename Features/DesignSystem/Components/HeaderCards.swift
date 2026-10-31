@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// A short notice in a header, in the caution colour on its wash: something is held up and will
-/// carry on by itself ("Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52,
-/// then slower.").
+/// carry on by itself ("Royal Road asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52,
+/// more slowly.").
 struct NoticeCard: View {
     let symbol: String
     let text: String
@@ -34,7 +34,7 @@ struct NoticeCard: View {
 /// them as one label, joined with commas.
 ///
 /// ```
-/// 📡 Following   1 chapter couldn’t load   41 of 107 fetched ›
+/// 📡 Following   1 chapter couldn’t load   41 of 107 downloaded ›
 /// ```
 struct HeaderLink: View {
     let symbol: String
@@ -80,14 +80,14 @@ struct HeaderCardsGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("header link") {
-                HeaderLink(symbol: Icons.follow, parts: ["Following", "3 of 107 fetched"]) {}
+                HeaderLink(symbol: Icons.follow, parts: ["Following", "3 of 107 downloaded"]) {}
             }
             PreviewState("header link, a chapter failed") {
-                HeaderLink(symbol: Icons.follow, parts: ["Following", "1 chapter couldn’t load", "41 of 107 fetched"]) {}
+                HeaderLink(symbol: Icons.follow, parts: ["Following", "1 chapter couldn’t load", "41 of 107 downloaded"]) {}
             }
             PreviewState("notice") {
                 NoticeCard(symbol: Icons.waiting,
-                           text: "Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then slower.")
+                           text: "Royal Road asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52, more slowly.")
             }
         }
     }

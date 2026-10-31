@@ -29,9 +29,9 @@ struct FolderDeletePrompt: Equatable {
         title = one ? "Delete the folder “\(folders[0].name)”?" : "Delete \(folders.count) folders?"
         var lines: [String] = []
         if let summary = inside.summary {
-            lines.append("\(one ? "It holds" : "They hold") \(summary). They're deleted too.")
+            lines.append("Everything in \(one ? "it" : "them") is deleted too: \(summary).")
         }
-        if isPlaying(inside.articleKeys) { lines.append("Stops what's playing.") }
+        if isPlaying(inside.articleKeys) { lines.append("What’s playing stops.") }
         message = lines.joined(separator: " ")
         choices = [Choice(title: one ? "Delete Folder and Contents" : "Delete Folders and Contents",
                           id: "deleteFolderAndContents")]

@@ -614,7 +614,7 @@ final class PrepareCenter {
             case .speaksLive:
                 finish(recordID, key, .speaksLive)
             case .held:
-                finish(recordID, key, .failed, String(localized: "Couldn’t render it now"))
+                finish(recordID, key, .failed, String(localized: "Couldn’t prepare it now"))
             case .notRendering:
                 return
             case .rendering:
@@ -663,8 +663,8 @@ final class PrepareCenter {
             requeued[active.key, default: 0] += 1
             if rendering.queuePrepare(cacheKey: active.key, paragraphs: paragraphs) == .rendering { return }
         }
-        let message = missing == 1 ? String(localized: "1 paragraph couldn’t be rendered")
-            : String(localized: "\(missing) paragraphs couldn’t be rendered")
+        let message = missing == 1 ? String(localized: "1 paragraph couldn’t be prepared")
+            : String(localized: "\(missing) paragraphs couldn’t be prepared")
         finish(active.recordID, active.key, .failed, message)
         advance()
     }

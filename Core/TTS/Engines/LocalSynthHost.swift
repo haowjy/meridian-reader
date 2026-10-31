@@ -26,9 +26,9 @@ enum LocalSynthError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .inputTooLong(let detail): return detail
-        case .emptyText: return "Nothing to synthesize."
+        case .emptyText: return "Nothing to read aloud."
         case .engineUnavailable(let detail): return detail
-        case .deferredInBackground: return "On-device voice paused while Meridian Reader is in the background."
+        case .deferredInBackground: return "The voice waits while Meridian Reader is in the background."
         }
     }
 }

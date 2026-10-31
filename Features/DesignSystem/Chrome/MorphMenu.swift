@@ -441,7 +441,7 @@ private struct MorphMenuSamplePanel: View {
             }
             Divider().padding(.horizontal, Spacing.m)
             HStack {
-                ForEach([("Settings", Icons.settings), ("Saved", Icons.library), ("Listen", Icons.listen)], id: \.0) { t, i in
+                ForEach([("Settings", Icons.settings), ("Library", Icons.library), ("Listen", Icons.listen)], id: \.0) { t, i in
                     VStack(spacing: Spacing.xs) {
                         Image(systemName: i).glyphSize(Glyph.regular)
                         Text(t).typeStyle(.caption)

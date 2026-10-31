@@ -71,7 +71,7 @@ final class Article {
     var positionUTF16: Int = 0
     var lastPlayedAt: Date?
     var finishedAt: Date?
-    /// Front matter, licence pages, or the user's "Skip in Playback": never reached by carrying
+    /// Front matter, licence pages, or the user's "Skip When Playing": never reached by carrying
     /// on from the chapter before.
     var skipsInPlayback: Bool = false
     /// C138: the voice all its audio is in, as a cache voice key ("kokoro.af_heart"); set when its

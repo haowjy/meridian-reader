@@ -115,8 +115,8 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **The folder header is centred and sits on the article margin** (`FolderHeader`, a design-system
   component of plain values; `FolderScreen` fills it): the section header is already at the
   margin in a Library list, so the header adds no padding of its own. Its Prepare control's
-  taps (prepare, or ask *Turn Off Prepare Audio* while the toggle is on) are `FolderScreen`'s
-  `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`, as the top of the screen's ⋯ is. The *Turn Off Prepare Audio*
+  taps (prepare, or ask *Stop Preparing Audio* while the toggle is on) are `FolderScreen`'s
+  `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`, as the top of the screen's ⋯ is. The *Stop Preparing Audio*
   question is one modifier, `turnOffPrepareQuestion`, attached by each control that asks it
   (a confirmation dialog points its iOS 26 popover at the view it is attached to): the header's
   Prepare control and *More* (`FolderHeader`'s `anchor` slot, behind each side control), a

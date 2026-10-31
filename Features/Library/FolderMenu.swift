@@ -32,7 +32,7 @@ struct FolderMenu: View {
     var place: Place = .row
     /// What its row or header already computed; nil: computed here.
     var progress: FolderProgress?
-    /// *Turn Off Prepare*: its host asks `turnOffPrepareQuestion` by the control the menu
+    /// *Stop Preparing*: its host asks `turnOffPrepareQuestion` by the control the menu
     /// opened from (a row's ⋯, the header's *More*).
     let onTurnOffPrepare: () -> Void
     /// After *Move to…* is saved (the folder's own screen shows it where it went).

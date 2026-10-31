@@ -5,10 +5,10 @@ import SwiftUI
 /// divider, then the same tile buttons on every surface (C140). The ⋯ panel draws them; compact
 /// width's title lines and the Browser field's hold menu draw the same rows as a system menu (`blocks`):
 ///
-///     [Settings]  [Saved]  [History]  [Reader]
+///     [Settings]  [Library]  [History]  [Reader]
 ///
 /// History is there on compact width only: regular width has the 🕘 button. Settings is there on
-/// regular width only: compact width has it in the chrome's pill. Saved opens the Library (saved articles). History opens the browser's visits. Reader
+/// regular width only: compact width has it in the chrome's pill. Library opens the Library. History opens the browser's visits. Reader
 /// (rightmost, the panel's focus point) varies by surface:
 ///
 /// - browser:  open the current page in the Reader (greyed when not readable)
@@ -38,13 +38,13 @@ struct MenuContext {
         }
     }
 
-    /// The tile buttons `[Settings][Saved][last]` on regular width, `[Saved][History][last]` on compact
+    /// The tile buttons `[Settings][Library][last]` on regular width, `[Library][History][last]` on compact
     /// (`compact`); `last` is the surface's own focus tile. Every ⋯ panel uses these same tiles in this
     /// order (C140). Compact width has Settings in the chrome's pill and no 🕘 button, so its menus drop
     /// *Settings* and add *History* before `last`.
     @MainActor
     static func tiles(_ shell: ShellState, compact: Bool, last: MenuRow) -> [MenuRow] {
-        let saved = MenuRow(id: "moreSaved", title: String(localized: "Saved"), icon: Icons.library) { shell.openLibrary() }
+        let saved = MenuRow(id: "moreSaved", title: Verbs.library, icon: Icons.library) { shell.openLibrary() }
         guard compact else {
             return [MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings, action: shell.showSettings), saved, last]
         }
