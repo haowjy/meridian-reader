@@ -239,7 +239,7 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place). There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the
   card slides off, the status bar hides and Listen stops being a sheet: the gap at its top, its rounded
   corners and the dim above it go (`Motion.standard`), and the page covers the screen, its text from the
-  status bar's foot to the screen's, where its end now scrolls; a ▶ / ⏸ floats for 3 s. The text on
+  status bar's foot to the screen's, where its end now scrolls; a ▶ / ⏸ (and *Jump to Audio*, when the text is away) floats for 3 s after it begins and after each scroll or page turn. The text on
   screen doesn't move in or out. A pull does nothing to the sheet there (the text only rubber-bands);
   the middle tap leaves it, as in the in-place readers. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
@@ -1212,8 +1212,10 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
 - **A small ▶ / ⏸ floats at the bottom right** in full screen, in Listen and on regular width (never in
   a compact in-place reader) (a 44 pt accent disc with the
   shadow, above the home indicator, at the article margin): Now Playing's plays and pauses
-  what you hear; the Reader's is its Listen (and turns it into Now Playing). It fades out 3 s after
-  full screen begins; an edge tap (a page turn), or a tap on it, brings it back for another 3 s. A
+  what you hear; the Reader's is its Listen (and turns it into Now Playing). In Now Playing, *Jump to
+  Audio* (while the text is away from the audio) comes and goes with it, as one group. It fades out 3 s
+  after full screen begins; a scroll, an edge tap (a page turn), or a tap on it, brings it back for
+  another 3 s. A
   tap in the middle leaves full screen instead, and the bars come back. It isn't there while
   the bars show.
 - **At the top**, a pull down in full screen rubber-bands and, on regular width, brings the bars

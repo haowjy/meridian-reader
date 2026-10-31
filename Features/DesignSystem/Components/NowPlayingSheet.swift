@@ -82,7 +82,8 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
 /// the readers' "▶ Listen") with just 4 pt above and below, floating in the
 /// middle of the line above what floats at the foot (the card, or the strip in full screen), its
 /// arrow pointing to the spoken sentence. It shows only while the text is away from the audio
-/// (`shows`), and fades in and out. While it shows, Scroll mode's text leaves its line clear at the
+/// (`shows`), and fades in and out; in full screen only with the floating play / pause
+/// (`ReadingChrome.showsFloating`), so the two come and go together. While it shows, Scroll mode's text leaves its line clear at the
 /// end (`ReadingChrome.jumpClearance`).
 struct JumpToAudioButton: View {
     let shows: Bool
@@ -93,9 +94,14 @@ struct JumpToAudioButton: View {
     @Environment(\.readingPalette) private var reading
     @Environment(\.readingChrome) private var chrome
 
+    private var visible: Bool {
+        guard shows, let chrome, chrome.hidden else { return shows }
+        return chrome.showsFloating
+    }
+
     var body: some View {
         ZStack {
-            if shows {
+            if visible {
                 Button(action: action) {
                     Label(Verbs.jumpToAudio, systemImage: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown)
                         .typeStyle(.row, weight: .semibold)
@@ -122,7 +128,7 @@ struct JumpToAudioButton: View {
             chrome?.jumpClearance = height > 0 ? height + Spacing.s : 0
         }
         // Reduce Motion: a cross-fade, no spring.
-        .animation(shows ? (reduceMotion ? Motion.fadeIn : Motion.snappy) : Motion.fadeOut, value: shows)
+        .animation(visible ? (reduceMotion ? Motion.fadeIn : Motion.snappy) : Motion.fadeOut, value: visible)
     }
 }
 
