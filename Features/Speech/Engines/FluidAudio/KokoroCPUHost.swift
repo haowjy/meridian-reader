@@ -32,7 +32,7 @@ import UIKit
 final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .kokoro
     var onProgress: (@Sendable (Double) -> Void)?
-    /// The most threads a call may use (`KokoroRouteSettings.cpuThreads`): the load's count.
+    /// The most threads a call may use: its route's cap (`KokoroRouteSettings.cpuThreads`), the load's count.
     let threads: Int
     let sessionQoS: DispatchQoS.QoSClass = .userInitiated
     /// Calls above this many tokens are re-split by the renderer (`inputTooLong`). Chunks are

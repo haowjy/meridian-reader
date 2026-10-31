@@ -21,18 +21,20 @@ protocol SynthQueueContext: AnyObject {
     /// `renderTarget(for:)`, and an article with no voice yet takes that voice now (its first audio
     /// is about to render).
     func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget?
-    /// The engine whose host is loaded (nil: none). Only the queue's worker changes it.
-    var residentEngineID: String? { get }
-    /// Load `engineID`'s host, the resident one let go first, at `priority` (a listener's waited
-    /// chunk: `.listener`; a preload or bake-ahead: `.bakeAhead`); waits for a load of it already
-    /// in flight rather than starting another. Throws when it can't load. The worker's alone.
-    func makeResident(_ engineID: String, priority: RenderPriority) async throws
+    /// The route whose host is loaded (nil: none). Only the queue's worker changes it.
+    var residentRoute: RenderRoute? { get }
+    /// Load a host built for `route`, the resident one let go first, at `priority` (a listener's
+    /// waited chunk: `.listener`; a preload or bake-ahead: `.bakeAhead`); waits for a load of it
+    /// already in flight rather than starting another. Throws when it can't load. The worker's alone.
+    func makeResident(_ route: RenderRoute, priority: RenderPriority) async throws
     /// Let `engineID`'s host go if it is the one loaded or loading (the worker calls it between
     /// model calls); the next work for it loads a fresh one.
     func dropHost(_ engineID: String)
     var chunkPlans: ChunkPlans { get }
     var synthRenderer: SynthChunkRendering { get }
-    func noteBakeMarksChanged()
+    /// `cacheKey`'s audio or its job changed (a paragraph published, old-voice audio removed, the
+    /// job dropped): what follows its audio looks at that article again.
+    func noteBakeMarksChanged(of cacheKey: UUID)
     /// An article is fully baked (drop its persisted pending job).
     func bakeCompleted(cacheKey: UUID)
     /// Article whose audio is playing right now (nil = none): its units ahead of the playhead

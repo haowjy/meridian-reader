@@ -115,7 +115,7 @@ enum AppComposition {
         let preparedAudio = PrepareCenter(library: library, rendering: tts,
                                        fill: { await follow.fill($0, priority: .background) },
                                        needsAudio: { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 })
-        tts.onRenderStateChange = { [weak preparedAudio] in preparedAudio?.scheduleCheck() }
+        tts.onRenderStateChange = { [weak preparedAudio] in preparedAudio?.scheduleCheck(of: $0) }
         tts.preparedKey = { [weak preparedAudio] key in preparedAudio?.hasRecord(for: key) ?? false }
         tts.listeningNeedsKey = { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 }
         library.editStored = { [weak preparedAudio] in

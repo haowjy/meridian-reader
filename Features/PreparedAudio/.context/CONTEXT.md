@@ -6,7 +6,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Prepared Audio"; how
 - **No render path of its own.** `PrepareCenter` hands every waiting page whose text is in the
   library to the render queue at once, in the list's order, each as an ordinary bake job
   (`LocalTTSCoordinator.queuePrepare` → `startBakeIfNeeded`; `inFlight` holds them), and looks
-  again at each render-queue change, a job's end included (`scheduleCheck`). Order behind the
+  again at each render-queue change, a job's end included (`scheduleCheck(of:)`), at only the
+  pages it names (a paragraph rendered names its page; nil, a voice change or a purge, means all):
+  with every page handed at once, a full look per paragraph grows with the backlog. Order behind the
   playhead and the staged chapter, the thermal / Low Power hold and the background rule (calls
   only while audio plays) come from the queue's render policy. Don't add a loop that renders.
   `active` (the first page rendering, else the one fetching) is what the list shows as Now.

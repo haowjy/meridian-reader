@@ -103,6 +103,11 @@ final class LocalListenEngine {
             "worker_key": ListenTimingLog.shortKey(queue.activeBakeCacheKey),
             "worker_p": queue.activeBakeIndex ?? -1,
         ])
+        // The producer asks for its first chunk only once its task runs, after the worker this
+        // Play wakes: the worker's first pick (and the load it may start) is the listener's now.
+        if !request.startPaused, !source.isChunkReady(paragraph: start.paragraph, chunk: start.chunk) {
+            queue.expectListener(cacheKey: request.articleID, paragraph: start.paragraph)
+        }
         // Reshuffle the global queue: this article #1, cursor at the playhead.
         coordinator.openArticle(
             cacheKey: request.articleID,

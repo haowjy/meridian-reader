@@ -87,7 +87,7 @@ enum EngineLatencyProbe {
         log("[\(name)] init start (models on disk=\(installed))")
         let limits = descriptor.onDevice.limits
         guard let route = coordinator.engines.routes(for: engine).first,
-              let made = coordinator.engines.makeHost(for: engine, voice: coordinator.voice(for: engine)) else {
+              let made = coordinator.engines.makeHost(for: route, voice: coordinator.voice(for: engine)) else {
             log("[\(name)] no host on this OS")
             return
         }

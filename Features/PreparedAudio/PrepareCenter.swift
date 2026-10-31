@@ -74,6 +74,8 @@ final class PrepareCenter {
     /// The link page's fetch in flight: one at a time.
     @ObservationIgnored private var fetch: Task<Void, Never>?
     @ObservationIgnored private var checkScheduled = false
+    /// The pages whose audio or job changed since the last check (`scheduleCheck`); nil: any may have.
+    @ObservationIgnored private var changed: Set<UUID>? = []
     /// Times a page's job went back into the queue after leaving it unfinished.
     @ObservationIgnored private var requeued: [UUID: Int] = [:]
     @ObservationIgnored private var runStateObserver: NSObjectProtocol?
@@ -101,7 +103,7 @@ final class PrepareCenter {
         isStarted = true
         runStateObserver = NotificationCenter.default.addObserver(forName: AppRunState.didChange, object: runState,
                                                                   queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.scheduleCheck() }
+            MainActor.assumeIsolated { self?.scheduleCheck(of: []) }
         }
         followLibrary()
     }
@@ -651,17 +653,18 @@ final class PrepareCenter {
         inFlight.removeAll(where: matching)
     }
 
-    /// Looks at the pages handed to the render queue: each is done once every paragraph with
-    /// words has audio in the prepare voice. A job that left the queue unfinished (paragraphs the
-    /// voice failed on, or a job something else dropped) goes back once, then the page is marked
-    /// failed. Then the next pages are handed over.
-    private func checkActive() {
+    /// Looks at the pages handed to the render queue whose audio or job changed (`changed`): each
+    /// is done once every paragraph with words has audio in the prepare voice. A job that left
+    /// the queue unfinished (paragraphs the voice failed on, or a job something else dropped)
+    /// goes back once, then the page is marked failed. Then the next pages are handed over.
+    private func checkActive(_ changed: Set<UUID>?) {
         guard rendering.wantsLocalBake else { return stop { _ in true } }
-        if let first = active, case .rendering(let paragraphs) = first.phase {
+        let looked = { (key: UUID) in changed?.contains(key) ?? true }
+        if let first = active, case .rendering(let paragraphs) = first.phase, looked(first.key) {
             sampleRate(key: first.key, paragraphs: paragraphs,
                        missing: rendering.missingPrepareParagraphs(cacheKey: first.key, paragraphs: paragraphs))
         }
-        for page in inFlight {
+        for page in inFlight where looked(page.key) {
             guard case .rendering(let paragraphs) = page.phase else { continue }
             let missing = rendering.missingPrepareParagraphs(cacheKey: page.key, paragraphs: paragraphs)
             if missing == 0 {
@@ -680,15 +683,20 @@ final class PrepareCenter {
         advance()
     }
 
-    /// The render queue or the app's phase may have moved: look at the page rendering once the
-    /// caller's work is done (render-queue events arrive inside the queue's work).
-    func scheduleCheck() {
-        guard isStarted, !checkScheduled else { return }
+    /// The render queue or the app's phase may have moved: look at the pages `keys` names (nil:
+    /// every page handed; empty: none, only hand over the next) once the caller's work is done
+    /// (render-queue events arrive inside the queue's work).
+    func scheduleCheck(of keys: Set<UUID>?) {
+        guard isStarted else { return }
+        if let keys { changed?.formUnion(keys) } else { changed = nil }
+        guard !checkScheduled else { return }
         checkScheduled = true
         Task { @MainActor [weak self] in
             guard let self else { return }
             checkScheduled = false
-            checkActive()
+            let keys = changed
+            changed = []
+            checkActive(keys)
         }
     }
 }

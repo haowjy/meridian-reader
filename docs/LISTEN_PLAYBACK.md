@@ -318,9 +318,9 @@ publish reads the target at that step, so a voice change stops queued work in th
 the next step, and a call in flight in it is discarded at publish. A voice change, or a new
 default, restarts the worker (`GlobalSynthQueue.renderTargetChanged`).
 
-**Loads.** The worker is the only owner of engine loads. It takes the first unit and, when the
-unit's engine isn't the resident one, loads it (the other host goes first) and picks again; a
-listener's chunk is demand, so its engine loads first, at `.userInitiated`; every other load,
+**Loads.** The worker is the only owner of engine loads. When the policy's unit's route isn't the
+resident one, it loads that route (the other host goes first) and picks again; a listener's
+chunk, a Play's first one included, is demand, so its engine loads first, at `.userInitiated`; every other load,
 the playing article's bake-ahead with no chunk waited on included, runs at `.utility`. A load in flight is awaited, never started twice. Nothing else loads: not the launch,
 not an enqueue, not the player. At the end of the launch's hold, with nothing queued, the worker
 preloads the Settings default's engine (`preload`), so the first Play doesn't wait for the load;
@@ -401,20 +401,26 @@ its done pages and *Keep* stay as they are and only pages it doesn't list join; 
 **The render policy.** Before every chunk, on every app-phase change, a hold's change and a
 resume, the worker asks one policy what to do next (`RenderPolicy.plan`, `Core/TTS/RenderPolicy.swift`):
 it hands over the situation (`RenderSituation`: the app phase, whether audio plays, a hold, the
-engine to preload, the candidates, each lane's calls in flight and resident engine, the most calls
-in flight, the cores) and gets back calls to start and loads to run (`RenderPlan`). The queue
-checks the plan before it acts (`RenderPlan.violation`: no more calls than `maxCallsInFlight`, a
-route of the candidate's own engine, that engine resident on the route's lane), and a plan that
-breaks one is dropped and logged (`render_plan_refused`; a Debug build stops on it). The candidates are a waited chunk
-(`listener`), the playing article from its playhead (`playing`), the staged chapter's opening
-(`staged`), and the first unit of the queue after them (`queued`), in that order of demand. The
-one policy is `SingleCallPolicy` (`AppComposition.makeRenderPolicy`); another is one type and that
-one line.
+routes of the engine to preload, the candidates, each lane's calls in flight and resident route,
+the most calls in flight, the cores) and gets back one action (`RenderPlan`): start a call on a
+route, load a route, wait for a hold, or nothing. The queue checks it before it acts
+(`RenderPlan.violation`: no more calls than `maxCallsInFlight`, a route of the candidate's own
+engine, a call only on its route's resident host, a load only while its lane runs no call), and a
+plan that breaks one is dropped and logged (`render_plan_refused`; a Debug build stops on it).
+The route loaded is the lane's resident one: its host is built for that route
+(`SpeechEngineProvider.makeHost(for:voice:)`), and a different route of the same engine (a new
+thread cap) is a new load. The candidates are every job's next unit per demand, in the queue's
+order: a waited chunk, or the chunk a Play is about to wait for (`listener`: a Play marks it
+before it queues the article, as its producer asks only after the worker has run), the playing
+article from its playhead (`playing`), the staged chapter's opening (`staged`), and each other
+job's next unit (`queued`); they come from each job's kept missing list, not the cache. Which goes
+first is the policy's. The one policy is `SingleCallPolicy` (`AppComposition.makeRenderPolicy`);
+another is one type and that one line.
 
 `SingleCallPolicy`:
 
 - One model call at a time on the CPU, for every engine, in front and in the background, in
-  demand order.
+  demand order, first queued first within a demand.
 - QoS from demand: a listener's chunk (a producer waits on it) at `RenderPriority.listener`
   (`.userInitiated`), everything else at `.utility`.
 - Holds: while the thermal state is `.serious` or worse or Low Power Mode is on (`BakeConditions`)
@@ -425,8 +431,7 @@ one line.
 - Threads, for a route that takes a count (Kokoro's ONNX): every core but one in front and
   inactive, one in the background, never more than the route's own setting. A route that takes no
   count (Phonon's Core ML) runs as it is.
-- `cpuDutyCycle` names the share of wall time a later throttle may give the lane per phase; it
-  is empty, so the holds are the only brakes.
+- No throttle beyond QoS and the holds (issue #21).
 
 **Routes and lanes.** Each engine declares where its calls run (`SpeechEngineProvider.routes`,
 `RenderRoute`: an id for the log, the engine, a `Lane`, and `ThreadControl`, `.honored(cap:)` or

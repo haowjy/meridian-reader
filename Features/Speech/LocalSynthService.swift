@@ -20,8 +20,10 @@ final class LocalSynthService: SynthChunkRendering {
     @ObservationIgnored private let crashGuard: EngineCrashGuard
     /// Engine whose host renders: the last one loaded (the default local engine before any load).
     @ObservationIgnored private(set) var engineID: SpeechEngineID
+    /// The route the host is built for: the last one loaded (nil before any load).
+    @ObservationIgnored private var route: RenderRoute?
     @ObservationIgnored private var engineVoice: String?
-    /// Host + renderer for `engineID` (nil until first use, and after an unload).
+    /// Host + renderer for `route` (nil until first use, and after an unload).
     @ObservationIgnored private var renderer: LocalChunkRenderer?
     /// The hosts let go, releasing their models (`LocalChunkRenderer.unload`). Every load waits
     /// for them first, so two hosts' models are never resident together (two ORT sessions are
@@ -37,36 +39,44 @@ final class LocalSynthService: SynthChunkRendering {
     var engineShortName: String { engines.shortName(engineID) }
     /// The engine whose host is loaded (`ready`; nil while none is, or one is loading).
     var residentEngineID: SpeechEngineID? { state.readyEngineID }
+    /// The route whose host is loaded (`ready`; nil while none is, or one is loading).
+    var residentRoute: RenderRoute? {
+        guard let renderer, state.readyEngineID == renderer.engineID else { return nil }
+        return renderer.route
+    }
     /// Routing label of the live host (debug).
     var hostRoutingLabel: String? { renderer?.host.routingLabel }
 
     // MARK: - Lifecycle
 
-    /// Make `id`'s host the resident one: nothing to do when it is loaded, the load in flight
-    /// awaited when it is loading (never a second load of it), else loaded (`load`). Throws when
-    /// it ends anything but loaded: failed, cancelled (Settings' cancel), or replaced.
+    /// Make a host built for `route` the resident one: nothing to do when it is loaded, the load
+    /// in flight awaited when it is loading (never a second load of it), else loaded (`load`).
+    /// Throws when it ends anything but loaded: failed, cancelled (Settings' cancel), or replaced.
     /// The load runs at `priority`'s task priority (a listener's: `.userInitiated`; a preload's or
     /// bake-ahead's: `.utility`), and so does the host's load under it (`SingleFlightLoad`).
-    func makeResident(_ id: SpeechEngineID, voice: String?, priority: RenderPriority) async throws {
-        switch state {
-        case .ready(id): return
-        case .warming(id, _, let task): await task.value
-        default: await load(id, voice: voice, priority: priority).value
+    func makeResident(_ route: RenderRoute, voice: String?, priority: RenderPriority) async throws {
+        let id = route.engine
+        if residentRoute == route { return }
+        if case .warming(id, _, let task) = state, self.route == route {
+            await task.value
+        } else {
+            await load(route, voice: voice, priority: priority).value
         }
+        if residentRoute == route { return }
         switch state {
-        case .ready(id): return
         case .failed(id, let message): throw LocalSynthError.engineUnavailable(message)
         default: throw LocalSynthError.engineUnavailable("\(engines.shortName(id)) didn’t load.")
         }
     }
 
-    /// Load `id`'s host (cancelling any other load; the other engine's host is unloaded so only
-    /// one model set is resident) and move to `.ready` / `.failed` when it settles. The returned
-    /// task is the load; it is also held in `.warming`. A superseded load is cancelled by whoever
-    /// replaced it and then leaves the state alone.
-    private func load(_ id: SpeechEngineID, voice: String?, priority: RenderPriority) -> Task<Void, Never> {
+    /// Load a host for `route` (cancelling any other load; another route's host is unloaded so
+    /// only one model set is resident) and move to `.ready` / `.failed` when it settles. The
+    /// returned task is the load; it is also held in `.warming`. A superseded load is cancelled by
+    /// whoever replaced it and then leaves the state alone.
+    private func load(_ route: RenderRoute, voice: String?, priority: RenderPriority) -> Task<Void, Never> {
+        let id = route.engine
         cancelLoad()
-        use(id, voice: voice)
+        use(route, voice: voice)
         let task = Task(priority: priority.taskPriority) { @MainActor [weak self] in
             guard let self else { return }
             do {
@@ -108,22 +118,22 @@ final class LocalSynthService: SynthChunkRendering {
         onStateChange?()
     }
 
-    /// Point the service at `id`. Same engine: forward a voice change to its host. Another engine:
-    /// unload the old host (the next render or load builds the new one).
-    private func use(_ id: SpeechEngineID, voice: String?) {
-        guard engines.contains(id) else { return }
+    /// Point the service at `route`. Same route: forward a voice change to its host. Another
+    /// route: unload the old host (the load builds the new one).
+    private func use(_ route: RenderRoute, voice: String?) {
+        guard engines.contains(route.engine) else { return }
         let voiceChanged = voice != engineVoice
         engineVoice = voice
-        if let renderer, renderer.engineID == id {
+        engineID = route.engine
+        self.route = route
+        if let renderer, renderer.route == route {
             if voiceChanged, let voice { renderer.host.setVoice(voice) }
-            engineID = id
             return
         }
         if let old = renderer {
-            ListenDebugLog.shared.append("unload \(engines.shortName(old.engineID)) host → \(engines.shortName(id))")
+            ListenDebugLog.shared.append("unload \(old.route.id) host → \(route.id)")
         }
         unloadHost()
-        engineID = id
     }
 
     /// Let the live host go: its load in flight stops, its models are released and the render in
@@ -162,9 +172,9 @@ final class LocalSynthService: SynthChunkRendering {
     // MARK: - Rendering
 
     private func currentRenderer() throws -> LocalChunkRenderer {
-        if let renderer, renderer.engineID == engineID { return renderer }
-        guard let descriptor = engines.descriptor(engineID), let route = engines.routes(for: engineID).first,
-              let host = engines.makeHost(for: engineID, voice: engineVoice)
+        if let renderer, renderer.route == route { return renderer }
+        guard let route, let descriptor = engines.descriptor(route.engine),
+              let host = engines.makeHost(for: route, voice: engineVoice)
         else {
             throw LocalSynthError.engineUnavailable(
                 engines.blockReason(engineID) ?? "\(engines.shortName(engineID)) isn’t available on this device.")

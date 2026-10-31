@@ -223,7 +223,7 @@ AppComposition (composition root: the only file that lists libraries)
 
 SpeechEngineProvider (one per library)      EngineDescriptor (per engine)
   descriptors / retiredEngines                 id, names, subtitle, recommended, sort order
-  makeHost(for:voice:) → LocalSynthHost        voices + default, voice defaults key
+  makeHost(for: route, voice:) → LocalSynthHost  voices + default, voice defaults key
   isInstalled                                  hardware gate, languages
   recover(from:playing:)                       onDevice: OnDeviceTraits
   launchMigrations / debugSections(speech:)      cache voice prefix and revision, chunk limits, crash guard
@@ -280,7 +280,8 @@ voice takes the built-in default as any unregistered engine's does.
    device), and `isCrashGuarded` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
    `routes` (a `RenderRoute` per engine: its lane, `.cpu`, and whether it takes a thread count;
-   the registry refuses an engine without one);
+   the registry refuses an engine without one; `makeHost` builds a host for the route the render
+   policy loads);
    override `recover(from:playing:)` if a crash needs more than a pause for Retry,
    `launchMigrations` for the library's launch steps (`LaunchMigration`s, run after retired
    engines' cleanup), `debugSections(speech:)` for its own Listen debug panel sections, and

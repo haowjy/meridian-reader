@@ -52,8 +52,8 @@ struct RenderCandidate: Sendable, Equatable {
 /// What runs on a lane now.
 struct LaneSnapshot: Sendable, Equatable {
     var callsInFlight = 0
-    /// The engine whose model is loaded for this lane (nil: none).
-    var resident: SpeechEngineID?
+    /// The route whose host is loaded on this lane (nil: none).
+    var resident: RenderRoute?
 }
 
 /// Everything a render decision may depend on, as values.
@@ -63,17 +63,18 @@ struct RenderSituation: Sendable, Equatable {
     var audioPlaying: Bool
     /// Thermal state or Low Power Mode holds work nobody is listening to (`BakeConditions`).
     var hold: BakeConditions.Hold?
-    /// An engine asked to be loaded once nothing renders (the launch's preload).
-    var preload: SpeechEngineID?
-    /// In the queue's order.
+    /// The routes of an engine asked to be loaded once nothing renders (the launch's preload);
+    /// empty: none.
+    var preload: [RenderRoute]
+    /// In the queue's order: each job's next unit per demand.
     var candidates: [RenderCandidate]
     var lanes: [Lane: LaneSnapshot]
     var maxCallsInFlight: Int
     var cores: Int
 }
 
-/// What to do now: calls to start, models to load, or nothing.
-struct RenderPlan: Sendable, Equatable {
+/// What to do now: the one action the queue's worker takes before it asks again.
+enum RenderPlan: Sendable, Equatable {
     struct Start: Sendable, Equatable {
         /// Index into `RenderSituation.candidates`.
         var candidate: Int
@@ -84,33 +85,54 @@ struct RenderPlan: Sendable, Equatable {
     }
 
     struct Load: Sendable, Equatable {
-        var engine: SpeechEngineID
-        var lane: Lane
+        /// Its host is built for this route and becomes its lane's resident one.
+        var route: RenderRoute
         var priority: RenderPriority
         /// The candidate it loads for (nil: a preload).
         var candidate: Int?
     }
 
-    var starts: [Start] = []
-    var loads: [Load] = []
+    /// Run one model call.
+    case start(Start)
+    /// Load a route's host, replacing its lane's resident one.
+    case load(Load)
     /// Work waits for this hold to clear (the queue's log and debug line).
-    var held: BakeConditions.Hold?
+    case held(BakeConditions.Hold)
+    /// Nothing now: the worker stops until an event kicks it.
+    case idle
 
     /// What the scheduler refuses whatever the policy says (a broken one is a bug in the
-    /// policy): a start's route is its candidate's own engine's (the voice is never swapped),
-    /// runs on that engine's resident lane, and no more calls run than `maxCallsInFlight`.
+    /// policy): a route is its candidate's own engine's (the voice is never swapped); a call runs
+    /// on its route's resident host, no more calls run than `maxCallsInFlight`; a load replaces a
+    /// lane's host only while no call runs on it.
     func violation(of situation: RenderSituation) -> String? {
-        let inFlight = situation.lanes.values.reduce(0) { $0 + $1.callsInFlight }
-        if inFlight + starts.count > situation.maxCallsInFlight { return "more calls than \(situation.maxCallsInFlight)" }
-        for start in starts {
-            guard situation.candidates.indices.contains(start.candidate) else { return "no candidate \(start.candidate)" }
-            let candidate = situation.candidates[start.candidate]
-            guard start.route.engine == candidate.engine, candidate.routes.contains(start.route) else {
-                return "route \(start.route.id) isn't \(candidate.engine.rawValue)'s"
+        func route(_ route: RenderRoute, of index: Int) -> String? {
+            guard situation.candidates.indices.contains(index) else { return "no candidate \(index)" }
+            let candidate = situation.candidates[index]
+            guard route.engine == candidate.engine, candidate.routes.contains(route) else {
+                return "route \(route.id) isn't \(candidate.engine.rawValue)'s"
             }
-            guard situation.lanes[start.route.lane]?.resident == candidate.engine else {
-                return "\(candidate.engine.rawValue) isn't loaded on \(start.route.lane.rawValue)"
+            return nil
+        }
+        switch self {
+        case .start(let start):
+            let inFlight = situation.lanes.values.reduce(0) { $0 + $1.callsInFlight }
+            if inFlight + 1 > situation.maxCallsInFlight { return "more calls than \(situation.maxCallsInFlight)" }
+            if let wrong = route(start.route, of: start.candidate) { return wrong }
+            guard situation.lanes[start.route.lane]?.resident == start.route else {
+                return "\(start.route.id) isn't loaded on \(start.route.lane.rawValue)"
             }
+        case .load(let load):
+            if let index = load.candidate {
+                if let wrong = route(load.route, of: index) { return wrong }
+            } else if !situation.preload.contains(load.route) {
+                return "route \(load.route.id) wasn't asked to preload"
+            }
+            if situation.lanes[load.route.lane]?.callsInFlight ?? 0 > 0 {
+                return "a call runs on \(load.route.lane.rawValue)"
+            }
+        case .held, .idle:
+            break
         }
         return nil
     }

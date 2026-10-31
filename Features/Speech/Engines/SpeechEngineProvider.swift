@@ -13,8 +13,8 @@ protocol SpeechEngineProvider: AnyObject {
     /// How each of its engines runs (its lane, whether it takes a thread count), as data. The
     /// render policy picks among an engine's own routes only.
     var routes: [RenderRoute] { get }
-    /// New synth host for `id` (nil for an unknown id).
-    func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost?
+    /// New synth host that runs `route` (one of `routes`; nil for another).
+    func makeHost(for route: RenderRoute, voice: String?) -> LocalSynthHost?
     /// Model files for `id` look present on disk.
     func isInstalled(_ id: SpeechEngineID) -> Bool
     /// Make sure `voice`'s files are on disk (prepare if needed) before it's selected.
@@ -134,8 +134,8 @@ final class EngineRegistry {
         return String(localized: "\(d.shortName) needs \(d.hardware.summary).")
     }
 
-    func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
-        byID[id]?.1.makeHost(for: id, voice: voice)
+    func makeHost(for route: RenderRoute, voice: String?) -> LocalSynthHost? {
+        byID[route.engine]?.1.makeHost(for: route, voice: voice)
     }
 
     func isInstalled(_ id: SpeechEngineID) -> Bool {

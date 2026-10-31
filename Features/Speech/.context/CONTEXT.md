@@ -67,8 +67,8 @@ provider owns its host, model store, voice catalog and chunk limits.
   loads). Never read `engineVoices`, `activeLocalEngineID` or `defaultSelection` to decide what
   an existing article plays or renders.
 - **Only the render queue's worker loads an engine** (`GlobalSynthQueue.load` →
-  `LocalTTSCoordinator.makeResident`), for the first unit it takes (a listener's chunk first) or
-  the launch's `preload`. Don't load at an enqueue, a play, a voice pick or launch, and don't add
+  `LocalTTSCoordinator.makeResident`), the route the policy names for its unit (a listener's
+  chunk first) or for the launch's `preload`. Don't load at an enqueue, a play, a voice pick or launch, and don't add
   an "is an engine loaded" gate in front of the queue: queue the work and let the worker load.
   Anything that must rebuild a host (Retry, a setting, a reset) asks the worker to `dropHost`;
   never unload a host under a call. A render (`LocalSynthService.renderChunkToFile`) runs only on
@@ -118,12 +118,15 @@ provider owns its host, model store, voice catalog and chunk limits.
   benchmark on a device, not from the Mac (a Mac has more performance cores than an iPhone's
   two).
 - **What renders, when, is the render policy's call** (`RenderPolicy`, `SingleCallPolicy`, built
-  in `AppComposition.makeRenderPolicy`). The queue offers candidates by demand and checks the plan
-  (`RenderPlan.violation`) before it acts; a new rule goes in the policy, a new policy is one type
-  and that line. In the background it renders continuously while audio plays, one call at a time,
+  in `AppComposition.makeRenderPolicy`). The queue offers every job's next unit by demand, in its
+  order, and checks the plan, one action (`RenderPlan.violation`), before it acts; ordering rules,
+  FIFO included, go in the policy, a new policy is one type and that line. The selected route is
+  the residency identity: `makeResident(route)` builds the host for it (`makeHost(for:voice:)`)
+  and the lane snapshot reports the route loaded; nothing else picks a route. In the background it renders continuously while audio plays, one call at a time,
   Kokoro on one ONNX thread: back-to-back rendering on three threads got the app killed by iOS
   (1.0–1.3 GB), so a higher background budget needs an hour's locked listen on the phone first.
-  `cpuDutyCycle` is the named spot for a later throttle. Each background call runs under the
+  A throttle (issue #21) would need a clock and a timed wake in the seam; there is none now.
+  Each background call runs under the
   `ReaderSynthDrain` grace, so audio stopping doesn't cut it. When rendering falls behind there,
   the player pauses at the gap (`ListenStall.cantKeepUp`) and the toast waits for the front
   (`SpeechController.backgroundNotice`). Prepared Audio (`../../PreparedAudio/`) are ordinary bake
@@ -131,7 +134,12 @@ provider owns its host, model store, voice catalog and chunk limits.
   chapter.
 - **`onRenderStateChange` is called inside the queue's work** (`noteBakeMarksChanged` runs mid
   drain, `bakeCompleted` from the worker): its handler acts later, never re-entering the queue in
-  the call.
+  the call. It names the articles that changed (`noteBakeMarksChanged(of:)`, a job's end or
+  removal); nil means any may have, so a per-paragraph event must pass its key, or every prepared
+  page is checked again.
+- **A Play's first chunk is listener demand before its producer asks.** `LocalListenEngine.play`
+  calls `expectListener` before it queues the article: the worker it wakes runs before the
+  producer's `ensureChunk`, and without the mark the first load runs at `.utility`.
 - **Chunk plans are data.** Live playback and bake-ahead share one deterministic plan per text
   and engine, from one owner (`LocalTTSCoordinator.chunkPlans`);
   stitched paragraphs store `chunkDurations` by it. Changing `TextChunker` limits or rules changes

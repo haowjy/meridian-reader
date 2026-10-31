@@ -111,10 +111,9 @@ final class FluidAudioProvider: SpeechEngineProvider {
         [RenderRoute(id: "kokoro.onnx", engine: .kokoro, lane: .cpu, threads: .honored(cap: routeSettings.cpuThreads))]
     }
 
-    func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
-        guard id == .kokoro else { return nil }
-        return KokoroCPUHost(voice: voice ?? KokoroVoiceCatalog.defaultVoice, threads: routeSettings.cpuThreads,
-                             crashCount: routeSettings)
+    func makeHost(for route: RenderRoute, voice: String?) -> LocalSynthHost? {
+        guard route.engine == .kokoro, case .honored(let cap) = route.threads else { return nil }
+        return KokoroCPUHost(voice: voice ?? KokoroVoiceCatalog.defaultVoice, threads: cap, crashCount: routeSettings)
     }
 
     /// Kokoro crashed last session: `KokoroCrashRecovery` (resume on the ONNX route; pause for

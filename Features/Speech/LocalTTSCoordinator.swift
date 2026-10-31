@@ -33,10 +33,11 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// playing (its demand, and whether calls may start in the background).
     @ObservationIgnored weak var listenPlayer: LocalListenPlayer?
     /// Called when a bake job leaves the queue and when the render queue's state may have moved
-    /// (audio rendered or deleted, the engine or voice changed). Often, and inside the queue's own
-    /// work: the handler acts later, never re-entering the queue in the call. Set by the
-    /// composition (Prepared audio, `AppComposition.makePrepared audio`).
-    @ObservationIgnored var onRenderStateChange: (() -> Void)?
+    /// (audio rendered or deleted, the engine or voice changed), with the articles whose audio or
+    /// job changed: nil when any may have (a voice change, a purge), empty when none did (the
+    /// engine's state). Often, and inside the queue's own work: the handler acts later, never
+    /// re-entering the queue in the call. Set by the composition (`AppComposition.makePreparedAudio`).
+    @ObservationIgnored var onRenderStateChange: ((Set<UUID>?) -> Void)?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
     /// C129: the engine killed the last process inside a call (`CrashRecovery`); the render queue
@@ -226,9 +227,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     var residentEngineID: String? { synth.residentEngineID?.rawValue }
 
-    func makeResident(_ engineID: String, priority: RenderPriority) async throws {
-        let id = SpeechEngineID(rawValue: engineID)
-        try await synth.makeResident(id, voice: engineVoices[id], priority: priority)
+    var residentRoute: RenderRoute? { synth.residentRoute }
+
+    func makeResident(_ route: RenderRoute, priority: RenderPriority) async throws {
+        try await synth.makeResident(route, voice: engineVoices[route.engine], priority: priority)
     }
 
     func dropHost(_ engineID: String) {
@@ -285,7 +287,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     func bakeCompleted(cacheKey: UUID) {
         pendingBakes.removePending(articleID: cacheKey)
-        onRenderStateChange?()
+        onRenderStateChange?([cacheKey])
     }
 
     /// True when a local model for `id` has been initialized (or its files are on disk).
@@ -323,7 +325,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// What shows the engine's state (Settings' progress, the debug panel, Prepared Audio) looks
     /// again. Loads are the render queue's worker's (`makeResident`); nothing here starts one.
     private func engineStateChanged() {
-        onRenderStateChange?()
+        onRenderStateChange?([])
     }
 
     func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
@@ -366,9 +368,15 @@ final class LocalTTSCoordinator: SynthQueueContext {
         } ?? preferred
     }
 
+    /// Audio of any article may have changed.
     func noteBakeMarksChanged() {
         bakeMarksRevision &+= 1
-        onRenderStateChange?()
+        onRenderStateChange?(nil)
+    }
+
+    func noteBakeMarksChanged(of cacheKey: UUID) {
+        bakeMarksRevision &+= 1
+        onRenderStateChange?([cacheKey])
     }
 
     func bakeTasksCount(for articleID: UUID) -> Int {

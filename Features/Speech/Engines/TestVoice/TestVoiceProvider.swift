@@ -23,8 +23,8 @@ final class TestVoiceProvider: SpeechEngineProvider {
 
     var routes: [RenderRoute] { [RenderRoute(id: "testvoice.cpu", engine: Self.id, lane: .cpu, threads: .uncapped)] }
 
-    func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
-        id == Self.id ? TestVoiceHost(engineID: id) : nil
+    func makeHost(for route: RenderRoute, voice: String?) -> LocalSynthHost? {
+        route.engine == Self.id ? TestVoiceHost(engineID: route.engine) : nil
     }
 
     func isInstalled(_ id: SpeechEngineID) -> Bool { true }
