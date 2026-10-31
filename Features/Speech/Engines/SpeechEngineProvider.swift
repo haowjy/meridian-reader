@@ -152,26 +152,13 @@ final class EngineRegistry {
         try byID[id]?.1.deleteVoicePack(voice, for: id)
     }
 
-    /// A cache voice key as people read it: "kokoro.af_heart" → "Kokoro Heart" (the engine's short
-    /// name, then the voice's), a single-voice engine's by its short name; any other key is an
-    /// Apple voice ("Apple").
-    func voiceLabel(forCacheVoice voiceID: String) -> String {
+    /// The selection a cache voice key was made in: "kokoro.af_heart" → Kokoro's Heart; nil for any
+    /// other key (an Apple voice's).
+    func selection(forCacheVoice voiceID: String) -> VoiceSelection? {
         for d in descriptors {
-            guard let voice = d.engineVoice(fromCacheVoice: voiceID) else { continue }
-            guard let label = d.allVoices.first(where: { $0.id == voice })?.label else { return d.shortName }
-            return "\(d.shortName) \(label)"
+            if let voice = d.engineVoice(fromCacheVoice: voiceID) { return VoiceSelection(engine: d.id, voice: voice) }
         }
-        return descriptor(.apple)?.shortName ?? "Apple"
-    }
-
-    /// C138: a cache voice key by its voice's name alone: "kokoro.af_heart" → "Heart" (what an
-    /// article's *Voice* row and the Prepared Audio list show).
-    func voiceName(forCacheVoice voiceID: String) -> String {
-        for d in descriptors {
-            guard let voice = d.engineVoice(fromCacheVoice: voiceID) else { continue }
-            return d.allVoices.first(where: { $0.id == voice })?.label ?? d.shortName
-        }
-        return descriptor(.apple)?.shortName ?? "Apple"
+        return nil
     }
 
     /// The crashed engine's provider decides how to recover (nil: the default rule).

@@ -92,8 +92,8 @@ struct ArticleMenu: View {
                            action: actions.togglePrepare)
         case .voice:
             let tts = actions.speech.localTTS
-            let name = article.map { tts.voiceName(of: tts.effectiveSelection(of: $0.listenKey)) }
-            return MenuRow(id: "menuVoice", title: name.map(Verbs.voiceRow) ?? Verbs.voice, icon: Icons.voice) {
+            let summary = article.map { tts.voiceSummary(of: tts.effectiveSelection(of: $0.listenKey)) }
+            return MenuRow(id: "menuVoice", title: summary.map(Verbs.voiceRow) ?? Verbs.voice, icon: Icons.voice) {
                 if let article { actions.shell.present(.voice(.article(article.listenKey))) }
             }
         case .move:

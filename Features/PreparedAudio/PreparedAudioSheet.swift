@@ -129,10 +129,8 @@ struct PreparedAudioList: View {
                 section(overview.differentVoice,
                         header: SectionHeader(title: String(localized: "Different Voice"), count: overview.differentVoice.count),
                         headerID: "downloadsDifferentVoiceHeader") {
-                    if let voice = speech.localTTS.prepareVoice {
-                        Text(String(localized: "Its audio isn’t in its article’s voice, so it doesn’t play. Prepare Again makes it in that voice (\(voiceLabel(voice)) for new articles)."))
-                            .listFooter()
-                    }
+                    Text(String(localized: "Its audio isn’t in its article’s voice, so it doesn’t play. Prepare Again makes it in that voice."))
+                        .listFooter()
                 }
             }
         }
@@ -247,9 +245,9 @@ struct PreparedAudioList: View {
         }
     }
 
-    /// "Heart" for a cache voice key (C138: as an article's *Voice* row names it).
+    /// "Default", "Kokoro" for a cache voice key, as an article's *Voice* row says it (never the voice's name).
     private func voiceLabel(_ voice: String) -> String {
-        speech.localTTS.engines.voiceName(forCacheVoice: voice)
+        speech.localTTS.voiceSummary(ofCacheVoice: voice)
     }
 
     private var waitingNote: some View {

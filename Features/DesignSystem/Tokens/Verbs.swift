@@ -174,7 +174,8 @@ enum Verbs {
     /// Settings rows and the pages or panels they open.
     static let speed = String(localized: "Speed")
     static let voice = String(localized: "Voice")
-    /// An article's or a book's menu row (C138): "Voice: Heart".
+    /// An article's or a book's menu row (C138), with what the screen calls its voice
+    /// (`LocalTTSCoordinator.voiceSummary`): "Voice: Default", "Voice: Kokoro".
     static func voiceRow(_ name: String) -> String { String(localized: "Voice: \(name)") }
     static let changeVoice = String(localized: "Change Voice")
     /// Cellular prompt before Phonon / Kokoro model downloads.

@@ -138,15 +138,15 @@ extension LocalTTSCoordinator {
         noteBakeMarksChanged()
     }
 
-    /// The short name a *Voice* row shows: "Heart", "Ava (Apple)", "Apple" (the best for the language).
-    func voiceName(of selection: VoiceSelection) -> String {
-        if selection.isApple {
-            guard !selection.voice.isEmpty, let voice = AVSpeechSynthesisVoice(identifier: selection.voice) else {
-                return engines.descriptor(.apple)?.shortName ?? "Apple"
-            }
-            return String(localized: "\(voice.name) (Apple)")
-        }
-        let d = engines.descriptor(selection.engine)
-        return d?.allVoices.first { $0.id == selection.voice }?.label ?? d?.shortName ?? selection.voice
+    /// What the screen calls a voice outside the Voice picker: "Default" while it is the built-in
+    /// default, else its voice library's short name ("Kokoro", "Apple"), as Settings › Voice says it;
+    /// never the voice's own name, which means nothing before you have heard it.
+    func voiceSummary(of selection: VoiceSelection) -> String {
+        selection == builtInDefaultSelection ? String(localized: "Default") : engines.shortName(selection.engine)
+    }
+
+    /// The same for a cache voice key (prepared audio, audio from listening); an Apple voice's is "Apple".
+    func voiceSummary(ofCacheVoice voiceID: String) -> String {
+        voiceSummary(of: engines.selection(forCacheVoice: voiceID) ?? VoiceSelection(engine: .apple, voice: ""))
     }
 }

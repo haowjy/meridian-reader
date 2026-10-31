@@ -47,11 +47,7 @@ struct ListeningSettingsSection: View {
 
     /// "Default" while the built-in voice is the pick, else its voice library ("Kokoro", "Apple"):
     /// never a voice's name, which means nothing before you have heard it.
-    private var voiceValue: String {
-        let selection = localTTS.defaultSelection
-        return selection == localTTS.builtInDefaultSelection ? String(localized: "Default")
-            : localTTS.engines.shortName(selection.engine)
-    }
+    private var voiceValue: String { localTTS.voiceSummary(of: localTTS.defaultSelection) }
 
     private var languageName: String {
         speech.languageAutomatic ? String(localized: "Automatic")

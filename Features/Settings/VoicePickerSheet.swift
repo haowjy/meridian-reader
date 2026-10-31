@@ -25,7 +25,6 @@ struct VoicePickerSheet: View {
     @State private var preparingID: String?
     @State private var error: String?
 
-    private var localTTS: LocalTTSCoordinator { speech.localTTS }
 
     private var change: ArticleVoiceChange? {
         ArticleVoiceChange(target: target, library: library, speech: speech, preparedAudio: preparedAudio)
@@ -51,7 +50,7 @@ struct VoicePickerSheet: View {
                     shell.sheet = nil
                 }
             }
-            .alert(pending.map { String(localized: "Change to \(localTTS.voiceName(of: $0))?") } ?? "",
+            .alert(String(localized: "Change the Voice?"),
                    isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } })) {
                 Button(Verbs.changeVoice) {
                     if let voice = pending, let change { run(voice, change: change) }
@@ -84,7 +83,7 @@ struct VoicePickerSheet: View {
             do {
                 try await change.apply(selection)
             } catch {
-                self.error = String(localized: "Couldn’t download \(localTTS.voiceName(of: selection)). Check your connection and try again.")
+                self.error = String(localized: "Couldn’t download the voice. Check your connection and try again.")
             }
             preparingID = nil
         }

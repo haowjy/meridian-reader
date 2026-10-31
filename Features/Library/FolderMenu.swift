@@ -97,7 +97,7 @@ struct FolderMenu: View {
         case .folderVoice:
             let tts = actions.speech.localTTS
             let selection = folder.voiceID.flatMap(VoiceSelection.init(stored:)) ?? tts.defaultSelection
-            return MenuRow(id: "menuVoice", title: Verbs.voiceRow(tts.voiceName(of: selection)),
+            return MenuRow(id: "menuVoice", title: Verbs.voiceRow(tts.voiceSummary(of: selection)),
                            icon: Icons.voice) { shell.present(.voice(.folder(folder.id))) }
         case .folderMove:
             return MenuRow(id: "menuMove", title: Verbs.moveTo, icon: Icons.move) {
