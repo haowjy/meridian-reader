@@ -718,9 +718,11 @@ directory), old-voice entries beside them, and `TTSCache/chunks/` for chunk scra
   (`playableAudioURL` no longer falls back to another voice's file), so voices never mix.
   An article's live directory holds one voice, its index's `engineID` / `voiceID`: publishing a
   paragraph in another voice first moves the voice there into an old-voice entry
-  (`publishParagraph` → `archiveLive`), and merges never put a second voice in one
-  (`prepareMerge`). Paragraphs older builds left stamped with another voice than their index's are
-  deleted once at launch (`dropStaleVoiceParagraphs`).
+  (`publishParagraph` → `archiveLive`); an alignment or merge writes its index in the voice of
+  the audio it publishes, never an emptied index's old one, and `prepareMerge` moves a second
+  voice out first. Paragraphs older builds left stamped with another voice than their index's are
+  dropped by the next alignment of that article, and deleted once at launch everywhere else
+  (`dropStaleVoiceParagraphs`).
 - **Old voices.** An article's audio in a voice it no longer uses is an old-voice entry: a
   directory with a random name whose `meta.json` names its article (`voiceOf`), ephemeral, dated
   the moment it was left, so the launch prune ages it out with unsaved audio (7 days, then the

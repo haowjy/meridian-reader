@@ -10,7 +10,8 @@ import Foundation
 /// the launch's voice key migrations (`renameVoices`) keep it findable.
 ///
 /// Audio enters a live directory only through `publishParagraph`, which archives another voice
-/// there first, and through merges, which never put a second voice in one (`prepareMerge`). So no
+/// there first, and through `publish` (alignments and merges), which writes one voice, the one of
+/// the audio it publishes, never an empty index's (`prepareMerge` archives the other first). So no
 /// live directory mixes voices, finished change or not, and readers already check the voice.
 ///
 /// Every operation that moves, deletes or creates a directory keeps the in-memory indexes and
@@ -221,14 +222,15 @@ extension ArticleAudioCache {
     /// (`prepareMerge`).
     func fillMissing(_ key: UUID, from source: UUID) throws {
         let own = index(for: key)
-        if let moving = index(for: source) {
+        if let voice = mergeVoice(key, source) {
             var placed: [Int: AlignUnit] = [:]
-            for unit in units(of: own, for: key, origin: .own) { placed[unit.entry.index] = unit }
-            for unit in units(of: moving, for: source, origin: .adopted) where placed[unit.entry.index] == nil {
+            for unit in units(of: own, in: voice, for: key, origin: .own) { placed[unit.entry.index] = unit }
+            for unit in units(of: index(for: source), in: voice, for: source, origin: .adopted)
+            where placed[unit.entry.index] == nil {
                 placed[unit.entry.index] = unit
             }
             if placed.values.contains(where: { $0.origin == .adopted }) {
-                try publish(placed, for: key, engineID: moving.engineID, voiceID: moving.voiceID)
+                try publish(placed, for: key, in: voice)
             }
         }
         try removeUnlisted(articleID: key, previous: own)

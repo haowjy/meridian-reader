@@ -12,7 +12,7 @@ extension ArticleAudioCache {
     /// some unit already has audio for is skipped; the others are left missing (they re-render).
     /// Part of `reconcile`, which places these first and drops the old split CAFs.
     /// `chunkPlan(engineID, text)` must be the render queue's plan (`ChunkPlans`); nil = don't slice.
-    func slices(of units: [AlignUnit], paragraphs: [String], into dir: URL,
+    func slices(of units: [AlignUnit], engineID: String, paragraphs: [String], into dir: URL,
                 chunkPlan: ((String, String) -> [String]?)?, _ result: inout ReconcileResult) throws -> [AlignUnit] {
         guard let chunkPlan, paragraphs.count > 1 else { return [] }
         let current = Set(paragraphs.map(ArticleIdentity.paragraphHash))
@@ -38,12 +38,12 @@ extension ArticleAudioCache {
             guard let hash = old.entry.textHash, let run = runs[hash], let durations = old.entry.chunkDurations else { continue }
             result.splitParagraphs += 1
             let pieces = Array(paragraphs[run.start..<(run.start + run.count)])
-            guard let oldPlan = chunkPlan(old.engineID, pieces.joined(separator: " ")), oldPlan.count == durations.count
+            guard let oldPlan = chunkPlan(engineID, pieces.joined(separator: " ")), oldPlan.count == durations.count
             else { result.misaligned += pieces.count; continue }
             var from = 0
             for (i, piece) in pieces.enumerated() {
                 let target = run.start + i
-                guard let plan = chunkPlan(old.engineID, piece), !plan.isEmpty,
+                guard let plan = chunkPlan(engineID, piece), !plan.isEmpty,
                       let q = Self.firstMatch(of: plan, in: oldPlan, from: from) else {
                     result.misaligned += 1
                     continue
@@ -62,7 +62,7 @@ extension ArticleAudioCache {
                 let entry = IndexFile.ParagraphEntry(index: target, file: url.lastPathComponent, duration: length,
                                                      textHash: pieceHash,
                                                      chunkDurations: plan.count > 1 ? Array(durations[q..<(q + plan.count)]) : nil)
-                slices.append(AlignUnit(entry: entry, engineID: old.engineID, voiceID: old.voiceID, url: url, origin: .slice))
+                slices.append(AlignUnit(entry: entry, url: url, origin: .slice))
                 have.insert(pieceHash)
                 result.sliced += 1
             }

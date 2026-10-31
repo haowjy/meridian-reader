@@ -330,5 +330,21 @@ final class PrepareOverviewTests: XCTestCase {
             XCTAssertEqual(v.missing(kept, text, in: voice), voice == zoey ? [2] : [0, 1])
             XCTAssertEqual(v.cache.oldVoices(of: kept).count, 1, "the other voice kept")
         }
+
+        // The kept key's index is empty (its one paragraph's text changed), its header still zoey:
+        // the merged audio publishes in its own voice, and the launch's stale-voice step keeps it.
+        for voice in [alba, nil] {
+            let (kept, merged) = (UUID(), UUID())
+            try v.publish(kept, text, [0], in: zoey)
+            try v.cache.reconcile(articleID: kept, paragraphs: ["Something else entirely."] + text.dropFirst())
+            XCTAssertEqual(v.cache.readIndexFile(for: kept)?.paragraphs.count, 0)
+            try v.publish(merged, text, [0, 1, 2], in: alba)
+            try v.cache.reconcile(articleID: kept, paragraphs: text, adopting: merged, voice: voice)
+            let index = try XCTUnwrap(v.cache.readIndexFile(for: kept))
+            XCTAssertEqual(Voice(engineID: index.engineID, voiceID: index.voiceID), alba)
+            XCTAssertTrue(index.paragraphs.allSatisfy { $0.engineID == nil && $0.voiceID == nil }, "no stamps")
+            XCTAssertEqual(v.cache.dropStaleVoiceParagraphs().articles, 0)
+            XCTAssertEqual(v.missing(kept, text, in: alba), [])
+        }
     }
 }

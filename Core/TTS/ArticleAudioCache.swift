@@ -249,8 +249,14 @@ final class ArticleAudioCache {
     /// storage id).
     func deleteAudio(for articleID: UUID) throws {
         let dir = directory(for: articleID)
-        if fileManager.fileExists(atPath: dir.path) {
-            try fileManager.removeItem(at: dir)
+        do {
+            if fileManager.fileExists(atPath: dir.path) {
+                try fileManager.removeItem(at: dir)
+            }
+        } catch {
+            // A failed removal can have deleted some files: memory reloads what survived.
+            forget([articleID])
+            throw error
         }
         setIndex(nil, for: articleID)
         metas[articleID] = .some(nil)
@@ -479,18 +485,7 @@ extension ArticleAudioCache {
             try markSaved(cacheKey: newKey)
             return
         }
-        let own = index(for: newKey)
-        if let moving = index(for: oldKey) {
-            var placed: [Int: AlignUnit] = [:]
-            for unit in units(of: own, for: newKey, origin: .own) { placed[unit.entry.index] = unit }
-            for unit in units(of: moving, for: oldKey, origin: .adopted) where placed[unit.entry.index] == nil {
-                placed[unit.entry.index] = unit
-            }
-            if placed.values.contains(where: { $0.origin == .adopted }) {
-                try publish(placed, for: newKey, engineID: moving.engineID, voiceID: moving.voiceID)
-            }
-        }
-        try removeUnlisted(articleID: newKey, previous: own)
+        try fillMissing(newKey, from: oldKey)
         try markSaved(cacheKey: newKey)
         try deleteAudio(for: oldKey)
     }
