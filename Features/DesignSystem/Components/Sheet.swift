@@ -123,11 +123,15 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     /// reading sheet's in full screen the whole screen, square, the change on `Motion.standard`.
     private func outline(fullScreen: Bool) -> some View {
         let radius = fullScreen ? 0 : corner
-        // A reading sheet is laid out from the status bar's foot; any other below the gap already.
+        // A reading sheet is laid out from the status bar's foot (full screen reaches up over it);
+        // any other below the gap already. Measured from the sheet's own top, never by ignoring the
+        // top safe area: under the pull's offset that safe area is read where the sheet is drawn, so
+        // an outline that ignored it (the mask with it) would run ahead of the finger by up to the
+        // status bar's height and clip the grabber and the top of the text.
         return UnevenRoundedRectangle(topLeadingRadius: radius, topTrailingRadius: radius, style: .continuous)
             .fill(palette.background)
-            .padding(.top, chrome == nil || fullScreen ? 0 : statusBarHeight + gap)
-            .ignoresSafeArea(edges: chrome == nil ? .bottom : .all)
+            .padding(.top, chrome == nil ? 0 : fullScreen ? -statusBarHeight : gap)
+            .ignoresSafeArea(edges: .bottom)
             .animation(Motion.standard, value: fullScreen)
     }
 

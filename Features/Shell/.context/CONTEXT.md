@@ -105,7 +105,9 @@ changing the shell code.
   `Sheet`'s scrolling body pulls it from its top: `Sheet` puts a `SheetPullHandoff` in its
   content's environment, and a UIKit scroll view there feeds it through `ScrollPullHandoff` (a
   target on its pan, after the scroll view's own). New scrolling content in a `Sheet` needs that
-  hook, or it only scrolls. Under
+  hook, or it only scrolls. A UIKit pan's translation starts at zero where it recognizes, so a
+  slow drag has no direction at `.began`: read the axis once it has moved
+  (`SheetPullTracking.decidingMovement`), never from the first event. Under
   Reduce Motion, slides and the morph become fades (`Motion.slideAndFade`, `Motion.sheet`).
 - **Regular width (iPad) is a second layout of the same shell, not a second shell.** The gate is
   `horizontalSizeClass == .regular`; nothing iPad-specific applies in compact. What it changes

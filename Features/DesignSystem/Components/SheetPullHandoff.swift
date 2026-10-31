@@ -76,6 +76,10 @@ struct SheetPullTracking: Equatable {
 
     /// Half a point: a page at its top can sit a fraction off it.
     static let topTolerance: CGFloat = 0.5
+
+    /// How far a drag moves before its axis is read: a slow finger's first fraction of a point
+    /// sideways is jitter, not a direction.
+    static let decidingMovement: CGFloat = 2
 }
 
 /// Drives a `SheetPullHandoff` from a scroll view's own pan (a target on its recognizer, because
@@ -99,13 +103,15 @@ final class ScrollPullHandoff: NSObject {
     var onRelease: (CGFloat) -> Void = { _ in }
 
     /// The drag in progress, and the sheet it may pull: taken when the drag begins, so a change
-    /// of `handoff` meanwhile (full screen coming on) never strands a pull half-way.
-    private var drag: (tracking: SheetPullTracking, handoff: SheetPullHandoff?)?
+    /// of `handoff` meanwhile (full screen coming on) never strands a pull half-way. `tracking`
+    /// starts once the drag has moved `decidingMovement`: UIKit measures a pan's translation from
+    /// where it recognized, so a slow drag begins at exactly zero, which has no axis.
+    private var drag: (tracking: SheetPullTracking?, handoff: SheetPullHandoff?)?
     private var lastY: CGFloat = 0
     private var reportedScroll = false
 
     /// The sheet is pulled by the drag in progress.
-    var isPulling: Bool { (drag?.tracking.pull ?? 0) > 0 }
+    var isPulling: Bool { (drag?.tracking?.pull ?? 0) > 0 }
 
     /// The scroll view whose pan drives it.
     private(set) weak var scrollView: UIScrollView?
@@ -129,14 +135,13 @@ final class ScrollPullHandoff: NSObject {
         let translation = pan.translation(in: nil)
         switch pan.state {
         case .began:
-            drag = (SheetPullTracking(scrolledIn: scrolledIn(sv), translation: CGSize(
-                width: translation.x, height: translation.y), isInSheet: handoff != nil), handoff)
+            drag = (nil, handoff)
             lastY = 0
             reportedScroll = false
             onDragBegan()
-            move(sv, to: translation.y)
+            move(sv, by: translation)
         case .changed:
-            move(sv, to: translation.y)
+            move(sv, by: translation)
         case .ended, .cancelled, .failed:
             release(sv, lifted: pan.state == .ended, velocity: pan.velocity(in: nil).y)
         default:
@@ -144,12 +149,13 @@ final class ScrollPullHandoff: NSObject {
         }
     }
 
-    private func move(_ sv: UIScrollView, to y: CGFloat) {
-        guard case (var t, let handoff)? = drag else { return }
+    private func move(_ sv: UIScrollView, by translation: CGPoint) {
+        guard case let (tracking, handoff)? = drag else { return }
+        guard var t = tracking ?? firstMovement(sv, translation, isInSheet: handoff != nil) else { return }
         let before = t.pull
-        let delta = y - lastY
+        let delta = translation.y - lastY
         let holds = t.move(by: delta, scrolledIn: scrolledIn(sv))
-        lastY = y
+        lastY = translation.y
         drag = (t, handoff)
         if holds { hold(sv) }
         if t.pull != before { handoff?.changed(t.pull) }
@@ -162,11 +168,18 @@ final class ScrollPullHandoff: NSObject {
         if before == 0, t.pull == 0 { onMove(delta) }
     }
 
+    /// The drag's tracking, once the finger has moved far enough to have a direction (nil before).
+    private func firstMovement(_ sv: UIScrollView, _ translation: CGPoint, isInSheet: Bool) -> SheetPullTracking? {
+        guard hypot(translation.x, translation.y) >= SheetPullTracking.decidingMovement else { return nil }
+        return SheetPullTracking(scrolledIn: scrolledIn(sv), translation: CGSize(width: translation.x, height: translation.y),
+                                 isInSheet: isInSheet)
+    }
+
     /// `lifted`: the finger lifted (else the touch was cancelled, and the sheet springs back).
     private func release(_ sv: UIScrollView, lifted: Bool, velocity: CGFloat) {
-        guard case let (t, handoff)? = drag else { return }
+        guard case let (tracking, handoff)? = drag else { return }
         drag = nil
-        guard t.pull > 0 else { return onRelease(lifted ? velocity : 0) }
+        guard let t = tracking, t.pull > 0 else { return onRelease(lifted ? velocity : 0) }
         // Stops the bounce the scroll view starts from a downward release at its top: the sheet
         // carries the movement on, the content stays put.
         hold(sv)
