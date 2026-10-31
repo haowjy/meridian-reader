@@ -26,7 +26,7 @@ packages:
     # Phonon 31m English on-device TTS (Core ML). Its model bundle ships in the app
     # (Resources/PhononBundle, below).
     url: https://github.com/gradium-ai/xn-ptts.git
-    exactVersion: 0.4.0
+    exactVersion: 0.6.0
 targets:
   MeridianReader:
     type: application

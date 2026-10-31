@@ -2554,7 +2554,7 @@
 			repositoryURL = "https://github.com/gradium-ai/xn-ptts.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.4.0;
+				version = 0.6.0;
 			};
 		};
 		BB618EB4F9E57F2D7F055D67 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {

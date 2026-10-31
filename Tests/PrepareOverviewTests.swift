@@ -100,7 +100,7 @@ final class PrepareOverviewTests: XCTestCase {
 
     /// Phonon's cache voice keys carry its model revision: audio another model rendered never
     /// plays or counts as prepared, and the launch migration gives audio from before the revision
-    /// (the one model ever shipped) the current one, and no other.
+    /// the revision that rendered it (`PhononCacheRevision.legacyRevision`), not the current one.
     @MainActor
     func testAudioOfAnotherModelRevisionNeverCountsAsPrepared() throws {
         let fm = FileManager.default
@@ -121,8 +121,9 @@ final class PrepareOverviewTests: XCTestCase {
             }
             return key
         }
-        func missing(_ key: UUID) -> [Int] {
-            cache.missingParagraphs(articleID: key, paragraphs: paragraphs, engineID: engine, voiceID: current, plans: plans)
+        func missing(_ key: UUID, in voice: String? = nil) -> [Int] {
+            cache.missingParagraphs(articleID: key, paragraphs: paragraphs, engineID: engine,
+                                    voiceID: voice ?? current, plans: plans)
         }
 
         XCTAssertTrue(current.hasPrefix("phonon@\(PhononModelStore.bundleBuilt)."), current)
@@ -134,8 +135,11 @@ final class PrepareOverviewTests: XCTestCase {
         XCTAssertNil(cache.playableAudioURL(articleID: otherModel, paragraphIndex: 0, engineID: engine, voiceID: current))
         XCTAssertEqual(missing(beforeRevisions), [0, 1], "no revision is not this one")
 
+        XCTAssertNotEqual(PhononCacheRevision.legacyRevision, "phonon@\(PhononModelStore.bundleBuilt)")
         XCTAssertEqual(cache.renameVoices(PhononCacheRevision.renamed).articles, 1)
-        XCTAssertEqual(missing(beforeRevisions), [], "the one shipped model's audio, migrated")
+        XCTAssertEqual(missing(beforeRevisions, in: PhononCacheRevision.legacyRevision + ".Zoey"), [],
+                       "migrated to the revision that rendered it")
+        XCTAssertEqual(missing(beforeRevisions), [0, 1], "an older bundle's audio is not this bundle's")
         XCTAssertEqual(missing(otherModel), [0, 1], "the migration never adopts another revision")
         XCTAssertEqual(missing(rendered), [])
     }

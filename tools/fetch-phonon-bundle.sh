@@ -1,16 +1,17 @@
 #!/bin/sh
 # Puts the Phonon model bundle the app ships at Resources/PhononBundle/ (git-ignored: ~170 MB).
-# Downloads the ptts release zip (or takes one you already have), checks its size and SHA-256
-# against the constants in PhononModelStore.swift, and extracts it. Run once per checkout, and
-# again when the release changes; the app build fails without it.
+# Downloads the bundle zip (or takes one you already have), checks its size and SHA-256 against
+# the constants below, and extracts it. Run once per checkout, and again when the bundle changes;
+# the app build fails without it. The bundle is Phonon 31m English exported by ptts 0.6.0 at a
+# 200-token prefill, published as a release on haowjy/xn-ptts (docs/TTS_ENGINES.md, "Phonon").
 #
 #   tools/fetch-phonon-bundle.sh            # download
 #   tools/fetch-phonon-bundle.sh <zip>      # use a zip already on disk
 set -eu
 
-URL="https://github.com/gradium-ai/xn-ptts/releases/download/v0.4.0/phonon-31m-en-coreml.zip"
-SHA256="10f3a99fd39256db44f826267ef21d78cca959b16c0554926344c09fde27b436"
-BYTES=137096081
+URL="https://github.com/haowjy/xn-ptts/releases/download/phonon-31m-en-200-v0.6.0/phonon-31m-en-coreml.zip"
+SHA256="6b06b2716f7abed64ebae60a45ef097a2e746010684568627aa61edddd50c8f4"
+BYTES=137092920
 ROOT_NAME="phonon-31m-en-coreml"
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"

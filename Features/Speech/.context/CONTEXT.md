@@ -89,7 +89,10 @@ provider owns its host, model store, voice catalog and chunk limits.
   bundle ships in the app and is copied out once per process before the first load
   (`PhononModelStore`); its cache voice keys carry the bundle's `built` stamp
   (`OnDeviceTraits.cacheRevision`), so shipping another bundle means changing
-  `PhononModelStore.bundleBuilt`, and all Phonon audio renders again. Don't add a shared
+  `PhononModelStore.bundleBuilt`, and all Phonon audio renders again. The bundle is our own export
+  at a 200-token prefill, not upstream's 48-token release zip, which cuts long sentences into
+  false sentence ends; a ptts bump that needs a new bundle re-exports it (`docs/TTS_ENGINES.md` →
+  "Phonon"). Don't add a shared
   speakable-text pass: engines own normalization (`docs/TTS_ENGINES.md` → "Text prep for speech").
 - **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
   (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again.

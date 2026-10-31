@@ -1,9 +1,10 @@
 import Foundation
 import PhononTTS
 
-/// The Phonon 31m English Core ML bundle ships inside the app (`PhononBundle`, the ptts v0.4.0
-/// release, put in place at build time by `tools/fetch-phonon-bundle.sh`): every voice, nothing
-/// to download. Core ML compiles a model beside its package, so Phonon can't load from the
+/// The Phonon 31m English Core ML bundle ships inside the app (`PhononBundle`, put in place at
+/// build time by `tools/fetch-phonon-bundle.sh`): every voice, nothing to download. It is exported
+/// with a 200-token prefill (`docs/TTS_ENGINES.md` → "Phonon"), so ptts never cuts a sentence of up
+/// to 200 tokens into pieces it speaks as separate sentences. Core ML compiles a model beside its package, so Phonon can't load from the
 /// read-only app bundle: the first load of a process copies it into Application Support, and the
 /// compiled models stay beside the copy.
 ///
@@ -17,7 +18,7 @@ enum PhononModelStore {
     /// cache revision (`PhononProvider.descriptor`), so a different bundle files its audio under
     /// new cache voice keys and audio of this one stops counting as prepared. Change it with the
     /// bundle (`tools/fetch-phonon-bundle.sh`).
-    nonisolated static let bundleBuilt = 1_792_483_937
+    nonisolated static let bundleBuilt = 1_793_455_047
 
     nonisolated static var rootDirectory: URL {
         AppDirectories.applicationSupport.appendingPathComponent("PhononTTS", isDirectory: true)

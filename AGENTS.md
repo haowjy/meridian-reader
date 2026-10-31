@@ -87,7 +87,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 | `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock, the compact chrome host), `Library` (the Library's screens, rows, the Move tree), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
-| `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); its model bundle ships in the app (`Resources/PhononBundle/`, fetched by `tools/fetch-phonon-bundle.sh`) |
+| `ptts` (SPM 0.6.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); its model bundle ships in the app (`Resources/PhononBundle/`, fetched by `tools/fetch-phonon-bundle.sh`): our own export at a 200-token prefill, released on haowjy/xn-ptts, not upstream's 48-token one (`docs/TTS_ENGINES.md`, "Phonon") |
 | `Resources/` | Readability scripts, voice previews, assets |
 | `docs/` | How the app behaves and why (below) |
 
