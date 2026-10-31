@@ -11,8 +11,10 @@ import SwiftUI
 /// Apple Music's player: the screen behind shows dimmed above it, and with `largePullTargets` its
 /// top is a handle (`Control.bar` tall, full width, opaque in the page's colour, the grabber centred,
 /// the text starting below it) and its band (the player card) pulls it too, whatever the text's scroll
-/// position. The dimmed gap above it can't: a drag that starts within about 78 pt of the screen's top is
-/// the system's (Notification Center) and never reaches the app.
+/// position. The handle takes hold further down than it is drawn: a drag down that starts up to
+/// `grabReach` below it, over the top of the text, pulls too, unseen (a tap or a drag up there is
+/// the text's). A drag down from the dimmed strip just above the sheet pulls as well; one that
+/// starts higher, in the status bar, is the system's (Notification Center) and never reaches the app.
 ///
 /// It is drawn in `palette` (the reading theme's colours for the Reader and Now Playing, the same
 /// for both), which it sets on what it holds (`readingSurface`). A dark theme over a light app
@@ -34,7 +36,8 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     let palette: ReadingPalette
     /// The reading sheets' bars and full screen; nil: the header above the content, no band.
     private let chrome: ReadingChrome?
-    /// Compact Listen: the top band is a `Control.bar` handle, and the band pulls it too.
+    /// Compact Listen: the top band is a `Control.bar` handle that takes hold `grabReach` lower, and
+    /// the band pulls it too.
     private let largePullTargets: Bool
     private let header: Header
     private let content: Content
@@ -63,6 +66,8 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     /// A pull on the header or the band is under way (the body's handoff then stays out).
     @State private var panning = false
     @State private var height: CGFloat = 0
+    /// The header's foot in the window: a pull from the top starts above it (and `grabReach`).
+    @State private var headerBottom: CGFloat = 0
     /// The status bar's height (the top safe area), for the player's status bar scrim.
     @State private var statusBarHeight: CGFloat = 0
     /// `onDismiss` has run (it runs once, whichever of the completion and its fallback is first).
@@ -100,6 +105,8 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                         }
                     }
                 }
+                // On the whole sheet, so it hears a touch that lands on the text too (`grabReach`).
+                .gesture(pullDown(startsAbove: fullScreen ? -.infinity : headerBottom + grabReach))
                 .background { outline(fullScreen: fullScreen) }
                 // The web view is a square, opaque layer: without the clip it hides the rounded top
                 // and runs up into the gap.
@@ -138,9 +145,10 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
             .animation(Motion.standard, value: fullScreen)
     }
 
-    /// The grabber and the header: pulled down, they pull the sheet. With `largePullTargets` the
-    /// grabber is centred in a band `Control.bar` tall, so there is something to take hold of. A
-    /// reading sheet's header starts `gap` lower than its text (the text runs up under the gap, out of
+    /// The grabber and the header: pulled down, they pull the sheet (the pan is the whole sheet's,
+    /// limited to touches that start above the header's foot). With `largePullTargets` the grabber
+    /// is centred in a band `Control.bar` tall, so there is something to take hold of. A reading
+    /// sheet's header starts `gap` lower than its text (the text runs up under the gap, out of
     /// sight until full screen) and is opaque (`ReadingBars`): the text scrolls out of sight under it.
     private var headerBlock: some View {
         VStack(spacing: 0) {
@@ -156,8 +164,8 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
             header
         }
         .contentShape(Rectangle())
-        .gesture(pullDown)
         .padding(.top, chrome == nil ? 0 : gap)
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { headerBottom = $0 }
     }
 
     /// The reading sheet's layout: the text to the screen's foot, the header and the band over it.
@@ -165,15 +173,16 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         ReadingBars(chrome: chrome, headerBackground: palette.background,
                     headerSlide: statusBarHeight, header: headerBlock, content: content,
                     // Listen's card is its handle too: the grabber alone is too small to find.
-                    band: band.pullHandle(largePullTargets ? pullDown : nil),
+                    band: band.pullHandle(largePullTargets ? pullDown() : nil),
                     overText: overText)
             .environment(\.sheetPullHandoff, pullHandoff)
     }
 
-    /// Follows a pull down (`SheetPullPan`, which starts only on a downward drag, on controls too);
-    /// released far enough or flung, it carries on off the screen at the finger's speed, then closes.
-    private var pullDown: SheetPullPan {
-        SheetPullPan { translation in
+    /// Follows a pull down (`SheetPullPan`, which starts only on a downward drag, on controls too)
+    /// that starts above `startsAbove` in the window; released far enough or flung, it carries on off
+    /// the screen at the finger's speed, then closes.
+    private func pullDown(startsAbove: CGFloat = .infinity) -> SheetPullPan {
+        SheetPullPan(startsAbove: startsAbove) { translation in
             panning = true
             pull = SwipeGesturePolicy.dismissOffset(forVerticalTranslation: translation)
         } ended: { translation, velocity in
@@ -277,6 +286,9 @@ extension Sheet {
 
     /// Between the status bar and the top edge.
     private var gap: CGFloat { Self.topGap }
+    /// How far below the header a pull from the top still takes hold (`largePullTargets`), unseen
+    /// and over the top of the text: a thumb aimed at the grabber needs more than the drawn band.
+    private var grabReach: CGFloat { largePullTargets ? Control.bar : 0 }
     /// The top corners' radius.
     private var corner: CGFloat { Radius.card }
 }

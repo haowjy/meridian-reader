@@ -20,7 +20,8 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   in `BrowseStartView.layers`, as a `Sheet` that covers the screen (`ReadingShowing.cover`), below the ⋯
   menu overlay and the sheet presenters so Voice, Save to Folder, ⋯ and the debug panel open over it.
   Its full screen is its own `ReadingChrome`; never wire it to `chromeScroll`. It has no close button:
-  a pull down (grabber, card, or the text at its top) closes it (VoiceOver: escape). Closing it must leave whatever was under it (surface,
+  a pull down (grabber, card, or the text at its top) closes it (VoiceOver: escape). The grabber's band takes
+  hold a further `Control.bar` down, unseen, over the top of the text (`Sheet`'s `grabReach`); a tap there is still the text's. Closing it must leave whatever was under it (surface,
   reader, search, fold) untouched: that is the only "back".
   Idle Listen binds the page played last paused (`SpeechController.prepare`), never a second "current
   article"; with nothing to bind it opens on *Nothing Playing* (`NowPlayingScreen`), and a showing that

@@ -205,8 +205,9 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   from the bottom, over the chrome, to just under the status bar, the screen behind dimmed above its rounded top, as Apple Music's player. At its
   top a handle: a band 48 pt tall across the sheet in the page's colour, the grabber centred in it, the text starting
   below it and scrolling out of sight under it; there is no close button. The article's title is the first thing in its
-  text. A pull down anywhere on that band or on the player card, whatever the text's scroll position (the dimmed gap
-  above the sheet is out of reach: a drag that starts within about 78 pt of the screen's top is the system's) (a UIKit pan, `SheetPullPan`, so a drag that starts on a control pulls too; the scrubber keeps its drag), or on the text when it is at its top, follows the finger and closes it when let go far enough or
+  text. A pull down anywhere on that band, on the dimmed strip just above it, on the top 48 pt of the text below it
+  (unseen: a tap or a drag up there is still the text's), or on the player card, whatever the text's scroll position (a
+  drag that starts higher, in the status bar, is the system's) (a UIKit pan, `SheetPullPan`, so a drag that starts on a control pulls too; the scrubber keeps its drag), or on the text when it is at its top, follows the finger and closes it when let go far enough or
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
   its scroll, a reader in place and its fold or full screen, a search (its keyboard lowered when Listen
   opened). Audio keeps playing. At the foot a glass player card at the chrome's margins (`Radius.surface` 24),

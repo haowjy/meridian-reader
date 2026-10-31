@@ -3,11 +3,17 @@ import UIKit
 
 /// A sheet's pull down, as a UIKit pan: a SwiftUI `DragGesture` on a parent never sees a drag that
 /// starts on a child `Button`, `Menu` or tap area, so a header or card full of controls could not be
-/// pulled. This pan begins only on a drag that starts downward and mostly vertical; once it does,
-/// UIKit makes the controls under the finger fail (no tap on release). A control that has already
-/// recognized (the scrubber's drag, from touch down) keeps the touch, so scrubbing never pulls.
-/// Translations are read in the window, which stays still while the sheet follows the finger.
+/// pulled. This pan begins only on a drag that has moved downward and mostly vertically from where
+/// the finger came down; once it does, UIKit makes the controls under the finger fail (no tap on
+/// release). A control that has already recognized (the scrubber's drag, from touch down) keeps the
+/// touch, so scrubbing never pulls. A scroll view under the finger (the text) waits for it: a drag
+/// down that may pull never scrolls first, and one that goes another way scrolls as usual. A tap
+/// never moves, so it always reaches what is under it.
+/// Positions are read in the window, which stays still while the sheet follows the finger.
 struct SheetPullPan: UIGestureRecognizerRepresentable {
+    /// Only a touch that comes down above this line (points from the window's top) can pull; one
+    /// that comes down lower is left to the views under it. Infinity: anywhere on the view.
+    var startsAbove: CGFloat = .infinity
     /// The vertical translation so far (down positive).
     let changed: (CGFloat) -> Void
     /// Let go: the translation and the vertical velocity (points per second).
@@ -22,6 +28,10 @@ struct SheetPullPan: UIGestureRecognizerRepresentable {
         return pan
     }
 
+    func updateUIGestureRecognizer(_ pan: UIPanGestureRecognizer, context: Context) {
+        context.coordinator.startsAbove = startsAbove
+    }
+
     func handleUIGestureRecognizerAction(_ pan: UIPanGestureRecognizer, context: Context) {
         let window = pan.view?.window
         let translation = pan.translation(in: window).y
@@ -34,10 +44,29 @@ struct SheetPullPan: UIGestureRecognizerRepresentable {
     }
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var startsAbove: CGFloat = .infinity
+        /// Where the finger came down, in the window.
+        private var touchDown: CGPoint?
+
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            let point = touch.location(in: nil)
+            guard point.y < startsAbove else { return false }
+            touchDown = point
+            return true
+        }
+
+        /// The direction from the touch down, not the pan's velocity at this instant, which a finger's
+        /// last sample or two can turn sideways on a pull that went down.
         func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
-            guard let pan = recognizer as? UIPanGestureRecognizer else { return false }
-            let v = pan.velocity(in: pan.view?.window)
-            return v.y > 0 && SwipeGesturePolicy.axis(ofFirstMovement: CGSize(width: v.x, height: v.y)) == .vertical
+            guard let touchDown else { return false }
+            let point = recognizer.location(in: nil)
+            let moved = CGSize(width: point.x - touchDown.x, height: point.y - touchDown.y)
+            return moved.height > 0 && SwipeGesturePolicy.axis(ofFirstMovement: moved) == .vertical
+        }
+
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer,
+                               shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
+            other is UIPanGestureRecognizer && other.view is UIScrollView
         }
     }
 }
