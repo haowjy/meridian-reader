@@ -7,9 +7,8 @@ import SwiftUI
 /// the status alone ("5 min", "Skipped", "Playing"): its header already names the author or site,
 /// so rows don't repeat it. Front matter is dimmed and "Skipped" (any page skipped in playback is).
 ///
-/// Tapping the row plays it (`LibraryActions.play`; a waiting chapter is fetched first), except
-/// the page you hear, which opens Now Playing, so a stray tap never pauses it, and a link that
-/// can't play, which opens in the browser. Its only control is ⋯ (`ArticleMenu`), the same menu as
+/// Tapping the row plays it (`LibraryActions.play`; a link is fetched first), except the page you
+/// hear, which opens Now Playing, so a stray tap never pauses it. Its only control is ⋯ (`ArticleMenu`), the same menu as
 /// its long press (decision D11), whose first row, *Read*, opens it. Its prepare shows on the
 /// row (`PrepareCenter.state(of:)`): dimmed under a jade ↓ while preparing, a accent filled ↓ once
 /// prepared. Swipe left removes it from the Library, and from every list it shows in
@@ -69,15 +68,10 @@ struct LibraryArticleRow: View {
         ArticleActions(article: article, library: library, shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }
 
-    private var playState: PlayState {
-        guard article.isLink else { return actions.playState(of: article) }
-        return follow.playWhenFetched == article.listenKey ? .preparing : .idle
-    }
-
     private func liveBody(now: Date) -> some View {
         ListRow(kind: kind, title: article.lineOne, subtitle: subtitle, note: note(now: now),
                 progress: article.isLink ? .unplayed(minutes: nil) : actions.progress(of: article),
-                playState: playState,
+                playState: actions.playState(of: article),
                 insertionEdge: screen.insertion?.id == .article(article.listenKey) ? screen.insertion?.edge : nil,
                 prepare: preparedAudio.state(of: article),
                 menu: isEditing ? nil : AnyView(menu),

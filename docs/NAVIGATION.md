@@ -761,7 +761,7 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 | Folder, book or series | opens it (push) | *Delete Folder…* / *Delete Folder…* |
 | Saved article (including a chapter) | plays it (Now Playing if it's what you hear) | *Remove from Library* |
 | History article (played without saving) | plays it (Now Playing if it's what you hear) | *Remove from History* |
-| Link page | opens it in the browser (a followed story's chapter: fetches it, then plays it) | *Remove from Library* |
+| Link page | fetches its text, then plays it (Now Playing if it's what you hear; ⋯ *Read* opens it in the browser) | *Remove from Library* |
 
 ### Menus
 

@@ -16,10 +16,10 @@ struct LibraryActions {
 
     // MARK: - Pages
 
-    /// A saved page in the Reader sheet (Now Playing if it is what you hear); a link in
-    /// the browser.
+    /// A saved page in the Reader sheet; Now Playing if it is what you hear, a link included; any
+    /// other link in the browser.
     func open(_ article: Article) {
-        if article.isLink {
+        if article.isLink, !playState(of: article).isCurrent {
             if let url = article.url { shell.navigate(to: url) }
             return
         }
@@ -58,8 +58,12 @@ struct LibraryActions {
         read(article)
     }
 
+    /// What its ▶ shows: the session's state when it is what you hear; otherwise a link waiting
+    /// for its text to play shows preparing.
     func playState(of article: Article) -> PlayState {
-        speech.playState(of: .article(article.listenKey))
+        let state = speech.playState(of: .article(article.listenKey))
+        guard article.isLink, !state.isCurrent else { return state }
+        return follow.playWhenFetched == article.listenKey ? .preparing : .idle
     }
 
     /// What `article`'s row shows: its length or time left at the current speed, finished, skipped.
