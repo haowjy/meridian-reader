@@ -69,9 +69,13 @@ struct LaunchOptions: Equatable {
     /// `-chromeFold P`: hold the compact chrome's fold at P (0.5 one row, 1 the bubble) wherever it may fold,
     /// to look at a folded form without a finger on the screen.
     var chromeFold: CGFloat?
-    /// `-readerFullScreen`: the first page read in place (`-openDemoInBrowseReader`, `-readDemoInLibrary`) goes
-    /// full screen once it is up (`ReadingChrome.opensInFullScreen`).
+    /// `-readerFullScreen`: the first reading page shown (in place: `-openDemoInBrowseReader`,
+    /// `-readDemoInLibrary`; or Listen: `-listenDemo`) goes full screen once it is up
+    /// (`ReadingChrome.opensInFullScreen`).
     var readerFullScreen = false
+    /// `-readerScrollToEnd`: the first reading page shown goes to the end of its text, as a finger would
+    /// (`HTMLReadingWebView.Coordinator.scrollsToEndOnOpen`).
+    var readerScrollsToEnd = false
     /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
     /// saved articles and bookmarks again.
     var rerunsLibraryMigration = false
@@ -169,6 +173,7 @@ struct LaunchOptions: Equatable {
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
         forcesChromeFallback = flags.contains("-chromeFallback")
         readerFullScreen = flags.contains("-readerFullScreen")
+        readerScrollsToEnd = flags.contains("-readerScrollToEnd")
         chromeFold = value(after: "-chromeFold").flatMap(Double.init).map { CGFloat($0) }
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
         seedsDemoBook = flags.contains("-seedDemoBook")

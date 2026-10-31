@@ -3,16 +3,15 @@ import SwiftUI
 /// Now Playing, Listen: what you hear, opened up (`NowPlayingSheet`). The Reader's page in the
 /// same reading theme and type: the spoken paragraph highlighted in full ink like the rest, on the
 /// highlight. Presented over everything by the shell: on compact width a cover that slides up over
-/// the chrome too, with the player card at its foot (`ReaderPlayerCard`: Jump to Audio, Save, speed, Aa, Voice, ⋯); on
+/// the chrome too, with the player card at its foot (`ReaderPlayerCard`: Save, speed, Aa, Voice, ⋯); on
 /// regular width a sheet. It holds no article of its own: it shows `speech.nowPlaying` and the
 /// playing page's content, looked up in the library by its key.
 ///
 /// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
 ///   there (each new paragraph, a long paragraph's sentence leaving the screen); the spoken
 ///   paragraph is highlighted (every paragraph in full ink), its sentence underlined. A drag stops
-///   following; Jump to Audio resumes it, back to the sentence (on compact width the card's Jump, an
-///   arrow then; on regular width the floating button). Scrubbing scrolls to the
-///   paragraph under the thumb.
+///   following; Jump to Audio, floating in the middle above the card while the text is away,
+///   resumes it, back to the sentence. Scrubbing scrolls to the paragraph under the thumb.
 /// - On regular width the close pill names where the page plays from: a page in a folder plays from that folder (a
 ///   book, a series, a folder you made), a saved page in no folder from the Library,
 ///   a page you haven't saved from its site. ⋯ → *Go to <name>* opens the Library at the folder
@@ -116,8 +115,7 @@ struct NowPlayingScreen: View {
             showing: regular ? .sheet(close: .collapse(playingFromName(now, saved: actions.isSaved)), onClose: onClose)
                 : .cover(onClose: onClose),
             playState: speech.playState(of: .article(now.articleKey)),
-            // Compact width's Jump is in the card.
-            showsJumpToAudio: regular && !following && !now.isFinished,
+            showsJumpToAudio: !following && !now.isFinished,
             jumpDirection: spotSide,
             onPlayPause: speech.pressNowPlaying,
             onJumpToAudio: { following = true },
@@ -163,9 +161,7 @@ struct NowPlayingScreen: View {
                 title: now.lineOne,
                 detail: note.map { [$0] } ?? (now.isFinished ? [String(localized: "Finished")]
                     : [source, left > 0 ? ListeningTime.leftLabel(minutes: left) : nil].compactMap { $0 }),
-                origin: actions.cardOrigin(title: now.lineOne),
-                jump: now.isFinished ? .finished : following ? .following : .away(spotSide),
-                onJump: { following = true }
+                origin: actions.cardOrigin(title: now.lineOne)
             ) {
                 SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                  onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder, round: true)

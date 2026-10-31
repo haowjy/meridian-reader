@@ -2,16 +2,19 @@ import SwiftUI
 
 /// The layout of a reading page (the Reader, Now Playing): the text fills the screen down to its
 /// foot, and the header (top bar, the ☝︎ hint) and the bottom band are drawn over it. The text's
-/// scroll view insets its content by their measured heights (`ReadingChrome.insets`), so the first
-/// line starts below the header and the last scrolls clear of the band. Full screen
-/// (`ReadingChrome.hidden`) slides the bars off their edges (fades them under Reduce Motion); the
-/// insets stay as they are, so the text never moves when the bars go or come back.
+/// scroll view insets its content by what floats over it (`ReadingChrome.insets`): the header's
+/// height at the top, at the foot the band and `bottomClearance` above the home indicator's strip,
+/// so the first line starts below the header and the last scrolls just clear of what floats. Full
+/// screen (`ReadingChrome.hidden`) slides the bars off their edges (fades them under Reduce Motion)
+/// and, in Scroll mode, the bottom inset drops to the strip alone: the end of the text scrolls down
+/// to the screen's lip. The text on screen doesn't move as the bars go or come back. Pages mode
+/// keeps its insets (its pages are cut to them; a change would cut them again).
 ///
-/// `Sheet` (regular width) and `ReadingInPlace` (compact width) both draw this; they differ in what
+/// `Sheet` and `ReadingInPlace` (compact width's readers) both draw this; they differ in what
 /// surrounds it. `bottomClearance` is the room under the band that something else occupies (the
-/// compact chrome, whose card is the band there): the text keeps clear of it, folded or not.
-/// What floats over the text (Jump to Audio with the bars up, the play button in full screen) sits
-/// above the band and that room while the bars show.
+/// compact chrome at its current fold step, whose card is the band there).
+/// What floats over the text (Jump to Audio, the play button in full screen) sits above the band
+/// and that room while the bars show, above the strip in full screen.
 struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: View, OverText: View>: View {
     let chrome: ReadingChrome
     /// The header's shape and colour (a sheet's rounded top, or a plain rectangle).
@@ -47,7 +50,6 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
                 .ignoresSafeArea(.container, edges: .bottom)
             // Pages mode is for reading: nothing floats over its text while the bars are hidden
             // (C108); with them shown, Jump to Audio sits above the band, as in Scroll.
-            // Jump's own rule is `ReadingChrome.showsJumpToAudio` (C128): bars up only, both modes.
             if appearance.layout != .pages || !hidden {
                 overText
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -78,13 +80,22 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
         }
         .animation(reduceMotion ? (hidden ? Motion.fadeOut : Motion.fadeIn) : Motion.standard, value: hidden)
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { measuredInset = $0 }
-        .onChange(of: bandHeight + bottomInset + bottomClearance, initial: true) { _, bottom in chrome.insets.bottom = bottom }
+        .onChange(of: floatingBottom(hidden: hidden), initial: true) { _, bottom in chrome.insets.bottom = bottom }
         .onChange(of: bottomInset, initial: true) { _, inset in chrome.homeIndicator = inset }
         // The bars stay while VoiceOver runs.
         .onChange(of: voiceOver) { _, on in if on { chrome.show() } }
         .environment(\.readingChrome, chrome)
+        #if DEBUG
+        .task { await chrome.opensInFullScreenIfAsked() }
+        #endif
         // Nothing on a reading page takes text, so the page never avoids the keyboard; this also
         // keeps the measured bottom inset (chrome.homeIndicator) the home indicator alone.
         .ignoresSafeArea(.keyboard)
+    }
+
+    /// What floats over the foot of the text: the band and the room under it, above the home
+    /// indicator's strip; in Scroll mode's full screen the strip alone.
+    private func floatingBottom(hidden: Bool) -> CGFloat {
+        hidden && appearance.layout != .pages ? bottomInset : bandHeight + bottomInset + bottomClearance
     }
 }

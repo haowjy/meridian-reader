@@ -11,8 +11,8 @@ import SwiftUI
 /// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- the top bar, as in the Reader: the pill (the sheet's)
 /// │ `banner` (the ^ hint, while on)      │   names where it plays from and shrinks it; Aa, `accessory`
 /// │ `text`: dimmed, SPOKEN in full ink   │   The text fills the page, under the header and the
-/// │         dimmed                  (↑)  │   band; it follows the audio. (↑) is Jump to Audio, right
-/// │                                      │   edge, 12 pt above the card; after you scroll away, bars up only (C128)
+/// │         dimmed                       │   band; it follows the audio. (↑) is Jump to Audio,
+/// │                 (↑)                  │   centred, 12 pt above the card, once you scroll away
 /// │ ─────────────────────────────────────│ <- hairline divider
 /// │ [art] Title          time left (Voice)│ <- title; Voice trailing (aligned right)
 /// │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ <- scrub row
@@ -21,10 +21,10 @@ import SwiftUI
 /// ```
 ///
 /// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
-/// `playState` / `onPlayPause`, the only control over the text then; Jump to Audio shows only with
-/// the bars up (C128), a round 44 pt glass button at the right edge, 12 pt above the card (the folded row, once
-/// the chrome folds), in the thumb's reach and off the middle of the screen; its arrow points to the sentence
-/// (`direction`). On regular width the pill, the grabber and a pull down shrink it
+/// `playState` / `onPlayPause`, at the bottom right. Jump to Audio (`JumpToAudioButton`) floats
+/// centred over the text while it is away from the audio, 12 pt above the card, or above the home
+/// indicator's strip in full screen; its arrow points to the sentence (`direction`). On regular
+/// width the pill, the grabber and a pull down shrink it
 /// (the showing's `onClose`, after it has gone). `floating` floats just above the bottom band's hairline (a
 /// toast), as in the Reader.
 struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
@@ -67,38 +67,24 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
         } floating: {
             floating
         } overText: {
+            // Both sit on the same line above the card (above the strip in full screen): Jump to
+            // Audio in the middle, the floating play / pause at the right edge.
             ZStack {
-                // Both sit above the card, at the right edge, and never show together: Jump to Audio
-                // with the bars up, the floating play / pause in full screen.
-                // The clearance is measured from the top of the chrome's box; the card starts
-                // `topPadding` below it, so the button comes down that much to sit 12 above the card.
-                jumpToAudio
-                    .offset(y: Spacing.xxs)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
+                JumpToAudioButton(shows: showsJumpToAudio, direction: jumpDirection, action: onJumpToAudio)
                 FloatingPlayButton(state: playState, action: onPlayPause)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
             }
+            .frame(maxHeight: .infinity, alignment: .bottom)
         }
-    }
-
-    /// Floats over the text at its right edge, just above the card, so the text keeps running under it.
-    private var jumpToAudio: some View {
-        JumpToAudioButton(chrome: chrome, awayFromAudio: showsJumpToAudio, direction: jumpDirection,
-                          action: onJumpToAudio)
     }
 }
 
-/// Jump to Audio: a round glass button a bar high, on the chrome's shared circle face (`ChromeCircleFace`), an arrow that points to the spoken sentence. Its own view so
-/// it reads `chrome.hidden` in its own body: this page builds its overText before the compact chrome
-/// attaches (`ReadingChrome.attach`), so a read made by the page's body would only watch the
-/// sheet's own copy of full screen and miss the compact chrome's. It leaves with a fast fade the
-/// moment full screen begins and returns only on exit (C128). It sits at the right edge, level with
-/// the card's edge (`Spacing.s`); how far above the card is `ReadingBars`'s over-text clearance (the
-/// same as the floating play / pause's, which never shows at the same time), so it keeps its 12 pt
-/// from the card, or the folded row, as the chrome folds.
+/// Jump to Audio: a round glass button a bar high, on the chrome's shared circle face
+/// (`ChromeCircleFace`), floating in the middle of the line above what floats at the foot (the
+/// card, or the strip in full screen: `ReadingBars`'s over-text clearance), with an arrow that
+/// points to the spoken sentence. It shows only while the text is away from the audio (`shows`),
+/// and fades in and out.
 struct JumpToAudioButton: View {
-    let chrome: ReadingChrome
-    let awayFromAudio: Bool
+    let shows: Bool
     let direction: JumpDirection
     let action: () -> Void
 
@@ -108,7 +94,6 @@ struct JumpToAudioButton: View {
     static let size = Control.bar
 
     var body: some View {
-        let shows = chrome.showsJumpToAudio(awayFromAudio: awayFromAudio)
         ZStack {
             if shows {
                 Button(action: action) {
@@ -126,8 +111,7 @@ struct JumpToAudioButton: View {
                 .transition(.opacity)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.trailing, Spacing.s)
+        .frame(maxWidth: .infinity)
         // Reduce Motion: a cross-fade, no spring.
         .animation(shows ? (reduceMotion ? Motion.fadeIn : Motion.snappy) : Motion.fadeOut, value: shows)
     }

@@ -18,6 +18,7 @@ enum AppMain {
         ChromeSkin.forcesMaterial = LaunchOptions.current.forcesChromeFallback
         ChromeScroll.forcedFold = LaunchOptions.current.chromeFold
         ReadingChrome.opensInFullScreen = LaunchOptions.current.readerFullScreen
+        HTMLReadingWebView.Coordinator.scrollsToEndOnOpen = LaunchOptions.current.readerScrollsToEnd
         #endif
         ReaderApp.main()
     }

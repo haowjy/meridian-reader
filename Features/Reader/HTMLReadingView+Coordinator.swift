@@ -554,6 +554,9 @@ extension HTMLReadingWebView {
             lastSentJumpMode = nil
             setJumpMode(jumpMode)
             layout.opened()
+            #if DEBUG
+            scrollToEndIfAsked()
+            #endif
             guard case .handOver(let handOver) = hold else {
                 measureTextTop()
                 return placeHold()
@@ -565,5 +568,24 @@ extension HTMLReadingWebView {
                 layout.open(handOver: handOver)
             }
         }
+
+        #if DEBUG
+        /// `-readerScrollToEnd`: the first reading page shown (in place or Listen), in Scroll mode,
+        /// goes to the end of its text 1.5 s after it loads, as a finger would take it there (Listen
+        /// stops following). Set by the launch (`AppMain`).
+        static var scrollsToEndOnOpen = false
+
+        private func scrollToEndIfAsked() {
+            guard Self.scrollsToEndOnOpen, layout is ScrollTextLayout else { return }
+            Self.scrollsToEndOnOpen = false
+            let generation = loadGeneration
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self, generation == loadGeneration, let sv = webView?.scrollView else { return }
+                userTookOver()
+                stopFollowing()
+                sv.contentOffset.y = sv.readingLayout.range.upperBound
+            }
+        }
+        #endif
     }
 }

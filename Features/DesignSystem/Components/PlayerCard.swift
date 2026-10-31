@@ -44,7 +44,7 @@ struct CardOrigin {
 /// divides them but space.
 ///
 /// ```
-/// Notes on Tides, and Why the Moon…  (➤)(🔖)    title (one line); Jump to Audio, Save
+/// Notes on Tides, and Why the Moon Pul…  (🔖)    title (one line); Save
 /// example.org                   6 min left    site leading, time left trailing (or one note)
 /// ━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━   scrubber, no times
 /// 1×                                  Voice   `leading` over each other, `trailing` too, at the
@@ -58,9 +58,6 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
     var detail: [String] = []
     /// The title's tap: nil leaves it inert. It never seeks.
     var origin: CardOrigin?
-    /// Jump to Audio, before Save: where the text is from the spoken sentence.
-    var jump: JumpState = .following
-    var onJump: () -> Void = {}
     /// Save, at the title row's trailing end (`SaveToggleButton`'s round face).
     @ViewBuilder var save: Save
     /// The bare scrubber (`ReaderScrubRow` with `isCapsule: false`).
@@ -101,13 +98,12 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
     private var titleRow: some View {
         HStack(spacing: Spacing.xs) {
             titleText
-            CardJumpButton(state: jump, action: onJump)
             save.fixedSize()
         }
         .frame(minHeight: Control.small)
     }
 
-    /// The title, a Button to its origin when it has one (44 pt to tap, the row's width before Jump).
+    /// The title, a Button to its origin when it has one (44 pt to tap, the row's width before Save).
     @ViewBuilder
     private var titleText: some View {
         let text = Text(title)
@@ -170,50 +166,25 @@ extension View {
     }
 }
 
-/// The card's Jump to Audio, a round icon control before Save that never moves: following the
-/// audio, a quiet filled arrow that does nothing more; scrolled away, an arrow toward the spoken
-/// sentence, lit, that brings the text back to it; once the page has finished, its place left empty.
-private struct CardJumpButton: View {
-    let state: JumpState
-    let action: () -> Void
-
-    var body: some View {
-        switch state {
-        case .following:
-            IconButton(symbol: Icons.followingAudio, label: String(localized: "Following the audio"),
-                       identifier: "nowPlayingJumpToAudio", isQuiet: true, action: action)
-        case .away(let direction):
-            IconButton(symbol: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown,
-                       label: Verbs.jumpToAudio, identifier: "nowPlayingJumpToAudio", isOn: true, action: action)
-                .accessibilityHint(direction == .up
-                    ? String(localized: "Scrolls up to the sentence being read.")
-                    : String(localized: "Scrolls down to the sentence being read."))
-        case .finished:
-            Color.clear.frame(width: Control.small, height: Control.small)
-        }
-    }
-}
-
 #if DEBUG
 struct ReaderPlayerCardGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("Not started, following") { card(state: .idle, detail: ["example.org", "9 min"]) }
-            PreviewState("Now Playing, saved, scrolled away") {
-                card(state: .playing, detail: ["example.org", "6 min left"], saved: true, jump: .away(.down))
+            PreviewState("Not started") { card(state: .idle, detail: ["example.org", "9 min"]) }
+            PreviewState("Now Playing, saved") {
+                card(state: .playing, detail: ["example.org", "6 min left"], saved: true)
                     .onReadingPreview(.sepia)
             }
             PreviewState("Paused, a status note") {
-                card(state: .paused, detail: ["Preparing next…"], jump: .away(.up)).onReadingPreview(.dark)
+                card(state: .paused, detail: ["Preparing next…"]).onReadingPreview(.dark)
             }
-            PreviewState("Finished") { card(state: .idle, detail: ["Finished"], jump: .finished) }
+            PreviewState("Finished") { card(state: .idle, detail: ["Finished"]) }
         }
     }
 
-    private func card(state: PlayState, detail: [String], saved: Bool = false, jump: JumpState = .following) -> some View {
+    private func card(state: PlayState, detail: [String], saved: Bool = false) -> some View {
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
-        return ReaderPlayerCard(title: "Notes on Tides, and Why the Moon Pulls Twice a Day", detail: detail,
-                                jump: jump) {
+        return ReaderPlayerCard(title: "Notes on Tides, and Why the Moon Pulls Twice a Day", detail: detail) {
             SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {}, round: true)
         } scrub: {
             ReaderScrubRow(map: map, position: 0.3, onScrubPreview: { _ in }, onScrubCommit: { _ in },

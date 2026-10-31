@@ -15,10 +15,12 @@ import SwiftUI
 /// for both), which it sets on what it holds (`readingSurface`). A dark theme over a light app
 /// gets a heavier dim behind it, so the strip above reads dark, and light status bar content.
 ///
-/// With a `ReadingChrome` (the Reader and Now Playing on regular width) the text fills the sheet
-/// as `ReadingBars` lays it out; full screen also hides the status bar, dims the home indicator
-/// and paints the strip above the sheet in the page's colour. Without one (Follow's preview) the
-/// header sits above the content and nothing hides.
+/// With a `ReadingChrome` (the Reader and Now Playing on regular width, Listen) the text fills the
+/// sheet as `ReadingBars` lays it out, from the status bar's foot (the gap above the header is
+/// the header's, so the text never moves when the sheet's top does). Full screen is not a sheet:
+/// the page covers the screen edge to edge, square-cornered, with nothing dimmed, the status bar
+/// hidden and the home indicator dimmed; leaving it brings the gap and the rounded top back. Without
+/// a chrome (Follow's preview) the header sits above the content and nothing hides.
 ///
 /// Present it by inserting it (`if … { Sheet(…) }`); it animates its own rise and, once closed,
 /// calls `onDismiss` for the owner to remove it. Under Reduce Motion it fades instead of moving.
@@ -82,17 +84,6 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
-            if chrome != nil, isUp {
-                // Full screen: the page runs up to the screen's top edge.
-                palette.background
-                    .frame(height: statusBarHeight + gap)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .ignoresSafeArea()
-                    .opacity(fullScreen ? 1 : 0)
-                    .allowsHitTesting(false)
-                    .animation(Motion.standard, value: fullScreen)
-            }
-
             if isUp {
                 Group {
                     if let chrome {
@@ -106,18 +97,13 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                         }
                     }
                 }
-                .background {
-                    UnevenRoundedRectangle(topLeadingRadius: corner, topTrailingRadius: corner, style: .continuous)
-                        .fill(palette.background)
-                        .ignoresSafeArea(edges: .bottom)
-                }
-                // The web view is a square, opaque layer: without the clip it hides the rounded top.
-                .mask {
-                    UnevenRoundedRectangle(topLeadingRadius: corner, topTrailingRadius: corner, style: .continuous)
-                        .ignoresSafeArea(edges: .bottom)
-                }
+                .background { outline(fullScreen: fullScreen) }
+                // The web view is a square, opaque layer: without the clip it hides the rounded top
+                // and runs up into the gap.
+                .mask { outline(fullScreen: fullScreen) }
                 .readingSurface(palette)
-                .padding(.top, gap)
+                // A reading sheet's text starts at the status bar's foot (its header keeps the gap).
+                .padding(.top, chrome == nil ? gap : 0)
                 .scaleEffect(pullLook.scale, anchor: .top)
                 .offset(y: pull)
                 .transition(.sheet(reduceMotion: reduceMotion))
@@ -133,8 +119,22 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         }
     }
 
+    /// The sheet's page: its rounded top `gap` below the status bar, down to the screen's foot; a
+    /// reading sheet's in full screen the whole screen, square, the change on `Motion.standard`.
+    private func outline(fullScreen: Bool) -> some View {
+        let radius = fullScreen ? 0 : corner
+        // A reading sheet is laid out from the status bar's foot; any other below the gap already.
+        return UnevenRoundedRectangle(topLeadingRadius: radius, topTrailingRadius: radius, style: .continuous)
+            .fill(palette.background)
+            .padding(.top, chrome == nil || fullScreen ? 0 : statusBarHeight + gap)
+            .ignoresSafeArea(edges: chrome == nil ? .bottom : .all)
+            .animation(Motion.standard, value: fullScreen)
+    }
+
     /// The grabber and the header: pulled down, they pull the sheet. With `largePullTargets` the
-    /// grabber strip is a full tap target tall, so there is something to take hold of.
+    /// grabber strip is a full tap target tall, so there is something to take hold of. A reading
+    /// sheet's header starts `gap` lower than its text (the text runs up under the gap, out of
+    /// sight until full screen).
     private var headerBlock: some View {
         VStack(spacing: 0) {
             SheetGrabber()
@@ -143,14 +143,13 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         }
         .contentShape(Rectangle())
         .gesture(pullDown)
+        .padding(.top, chrome == nil ? 0 : gap)
     }
 
     /// The reading sheet's layout: the text to the screen's foot, the header and the band over it.
     private func overlaidBars(_ chrome: ReadingChrome) -> some View {
-        ReadingBars(chrome: chrome,
-                    headerBackground: UnevenRoundedRectangle(topLeadingRadius: corner, topTrailingRadius: corner,
-                                                             style: .continuous).fill(palette.background),
-                    headerSlide: statusBarHeight + gap, header: headerBlock, content: content,
+        ReadingBars(chrome: chrome, headerBackground: palette.background,
+                    headerSlide: statusBarHeight, header: headerBlock, content: content,
                     // Listen's card is its handle too: the grabber alone is too small to find.
                     band: band.pullHandle(largePullTargets ? pullDown : nil),
                     overText: overText)

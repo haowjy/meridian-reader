@@ -83,13 +83,23 @@ final class ScrollTextLayout: ReadingTextLayout {
     }
 
     /// Keeps the first line below the top chrome (a fresh page), or the saved spot in the middle
-    /// of the new visible text; following, the next sentence places the text.
+    /// of the new visible text; following, the next sentence places the text. A change at the foot
+    /// alone is what floats there going or coming (the card, the chrome's fold, full screen): the
+    /// text on screen stays, except that a text at its end stays at its end, gliding with it.
     func setInsets(_ insets: ReaderTextInsets) {
         guard let sv = scrollView else { return }
         let wasAtTop = host.hold == .top || sv.contentOffset.y <= -sv.contentInset.top + 2
+        let footOnly = insets.top == sv.contentInset.top && host.loaded && settling == nil
+        let wasAtEnd = sv.readingLayout.isLaidOut && sv.contentOffset.y >= sv.readingLayout.range.upperBound - 1
         let inset = UIEdgeInsets(top: insets.top, left: 0, bottom: insets.bottom, right: 0)
         sv.contentInset = inset
         sv.verticalScrollIndicatorInsets = inset
+        if footOnly {
+            // A finger on the text, or its glide, settles the end itself.
+            guard !sv.isDragging, !sv.isDecelerating, wasAtEnd || sv.contentOffset.y > sv.readingLayout.range.upperBound
+            else { return }
+            return scroll(to: sv.readingLayout.range.upperBound)
+        }
         guard !sv.isTracking, !host.follows else { return }
         switch host.hold {
         case .handOver?:

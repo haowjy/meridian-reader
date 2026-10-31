@@ -26,7 +26,8 @@ enum ReadingShowing {
 /// What a reading page shown in place needs from the compact chrome, as plain values and closures
 /// (the shell supplies them; the design system never names it).
 struct ReadingInPlace {
-    /// The room the chrome keeps at the bottom, folded or not: the text keeps clear of it.
+    /// The room the chrome takes at the bottom at its current fold step (above the home indicator's
+    /// strip): the end of the text scrolls to just above it.
     var bottomClearance: CGFloat
     /// The home indicator's strip (the window's bottom safe area). The page in place is laid out
     /// through the bottom safe area, under the chrome, so it can't measure the strip itself.

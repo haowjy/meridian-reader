@@ -4,11 +4,12 @@ import UIKit
 /// The bars of a reading page (the Reader and Now Playing) and full screen.
 ///
 /// The text fills the screen; the header (top bar, the ☝︎ hint) and the bottom band are drawn over
-/// it (`ReadingBars`), and the text's scroll view insets its content by their measured heights
+/// it (`ReadingBars`), and the text's scroll view insets its content by what floats over it
 /// (`insets`), so the first line starts below the header and the last scrolls clear of the band.
-/// Full screen (`hidden`) slides the bars off their edges and hides the status bar; the insets
-/// stay as they are, so the text never moves when the bars go or come back. On compact width the
-/// whole bottom chrome goes with them (`ReadingInPlace`).
+/// Full screen (`hidden`) slides the bars off their edges and hides the status bar; the bottom
+/// inset drops to the home indicator's strip, so the end of the text scrolls down to it, and the
+/// text on screen stays where it is (`ScrollTextLayout.setInsets`). On compact width the whole
+/// bottom chrome goes with them (`ReadingInPlace`).
 ///
 /// - **Full screen is a tap in the middle of the text, in and out, and nothing else**
 ///   (`tappedCentre`). Scrolling never enters or leaves it; a tap at either edge turns a screen
@@ -32,8 +33,9 @@ final class ReadingChrome {
     var hidden: Bool { fullScreen?.wrappedValue ?? ownHidden }
     private var ownHidden = false
     @ObservationIgnored private var fullScreen: Binding<Bool>?
-    /// The header's and the band's heights (the band's includes the home indicator's inset):
-    /// the room the text leaves for them. Measured by `ReadingBars`; unchanged by `hidden`.
+    /// The header's height and what floats at the foot (the band, the room under it, the home
+    /// indicator's inset; in full screen, Scroll mode, the home indicator's inset alone): the room
+    /// the text leaves. Set by `ReadingBars`; the top is unchanged by `hidden`.
     var insets = ReaderTextInsets()
     /// The home indicator's inset (the bottom safe area), measured by `ReadingBars`: Pages mode's footer
     /// sits on it.
@@ -60,20 +62,20 @@ final class ReadingChrome {
         fullScreen = place.fullScreen
         onUserScroll = place.scrolled
         onScrollAnchor = place.anchored
-        #if DEBUG
-        guard Self.opensInFullScreen else { return }
-        Self.opensInFullScreen = false
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(3))
-            self?.hide()
-        }
-        #endif
     }
 
     #if DEBUG
-    /// `-readerFullScreen`: the first page read in place goes full screen 3 s after it opens, as a
-    /// middle tap does. Set by the launch (`AppMain`).
+    /// `-readerFullScreen`: the first reading page shown (in place or Listen) goes full screen 3 s
+    /// after it opens, as a middle tap does. Set by the launch (`AppMain`).
     static var opensInFullScreen = false
+
+    /// The page is up (`ReadingBars`): full screen in 3 s if the launch asked for it.
+    func opensInFullScreenIfAsked() async {
+        guard Self.opensInFullScreen else { return }
+        Self.opensInFullScreen = false
+        try? await Task.sleep(for: .seconds(3))
+        hide()
+    }
     #endif
 
     private func setHidden(_ value: Bool) {
@@ -113,13 +115,6 @@ final class ReadingChrome {
             guard !Task.isCancelled else { return }
             self?.floatingControl = false
         }
-    }
-
-    /// Jump to Audio's one rule, Scroll and Pages alike (C128): only with the bars up, and only
-    /// while the text is away from the audio (`awayFromAudio`). Never in full screen, where the
-    /// floating play / pause is the only control over the text.
-    func showsJumpToAudio(awayFromAudio: Bool) -> Bool {
-        awayFromAudio && !hidden
     }
 
     /// The bars come back (over the text: nothing moves).
@@ -167,14 +162,6 @@ enum JumpDirection {
     case up
     /// Below it.
     case down
-}
-
-/// Listen's player card Jump: the text following the audio, away from it (the spoken sentence
-/// that way), or the page finished (nothing to follow).
-enum JumpState: Equatable {
-    case following
-    case away(JumpDirection)
-    case finished
 }
 
 /// Room the text leaves for the bars drawn over it (points; the bottom includes the home

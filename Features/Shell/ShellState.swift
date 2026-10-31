@@ -451,12 +451,12 @@ final class ShellState {
         hideNowPlaying()
     }
 
-    /// The Library's Read and the Browser's reader mode in place: the text keeps clear of the chrome's
-    /// two rows (it scrolls under them just the same as they fold), and its scroll and full screen
-    /// are the chrome's.
+    /// The Library's Read and the Browser's reader mode in place: the end of the text scrolls to just
+    /// above the chrome as drawn (two rows, one, the bubble: `ChromeScroll.drawnStep`), and its scroll
+    /// and full screen are the chrome's.
     var pageReadingInPlace: ReadingInPlace {
         ReadingInPlace(
-            bottomClearance: ChromeHome.above(ChromeMetrics.footprint),
+            bottomClearance: ChromeHome.above(ChromeMetrics.footprint(step: chromeScroll.drawnStep)),
             homeIndicator: ChromeHome.inset,
             scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0) },
             anchored: { [chromeScroll] in chromeScroll.anchor(at: $0) },

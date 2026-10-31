@@ -206,11 +206,12 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
   its scroll, a reader in place and its fold or full screen, a search (its keyboard lowered when Listen
   opened). Audio keeps playing. At the foot a glass player card at the chrome's margins (`Radius.surface` 24),
-  as tall as its rows, floating over the text, which runs on under it to the screen's foot (`ReaderPlayerCard`). No artwork and no divider: its
+  as tall as its rows, floating over the text, which runs on under it to the screen's foot (`ReaderPlayerCard`); the
+  end of the text scrolls to just above the card. No artwork and no divider: its
   groups are set apart by space alone.
 
   ```
-  Title of the article, one line…          (➤)(🔖)
+  Title of the article, one line…              (🔖)
   example.com                         6 min left
   ━━━━━━━━━━━━━━━━●──────────────────────────────
   1×                                       Voice
@@ -218,20 +219,25 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   Aa                                         ⋯
   ```
 
-  Row 1: the title on one line (cut with …), then Jump to Audio and Save, round 36 pt buttons. The title
+  Row 1: the title on one line (cut with …), then Save, a round 36 pt button. The title
   opens the article's own place in the Library or its page, and never seeks; only the track does.
   Row 2, one text step smaller: the site at the left (it truncates) and the time left at the right; the
   page's status note (preparing, voice and language notes) or "Finished" alone in its place. Then the
   full-width scrubber, no times. Under it two rows of small glyphs, no labels, at the card's margins:
   the speed (1×) over Aa at the left, Voice (VoiceOver: "Voice", never a voice's name) over ⋯ at the
   right; between them ⏮, a 62 pt ▶ / ⏸ and ⏭ (`NowPlayingTransport`'s `card` size), centred across
-  both rows. Jump never moves: while the text follows the audio it is a quiet filled arrow (VoiceOver:
-  "Following the audio"; a tap changes nothing); scrolled away, a lit ↑ or ↓ toward the spoken sentence
-  that brings it back (VoiceOver: "Jump to Audio"); once the article has finished, its place is empty.
-  Compact Listen has no floating Jump to Audio. ⋯ (`listenMore`) is a system menu, a section per
+  both rows. **Jump to Audio** is not in the card: scrolled away from the audio, a round glass ↑ or ↓
+  (48 pt, `JumpToAudioButton`, the same on regular width) floats in the middle 12 pt above the card (above
+  the home indicator's strip in full screen) and brings the text back to the spoken sentence (VoiceOver:
+  "Jump to Audio"); while the text follows the audio, or once the article has finished, it isn't there.
+  ⋯ (`listenMore`) is a system menu, a section per
   group: *Play from a Paragraph*; *Go to <folder or Library>*, *Save to Folder…*,
-  *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place). There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the top bar and
-  the card slide off and the status bar hides; a ▶ / ⏸ floats for 3 s. It is Listen's own: the chrome
+  *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place). There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the
+  card slides off, the status bar hides and Listen stops being a sheet: the gap at its top, its rounded
+  corners and the dim above it go (`Motion.standard`), and the page covers the screen, its text from the
+  status bar's foot to the screen's, where its end now scrolls; a ▶ / ⏸ floats for 3 s. The text on
+  screen doesn't move in or out. A pull does nothing to the sheet there (the text only rubber-bands);
+  the middle tap leaves it, as in the in-place readers. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
 - **Listen with nothing to play** (nothing bound and nothing played before): the same cover, its grabber and
   pull down, with *Nothing Playing*, "Choose an article or book to listen to." and two tiles, *Open
@@ -259,7 +265,8 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   page from its saved spot and slides Listen up; for the page you hear it only slides Listen up. The
   reader stays a plain reader while its page plays: no spoken paragraph, underlined sentence, following
   or Jump to Audio (the playhead is Listen's), and no saved-spot underline; *Play from Here* moves the
-  playhead and slides Listen up. Full screen is the text alone, down to the screen's foot: no floating
+  playhead and slides Listen up. The end of the text scrolls to just above the chrome as it is drawn
+  (two rows, one, the bubble). Full screen is the text alone, down to the screen's foot, where its end then scrolls: no floating
   ▶ / ⏸ (that is Listen's and the regular-width sheets'). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor. Aa is in the address field beside ↻ (`readerAppearance`), and ⋯ → *Text Appearance* opens the same panel, a popover pointing at Aa either way. The web page
   under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
   what ‹ does (back, which closes the reader).
@@ -1048,8 +1055,9 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
 │ Title                                │ ← the article's title, at the top of its text
 │ … text dimmed; the spoken paragraph  │
 │   highlighted in full ink, the       │
-│   sentence underlined …         (↑)  │ ← Jump to Audio: right edge, 12 pt above the card; after
-│                                      │   you scroll away, bars up only (C128)
+│   sentence underlined …              │
+│                 (↑)                  │ ← Jump to Audio: centred, 12 pt above the band, once you
+│                                      │   scroll away (in full screen too)
 │ ─────────────────────────────────────│ ← hairline divider
 │ [art] Title              9 min left  │ ← artwork, title, time left
 │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━] 1×   │ ← thin scrub + speed
@@ -1171,11 +1179,15 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
 - **Full screen is a tap in the middle of the text, in and out, and nothing else.** In a compact
   in-place reader it removes the whole bottom chrome: its rows (or bubble), the fade and the status bar
   go (fade only under Reduce Motion), the home indicator dims, and the text shows alone, never
-  moving, down to the screen's foot, with nothing floating over it. In compact Listen the top bar and the player card slide off and the status bar hides; the
-  chrome under Listen keeps its state. **Scrolling does nothing to the chrome in full screen, and
+  moving, down to the screen's foot, with nothing floating over it. In compact Listen the player card slides off, the status bar hides
+  and the sheet's top gap, rounded corners and dim go: the page covers the screen; the
+  chrome under Listen keeps its state. In every reader, Scroll mode, the end of the text then scrolls down
+  to the home indicator's strip (with the bars up, to just above what floats: the card, the band, the
+  chrome as drawn); the text on screen stays where it is as they go or come, and a text at its end stays
+  at its end. Pages mode keeps its pages as they are. **Scrolling does nothing to the chrome in full screen, and
   scrolling never enters or leaves it.** Leaving full screen returns to what the chrome was before
   (folded stays folded). On regular width the sheet's grabber, top bar and bottom band hide and show
-  together the same way.
+  together the same way, and the sheet covers the screen as Listen's does.
   The app's own scrolls (following the audio, a scrub, opening at a spot) never change it. The bars
   stay while VoiceOver runs, while ☝︎ is on, and while Aa or ⋯ is open.
 - **Not in full screen**, scrolling down folds the chrome to the capsule (above), in Scroll mode only; the text
@@ -1186,7 +1198,7 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   `Motion.standard` spring, a jump under Reduce Motion, never past either end), the middle enters or
   leaves full screen. The first 48 pt from the left edge do nothing, so an edge swipe never turns a
   page. Edge taps leave the bars as they are. In Now Playing a page turn stops following the audio
-  as a drag does, and *Jump to Audio* appears (on compact Listen, the card's Jump turns into its arrow).
+  as a drag does, and *Jump to Audio* appears.
 - **A small ▶ / ⏸ floats at the bottom right** in full screen, in Listen and on regular width (never in
   a compact in-place reader) (a 44 pt accent disc with the
   shadow, above the home indicator, at the article margin): Now Playing's plays and pauses
@@ -1198,10 +1210,10 @@ The Reader and Now Playing read full screen the same way (`ReadingChrome`); Foll
   back; scrolling never leaves it, and compact full screen is left by the middle tap alone
   (on regular width it never closes the sheet; a pull that begins with the bars showing closes it as
   usual, and while it pulls the sheet it never hides or shows the bars).
-- The floating *Jump to Audio* (regular width's Now Playing) shows only with the bars up, at the right edge just above the card, and only while the
-  text is away from the audio. It never shows in full screen, in Scroll or Pages: there the
-  floating ▶ (unchanged: bottom right, fades after 3 s) is the only control over the text (C128,
-  one rule, `ReadingChrome.showsJumpToAudio`).
+- The floating *Jump to Audio* (Now Playing, both widths) shows only while the text is away from
+  the audio, centred just above the card or band, and in Scroll's full screen above the home
+  indicator's strip, on the line of the floating ▶. Pages mode's full screen floats nothing over the
+  text (the ▶ neither).
 
 ### Pages (the Reader and Now Playing)
 

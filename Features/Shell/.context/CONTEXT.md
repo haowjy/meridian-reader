@@ -50,8 +50,12 @@ changing the shell code.
 - **Full screen is the reading sheet's own state** (`ReadingChrome`, in
   `DesignSystem/Components/`), not the shell's: `ReaderSheet` and `NowPlayingSheet` each hold one
   and hand it to `Sheet(chrome:)`, which draws the header and the band over the text, measures
-  them into the web view's insets (unchanged when they hide, so the text never moves) and puts the
-  chrome in its content's environment. The reading web view feeds it finger drags and taps
+  them into the web view's insets and puts the chrome in its content's environment. The bottom
+  inset is what floats at the foot (in Scroll's full screen the home indicator's strip alone); a
+  change there never moves the text on screen, except that a text at its end stays at its end. In
+  full screen the sheet stops being one: its text is laid out from the status bar's foot either
+  way (the gap above the header is the header's), and only its outline changes, to the whole
+  screen with square corners, covering the dim; so the text never moves in or out. The reading web view feeds it finger drags and taps
   (`HTMLReadingView+Taps.swift`); programmatic scrolls never reach it. While hidden, the web view
   hands no pull to the sheet (`pullHandoff.handoff = nil`); a drag's `canPull` and hand-off are
   fixed when it begins, so the pull that brings the bars back never closes the sheet and a pull

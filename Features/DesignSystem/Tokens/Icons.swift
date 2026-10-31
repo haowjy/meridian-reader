@@ -126,8 +126,6 @@ enum Icons {
     /// Jump to Audio: the spoken sentence is above / below the visible text.
     static let jumpToAudioUp = "arrow.up"
     static let jumpToAudioDown = "arrow.down"
-    /// The player card's Jump while the text follows the audio (nothing to jump to).
-    static let followingAudio = "location.fill"
     /// Playing (bars beside a title, the tinted pill).
     static let playing = "waveform"
     static let sleepTimer = "moon.fill"
