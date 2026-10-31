@@ -218,11 +218,12 @@ final class ChromeTests: XCTestCase {
         for home in [34.0, 21, 18].map({ CGFloat($0) }) {
             let l = library(home: home)
             XCTAssertEqual(l.pill.rect.maxY, M.rowsHeight, "row 2 ends on the \(home) pt strip's top, the box's foot")
-            XCTAssertEqual(M.rowsHeight - l.top!, M.clearance(step: 0, home: home), "what it covers is what screens reserve: \(home)")
+            XCTAssertEqual(M.rowsHeight - l.top! + Spacing.xxs, M.clearance(step: 0, home: home),
+                           "what it covers, with the room above row 1, is what screens reserve: \(home)")
         }
         let se = library(home: 0)
         XCTAssertEqual(M.rowsHeight + 0 - se.pill.rect.maxY, M.bubbleClearance, "with a Home button: 18 above the edge, as the bubble")
-        XCTAssertEqual(M.rowsHeight - se.top!, M.clearance(step: 0, home: 0))
+        XCTAssertEqual(M.rowsHeight - se.top! + Spacing.xxs, M.clearance(step: 0, home: 0))
     }
 
     /// The fold's steps: two rows, then one (row 2 gone, row 1 in its place), then the bubble.
