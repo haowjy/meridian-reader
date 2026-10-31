@@ -113,7 +113,7 @@ struct VoiceSelectionList: View {
         } header: {
             SectionHeader(title: descriptor.displayName).listHeader()
         } footer: {
-            if case .failed(id, let message) = localTTS.synth.state {
+            if case .failed(id, let message) = localTTS.synth.state(of: id) {
                 Text(message).foregroundStyle(Palette.destructive).listFooter()
             } else {
                 footerText.listFooter()
@@ -127,18 +127,19 @@ struct VoiceSelectionList: View {
     @ViewBuilder
     private func modelRow(_ descriptor: EngineDescriptor) -> some View {
         let id = descriptor.id
-        if localTTS.synth.state.warmingEngineID == id {
-            SettingsChoiceRow(title: modelState, subtitle: nil, selected: false,
+        let state = localTTS.synth.state(of: id)
+        if state.warmingEngineID == id {
+            SettingsChoiceRow(title: modelState(state), subtitle: nil, selected: false,
                               accessibilityID: "engineCancel-\(id.rawValue)") {
                 localTTS.synth.cancelDownload()
             } accessory: {
-                ModelDownloadMark(fraction: localTTS.synth.state.warmingProgress)
+                ModelDownloadMark(fraction: state.warmingProgress)
             }
         }
     }
 
-    private var modelState: String {
-        if let fraction = localTTS.synth.state.warmingProgress, fraction < 1 {
+    private func modelState(_ state: LocalEngineState) -> String {
+        if let fraction = state.warmingProgress, fraction < 1 {
             return String(localized: "Downloading… \(Int(fraction * 100))%")
         }
         return String(localized: "Preparing…")

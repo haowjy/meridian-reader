@@ -163,14 +163,14 @@ install when the engine is supported); Kokoro Heart is the second default. iOS 1
 | | |
 |---|---|
 | Engine id | `local.phonon` |
-| Host | `PhononHost`: Core ML's CPU path, always (`PhononHost.computeUnit` is `.cpu`; routing label `phonon-31m cpu`). On an iPhone 17 Pro (Release) it renders about 22× real time in front at about 1.7 cores and 13.4× in the background. The cache key doesn't name the compute unit: audio rendered on the Neural Engine sounds the same and stays valid. |
+| Host | `PhononHost`, on its route's compute unit: Core ML's CPU path (route `phonon.cpu`, routing label `phonon-31m cpu`) or the Neural Engine (route `phonon.ane`, lane `.neuralEngine`, label `phonon-31m ane`); the crash marker's route tag is `cpu` or `ane`. The app's policy uses the CPU route alone; the Neural Engine route is used only by the two-lane policy, a Debug launch's `-renderPolicy lanes` (LISTEN_PLAYBACK.md → "The render policy"). On an iPhone 17 Pro (Release) the CPU path renders about 22× real time in front at about 1.7 cores and 13.4× in the background; the Neural Engine about 21× at about 1.1 cores; both at once about 19× together at about 2.7 cores and 430 MiB (p433). Both routes share one cache revision: their audio sounds the same (the owner's listening check), so the cache key doesn't name the compute unit. |
 | Models | Built into the app (`Resources/PhononBundle`, ~170 MB, every voice), put there at build time by `tools/fetch-phonon-bundle.sh` from the release [`phonon-31m-en-200-v0.6.0`](https://github.com/haowjy/xn-ptts/releases/tag/phonon-31m-en-200-v0.6.0) on the owner's fork, haowjy/xn-ptts. Nothing downloads at run time. Core ML compiles a model beside its package, so the first load of a process copies the bundle to `PhononTTS/models` unless that copy already holds the same export (`bundle.json`'s `built`); the copy is staged and swapped in whole, before any Phonon model loads. Builds that downloaded the model left the zip and an unzipped `bundle/`; a launch step removes them (`PhononDownloadLeftovers`). |
 | Voices | The full English set in the bundle (`PhononVoiceCatalog`): eight curated at the top of the picker (Zoey default), the rest under *More voices*. Every one is always installed. |
 | Prefill | 200 tokens. ptts groups a paragraph's sentences up to the bundle's prefill and cuts a longer sentence at the word nearest its middle, ending each piece with a full stop; the model speaks each piece as its own sentence, so a cut sounds like a false sentence end. Upstream's release bundle is exported at 48 tokens (about 150 characters of prose), which cut ordinary long sentences; at 200 (ptts's own fit limit, past which the model stops early and skips words) a sentence goes through whole. The larger cache (ctx 1200 against 414) makes every step costlier: on a Mac's Neural Engine it still renders about 15× real time and takes about 30 MB more; on the Simulator, which has no Neural Engine, it renders about 2.5× slower than the 48-token bundle. |
 | Bundle export | At ptts v0.6.0: `cargo build -j 2 --release -p ptts --example export_coreml --features hub`, then `export_coreml --max-tokens 200 phonon-31m-en-coreml` (its default checkpoint, `hf://gradium/phonon-31m-en@8c64b55ec301728e2d1695bfea87a08a267d0c2d`). The checkpoint carries only its `default` voice, so the other 37 voice files are copied unchanged from upstream's v0.4.0 bundle and added to `bundle.json`'s `files` and `voices`; `source.json` records the sources. Zipped with the root folder `phonon-31m-en-coreml`. The release notes give the details and hashes. |
 | Cache revision | Cache voice keys carry the bundle's `built` stamp (`phonon@1793455047.Zoey`, `OnDeviceTraits.cacheRevision`), so audio a different bundle rendered never plays or counts as prepared, and renders again. Keys without a revision (`phonon.Zoey`) were rendered by upstream's 0.4.0 bundle and were renamed once at launch to its stamp, `phonon@1792483937` (`PhononCacheRevision`). |
 | Chunking | `TextChunker.Limits.phonon`: target 1200, `hardMax` 1600, whole-paragraph calls (no short first clip). |
-| Background | Route `phonon.cpu`, `ThreadControl.uncapped`: the CPU path renders in the background as in front, chunk after chunk while audio plays (LISTEN_PLAYBACK.md → "Rendering in the background"). |
+| Background | Route `phonon.cpu`, `ThreadControl.uncapped`: the CPU path renders in the background as in front, chunk after chunk while audio plays (LISTEN_PLAYBACK.md → "Rendering in the background"). The Neural Engine lane runs only with the app in front (`Lane.runsInBackground`). |
 | Launch steps | `PhononDownloadLeftovers`, `PhononCacheRevision`, then `CoreMLCompileCacheJanitor` (Core ML's compiled-model cache, once per install, in the background; `LISTEN_PLAYBACK.md` → "Audio cache"). |
 | Probe | `-engineProbe -probeOnly Phonon,Kokoro` (the short names; the log line `compute units=` shows the routing label). |
 
@@ -268,7 +268,7 @@ voice takes the built-in default as any unregistered engine's does.
    `Features/Speech/Engines/<Library>/`.
 2. **Host.** Implement `LocalSynthHost`: `prepare()` (prepare and load through a
    `SingleFlightLoad`, so callers share one load and a cancel reaches it; hold
-   the lane's `SynthRenderGate.of(.cpu)` while loading Core ML; report `onProgress`),
+   its route's lane's `SynthRenderGate.of(lane)` while loading Core ML; report `onProgress`),
    `synthesizeOnce(text:priority:threads:)` (one call at the QoS and, for a route that takes a
    count, the threads the policy passes → `SynthesizedPCM`; map the library's "input too long" error to
    `LocalSynthError.inputTooLong` so the shared renderer re-splits), `setVoice`, `unload` (for good:
@@ -279,9 +279,10 @@ voice takes the built-in default as any unregistered engine's does.
    `limits` sized from the per-call cap (measure chars or phonemes per second of audio on a
    device), and `isCrashGuarded` if the library can die uncatchably.
 4. **Provider.** A `SpeechEngineProvider` with the descriptor(s), `makeHost`, `isInstalled`,
-   `routes` (a `RenderRoute` per engine: its lane, `.cpu`, and whether it takes a thread count;
-   the registry refuses an engine without one; `makeHost` builds a host for the route the render
-   policy loads);
+   `routes` (a `RenderRoute` per way an engine runs: its lane, `.cpu` or `.neuralEngine`, whether
+   it takes a thread count, and about how much memory its loaded host adds, measured on a phone;
+   the registry refuses an engine without a `.cpu` route, every engine's fallback lane;
+   `makeHost` builds a host for the route the render policy loads);
    override `recover(from:playing:)` if a crash needs more than a pause for Retry,
    `launchMigrations` for the library's launch steps (`LaunchMigration`s, run after retired
    engines' cleanup), `debugSections(speech:)` for its own Listen debug panel sections, and

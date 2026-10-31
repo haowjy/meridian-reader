@@ -83,7 +83,10 @@ final class EngineRegistry {
         byID = map
         descriptors = all.sorted { ($0.sortOrder, $0.displayName) < ($1.sortOrder, $1.displayName) }
         for d in all {
-            precondition(map[d.id]?.1.routes.contains { $0.engine == d.id } == true, "No route for \(d.id)")
+            // The CPU lane is every engine's fallback: the only lane in the background, and the
+            // one the app's policy uses.
+            precondition(map[d.id]?.1.routes.contains { $0.engine == d.id && $0.lane == .cpu } == true,
+                         "No CPU route for \(d.id)")
         }
     }
 

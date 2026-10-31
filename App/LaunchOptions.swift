@@ -132,6 +132,9 @@ struct LaunchOptions: Equatable {
     /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
     /// load at launch; its voice is the default for new articles.
     var selectsEngine: SpeechEngineID?
+    /// `-renderPolicy lanes`: render on two lanes in front (`LanePolicy`) instead of the app's
+    /// one call at a time on the CPU (`SingleCallPolicy`).
+    var usesLanePolicy = false
     /// `-engineProbe [-probeOnly Kokoro,…] [-probeStress [-probeStressN n]]`: time every on-device
     /// engine once launched (`EngineLatencyProbe`).
     var engineProbe: EngineLatencyProbe.Request?
@@ -193,6 +196,7 @@ struct LaunchOptions: Equatable {
         showsWhatsNew = flags.contains("-showWhatsNew")
         usesTestVoice = flags.contains("-testVoice")
         selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
+        usesLanePolicy = value(after: "-renderPolicy") == "lanes"
         if flags.contains("-engineProbe") {
             engineProbe = EngineLatencyProbe.Request(
                 engines: value(after: "-probeOnly").map { Set($0.split(separator: ",").map { $0.lowercased() }) },

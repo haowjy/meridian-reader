@@ -28,4 +28,10 @@ enum ProcessMemory {
         return 0
         #endif
     }
+
+    /// `availableMemory()` in MB; nil where it is unknown (0: the Simulator, where no limit applies).
+    static var availableMB: Int? {
+        let bytes = availableMemory()
+        return bytes > 0 ? Int(bytes / 1_048_576) : nil
+    }
 }

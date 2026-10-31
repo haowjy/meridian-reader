@@ -12,7 +12,7 @@ extension SpeechController {
             "paragraphs": paragraphs.count,
             "chars": paragraphs.reduce(0) { $0 + $1.count },
             "resume_p": start.paragraph,
-            "engine_loaded": localTTS.residentEngineID ?? "-",
+            "engine_loaded": localTTS.engineLabel,
             "saved": saved,
         ])
         localTTS.prepareListenIdentity(key: article.id, paragraphs: paragraphs,

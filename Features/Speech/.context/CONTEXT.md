@@ -64,15 +64,17 @@ provider owns its host, model store, voice catalog and chunk limits.
   (`ListenPlayRequest.selection`, `QueueUnitSource`) and the render queue reads
   `renderTarget(for: key)`, the article's own selection whatever is loaded. Playback reads
   rendered audio by the selection's cache voice, loaded or not (cached audio plays while the model
-  loads). Never read `engineVoices`, `activeLocalEngineID` or `defaultSelection` to decide what
+  loads). Never read `engineVoices`, the loaded engines or `defaultSelection` to decide what
   an existing article plays or renders.
 - **Only the render queue's worker loads an engine** (`GlobalSynthQueue.load` →
   `LocalTTSCoordinator.makeResident`), the route the policy names for its unit (a listener's
   chunk first) or for the launch's `preload`. Don't load at an enqueue, a play, a voice pick or launch, and don't add
   an "is an engine loaded" gate in front of the queue: queue the work and let the worker load.
-  Anything that must rebuild a host (Retry, a setting, a reset) asks the worker to `dropHost`;
-  never unload a host under a call. A render (`LocalSynthService.renderChunkToFile`) runs only on
-  the resident host of its own engine and never loads one.
+  Anything that must rebuild a host (Retry, a setting, a reset) asks the queue to `dropHost`
+  (every lane: a free lane's host goes now, a busy lane's when its call or load ends; a pending
+  drop is that lane's, so a host loaded since on another lane stays); never unload a host under a
+  call. A render (`LocalSynthService.renderChunkToFile`) runs only on its route's resident host
+  and never loads one.
 - **Never another voice.** Playback never changes the voice on its own (AGENTS.md;
   `docs/LISTEN_PLAYBACK.md` → "One voice, never swapped"). Audio the player can't get stops it
   there (`LocalListenPlayer.hold` → `stalled`), and the controller tells why
@@ -90,9 +92,11 @@ provider owns its host, model store, voice catalog and chunk limits.
   directly from a view or the coordinator. A new path that writes or moves audio keeps that rule
   and keeps the cache's in-memory indexes true itself (`forget`): an old voice's audio must never
   count as prepared in the new one (`ArticleAudioCache+Voices.swift`).
-- **Phonon (the default engine).** Core ML's CPU path (`PhononHost.computeUnit` is `.cpu`), in front
-  and in the background, one-call-at-a-time like the rest (route `phonon.cpu`, no thread count). Its cache key doesn't name the compute unit (the owner heard no difference
-  from Neural Engine audio): a Neural Engine route coming back doesn't need a new cache revision. Its limits
+- **Phonon (the default engine).** Two routes: Core ML's CPU path (`phonon.cpu`), the app's, in
+  front and in the background, and the Neural Engine (`phonon.ane`, lane `.neuralEngine`), used
+  only by `LanePolicy` (Debug, `-renderPolicy lanes`) and only in front. The host's compute unit
+  and its load gate come from its route's lane. Its cache key doesn't name the compute unit (the
+  owner heard no difference): both routes share one cache revision. Its limits
   (`TextChunker.Limits.phonon`: target 1200, hardMax 1600, whole paragraphs) belong to
   `PhononProvider`; `PhononSpokenText` may change case and drop redundant punctuation, never words
   (chunks must still map to the normalized paragraph, see the chunk-plans rule below). Its model
@@ -104,12 +108,15 @@ provider owns its host, model store, voice catalog and chunk limits.
   false sentence ends; a ptts bump that needs a new bundle re-exports it (`docs/TTS_ENGINES.md` →
   "Phonon"). Don't add a shared
   speakable-text pass: engines own normalization (`docs/TTS_ENGINES.md` → "Text prep for speech").
-- **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
-  (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again.
-  One call at a time (`GlobalSynthQueue.maxCallsInFlight`, and the lane's `SynthRenderGate`).
-  Every engine renders on the CPU alone (lane `.cpu`), so it may render in the background; a route
-  on the GPU or Neural Engine would need its own lane and a policy that keeps it out of the
-  background, not a flag on the host.
+- **Model calls.** One resident host per lane (`LocalSynthService`): loading on a lane lets that
+  lane's host go (`LocalChunkRenderer.unload`) first, never another lane's, and every load waits
+  for every host let go to release its models; an unloaded host is never used again. One call or
+  load per lane at a time (the queue gives a lane work only while it is free, and its
+  `SynthRenderGate`), one load at a time across lanes, and a paragraph in a call on one lane is
+  never offered to another. Every engine has a CPU route (the registry refuses one without): the
+  CPU lane is the only one in the background (`Lane.runsInBackground`) and the app's policy's only
+  one. A lane that can't run in the background is a fact on `Lane`, not a flag on the host.
+  With `SingleCallPolicy` only the CPU lane ever has a host, so behavior is one call at a time.
   Every extra call is exposure to an uncatchable engine crash, so don't add re-renders: probe a
   change that could add calls by counting them in the timing log.
 - **Only a death inside the engine is a crash.** The in-flight marker exists only during a
@@ -117,18 +124,23 @@ provider owns its host, model store, voice catalog and chunk limits.
   background memory kill (`EngineCrashGuard.MarkerVerdict`). Anything that adds a long wait inside
   a guarded call, or changes what the resume point records, moves those verdicts: keep calls far
   under `EngineCrashGuard.callBound`.
-- **Thread counts come from the policy, per call.** `SingleCallPolicy.threads(on:in:)` passes
-  every core but one in front and one in the background, never more than the route's cap (the
+- **Thread counts come from the policy, per call.** `SingleCallPolicy.threads(on:budget:)` passes
+  every core but one in front and one in the background (`LanePolicy` one fewer in front while a
+  Neural Engine host is loaded), never more than the route's cap (the
   Kokoro setting, 3 to 6, `KokoroRouteSettings.defaultThreads`); the host reads no app phase. The
   first call at a new count rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route
   benchmark on a device, not from the Mac (a Mac has more performance cores than an iPhone's
   two).
-- **What renders, when, is the render policy's call** (`RenderPolicy`, `SingleCallPolicy`, built
-  in `AppComposition.makeRenderPolicy`). The queue offers every job's next unit by demand, in its
-  order, and checks the plan, one action (`RenderPlan.violation`), before it acts; ordering rules,
-  FIFO included, go in the policy, a new policy is one type and that line. The selected route is
-  the residency identity: `makeResident(route)` builds the host for it (`makeHost(for:voice:)`)
-  and the lane snapshot reports the route loaded; nothing else picks a route. In the background it renders continuously while audio plays, one call at a time,
+- **What renders, when, is the render policy's call** (`RenderPolicy`; `SingleCallPolicy`, or
+  `LanePolicy` in a Debug launch with `-renderPolicy lanes`, built in
+  `AppComposition.makeRenderPolicy`). The queue offers every job's next unit by demand, in its
+  order, and checks the plan, an action per free lane (`RenderPlan.violation`), before it starts
+  them (`GlobalSynthQueue+Render.swift`); it plans again whenever a call or load ends. Ordering
+  rules, FIFO included, lane choice and the memory check for a second model
+  (`RenderSituation.availableMemoryMB` against `RenderRoute.footprintMB`) go in the policy; a new
+  policy is one type and that line. The selected route is the residency identity:
+  `makeResident(route)` builds the host for it on its lane (`makeHost(for:voice:)`) and the lane
+  snapshot reports the route loaded; nothing else picks a route. In the background it renders continuously while audio plays, one call at a time,
   Kokoro on one ONNX thread: back-to-back rendering on three threads got the app killed by iOS
   (1.0–1.3 GB), so a higher background budget needs an hour's locked listen on the phone first.
   A throttle (issue #21) would need a clock and a timed wake in the seam; there is none now.

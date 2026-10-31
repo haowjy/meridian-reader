@@ -8,10 +8,12 @@ actor SynthRenderGate {
     static func of(_ lane: Lane) -> SynthRenderGate {
         switch lane {
         case .cpu: cpu
+        case .neuralEngine: neuralEngine
         }
     }
 
     private static let cpu = SynthRenderGate()
+    private static let neuralEngine = SynthRenderGate()
 
     private var busy = false
     private var waiters: [CheckedContinuation<Void, Never>] = []

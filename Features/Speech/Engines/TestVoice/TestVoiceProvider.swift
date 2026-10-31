@@ -21,7 +21,8 @@ final class TestVoiceProvider: SpeechEngineProvider {
 
     var descriptors: [EngineDescriptor] { [Self.descriptor] }
 
-    var routes: [RenderRoute] { [RenderRoute(id: "testvoice.cpu", engine: Self.id, lane: .cpu, threads: .uncapped)] }
+    var routes: [RenderRoute] { [RenderRoute(id: "testvoice.cpu", engine: Self.id, lane: .cpu, threads: .uncapped,
+                                              footprintMB: 1)] }
 
     func makeHost(for route: RenderRoute, voice: String?) -> LocalSynthHost? {
         route.engine == Self.id ? TestVoiceHost(engineID: route.engine) : nil

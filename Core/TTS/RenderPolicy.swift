@@ -1,10 +1,14 @@
 import Foundation
 
-/// A compute resource that runs model calls. One today: every engine renders on the CPU. A Neural
-/// Engine or GPU lane is a new case plus a policy that uses it; the queue, the renderer, the crash
-/// guard and the cache don't change.
+/// A compute resource that runs model calls, one call or load at a time. Every engine renders on
+/// the CPU; Phonon also declares a Neural Engine route, which only `LanePolicy` uses.
 enum Lane: String, Sendable, Hashable, CaseIterable {
+    case neuralEngine
     case cpu
+
+    /// Whether calls may run on it with the app in the background: the Neural Engine is for the
+    /// app in front.
+    var runsInBackground: Bool { self == .cpu }
 }
 
 /// Whether a route can be told how many threads a call may use.
@@ -22,6 +26,9 @@ struct RenderRoute: Sendable, Equatable, Identifiable {
     let engine: SpeechEngineID
     let lane: Lane
     let threads: ThreadControl
+    /// About how much its loaded host adds to the process's memory footprint, MB (measured on the
+    /// phone): what a second model must find free to load beside another.
+    let footprintMB: Int
 }
 
 /// Why a unit renders, most urgent first.
@@ -39,7 +46,8 @@ enum Demand: Int, Sendable, Comparable {
 }
 
 /// One unit the render queue would render next, with its demand. The queue picks the unit (which
-/// paragraph of which job); the policy picks among units.
+/// paragraph of which job); the policy picks among units. A paragraph rendering on a lane is
+/// never offered.
 struct RenderCandidate: Sendable, Equatable {
     var item: UUID
     var paragraph: Int
@@ -49,11 +57,19 @@ struct RenderCandidate: Sendable, Equatable {
     var routes: [RenderRoute]
 }
 
-/// What runs on a lane now.
+/// What a lane is doing now. A lane runs one thing at a time: it takes an action only when free.
 struct LaneSnapshot: Sendable, Equatable {
-    var callsInFlight = 0
+    enum Work: Sendable, Equatable {
+        /// A model call on `route`, at `threads` (nil: a route that takes no count).
+        case call(RenderRoute, threads: Int?)
+        case load(RenderRoute)
+    }
+
+    var work: Work?
     /// The route whose host is loaded on this lane (nil: none).
     var resident: RenderRoute?
+
+    var isFree: Bool { work == nil }
 }
 
 /// Everything a render decision may depend on, as values.
@@ -68,13 +84,22 @@ struct RenderSituation: Sendable, Equatable {
     var preload: [RenderRoute]
     /// In the queue's order: each job's next unit per demand.
     var candidates: [RenderCandidate]
+    /// Every lane, free or not.
     var lanes: [Lane: LaneSnapshot]
-    var maxCallsInFlight: Int
     var cores: Int
+    /// What the process may still allocate before iOS ends it, MB; nil where no limit applies
+    /// (the Simulator).
+    var availableMemoryMB: Int?
+
+    /// The lanes with a host loaded other than `lane`.
+    func otherResidents(than lane: Lane) -> [Lane] {
+        lanes.compactMap { $0.key != lane && $0.value.resident != nil ? $0.key : nil }
+    }
 }
 
-/// What to do now: the one action the queue's worker takes before it asks again.
-enum RenderPlan: Sendable, Equatable {
+/// What to do now: one action per free lane the policy uses (none: those lanes wait for an event).
+/// The queue starts each, and asks again when any call or load ends.
+struct RenderPlan: Sendable, Equatable {
     struct Start: Sendable, Equatable {
         /// Index into `RenderSituation.candidates`.
         var candidate: Int
@@ -90,21 +115,33 @@ enum RenderPlan: Sendable, Equatable {
         var priority: RenderPriority
         /// The candidate it loads for (nil: a preload).
         var candidate: Int?
+        /// The other lanes' hosts go first: two models wouldn't fit (`LanePolicy`).
+        var alone = false
     }
 
-    /// Run one model call.
-    case start(Start)
-    /// Load a route's host, replacing its lane's resident one.
-    case load(Load)
-    /// Work waits for this hold to clear (the queue's log and debug line).
-    case held(BakeConditions.Hold)
-    /// Nothing now: the worker stops until an event kicks it.
-    case idle
+    enum Action: Sendable, Equatable {
+        /// Run one model call.
+        case start(Start)
+        /// Load a route's host, replacing its lane's resident one.
+        case load(Load)
 
-    /// What the scheduler refuses whatever the policy says (a broken one is a bug in the
-    /// policy): a route is its candidate's own engine's (the voice is never swapped); a call runs
-    /// on its route's resident host, no more calls run than `maxCallsInFlight`; a load replaces a
-    /// lane's host only while no call runs on it.
+        var lane: Lane {
+            switch self {
+            case .start(let start): start.route.lane
+            case .load(let load): load.route.lane
+            }
+        }
+    }
+
+    var actions: [Lane: Action] = [:]
+    /// Work waits for this hold to clear (the queue's log and debug line).
+    var held: BakeConditions.Hold?
+
+    /// What the scheduler refuses whatever the policy says (a broken one is a bug in the policy):
+    /// a route is its candidate's own engine's (the voice is never swapped); an action runs on its
+    /// route's lane, only while that lane is free, and in the background only on a lane that runs
+    /// there; a call runs on its route's resident host; two calls never take the same paragraph;
+    /// one load at a time, and one loading alone only while the other lanes are free.
     func violation(of situation: RenderSituation) -> String? {
         func route(_ route: RenderRoute, of index: Int) -> String? {
             guard situation.candidates.indices.contains(index) else { return "no candidate \(index)" }
@@ -114,35 +151,55 @@ enum RenderPlan: Sendable, Equatable {
             }
             return nil
         }
-        switch self {
-        case .start(let start):
-            let inFlight = situation.lanes.values.reduce(0) { $0 + $1.callsInFlight }
-            if inFlight + 1 > situation.maxCallsInFlight { return "more calls than \(situation.maxCallsInFlight)" }
-            if let wrong = route(start.route, of: start.candidate) { return wrong }
-            guard situation.lanes[start.route.lane]?.resident == start.route else {
-                return "\(start.route.id) isn't loaded on \(start.route.lane.rawValue)"
+        var paragraphs = Set<String>()
+        var loads = situation.lanes.values.filter { if case .load = $0.work { true } else { false } }.count
+        for (lane, action) in actions {
+            guard action.lane == lane else { return "\(lane.rawValue) can't run a \(action.lane.rawValue) route" }
+            guard situation.lanes[lane]?.isFree == true else { return "\(lane.rawValue) is busy" }
+            switch action {
+            case .start(let start):
+                if let wrong = route(start.route, of: start.candidate) { return wrong }
+                if situation.phase == .background, !lane.runsInBackground {
+                    return "\(lane.rawValue) doesn't run in the background"
+                }
+                guard situation.lanes[lane]?.resident == start.route else {
+                    return "\(start.route.id) isn't loaded on \(lane.rawValue)"
+                }
+                let candidate = situation.candidates[start.candidate]
+                guard paragraphs.insert("\(candidate.item)|\(candidate.paragraph)").inserted else {
+                    return "two calls on \(candidate.item) p\(candidate.paragraph)"
+                }
+            case .load(let load):
+                if let index = load.candidate {
+                    if let wrong = route(load.route, of: index) { return wrong }
+                } else if !situation.preload.contains(load.route) {
+                    return "route \(load.route.id) wasn't asked to preload"
+                }
+                loads += 1
+                if loads > 1 { return "two loads at once" }
+                if load.alone, actions.count > 1 || situation.lanes.contains(where: { $0.key != lane && !$0.value.isFree }) {
+                    return "\(load.route.id) loads alone while another lane works"
+                }
             }
-        case .load(let load):
-            if let index = load.candidate {
-                if let wrong = route(load.route, of: index) { return wrong }
-            } else if !situation.preload.contains(load.route) {
-                return "route \(load.route.id) wasn't asked to preload"
-            }
-            if situation.lanes[load.route.lane]?.callsInFlight ?? 0 > 0 {
-                return "a call runs on \(load.route.lane.rawValue)"
-            }
-        case .held, .idle:
-            break
         }
         return nil
     }
 }
 
 /// Decides what renders next from a snapshot: no I/O, no engines, no clock of its own. The
-/// render queue asks it before every call. A new policy is one type and the line in
+/// render queue asks it whenever a lane may be free. A new policy is one type and the line in
 /// `AppComposition.makeRenderPolicy`.
 @MainActor
 protocol RenderPolicy: AnyObject {
     var name: String { get }
     func plan(_ situation: RenderSituation) -> RenderPlan
+}
+
+extension RenderSituation {
+    /// The candidates' indices in demand order, the queue's order within a demand.
+    var urgencyOrder: [Int] {
+        candidates.indices.sorted {
+            (candidates[$0].demand.rawValue, $0) < (candidates[$1].demand.rawValue, $1)
+        }
+    }
 }

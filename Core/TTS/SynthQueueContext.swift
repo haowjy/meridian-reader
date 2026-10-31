@@ -21,15 +21,16 @@ protocol SynthQueueContext: AnyObject {
     /// `renderTarget(for:)`, and an article with no voice yet takes that voice now (its first audio
     /// is about to render).
     func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget?
-    /// The route whose host is loaded (nil: none). Only the queue's worker changes it.
-    var residentRoute: RenderRoute? { get }
-    /// Load a host built for `route`, the resident one let go first, at `priority` (a listener's
-    /// waited chunk: `.listener`; a preload or bake-ahead: `.bakeAhead`); waits for a load of it
-    /// already in flight rather than starting another. Throws when it can't load. The worker's alone.
+    /// The route whose host is loaded on `lane` (nil: none). Only the queue's worker changes it.
+    func residentRoute(on lane: Lane) -> RenderRoute?
+    /// Load a host built for `route` on its lane, that lane's resident one let go first (no other
+    /// lane's), at `priority` (a listener's waited chunk: `.listener`; a preload or bake-ahead:
+    /// `.bakeAhead`); waits for a load of it already in flight rather than starting another.
+    /// Throws when it can't load. The worker's alone.
     func makeResident(_ route: RenderRoute, priority: RenderPriority) async throws
-    /// Let `engineID`'s host go if it is the one loaded or loading (the worker calls it between
-    /// model calls); the next work for it loads a fresh one.
-    func dropHost(_ engineID: String)
+    /// Let `lane`'s host go if it is `engineID`'s (nil: whoever's), loaded, loading or failed (the
+    /// worker calls it while nothing runs on that lane); the next work there loads a fresh one.
+    func dropHost(on lane: Lane, of engineID: String?)
     var chunkPlans: ChunkPlans { get }
     var synthRenderer: SynthChunkRendering { get }
     /// `cacheKey`'s audio or its job changed (a paragraph published, old-voice audio removed, the
@@ -50,12 +51,12 @@ extension SynthQueueContext {
     func lockedRenderTarget(for cacheKey: UUID) -> RenderTarget? { renderTarget(for: cacheKey) }
 }
 
-/// Renders one synth chunk with the resident engine, at 1×: the listen speed is a time-stretch on
-/// the player.
+/// Renders one synth chunk on a lane's resident host, at 1×: the listen speed is a time-stretch
+/// on the player.
 @MainActor
 protocol SynthChunkRendering: AnyObject {
-    var engineShortName: String { get }
-    /// Throws, rendering nothing, unless `engineID`'s host is the one loaded: it never loads one.
-    func renderChunkToFile(text: String, destination: URL, engineID: String,
+    /// Throws, rendering nothing, unless `route`'s host is the one loaded on its lane: it never
+    /// loads one.
+    func renderChunkToFile(text: String, destination: URL, route: RenderRoute,
                            request: ChunkRenderRequest) async throws -> TimeInterval
 }

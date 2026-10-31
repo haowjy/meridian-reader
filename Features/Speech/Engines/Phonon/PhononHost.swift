@@ -1,13 +1,18 @@
 import Foundation
 import PhononTTS
 
-/// Phonon 31m English via Gradium `ptts`, on Core ML's CPU path (`computeUnit: .cpu`), in front
-/// and in the background alike. Audio sounds the same as on the Neural Engine, so its cache key
-/// doesn't name the compute unit.
+/// Phonon 31m English via Gradium `ptts`, on the compute unit of its route's lane: Core ML's CPU
+/// path, in front and in the background, or the Neural Engine, with the app in front
+/// (`PhononProvider.routes`). Audio sounds the same on both, so its cache key doesn't name the
+/// compute unit.
 final class PhononHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID = .phonon
-    static let computeUnit: ComputeUnit = .cpu
-    var routingLabel: String? { "phonon-31m cpu" }
+    /// Where its models load and its calls run; its lane's gate is held while they load.
+    let lane: Lane
+    private var computeUnit: ComputeUnit { lane == .neuralEngine ? .neuralEngine : .cpu }
+    private var unitTag: String { lane == .neuralEngine ? "ane" : "cpu" }
+    var routingLabel: String? { "phonon-31m \(unitTag)" }
+    var routeTag: String? { unitTag }
     var onProgress: (@Sendable (Double) -> Void)?
 
     private let load = SingleFlightLoad()
@@ -15,8 +20,9 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
     private var voice: String
     private var tts: Phonon?
 
-    init(voice: String = PhononVoiceCatalog.defaultVoice) {
+    init(voice: String = PhononVoiceCatalog.defaultVoice, lane: Lane = .cpu) {
         self.voice = voice
+        self.lane = lane
     }
 
     var isPrepared: Bool { load.isLoaded }
@@ -32,15 +38,16 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
     func prepare() async throws {
         let progress = onProgress
         let voice = currentVoice
+        let (lane, unit, tag) = (lane, computeUnit, unitTag)
         try await load.run {
             let t0 = ListenTimingLog.now()
-            ListenTimingLog.log("phonon_init_start", ["voice": voice, "unit": "cpu"])
+            ListenTimingLog.log("phonon_init_start", ["voice": voice, "unit": tag])
             do {
                 progress?(0.02)
                 try await PhononModelStore.ensureInstalled()
                 try Task.checkCancellation()
                 progress?(0.80)
-                await SynthRenderGate.of(.cpu).acquire()
+                await SynthRenderGate.of(lane).acquire()
                 let loaded: Phonon
                 do {
                     let needs = Phonon.needsCompiling(PhononModelStore.modelsDirectory)
@@ -51,13 +58,13 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
                     loaded = try await Phonon.load(
                         models: PhononModelStore.modelsDirectory,
                         language: .english,
-                        computeUnit: Self.computeUnit)
+                        computeUnit: unit)
                     if voice != loaded.voice {
                         try await loaded.setVoice(voice)
                     }
-                    await SynthRenderGate.of(.cpu).release()
+                    await SynthRenderGate.of(lane).release()
                 } catch {
-                    await SynthRenderGate.of(.cpu).release()
+                    await SynthRenderGate.of(lane).release()
                     throw error
                 }
                 self.lock.withLock { self.tts = loaded }
@@ -109,7 +116,7 @@ final class PhononHost: LocalSynthHost, @unchecked Sendable {
             sampleRate: Int(Phonon.sampleRate),
             metrics: [
                 "engine": "phonon",
-                "unit": "cpu",
+                "unit": unitTag,
                 "wall_ms": wallMs,
                 "audio_s": audioS,
                 "rtf": audioS > 0 ? (Double(wallMs) / 1000.0) / audioS : 0,

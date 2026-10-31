@@ -142,18 +142,27 @@ final class LocalTTSCoordinator: SynthQueueContext {
         #endif
     }
 
-    /// The engine loaded or loading, for logs ("—" when none).
-    var engineLabel: String { activeLocalEngineID?.rawValue ?? "—" }
+    /// The engines with a host on some lane, for logs ("—" when none).
+    var engineLabel: String {
+        let ids = Lane.allCases.compactMap { synth.engine(on: $0)?.rawValue }
+        return ids.isEmpty ? "—" : Set(ids).sorted().joined(separator: ",")
+    }
 
     /// Retry, or any play while paused for it (`SpeechController.userPerform`): the render queue
-    /// drops the engine's host, and its next work loads a fresh one, same engine and voice; then
+    /// drops the engines' hosts, and its next work loads fresh ones, same engine and voice; then
     /// rendering and prepared audio go on.
     func retryAfterEngineStop() {
         guard isPausedForRetry else { return }
         isPausedForRetry = false
         ListenTimingLog.log("engine_retry", ["engine": engineLabel])
-        if let id = activeLocalEngineID { synthQueue.dropHost(engineID: id.rawValue) }
+        dropAllHosts()
         synthQueue.isPausedForRetry = false
+    }
+
+    /// The render queue drops every engine's hosts (after the call in flight on each lane); the
+    /// next work loads fresh ones.
+    func dropAllHosts() {
+        for id in Set(Lane.allCases.compactMap(synth.engine(on:))) { synthQueue.dropHost(engineID: id.rawValue) }
     }
 
     /// Launch: until `endLaunchHold`, the render queue adopts no saved bake job, renders nothing
@@ -197,7 +206,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         while synthQueue.isWorkerRunning, ContinuousClock.now < deadline {
             try? await Task.sleep(for: .milliseconds(200))
         }
-        await synth.releaseHost()
+        await synth.releaseHosts()
         return try await work()
     }
 
@@ -217,22 +226,17 @@ final class LocalTTSCoordinator: SynthQueueContext {
         engines.routes(for: SpeechEngineID(rawValue: engineID))
     }
 
-    /// Local engine whose cache / chunk sizing applies right now (loaded or loading).
-    var activeLocalEngineID: SpeechEngineID? { synth.state.activeEngineID }
-
     var synthRenderer: SynthChunkRendering { synth }
 
-    var residentEngineID: String? { synth.residentEngineID?.rawValue }
-
-    var residentRoute: RenderRoute? { synth.residentRoute }
+    func residentRoute(on lane: Lane) -> RenderRoute? { synth.residentRoute(on: lane) }
 
     func makeResident(_ route: RenderRoute, priority: RenderPriority) async throws {
         try await synth.makeResident(route, voice: engineVoices[route.engine], priority: priority)
     }
 
-    func dropHost(_ engineID: String) {
-        guard synth.engineID.rawValue == engineID else { return }
-        synth.turnOff()
+    func dropHost(on lane: Lane, of engineID: String?) {
+        guard let engine = synth.engine(on: lane), engineID == nil || engine.rawValue == engineID else { return }
+        synth.turnOff(lane)
     }
 
     /// Voice selected for a multi-voice engine (nil for single-voice engines).
@@ -286,7 +290,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// True when a local model for `id` has been initialized (or its files are on disk).
     func isModelInstalled(_ id: SpeechEngineID) -> Bool {
-        synth.state.readyEngineID == id || engines.isInstalled(id)
+        synth.loadedEngines.contains(id) || engines.isInstalled(id)
     }
 
 

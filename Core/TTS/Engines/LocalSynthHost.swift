@@ -44,7 +44,7 @@ enum RenderPriority: Sendable, Equatable {
 /// `SpeechEngineProvider`). Hosts are thin: load models, run ONE call at the thread count it is
 /// handed, map overflow errors to `LocalSynthError.inputTooLong`. They read no app phase. Chunking,
 /// re-split, the render gate, crash guard, timing log and CAF writing are shared
-/// (`LocalChunkRenderer`). Exactly one host is alive at a time.
+/// (`LocalChunkRenderer`). One host per lane is alive at a time (`LocalSynthService`).
 protocol LocalSynthHost: AnyObject, Sendable {
     var engineID: SpeechEngineID { get }
     /// Compute routing actually used (for logs / probe), nil if not applicable.

@@ -108,7 +108,8 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// ONNX Runtime on the CPU, up to the configured thread count (`KokoroRouteSettings.cpuThreads`,
     /// which crash recovery steps down); the render policy hands each call its count.
     var routes: [RenderRoute] {
-        [RenderRoute(id: "kokoro.onnx", engine: .kokoro, lane: .cpu, threads: .honored(cap: routeSettings.cpuThreads))]
+        [RenderRoute(id: "kokoro.onnx", engine: .kokoro, lane: .cpu, threads: .honored(cap: routeSettings.cpuThreads),
+                     footprintMB: 470)]
     }
 
     func makeHost(for route: RenderRoute, voice: String?) -> LocalSynthHost? {

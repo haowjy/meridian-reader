@@ -67,7 +67,9 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
   `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openDemoInBrowseReader` (the Browser's reader mode on the demo article), `-tapListen` (what a tap on the chrome's Listen does; `-closeListenAfter N` closes Listen N s later), `-tapLibraryRow TITLE` (what a tap on that Library row does), `-pasteText TEXT` (*Paste Text…*'s Save), `-importBook` (*Import from…*; with `-importTestEPUB` the test book), `-openSettings` (the pill's Settings; `-searchSettings TEXT` types in Search Settings, `-openSettingsPage voice` pushes a page), `-readDemoInLibrary` (Library Read on the demo article), `-restoreSurface` (a relaunch reopens where
   the last launch left), `-chromeFold P` (the compact chrome held at fold P: 0.5 one row, 1 the bubble), `-readerFullScreen` (the first reading page shown, in place or Listen, goes full screen 3 s after it opens), `-readerScrollToEnd` (that page's text goes to its end as a finger would; Listen stops following, so Jump to Audio shows), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
-  on-device test voice for prepared audio; `-selectEngine test.voice`). Keep probes and tests offline;
+  on-device test voice for prepared audio; `-selectEngine test.voice`), `-renderPolicy lanes` (the
+  two-lane render policy, `LanePolicy`: Phonon on the Neural Engine and the CPU at once in front;
+  the app's default stays one call at a time on the CPU). Keep probes and tests offline;
   use the test pages, not live sites. `LaunchOptions` parses every launch argument, the
   diagnostics' too (`-engineProbe`, `-KokoroStress`; `docs/LISTEN_PLAYBACK.md` →
   "Diagnostics"); Features and the speech stack get the values from App (`AppComposition`,

@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 extension SpeechEngineID {
-    /// Phonon 31m English (Apache 2.0). Core ML's CPU path via Gradium `ptts`. App default on-device engine.
+    /// Phonon 31m English (Apache 2.0). Core ML via Gradium `ptts`. App default on-device engine.
     static let phonon = SpeechEngineID("local.phonon")
 }
 
@@ -16,8 +16,8 @@ extension TextChunker.Limits {
         alwaysSplitFirst: false, secondTarget: nil)
 }
 
-/// Gradium Phonon 31m English adapter. Registers one on-device engine (`local.phonon`).
-/// Core ML's CPU path (`PhononHost.computeUnit`).
+/// Gradium Phonon 31m English adapter. Registers one on-device engine (`local.phonon`), on two
+/// routes: Core ML's CPU path and the Neural Engine.
 @MainActor
 final class PhononProvider: SpeechEngineProvider {
     let name = "Phonon"
@@ -49,12 +49,18 @@ final class PhononProvider: SpeechEngineProvider {
 
     var regenerableDirectories: [URL] { [PhononModelStore.rootDirectory] }
 
-    /// Core ML's CPU path, which takes no thread count.
-    var routes: [RenderRoute] { [RenderRoute(id: "phonon.cpu", engine: .phonon, lane: .cpu, threads: .uncapped)] }
+    /// Core ML's CPU path and the Neural Engine, neither of which takes a thread count; one cache
+    /// revision for both (the owner heard no difference). Footprints from the phone: about 120 MiB
+    /// for a CPU host, about 300 MiB more for a Neural Engine host beside it (430 MiB both, p433).
+    /// The app's policy uses the CPU route alone; `LanePolicy` both.
+    var routes: [RenderRoute] {
+        [RenderRoute(id: "phonon.cpu", engine: .phonon, lane: .cpu, threads: .uncapped, footprintMB: 120),
+         RenderRoute(id: "phonon.ane", engine: .phonon, lane: .neuralEngine, threads: .uncapped, footprintMB: 300)]
+    }
 
     func makeHost(for route: RenderRoute, voice: String?) -> LocalSynthHost? {
         guard route.engine == .phonon else { return nil }
-        return PhononHost(voice: voice ?? PhononVoiceCatalog.defaultVoice)
+        return PhononHost(voice: voice ?? PhononVoiceCatalog.defaultVoice, lane: route.lane)
     }
 
     /// The model bundle ships in the app (`PhononModelStore`): always installed.

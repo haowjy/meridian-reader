@@ -14,7 +14,8 @@ UI ──intent──► SpeechController ──command──► bound LocalList
                 └──────────────────────┴── engine events (PlaybackEngineEvent)
 
 Render queue: GlobalSynthQueue renders chunks ahead of the playhead (and bakes saved articles)
-into ArticleAudioCache, one model call at a time, as the render policy plans (SingleCallPolicy).
+into ArticleAudioCache, as the render policy plans: one model call at a time on the CPU
+(SingleCallPolicy), or, in a Debug launch with -renderPolicy lanes, one call per lane (LanePolicy).
 ```
 
 ### Playback session (the one source of truth)
@@ -302,8 +303,10 @@ happen; "Diagnostics").
 
 ### How audio gets made
 
-Audio is rendered before it is heard, one model call at a time, on the CPU, for both engines.
-Three layers decide what renders next; the sections below have the detail.
+Audio is rendered before it is heard, one model call at a time, on the CPU, for both engines. A
+Debug launch can choose a second lane instead: Phonon also on the Neural Engine, a call on each
+lane at once (`-renderPolicy lanes`, "The render policy"). Three layers decide what renders next;
+the sections below have the detail.
 
 ```mermaid
 flowchart LR
@@ -322,9 +325,9 @@ flowchart LR
         Candidates["Each job's next chunk,<br/>labelled by demand"]
         Jobs --> Candidates
     end
-    Candidates -->|RenderSituation| Policy["RenderPolicy<br/>SingleCallPolicy"]
-    Policy -->|"RenderPlan:<br/>start, load, held or idle"| Worker["Worker<br/>one call on the CPU lane"]
-    Worker -->|"load if not resident"| Host["Engine host<br/>built for its route"]
+    Candidates -->|RenderSituation| Policy["RenderPolicy<br/>SingleCallPolicy<br/>(LanePolicy: Debug)"]
+    Policy -->|"RenderPlan:<br/>a start or load per free lane"| Worker["Executor<br/>one call or load per lane"]
+    Worker -->|"load if not resident"| Host["Engine host per lane<br/>built for its route"]
     Worker -->|chunk| Host
     Host -->|PCM| Worker
     Worker -->|"publish the paragraph"| Cache[("ArticleAudioCache")]
@@ -333,7 +336,7 @@ flowchart LR
     Cache -.->|"paragraph published"| Jobs
 ```
 
-One step of the worker, for a Play of an article whose first paragraph has no audio yet:
+One step of the queue with `SingleCallPolicy`, for a Play of an article whose first paragraph has no audio yet:
 
 ```mermaid
 sequenceDiagram
@@ -391,8 +394,10 @@ sequenceDiagram
 
 On an iPhone 17 Pro Phonon renders about 22× real time on the CPU (21× on the Neural Engine, which
 sounds the same), and continuous rendering in the background ran at 9–13× without iOS ending the
-app. Running both at once roughly halved each one's speed, so the app uses one lane. Each engine's
-route names its lane, so another lane is a route plus a `RenderPolicy` ("Routes and lanes").
+app. Running both at once roughly halved each one's speed (about 19× together), so the app uses one
+lane. The second lane is built and chosen by a Debug launch only (`LanePolicy`, "The render
+policy"): each lane has its own resident host and runs one call at a time, and the queue asks the
+policy again whenever any call or load ends ("Routes and lanes").
 
 **Switching article or voice.** Playing another article puts it at the front; the jobs already
 queued stay behind it, and at most the call in flight finishes first. Changing an article's voice
@@ -412,10 +417,12 @@ Prepared Audio").
 
 ### Render queue
 
-One **`GlobalSynthQueue`** owns all on-device synthesis, live and ahead. A single worker renders
-one **chunk** per iteration, so the playhead can preempt bake-ahead between chunks; two model
-calls never run at once (`GlobalSynthQueue.maxCallsInFlight` = 1, and the lane's gate,
-`SynthRenderGate.of(.cpu)`, around every call and load). Actions reorder the queue through one
+One **`GlobalSynthQueue`** owns all on-device synthesis, live and ahead. Each lane renders one
+**chunk** at a time (`GlobalSynthQueue+Render.swift`), so the playhead can preempt bake-ahead
+between chunks; two model calls never run at once on one lane (a lane takes work only while free,
+and its gate, `SynthRenderGate.of(lane)`, is held around every call and load), and a paragraph
+rendering on one lane isn't offered to another, so it is published once. With `SingleCallPolicy`
+only the CPU lane works: one call at a time. Actions reorder the queue through one
 upsert, `enqueue(at:)` with a placement (`.front`, `.back`, `.behind` the playing chapter), and
 `focusPlayhead`; nothing builds its own render loop. The coordinator's one entry for the Reader
 opening an article and for listening starting or jumping is `LocalTTSCoordinator.openArticle`.
@@ -428,18 +435,21 @@ publish reads the target at that step, so a voice change stops queued work in th
 the next step, and a call in flight in it is discarded at publish. A voice change, or a new
 default, restarts the worker (`GlobalSynthQueue.renderTargetChanged`).
 
-**Loads.** The worker is the only owner of engine loads. When the policy's unit's route isn't the
-resident one, it loads that route (the other host goes first) and picks again; a listener's
+**Loads.** The queue is the only owner of engine loads, one at a time. When the policy's unit's
+route isn't the resident one on its lane, it loads that route (that lane's other host goes first;
+another lane's stays) and picks again; a listener's
 chunk, a Play's first one included, is demand, so its engine loads first, at `.userInitiated`; every other load,
 the playing article's bake-ahead with no chunk waited on included, runs at `.utility`. A load in flight is awaited, never started twice. Nothing else loads: not the launch,
 not an enqueue, not the player. At the end of the launch's hold, with nothing queued, the worker
 preloads the Settings default's engine (`preload`), so the first Play doesn't wait for the load;
 work picked before it cancels the preload. An engine that fails to load (or whose load is
 cancelled in Settings) fails the chunks listeners wait for in it, and its jobs wait until a
-listener asks again, Retry, a voice change or a dropped host (`loadFailures`). Retry, the Kokoro
-thread setting (`reloadEngine`) and a media services reset ask the worker to drop the host
-(`dropHost`): the call or load in flight finishes on it first, and the next work for the engine
-loads a fresh one (the drop clears its failed-load mark when it is applied, so a load that fails
+listener asks again, Retry, a voice change or a dropped host (`failedLoads`, by route). Only a
+CPU-lane load failing does that; a Neural Engine load that fails takes only that route out, and the
+CPU lane goes on. Retry, the Kokoro thread setting (`reloadEngine`) and a media services reset ask
+the queue to drop the engine's hosts on every lane (`dropHost`): a free lane's goes at once, a busy
+lane's once the call or load in flight on it ends, and the next work for the engine loads a fresh
+one (the drop clears its failed-load mark when it is applied, so a load that fails
 in between doesn't park the rebuild). Each load logs `engine_load` (`op` start / ready / failed, `reason` preload / listener /
 work, `qos`, `ms`).
 
@@ -508,15 +518,19 @@ stay. Turned back on over a folder all prepared (`PrepareCenter.prepare(folder)`
 its done pages and *Keep* stay as they are and only pages it doesn't list join; otherwise
 *Prepare Audio* on a folder queues every article it covers afresh (`PrepareRecord.requeue`).
 
-**The render policy.** Before every chunk, on every app-phase change, a hold's change and a
-resume, the worker asks one policy what to do next (`RenderPolicy.plan`, `Core/TTS/RenderPolicy.swift`):
-it hands over the situation (`RenderSituation`: the app phase, whether audio plays, a hold, the
-routes of the engine to preload, the candidates, each lane's calls in flight and resident route,
-the most calls in flight, the cores) and gets back one action (`RenderPlan`): start a call on a
-route, load a route, wait for a hold, or nothing. The queue checks it before it acts
-(`RenderPlan.violation`: no more calls than `maxCallsInFlight`, a route of the candidate's own
-engine, a call only on its route's resident host, a load only while its lane runs no call), and a
-plan that breaks one is dropped and logged (`render_plan_refused`; a Debug build stops on it).
+**The render policy.** Whenever a call or load ends, and on every event that can change the
+answer (work queued or moved, a listener waiting, an app-phase change, a hold's change, a resume;
+the kicks of one turn make one plan), the queue asks one policy what to do next
+(`RenderPolicy.plan`, `Core/TTS/RenderPolicy.swift`): it hands over the situation
+(`RenderSituation`: the app phase, whether audio plays, a hold, the routes of the engine to
+preload, the candidates, each lane's work in flight and resident route, the cores, the memory the
+process may still take) and gets back an action for each free lane it uses (`RenderPlan`: start a
+call on a route, or load a route), and a hold work waits for. The queue checks it before it acts
+(`RenderPlan.violation`: a route of the candidate's own engine, an action only on its route's
+free lane, none in the background on a lane that doesn't run there, a call only on its route's
+resident host, never two calls on one paragraph, one load at a time), and a plan that breaks one
+is dropped and logged (`render_plan_refused`; a Debug build stops on it). After it starts
+something it plans once more, so a lane still free can take the same job's next paragraph.
 The route loaded is the lane's resident one: its host is built for that route
 (`SpeechEngineProvider.makeHost(for:voice:)`), and a different route of the same engine (a new
 thread cap) is a new load. The candidates are every job's next unit per demand, in the queue's
@@ -524,8 +538,8 @@ order: a waited chunk, or the chunk a Play is about to wait for (`listener`: a P
 before it queues the article, as its producer asks only after the worker has run), the playing
 article from its playhead (`playing`), the staged chapter's opening (`staged`), and each other
 job's next unit (`queued`); they come from each job's kept missing list, not the cache. Which goes
-first is the policy's. The one policy is `SingleCallPolicy` (`AppComposition.makeRenderPolicy`);
-another is one type and that one line.
+first is the policy's. The app's policy is `SingleCallPolicy` (`AppComposition.makeRenderPolicy`);
+a Debug launch with `-renderPolicy lanes` picks `LanePolicy`. Another is one type and that line.
 
 `SingleCallPolicy`:
 
@@ -543,12 +557,33 @@ another is one type and that one line.
   count (Phonon's Core ML) runs as it is.
 - No throttle beyond QoS and the holds (issue #21).
 
+`LanePolicy` (Debug launch only), with `SingleCallPolicy`'s demand order, QoS, holds and
+background rule:
+
+- In front the Neural Engine lane takes the most urgent work whose engine has a route there
+  (Phonon), and the CPU lane the most urgent work left: another article, or the same article's
+  next paragraphs. Kokoro has no second route and renders on the CPU lane only.
+- In the background only the CPU lane starts calls. The Neural Engine's host stays loaded, unused,
+  and a call cut by the app leaving the front isn't the paragraph's failure: the CPU lane renders it.
+- Threads: while a Neural Engine host is loaded in front, the CPU lane's budget leaves one core for
+  its calls (`neuralEngineCallCores`); a CPU call started with the whole budget holds it, and a new
+  Neural Engine call waits until it ends (an uncapped CPU call counts 2 cores).
+- Memory: a second model loads beside another only when the process may still take its footprint
+  (`RenderRoute.footprintMB`: Phonon's CPU host about 120 MiB, its Neural Engine host about 300,
+  Kokoro about 470) plus 400 MB (`os_proc_available_memory`; no limit on the Simulator). Refused
+  once, the policy keeps to the CPU lane until the app relaunches: a CPU load first lets the
+  Neural Engine's host go (`RenderPlan.Load.alone`).
+
 **Routes and lanes.** Each engine declares where its calls run (`SpeechEngineProvider.routes`,
-`RenderRoute`: an id for the log, the engine, a `Lane`, and `ThreadControl`, `.honored(cap:)` or
-`.uncapped`); the registry refuses an engine without one. The one lane is `.cpu`; the queue keeps
-its calls in flight and its gate per lane (`SynthRenderGate.of(_:)`). Both engines render on the
-CPU alone (Phonon on Core ML's CPU path, Kokoro on ONNX Runtime's), so neither needs the GPU,
-which isn't available in the background.
+`RenderRoute`: an id for the log, the engine, a `Lane`, `ThreadControl`, `.honored(cap:)` or
+`.uncapped`, and the memory its loaded host adds); the registry refuses an engine without a CPU
+route. The lanes are `.cpu` and `.neuralEngine` (`Lane.runsInBackground`: the CPU only). Each lane
+has its own resident host (`LocalSynthService`, one per lane, each built for its route) and gate
+(`SynthRenderGate.of(_:)`), and runs one call or load at a time; loading on one lane never
+replaces another lane's host. Kokoro renders on the CPU (ONNX Runtime), Phonon on Core ML's CPU
+path (`phonon.cpu`) or the Neural Engine (`phonon.ane`, `LanePolicy` only); both Phonon routes
+share one cache revision. Settings shows an engine loading or failed on any lane
+(`LocalSynthService.state(of:)`).
 
 **Producer.** The player keeps a short buffer of rendered units and stops producing when it is
 full. Chunk 0 plays as soon as it is rendered; the producer doesn't wait for the paragraph. Seek /
@@ -939,6 +974,9 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
 **Debug-build tools** (launch arguments compile only in Debug; `LaunchOptions` parses them and
 `AppComposition` / `LaunchHooks` hand them on):
 
+- `-renderPolicy lanes`: the two-lane policy (`LanePolicy`) instead of the app's one call at a
+  time on the CPU. Each `synth` line's `route` (`phonon.ane`, `phonon.cpu`), its end `t` and
+  `wall_ms` show which calls overlapped; `engine_load` names the route and lane it loads.
 - `-engineProbe [-probeOnly Kokoro]` or the panel's "Run engine probe": per engine, init,
   first-chunk latency and wall vs audio time for 60 / 150 / 400 characters, into
   `Documents/engine_probe.txt` (written before each step, so a crash shows where it died). Like

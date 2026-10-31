@@ -77,8 +77,8 @@ final class LocalListenEngine {
 
     private var runState: AppRunState { coordinator.synthQueue.runState }
 
-    /// Diagnostics / timing-log name ("Kokoro").
-    var name: String { coordinator.synth.engineShortName }
+    /// Diagnostics / timing-log name of the playing article's engine ("Kokoro"; "—": none).
+    var name: String { source.map { coordinator.engines.shortName($0.selection.engine) } ?? "—" }
 
     /// Start at `request.utf16Offset`. Paused: take the spot without sounding; `resume` or a new
     /// `play` sounds it.
@@ -99,9 +99,9 @@ final class LocalListenEngine {
         ListenTimingLog.log("play", [
             "key": ListenTimingLog.shortKey(request.articleID), "p": start.paragraph, "paused": request.startPaused,
             "baked": source.isRenderedInThisVoice(paragraph: start.paragraph),
-            "worker_busy": queue.activeBakeCacheKey != nil,
-            "worker_key": ListenTimingLog.shortKey(queue.activeBakeCacheKey),
-            "worker_p": queue.activeBakeIndex ?? -1,
+            "worker_busy": !queue.rendering.isEmpty,
+            "worker_key": ListenTimingLog.shortKey(queue.rendering.first?.cacheKey),
+            "worker_p": queue.rendering.first?.index ?? -1,
         ])
         // The producer asks for its first chunk only once its task runs, after the worker this
         // Play wakes: the worker's first pick (and the load it may start) is the listener's now.
@@ -180,7 +180,7 @@ final class LocalListenEngine {
     /// call in flight); the next work loads a fresh one.
     func mediaServicesWereReset() {
         stop()
-        if let engine = coordinator.residentEngineID { coordinator.synthQueue.dropHost(engineID: engine) }
+        coordinator.dropAllHosts()
     }
 
     var debug: ListenEngineDebug {
@@ -198,7 +198,7 @@ final class LocalListenEngine {
     /// host's routing.
     private var renderMode: String {
         let phase = coordinator.synthQueue.runState.phase
-        let route = "\(name) (\(coordinator.synth.hostRoutingLabel ?? "default"))"
+        let route = "\(name) (\(coordinator.synth.routingLabels ?? "default"))"
         let pace = RenderPace.shared.snapshot.speed.map { String(format: ", %.1f× real time", $0) } ?? ""
         return "\(phase.rawValue), \(coordinator.renderPolicy.name), \(route)\(pace)"
     }

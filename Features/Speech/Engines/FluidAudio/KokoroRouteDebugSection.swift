@@ -45,8 +45,7 @@ struct KokoroRouteDebugSection: View {
     }
 
     private var liveRoute: String {
-        guard tts.activeLocalEngineID == .kokoro, let label = tts.synth.hostRoutingLabel else { return "not loaded" }
-        return label
+        tts.synth.routingLabel(of: .kokoro) ?? "not loaded"
     }
 
     private var paceLabel: String {

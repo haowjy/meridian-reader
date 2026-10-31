@@ -84,8 +84,9 @@ final class ListenDiagnostics {
             return "\(kind):\(key.uuidString.prefix(8))"
         }()
         let activeBake: String = {
-            guard let key = queue.activeBakeCacheKey, let idx = queue.activeBakeIndex else { return "—" }
-            return "\(key.uuidString.prefix(8)) p\(idx)"
+            let units = queue.rendering
+            guard !units.isEmpty else { return "—" }
+            return units.map { "\($0.cacheKey.uuidString.prefix(8)) p\($0.index)" }.joined(separator: ", ")
         }()
         let nextMissing: String = {
             if let idx = queue.nextMissingIndex() { return "p\(idx)" }
@@ -101,7 +102,7 @@ final class ListenDiagnostics {
             case .idle: return "idle"
             }
         }()
-        let warmingLocal = localTTS.synth.state.warmingEngineID != nil
+        let warmingLocal = localTTS.synth.isWarming
         let snap = speech.engineSnapshot()
         return ListenDebugSnapshot(
             phase: String(describing: playback.phase),

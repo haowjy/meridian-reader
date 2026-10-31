@@ -74,9 +74,9 @@ final class QueueUnitSource: ListenUnitSource {
     /// Save landed on a different key than the reader's: keep playing under the new one.
     func rekey(to id: UUID) { articleID = id }
 
-    var engineName: String { coordinator.synth.engineShortName }
+    var engineName: String { coordinator.engines.shortName(selection.engine) }
 
-    var waitsForVoice: Bool { coordinator.synth.residentEngineID != selection.engine }
+    var waitsForVoice: Bool { !coordinator.synth.loadedEngines.contains(selection.engine) }
 
     func renderedParagraph(_ paragraph: Int) -> RenderedParagraph? {
         guard let cacheVoice,
@@ -115,8 +115,9 @@ final class QueueUnitSource: ListenUnitSource {
     }
 
     func workerStatus(paragraph: Int) -> RenderWorkerStatus {
-        guard let active = queue.activeBakeCacheKey else { return .idle }
-        return active == articleID && queue.activeBakeIndex == paragraph ? .renderingThisParagraph : .busyElsewhere
+        let rendering = queue.rendering
+        guard !rendering.isEmpty else { return .idle }
+        return rendering.contains(.init(cacheKey: articleID, index: paragraph)) ? .renderingThisParagraph : .busyElsewhere
     }
 
     func focus(paragraph: Int) {
