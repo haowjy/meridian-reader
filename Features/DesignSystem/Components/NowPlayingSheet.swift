@@ -82,7 +82,8 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
 /// the readers' "▶ Listen") with just 4 pt above and below, floating in the
 /// middle of the line above what floats at the foot (the card, or the strip in full screen), its
 /// arrow pointing to the spoken sentence. It shows only while the text is away from the audio
-/// (`shows`), and fades in and out.
+/// (`shows`), and fades in and out. While it shows, Scroll mode's text leaves its line clear at the
+/// end (`ReadingChrome.jumpClearance`).
 struct JumpToAudioButton: View {
     let shows: Bool
     let direction: JumpDirection
@@ -90,6 +91,7 @@ struct JumpToAudioButton: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.readingPalette) private var reading
+    @Environment(\.readingChrome) private var chrome
 
     var body: some View {
         ZStack {
@@ -115,6 +117,10 @@ struct JumpToAudioButton: View {
             }
         }
         .frame(maxWidth: .infinity)
+        // The text's end scrolls clear of the pill while it shows (0 tall when it doesn't).
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            chrome?.jumpClearance = height > 0 ? height + Spacing.s : 0
+        }
         // Reduce Motion: a cross-fade, no spring.
         .animation(shows ? (reduceMotion ? Motion.fadeIn : Motion.snappy) : Motion.fadeOut, value: shows)
     }

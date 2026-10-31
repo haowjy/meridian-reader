@@ -1116,11 +1116,12 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   spoken sentence instead (below). The spoken paragraph lights up to full ink while the one before dims (a short
   fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
-  doesn't move the text, so following goes on). On compact Listen the player card's Jump turns into an
-  arrow toward the spoken sentence ("Bottom chrome", above). Elsewhere a round *Jump to Audio* button floats over the text at the
-  right edge, 12 pt above the player card of an in-place reader (level with the card's right edge; the bubble when it folds;
-  on regular width above the band): a 48 pt glass circle on the round buttons' shared face (`ChromeCircleFace`), with an arrow
-  that points to the spoken sentence, ↑ when it is above the visible text and ↓ when below (Pages: on an earlier or a later page).
+  doesn't move the text, so following goes on). Then *Jump to Audio* shows, on both widths: a thin accent pill
+  (`JumpToAudioButton`, the "▶ Listen" pill's type, 4 pt above and below its label) floating centred on the line just
+  above what floats at the text's foot (compact Listen's player card, regular width's band; the home indicator's strip
+  in full screen), with an arrow that points to the spoken sentence, ↑ when it is above the visible text and ↓ when
+  below (Pages: on an earlier or a later page). While it shows, Scroll mode's text leaves its line clear: the end of
+  the text scrolls to just above the pill, and the text on screen doesn't move as it comes and goes.
   VoiceOver: "Jump to Audio", hint "Scrolls up / down to the sentence being read". Tap it (or start another page) and
   following resumes: the text scrolls so the spoken sentence is in the middle of the visible
   text (between the top of the screen and the bottom chrome), as when Now Playing opens, and

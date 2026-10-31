@@ -94,8 +94,10 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
     }
 
     /// What floats over the foot of the text: the band and the room under it, above the home
-    /// indicator's strip; in Scroll mode's full screen the strip alone.
+    /// indicator's strip; in Scroll mode's full screen the strip alone. In Scroll mode Jump to Audio's
+    /// line too while it shows, so the last line ends above the pill (Pages keeps its cut).
     private func floatingBottom(hidden: Bool) -> CGFloat {
-        hidden && appearance.layout != .pages ? bottomInset : bandHeight + bottomInset + bottomClearance
+        guard appearance.layout != .pages else { return bandHeight + bottomInset + bottomClearance }
+        return (hidden ? bottomInset : bandHeight + bottomInset + bottomClearance) + chrome.jumpClearance
     }
 }

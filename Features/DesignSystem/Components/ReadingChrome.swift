@@ -43,6 +43,9 @@ final class ReadingChrome {
     /// Pages mode's footer, above the home indicator (0 in Scroll mode), measured by the reading
     /// view: in full screen what floats over the text sits above it.
     var pageFooter: CGFloat = 0
+    /// Jump to Audio's line while it shows (its pill and the gap under it), set by `JumpToAudioButton`:
+    /// in Scroll mode the end of the text scrolls clear of it (`ReadingBars`).
+    var jumpClearance: CGFloat = 0
     /// The floating play / pause shows (only in full screen).
     private(set) var floatingControl = false
 
