@@ -68,6 +68,23 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
     /// Floats over the text: just above the band (Jump to Audio, the full screen play button).
     @ViewBuilder var overText: OverText
 
+    init(showing: ReadingShowing, chrome: ReadingChrome, palette: ReadingPalette,
+         @ViewBuilder trailing: () -> Trailing, @ViewBuilder banner: () -> Banner,
+         @ViewBuilder text: () -> Reading, @ViewBuilder band: () -> Band,
+         @ViewBuilder floating: () -> Floating, @ViewBuilder overText: () -> OverText) {
+        self.showing = showing
+        self.chrome = chrome
+        self.palette = palette
+        self.trailing = trailing()
+        self.banner = banner()
+        self.text = text()
+        self.band = band()
+        self.floating = floating()
+        self.overText = overText()
+        // Before the first frame, so a page opened in full screen never flashes its bars.
+        chrome.present(showing)
+    }
+
     var body: some View {
         switch showing {
         case .sheet(let close, let onClose):
@@ -122,17 +139,6 @@ private struct InPlaceFrame<Header: View, Content: View>: View {
     @ViewBuilder var content: Content
 
     @State private var statusBarHeight: CGFloat = 0
-
-    init(place: ReadingInPlace, chrome: ReadingChrome, palette: ReadingPalette,
-         @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content) {
-        self.place = place
-        self.chrome = chrome
-        self.palette = palette
-        self.header = header()
-        self.content = content()
-        // Before the first frame, so a page opened in full screen never flashes its bars.
-        chrome.attach(place)
-    }
 
     /// No band of its own: the card is the chrome's. A zero-height band, not `EmptyView`, which
     /// `ReadingBars` measures as the whole screen's room (the text's bottom inset was 812 pt, so

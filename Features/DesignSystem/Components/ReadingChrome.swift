@@ -28,8 +28,8 @@ import UIKit
 @MainActor
 @Observable
 final class ReadingChrome {
-    /// Full screen: the bars and the status bar are hidden. Regular width keeps it here; compact
-    /// width reads the compact chrome's (`attach`), so there is one copy.
+    /// Full screen: the bars and the status bar are hidden. A sheet keeps it here; a page in place
+    /// reads the compact chrome's (`present`), so there is one copy.
     var hidden: Bool { fullScreen?.wrappedValue ?? ownHidden }
     private var ownHidden = false
     @ObservationIgnored private var fullScreen: Binding<Bool>?
@@ -50,18 +50,31 @@ final class ReadingChrome {
     static let floatingDuration: Duration = .seconds(3)
 
     /// Compact width: where the text's own scrolling goes (the chrome host's collapse), as an
-    /// offset from the text's top; set by `attach`. Not called in full screen.
+    /// offset from the text's top; set by `present`. Not called in full screen.
     @ObservationIgnored var onUserScroll: (CGFloat) -> Void = { _ in }
     /// Compact width: the text moved without a finger deciding anything (a restore, following the
     /// audio, a scrub, or any move in full screen); the collapse measures from here next.
     @ObservationIgnored var onScrollAnchor: (CGFloat) -> Void = { _ in }
     @ObservationIgnored private var floatingTimer: Task<Void, Never>?
+    /// A pull down at the top of the text in full screen brings the bars back: true only for a
+    /// regular-width sheet (`ReadingShowing.sheet`). Compact full screen, Listen's and in place, is
+    /// left by the middle tap alone.
+    @ObservationIgnored private var pullShowsBars = false
 
-    /// Compact width: full screen is the compact chrome's, and the text's scrolling goes to it.
-    func attach(_ place: ReadingInPlace) {
-        fullScreen = place.fullScreen
-        onUserScroll = place.scrolled
-        onScrollAnchor = place.anchored
+    /// How the page is shown (`ReadingPage`, before its first frame). In place, full screen is the
+    /// compact chrome's, and the text's scrolling goes to it.
+    func present(_ showing: ReadingShowing) {
+        switch showing {
+        case .sheet:
+            pullShowsBars = true
+        case .cover:
+            pullShowsBars = false
+        case .inPlace(let place):
+            pullShowsBars = false
+            fullScreen = place.fullScreen
+            onUserScroll = place.scrolled
+            onScrollAnchor = place.anchored
+        }
     }
 
     #if DEBUG
@@ -92,10 +105,9 @@ final class ReadingChrome {
         onScrollAnchor(offset)
     }
 
-    /// A pull down at the top of the text in full screen brings the bars back (regular width, where
-    /// the chrome owns no copy of full screen).
+    /// A pull down at the top of the text: in full screen on a regular-width sheet, the bars come back.
     func pulledDownAtTop() {
-        guard fullScreen == nil else { return }
+        guard pullShowsBars else { return }
         show()
     }
 
