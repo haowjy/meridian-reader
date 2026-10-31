@@ -205,8 +205,7 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   text. A pull down on the grabber or the player card (a UIKit pan, `SheetPullPan`, so a drag that starts on a control pulls too; the scrubber keeps its drag), or on the text when it is at its top, follows the finger and closes it when let go far enough or
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
   its scroll, a reader in place and its fold or full screen, a search (its keyboard lowered when Listen
-  opened). Audio keeps playing. At the foot a glass player card at the chrome's side margins (`Radius.surface` 24), 16 pt above the home
-  indicator's strip (`ChromeMetrics.homeClearance`, clear of the display's rounded corners),
+  opened). Audio keeps playing. At the foot a glass player card at the chrome's margins (`Radius.surface` 24),
   as tall as its rows, floating over the text, which runs on under it to the screen's foot (`ReaderPlayerCard`). No artwork and no divider: its
   groups are set apart by space alone.
 
@@ -331,7 +330,7 @@ A slot with nothing to do is dimmed in place, never removed, so nothing shifts.
 regular-width band and dock and by the reading sheets' bands: the band (`bottomChromeBand`: 12 pt
 margins, 8 pt top padding, system bar material through the home indicator), the field capsule
 (`bottomChromeField`: 44 pt, chrome-coloured capsule; 36 pt body-size controls inside, like 🎤),
-and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain 19 pt glyphs). With
+and the toolbar row (`BottomToolbarLayout` + `toolbarIconFrame`: 44 pt, plain 20 pt glyphs). With
 larger text the capsule and its controls grow (up to 1.5×) instead of clipping; toolbar glyphs
 keep their size and show in the large content viewer on long press. Every control takes taps in at
 least 44 × 44 pt (`tapTarget`), whatever its drawn size. **Five equal slots, evenly spaced, one
@@ -1239,7 +1238,9 @@ time; Follow's chapter preview always scrolls.
 - **The footer** (`2 min left` on the left, `33%` on the right), only while reading. The time is
   what is left from the first character of the article shown to the end of the article's text, at the
   playback speed, worded as the rows and the Now Playing bar word it; a chapter of a book or
-  series says `2 min left in chapter`. The percentage is the page shown of the pages.
+  series says `2 min left in chapter`. The percentage is the page shown of the pages. It sits 12 pt
+  above the home indicator's strip, at the page margins, in the Reader and in place alike (in place
+  the strip comes from the window, `ChromeHome.inset`, since the page is laid out through it).
 - **Turning** (C107): native horizontal paging, as Apple Books' *Slide*. The article is laid out in
   CSS columns a screen wide, in the web view's own scroll view with paging on, so a page tracks
   the finger 1:1 and settles with the system's physics; a tap at the right edge zone slides to the

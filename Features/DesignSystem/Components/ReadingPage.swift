@@ -28,6 +28,9 @@ enum ReadingShowing {
 struct ReadingInPlace {
     /// The room the chrome keeps at the bottom, folded or not: the text keeps clear of it.
     var bottomClearance: CGFloat
+    /// The home indicator's strip (the window's bottom safe area). The page in place is laid out
+    /// through the bottom safe area, under the chrome, so it can't measure the strip itself.
+    var homeIndicator: CGFloat
     /// The text, scrolled by a finger, to this offset from its top.
     var scrolled: (CGFloat) -> Void
     /// The text moved without a finger deciding anything: the fold measures from here.
@@ -135,7 +138,7 @@ private struct InPlaceFrame<Header: View, Content: View>: View {
     /// the middle of the visible text was off the page and a jump to the audio left it at the top).
     var body: some View {
         ReadingBars(chrome: chrome, headerBackground: palette.background, headerSlide: statusBarHeight,
-                    bottomClearance: place.bottomClearance, header: header,
+                    bottomClearance: place.bottomClearance, homeIndicator: place.homeIndicator, header: header,
                     content: content, band: Color.clear.frame(height: 0), overText: EmptyView())
             .background(palette.background.ignoresSafeArea())
             .readingSurface(palette)
@@ -161,7 +164,7 @@ private struct CoverBand<Content: View, Floating: View>: View {
             .chromeSurface(shape, fill: BottomChrome.fieldFill(reading), interactive: false)
             .environment(\.chromeSkin, ChromeSkin.current)
             .padding(.horizontal, Spacing.bandMargin)
-            .padding(.bottom, ChromeMetrics.homeClearance)
+            .padding(.bottom, Spacing.xs)
             .overlay(alignment: .top) { floating }
     }
 }

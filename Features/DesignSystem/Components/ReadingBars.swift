@@ -20,6 +20,9 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
     /// its own height when it hides.
     let headerSlide: CGFloat
     var bottomClearance: CGFloat = 0
+    /// The home indicator's strip, when the page can't measure it (in place, laid out through the
+    /// bottom safe area); nil: the page's own bottom safe area.
+    var homeIndicator: CGFloat?
     let header: Header
     let content: Content
     let band: Band
@@ -30,8 +33,10 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @State private var headerHeight: CGFloat = 0
     @State private var bandHeight: CGFloat = 0
-    /// The home indicator's inset (the bottom safe area).
-    @State private var bottomInset: CGFloat = 0
+    /// The page's bottom safe area, as measured.
+    @State private var measuredInset: CGFloat = 0
+    /// The home indicator's inset: nothing but page text and its background goes below it.
+    private var bottomInset: CGFloat { homeIndicator ?? measuredInset }
 
     var body: some View {
         let hidden = chrome.hidden
@@ -72,7 +77,7 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
                 .accessibilityHidden(hidden)
         }
         .animation(reduceMotion ? (hidden ? Motion.fadeOut : Motion.fadeIn) : Motion.standard, value: hidden)
-        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { measuredInset = $0 }
         .onChange(of: bandHeight + bottomInset + bottomClearance, initial: true) { _, bottom in chrome.insets.bottom = bottom }
         .onChange(of: bottomInset, initial: true) { _, inset in chrome.homeIndicator = inset }
         // The bars stay while VoiceOver runs.

@@ -524,10 +524,12 @@ struct ReadingPageFrame: View {
                 Text(shown.map { "\(Int((Double($0.index + 1) / Double(max($0.count, 1)) * 100).rounded()))%" } ?? "")
             }
                 .typeStyle(.caption)
-                .padding(.horizontal, Spacing.m)
+                .padding(.horizontal, Spacing.pageMargin)
                 .frame(maxWidth: .infinity)
                 .padding(.top, Spacing.xs)
-                .padding(.bottom, Spacing.xxs)
+                // Above the home indicator's strip and clear of the display's rounded corners, which
+                // crowd text 4 pt above it.
+                .padding(.bottom, Spacing.s)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { chrome?.pageFooter = $0 }
                 .onDisappear { chrome?.pageFooter = 0 }
                 .padding(.bottom, chrome?.homeIndicator ?? 0)
