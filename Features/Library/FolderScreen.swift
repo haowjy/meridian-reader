@@ -220,16 +220,7 @@ private struct FolderContentsList: View {
                 Section {
                     EmptyState(String(localized: "This Folder Is Empty"),
                                description: Text("Move articles here, or save them here from the Reader’s \(Text.symbol(Icons.save)).")) {
-                        ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser, prominent: true,
-                                   identifier: "folderEmptyBrowse") { shell.showBrowser() }
-                        ActionTile(title: String(localized: "Import a File"), symbol: Icons.importFile,
-                                   identifier: "folderEmptyImport") {
-                            BookImportActions(library: library, shell: shell).pickBook(into: folder)
-                        }
-                        ActionTile(title: String(localized: "Paste Text"), symbol: Icons.paste,
-                                   identifier: "folderEmptyPaste") { screen.pasteText(into: folder) }
-                        ActionTile(title: String(localized: "Add a Link"), symbol: Icons.link,
-                                   identifier: "folderEmptyLink") { screen.addLink(into: folder) }
+                        AddToLibraryTiles(folder: folder)
                     }
                     .accessibilityIdentifier("folderEmpty")
                 }

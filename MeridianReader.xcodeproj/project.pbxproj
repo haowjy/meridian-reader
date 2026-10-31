@@ -70,6 +70,7 @@
 		2C2A1A82D51B2F030A844B68 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0192CD856C23B05D5DAC8758 /* PrivacyInfo.xcprivacy */; };
 		2C352EE2FC32C6B4F7596963 /* AppRunState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0274655A4042E4FEC2DFF80F /* AppRunState.swift */; };
 		2C666F14BC21F96EF171908E /* PrepareList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F1AE563425966896FBEB8DA /* PrepareList.swift */; };
+		2C8C2959A775758E2A918A2C /* AddToLibraryTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F0C2F7285093AA1DADC2C36 /* AddToLibraryTiles.swift */; };
 		2E0BF1BFA0D39AB4E3D6EE37 /* ProcessMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8769B2CD25D5E467372D25D /* ProcessMemory.swift */; };
 		2F51527F266E19EB4DFE4BE9 /* URL+Web.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873A935475797F25334192D6 /* URL+Web.swift */; };
 		2F53AE947E46E1423D455AA1 /* KokoroVoiceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B7C40BC9E55A2B320911AC8 /* KokoroVoiceCatalog.swift */; };
@@ -578,6 +579,7 @@
 		5C27B71CA4EFC5B4693E6629 /* ChromeSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeSkin.swift; sourceTree = "<group>"; };
 		5DB3C0B0A7EC2C49F5EF2212 /* SurfaceMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurfaceMemory.swift; sourceTree = "<group>"; };
 		5EA9F1902B9F4A3C9AAA72FD /* ProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRing.swift; sourceTree = "<group>"; };
+		5F0C2F7285093AA1DADC2C36 /* AddToLibraryTiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToLibraryTiles.swift; sourceTree = "<group>"; };
 		5F0F8FF9283D5CFA31713FC9 /* WebViewStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewStore.swift; sourceTree = "<group>"; };
 		5F30F44AE90070FA7751D970 /* NowPlayingBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingBarView.swift; sourceTree = "<group>"; };
 		613F6F5CF83C5F8C6256B00C /* PrepareOverview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrepareOverview.swift; sourceTree = "<group>"; };
@@ -1095,6 +1097,7 @@
 		4CAA84A6FAD8D0FC1E82AD14 /* Library */ = {
 			isa = PBXGroup;
 			children = (
+				5F0C2F7285093AA1DADC2C36 /* AddToLibraryTiles.swift */,
 				3B2992A2ACAFB8E1023F0095 /* ArticleMenu.swift */,
 				61793452A7E39A762724D0F3 /* ArticleProgress.swift */,
 				EEED72F038103FDD7C6E3093 /* BookImportActions.swift */,
@@ -1842,6 +1845,7 @@
 				CF24C2B06297D64E9B49AB14 /* ActionButtonRow.swift in Sources */,
 				A17C20266BFEA99CD6718162 /* ActionTile.swift in Sources */,
 				94AF8151FA7F3C37016818E0 /* ActivityShareSheet.swift in Sources */,
+				2C8C2959A775758E2A918A2C /* AddToLibraryTiles.swift in Sources */,
 				8FF27EC80D103734F3CBCE56 /* AddressDictation.swift in Sources */,
 				9ABD40C5DFE19D7C8D4A1FDA /* AddressField.swift in Sources */,
 				6D30389C911208A736C086B8 /* AddressLabel.swift in Sources */,

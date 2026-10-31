@@ -84,6 +84,9 @@ struct BrowseStartView: View {
                 BookImportActions(library: library, shell: shell).importPicked(url, into: shell.bookPickDestination)
             }
             .modifier(BrowseAlerts(extractionError: $alertMessage, dictation: dictation))
+            // The Library's screen state reaches Listen and the shell's sheets too: their empty
+            // screens' tiles open Paste Text and Add Link on it (`AddToLibraryTiles`).
+            .environment(libraryScreen)
             .onChange(of: webStore.currentURL) { _, _ in shell.browserPageChanged() }
             .onAppear { webStore.onBookDownload = bookDownloaded }
             .onChange(of: webStore.isLoading) { _, loading in
@@ -325,7 +328,6 @@ struct BrowseStartView: View {
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
         return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
             ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen(), settings: settingsChromeScreen)
-                .environment(libraryScreen)
                 .frame(maxHeight: .infinity, alignment: .bottom)
         }
     }

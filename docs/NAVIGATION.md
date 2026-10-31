@@ -244,9 +244,8 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   the middle tap leaves it, as in the in-place readers. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
 - **Listen with nothing to play** (nothing bound and nothing played before): the same cover, its grabber and
-  pull down, with *Nothing Playing*, "Choose an article or book to listen to." and two tiles, *Open
-  Library* (`listenEmptyOpenLibrary`, accent-tinted), which closes it on the Library's home, and *Browse
-  the Web*. A pull from
+  pull down, with *Nothing Playing*, "Choose an article or book to listen to." and the four tiles every empty
+  screen has (`AddToLibraryTiles`, below), each closing Listen first. A pull from
   anywhere on it closes it. Listen that loses what it showed (the page removed from the Library) closes
   instead.
 - **Starting something new** (compact width): a Library row's tap plays the article or chapter and slides
@@ -363,7 +362,7 @@ the same spot. ⋯ is never replaced.
   pages visited, newest first, as Library rows (the site under a titled visit, none under an
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
   and long press are the article's menu ("Menus", below; on the Library's article for the address when
-  it has one), then *Remove from History*. Empty, it says *No History Yet*, "Pages you open show up here.", over *Browse the Web* (closes it) and *Open Library*.
+  it has one), then *Remove from History*. Empty, it says *No History Yet*, "Pages you open show up here.", over the four tiles every empty screen has; each closes it first (*Browse the Web* to the Browser).
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work; over the in-place
   reader, a swipe from the left edge does what ‹ does.
@@ -517,9 +516,11 @@ commas.
   its ways in as tiles (`ActionTile`), side by side (at the accessibility text sizes stacked, each a
   row with its symbol beside its label), the first accent-tinted, 96 pt below what is above it (24 pt
   at the accessibility sizes). An empty Library says
-  *Start Your Library*, "Save articles from the web, a file, text or a link.", over four tiles, two by two:
-  *Browse the Web* (the Browser), *Import a File* (as *Import from…*), *Paste Text* (as *Paste Text…*)
-  and *Add a Link* (as *Add Link…*); History says *No History*, "Articles you play without saving show
+  *Start Your Library*, "Save articles from the web, a file, text or a link.", over four tiles, two by two, the
+  same on every empty screen (`AddToLibraryTiles`; a folder's go into the folder, every other's into the top
+  level): *Browse the Web* (the Browser), *Import a File* (as *Import from…*), *Paste Text* (as *Paste Text…*)
+  and *Add a Link* (as *Add Link…*), each closing what is over the screen first (a sheet, Listen) and landing
+  where its result shows (the Browser, or the Library with the picker, editor or address field up); History says *No History*, "Articles you play without saving show
   up here for 7 days.", over the same four. Search with no match is the system's search view.
   Search filters the tab on screen: on
   Everything the Library's folders and pages across the tree, on
@@ -881,7 +882,7 @@ page's, or the folder's, which lists the folder's pages afresh). A page
 that couldn't be fetched or rendered is counted ("2 couldn’t prepare"), and *Prepare Again* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
 nothing in it, it says *Nothing Prepared* (`EmptyState`): prepare an article from its ⋯, or a
-folder or a book from its screen's ↓, over *Open Library* and *Browse the Web*.
+folder or a book from its screen's ↓, over the four tiles every empty screen has, each closing the sheet first.
 
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…* (titled *Move to*) and every *Save
 to Folder…* (an article's menu out of the Library, 🔖 held; titled *Save to Folder*); the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋

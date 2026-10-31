@@ -62,15 +62,13 @@ struct EmptyState<Tiles: View>: View {
 struct EmptyStateGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("one tile") {
-                EmptyState("No History Yet", description: "Pages you open show up here.") {
+            // The app's empty screens all show these four (`AddToLibraryTiles`).
+            PreviewState("four tiles") {
+                EmptyState("Start Your Library", description: "Save articles from the web, a file, text or a link.") {
                     ActionTile(title: "Browse the Web", symbol: Icons.browser, prominent: true) {}
-                }
-            }
-            PreviewState("two tiles") {
-                EmptyState("Start Your Library") {
-                    ActionTile(title: "Browse the Web", symbol: Icons.browser, prominent: true) {}
-                    ActionTile(title: "Import a Book", symbol: Icons.book) {}
+                    ActionTile(title: "Import a File", symbol: Icons.importFile) {}
+                    ActionTile(title: "Paste Text", symbol: Icons.paste) {}
+                    ActionTile(title: "Add a Link", symbol: Icons.link) {}
                 }
             }
         }

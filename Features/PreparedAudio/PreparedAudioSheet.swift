@@ -75,16 +75,7 @@ struct PreparedAudioList: View {
                 Section {
                     EmptyState(String(localized: "Nothing Prepared"),
                                description: Text("Prepare audio from an article’s \(Text.symbol(Icons.more)) or a folder’s \(Text.symbol(Icons.prepare)), and it plays offline.")) {
-                        ActionTile(title: String(localized: "Open Library"), symbol: Icons.library, prominent: true,
-                                   identifier: "downloadsEmptyLibrary") {
-                            shell.sheet = nil
-                            shell.showLibrary(at: [])
-                        }
-                        ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser,
-                                   identifier: "downloadsEmptyBrowse") {
-                            shell.sheet = nil
-                            shell.showBrowser()
-                        }
+                        AddToLibraryTiles(folder: nil)
                     }
                     .accessibilityIdentifier("downloadsEmpty")
                 }

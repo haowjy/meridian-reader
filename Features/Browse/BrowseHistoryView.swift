@@ -15,7 +15,6 @@ struct BrowseHistoryView: View {
     let visits: [RecentVisit]
     var onOpen: (RecentVisit) -> Void
     var onDone: () -> Void
-    var onOpenLibrary: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -23,10 +22,7 @@ struct BrowseHistoryView: View {
                 if visits.isEmpty {
                     EmptyState(String(localized: "No History Yet"),
                                description: String(localized: "Pages you open show up here.")) {
-                        ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser, prominent: true,
-                                   identifier: "historyEmptyBrowse", action: onDone)
-                        ActionTile(title: String(localized: "Open Library"), symbol: Icons.library,
-                                   identifier: "historyEmptyLibrary", action: onOpenLibrary)
+                        AddToLibraryTiles(folder: nil)
                     }
                     .padding(.horizontal, Spacing.pageMargin)
                     .background(Palette.paper)

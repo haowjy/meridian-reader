@@ -108,16 +108,7 @@ struct LibraryHomeView: View {
                        description: tab == .recent
                            ? Text("Articles you play without saving show up here for 7 days.")
                            : Text("Save articles from the web, a file, text or a link.")) {
-                ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser, prominent: true,
-                           identifier: "libraryEmptyBrowse") { shell.showBrowser() }
-                ActionTile(title: String(localized: "Import a File"), symbol: Icons.importFile,
-                           identifier: "libraryEmptyImport") {
-                    BookImportActions(library: library, shell: shell).pickBook(into: nil)
-                }
-                ActionTile(title: String(localized: "Paste Text"), symbol: Icons.paste,
-                           identifier: "libraryEmptyPaste") { screen.pasteText(into: nil) }
-                ActionTile(title: String(localized: "Add a Link"), symbol: Icons.link,
-                           identifier: "libraryEmptyLink") { screen.addLink(into: nil) }
+                AddToLibraryTiles(folder: nil)
             }
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)

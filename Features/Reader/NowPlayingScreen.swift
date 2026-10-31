@@ -91,10 +91,7 @@ struct NowPlayingScreen: View {
         return Sheet(onDismiss: onClose, palette: palette, largePullTargets: sizeClass != .regular) {
             EmptyState(String(localized: "Nothing Playing"),
                        description: Text("Choose an article or book to listen to.")) {
-                ActionTile(title: String(localized: "Open Library"), symbol: Icons.library, prominent: true,
-                           identifier: "listenEmptyOpenLibrary") { shell.showLibrary(at: []) }
-                ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser,
-                           identifier: "listenEmptyBrowse") { shell.showBrowser() }
+                AddToLibraryTiles(folder: nil)
             }
             .padding(.horizontal, Spacing.pageMargin)
             .accessibilityElement(children: .contain)
