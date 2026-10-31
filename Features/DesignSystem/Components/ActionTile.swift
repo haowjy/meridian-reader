@@ -17,6 +17,8 @@ struct ActionTile: View {
                 Image(systemName: symbol)
                     .glyphSize(Glyph.large)
                     .foregroundStyle(Palette.accent)
+                    // One symbol height, so tiles side by side keep their labels on one line.
+                    .frame(height: Glyph.large * Control.maxTextGrowth)
                 Text(title)
                     .typeStyle(.row, weight: .semibold)
                     .foregroundStyle(Palette.ink)

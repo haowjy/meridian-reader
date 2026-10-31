@@ -63,10 +63,9 @@ struct LibraryHomeView: View {
                 VStack(spacing: Spacing.s) {
                     TitleLine(title: Verbs.library) { LibraryTitleMenu() }
                         .accessibilityIdentifier("libraryTitle")
-                    Picker("Library view", selection: $shell.homeTab) {
-                        ForEach(LibraryHomeTab.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
+                    SegmentedTabs(label: String(localized: "Library view"),
+                                  options: LibraryHomeTab.allCases.map { ($0, $0.title) },
+                                  selection: $shell.homeTab)
                     .accessibilityIdentifier("libraryTabs")
                 }
                 .listHeader()
@@ -103,25 +102,10 @@ struct LibraryHomeView: View {
         if !searchText.isEmpty {
             ContentUnavailableView.search(text: searchText)
                 .listRowBackground(Color.clear)
-        } else if tab == .recent {
-            EmptyState(String(localized: "No History"), symbol: Icons.history,
-                       description: String(localized: "Articles you play without saving show up here for 7 days."))
-                .listRowBackground(Color.clear)
         } else {
-            emptyCard
-        }
-    }
-
-    // MARK: - Empty
-
-    /// An empty Library: the two ways something gets in, as two tiles side by side.
-    private var emptyCard: some View {
-        VStack(spacing: Spacing.m) {
-            Text("Start Your Library")
-                .typeStyle(.heading, weight: .semibold)
-                .foregroundStyle(Palette.ink)
-                .multilineTextAlignment(.center)
-            HStack(spacing: Spacing.s) {
+            EmptyState(tab == .recent ? String(localized: "No History") : String(localized: "Start Your Library"),
+                       description: tab == .recent
+                           ? Text("Articles you play without saving show up here for 7 days.") : nil) {
                 ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser, prominent: true,
                            identifier: "libraryEmptyBrowse") { shell.showBrowser() }
                 ActionTile(title: String(localized: "Import a Book"), symbol: Icons.book,
@@ -129,13 +113,11 @@ struct LibraryHomeView: View {
                     BookImportActions(library: library, shell: shell).pickBook(into: nil)
                 }
             }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .accessibilityIdentifier("libraryEmpty")
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, Spacing.xl * 4)
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("libraryEmpty")
     }
 }
 

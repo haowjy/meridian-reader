@@ -26,8 +26,15 @@ struct LibraryRouteView: View {
 /// A folder's screen once the folder is gone (deleted, or a remembered path to one that isn't
 /// there any more).
 struct FolderGoneView: View {
+    @Environment(ShellState.self) private var shell
+
     var body: some View {
-        EmptyState(String(localized: "This Folder Is Gone"), symbol: Icons.folder)
+        EmptyState(String(localized: "This Folder Is Gone")) {
+            ActionTile(title: String(localized: "Open Library"), symbol: Icons.library, prominent: true) {
+                shell.showLibrary(at: [])
+            }
+        }
+        .padding(.horizontal, Spacing.pageMargin)
     }
 }
 

@@ -218,9 +218,16 @@ private struct FolderContentsList: View {
             if subfolders.isEmpty && articles.isEmpty {
                 // Every empty list says so the same way (`EmptyState`), under the folder's header.
                 Section {
-                    EmptyState(String(localized: "This Folder Is Empty"), symbol: Icons.folder,
-                               description: Text("Move articles here, or save them here from the Reader’s \(Text.symbol(Icons.save))."))
-                        .accessibilityIdentifier("folderEmpty")
+                    EmptyState(String(localized: "This Folder Is Empty"),
+                               description: Text("Move articles here, or save them here from the Reader’s \(Text.symbol(Icons.save)).")) {
+                        ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser, prominent: true,
+                                   identifier: "folderEmptyBrowse") { shell.showBrowser() }
+                        ActionTile(title: String(localized: "Import a Book"), symbol: Icons.book,
+                                   identifier: "folderEmptyImport") {
+                            BookImportActions(library: library, shell: shell).pickBook(into: folder)
+                        }
+                    }
+                    .accessibilityIdentifier("folderEmpty")
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)

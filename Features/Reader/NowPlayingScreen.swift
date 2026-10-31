@@ -90,14 +90,14 @@ struct NowPlayingScreen: View {
             if let presentation { shell.nowPlayingDidClose(presentation) }
         }
         return Sheet(onDismiss: onClose, palette: palette, largePullTargets: sizeClass != .regular) {
-            EmptyState(String(localized: "Nothing Playing"), symbol: Icons.listen,
+            EmptyState(String(localized: "Nothing Playing"),
                        description: Text("Choose an article or book to listen to.")) {
-                Button(String(localized: "Open Library")) { shell.showLibrary(at: []) }
-                    .fontWeight(.semibold)
-                    .tint(palette.accent)
-                    .accessibilityIdentifier("listenEmptyOpenLibrary")
+                ActionTile(title: String(localized: "Open Library"), symbol: Icons.library, prominent: true,
+                           identifier: "listenEmptyOpenLibrary") { shell.showLibrary(at: []) }
+                ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser,
+                           identifier: "listenEmptyBrowse") { shell.showBrowser() }
             }
-            .frame(maxHeight: .infinity)
+            .padding(.horizontal, Spacing.pageMargin)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("listenEmpty")
         } content: {

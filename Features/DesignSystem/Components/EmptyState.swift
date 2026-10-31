@@ -1,41 +1,51 @@
 import SwiftUI
 
-/// Every empty list says so the same way: the system's empty view (`ContentUnavailableView`),
-/// its symbol from `Icons`, a Title Case title ("No History Yet"), a sentence-case line under it,
-/// and, where the list has a way to fill it, its actions (an `ActionButtonRow`). The Library
-/// home's tabs, the browser's History, Prepared audio and a folder that is gone.
-struct EmptyState<Actions: View>: View {
+/// Every empty screen says so the same way: a heading, a line under it when there is something to
+/// say, and the ways to fill it as `ActionTile`s, two to a row (stacked at the accessibility sizes,
+/// where two side by side would break their words). It sits a fixed way down from the top of
+/// whatever holds it, never centred, so every empty screen lines up. Search results with no match
+/// use the system's search view instead. It takes the width it is given: in a card list that is the
+/// cards' width; elsewhere the caller pads it by `Spacing.pageMargin`, the same edge.
+struct EmptyState<Tiles: View>: View {
     let title: String
-    let symbol: String
     var description: Text?
-    @ViewBuilder var actions: () -> Actions
+    @ViewBuilder var tiles: () -> Tiles
 
-    init(_ title: String, symbol: String, description: Text?, @ViewBuilder actions: @escaping () -> Actions) {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    init(_ title: String, description: Text? = nil, @ViewBuilder tiles: @escaping () -> Tiles) {
         self.title = title
-        self.symbol = symbol
         self.description = description
-        self.actions = actions
+        self.tiles = tiles
+    }
+
+    init(_ title: String, description: String, @ViewBuilder tiles: @escaping () -> Tiles) {
+        self.init(title, description: Text(description), tiles: tiles)
     }
 
     var body: some View {
-        ContentUnavailableView {
-            Label(title, systemImage: symbol)
-        } description: {
-            description
-        } actions: {
-            actions()
+        VStack(spacing: Spacing.m) {
+            VStack(spacing: Spacing.xs) {
+                Text(title)
+                    .typeStyle(.heading, weight: .semibold)
+                    .foregroundStyle(Palette.ink)
+                if let description {
+                    description
+                        .typeStyle(.row)
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+            }
+            .multilineTextAlignment(.center)
+            .accessibilityElement(children: .combine)
+            if typeSize.isAccessibilitySize {
+                VStack(spacing: Spacing.s) { tiles() }
+            } else {
+                HStack(spacing: Spacing.s) { tiles() }
+            }
         }
-    }
-}
-
-extension EmptyState where Actions == EmptyView {
-    init(_ title: String, symbol: String, description: String? = nil) {
-        self.init(title, symbol: symbol, description: description.map { Text($0) }) { EmptyView() }
-    }
-
-    /// A description with a symbol in it (`Text.symbol`).
-    init(_ title: String, symbol: String, description: Text) {
-        self.init(title, symbol: symbol, description: Optional(description)) { EmptyView() }
+        .padding(.top, Spacing.xl * 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -43,18 +53,15 @@ extension EmptyState where Actions == EmptyView {
 struct EmptyStateGallery: View {
     var body: some View {
         PreviewGallery {
-            PreviewState("no actions") {
-                EmptyState("No History Yet", symbol: Icons.history, description: "Pages you open show up here.")
+            PreviewState("one tile") {
+                EmptyState("No History Yet", description: "Pages you open show up here.") {
+                    ActionTile(title: "Browse the Web", symbol: Icons.browser, prominent: true) {}
+                }
             }
-            PreviewState("with actions") {
-                EmptyState("Find Something to Listen To", symbol: Icons.library,
-                           description: Text("Articles you save show up here.")) {
-                    ActionButtonRow { fit in
-                        PillButton("Browse the Web", shortTitle: "Browse", systemImage: Icons.browser, style: .filled,
-                                   fit: fit) {}
-                        PillButton("Import EPUB…", shortTitle: "Import", systemImage: Icons.importFile, style: .neutral,
-                                   fit: fit) {}
-                    }
+            PreviewState("two tiles") {
+                EmptyState("Start Your Library") {
+                    ActionTile(title: "Browse the Web", symbol: Icons.browser, prominent: true) {}
+                    ActionTile(title: "Import a Book", symbol: Icons.book) {}
                 }
             }
         }

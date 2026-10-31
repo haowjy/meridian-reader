@@ -234,8 +234,9 @@ the bubble (4 + 36 + 18). Consumers that inset from the safe area convert with
   the card slide off and the status bar hides; a ▶ / ⏸ floats for 3 s. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
 - **Listen with nothing to play** (nothing bound and nothing played before): the same cover, its grabber and
-  pull down, with *Nothing Playing* (the headphones), "Choose an article or book to listen to." and one plain
-  button, *Open Library* (`listenEmptyOpenLibrary`), which closes it on the Library's home. A pull from
+  pull down, with *Nothing Playing*, "Choose an article or book to listen to." and two tiles, *Open
+  Library* (`listenEmptyOpenLibrary`, accent-tinted), which closes it on the Library's home, and *Browse
+  the Web*. A pull from
   anywhere on it closes it. Listen that loses what it showed (the page removed from the Library) closes
   instead.
 - **Starting something new** (compact width): a Library row's tap plays the article or chapter and slides
@@ -351,7 +352,7 @@ the same spot. ⋯ is never replaced.
   pages visited, newest first, as Library rows (the site under a titled visit, none under an
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
   and long press are the article's menu ("Menus", below; on the Library's article for the address when
-  it has one), then *Remove from History*. Empty, it says *No History Yet*.
+  it has one), then *Remove from History*. Empty, it says *No History Yet* over one *Browse the Web* tile, which closes it.
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work; over the in-place
   reader, a swipe from the left edge does what ‹ does.
@@ -450,7 +451,7 @@ the same spot. ⋯ is never replaced.
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
 back up, as does the regular-width dock's ‹ (dimmed at the home). The home's title line is *Library* with ⋯ at
-its end on compact width, then **Library / History** tabs (C104; History is the `recent` case,
+its end on compact width, then **Library / History** tabs, the system's segmented control at 44 pt (`SegmentedTabs`) (C104; History is the `recent` case,
 stored as `history`, once labelled Recent); the bottom field searches the tab on screen and says so (*Search Library* on
 Library, *Search History*). On a folder's screen it searches that folder,
 everything under it, and says so (*Search Demo Finance*): the results stand under the folder's
@@ -500,11 +501,12 @@ commas.
   long-press) has *Save to Library*, which moves the article into the Library (it stays in History), *Save to Folder…*, and *Remove from History* (the same remove as *Remove from
   Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
-  isn't in History. An empty Library says *Start Your Library* over two tiles side by side (`ActionTile`):
-  *Browse the Web* (the Browser, accent-tinted) and *Import a Book* (the Files picker, as *Import from…*).
-  Every other empty list is the system's empty view with a symbol, a Title Case title and one line
-  (`EmptyState`): History *No History*, "Articles you play without saving show up here for 7 days." (the
-  browser's History sheet *No History Yet*, Prepared Audio *Nothing Prepared*).
+  isn't in History. Every empty screen looks the same (`EmptyState`): a heading, a line under it when
+  there is something to say, and its ways in as tiles (`ActionTile`), two to a row (stacked at the
+  accessibility text sizes), the first accent-tinted, 96 pt below what is above it. An empty Library says
+  *Start Your Library* over *Browse the Web* (the Browser) and *Import a Book* (the Files picker, as *Import
+  from…*); History says *No History*, "Articles you play without saving show up here for 7 days.", over
+  the same two. Search with no match is the system's search view.
   Search filters the tab on screen: on
   Everything the Library's folders and pages across the tree, on
   History its pages; folders by name, then pages by title (the newest first among equal
@@ -574,8 +576,9 @@ commas.
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
-  every empty list has (`EmptyState`): *This Folder Is Empty*, *Move articles here, or save them
-  here from the Reader's 🔖* (the toolbar's symbol).
+  every empty screen has (`EmptyState`): *This Folder Is Empty*, *Move articles here, or save them
+  here from the Reader's 🔖* (the toolbar's symbol), over *Browse the Web* and *Import a Book* (into
+  the folder).
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
   **Author**, a **Book** toggle under *Labels* (C149: on calls pages "chapters", off calls them
@@ -862,7 +865,7 @@ page's, or the folder's, which lists the folder's pages afresh). A page
 that couldn't be fetched or rendered is counted ("2 couldn’t prepare"), and *Prepare Again* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
 nothing in it, it says *Nothing Prepared* (`EmptyState`): prepare an article from its ⋯, or a
-folder or a book from its screen's ↓.
+folder or a book from its screen's ↓, over one *Open Library* tile.
 
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…* (titled *Move to*) and every *Save
 to Folder…* (an article's menu out of the Library, 🔖 held; titled *Save to Folder*); the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋

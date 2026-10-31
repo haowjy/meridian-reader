@@ -20,9 +20,13 @@ struct BrowseHistoryView: View {
         NavigationStack {
             Group {
                 if visits.isEmpty {
-                    EmptyState(String(localized: "No History Yet"), symbol: Icons.history,
-                               description: String(localized: "Pages you open show up here."))
-                        .background(Palette.paper)
+                    EmptyState(String(localized: "No History Yet"),
+                               description: String(localized: "Pages you open show up here.")) {
+                        ActionTile(title: String(localized: "Browse the Web"), symbol: Icons.browser, prominent: true,
+                                   identifier: "historyEmptyBrowse", action: onDone)
+                    }
+                    .padding(.horizontal, Spacing.pageMargin)
+                    .background(Palette.paper)
                 } else {
                     List {
                         Section {

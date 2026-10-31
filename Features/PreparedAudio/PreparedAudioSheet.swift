@@ -73,10 +73,15 @@ struct PreparedAudioList: View {
         List {
             if overview.isEmpty && listening.isEmpty {
                 Section {
-                    EmptyState(String(localized: "Nothing Prepared"), symbol: Icons.preparedAudio,
-                               description: Text("Prepare an article’s audio from its \(Text.symbol(Icons.more)) in the Library, or a folder’s with \(Text.symbol(Icons.prepare)) on its screen. Its audio is made ahead of time, so it plays offline."))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityIdentifier("downloadsEmpty")
+                    EmptyState(String(localized: "Nothing Prepared"),
+                               description: Text("Prepare an article’s audio from its \(Text.symbol(Icons.more)) in the Library, or a folder’s with \(Text.symbol(Icons.prepare)) on its screen. Its audio is made ahead of time, so it plays offline.")) {
+                        ActionTile(title: String(localized: "Open Library"), symbol: Icons.library, prominent: true,
+                                   identifier: "downloadsEmptyLibrary") {
+                            shell.sheet = nil
+                            shell.showLibrary(at: [])
+                        }
+                    }
+                    .accessibilityIdentifier("downloadsEmpty")
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
