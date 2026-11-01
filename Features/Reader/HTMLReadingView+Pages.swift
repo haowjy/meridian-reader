@@ -567,12 +567,12 @@ struct ReadingPagesCard: ViewModifier {
                 .scaleEffect(scale)
                 .offset(y: scale < 1 ? centre - h / 2 - (card / 2 - h / 2) * scale : 0)
                 .opacity(fade)
-                .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.12), value: scale)
+                .animation(reduceMotion ? nil : Motion.standard, value: scale)
         }
         .onChange(of: active && overview) {
             guard reduceMotion else { return }
             fade = 0.2
-            withAnimation(.easeOut(duration: 0.25)) { fade = 1 }
+            withAnimation(Motion.fadeIn) { fade = 1 }
         }
     }
 }

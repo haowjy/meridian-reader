@@ -267,8 +267,7 @@ struct NowPlayingScreen: View {
                     if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
                 },
                 onScrubCommit: seek(to:),
-                trailing: trailing,
-                isCapsule: false
+                trailing: trailing
             )
         } else {
             // Placeholder: keeps height stable until scrub map builds.

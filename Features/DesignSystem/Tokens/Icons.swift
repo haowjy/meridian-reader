@@ -124,7 +124,7 @@ enum Icons {
     /// Jump to Audio: the spoken sentence is above / below the visible text.
     static let jumpToAudioUp = "arrow.up"
     static let jumpToAudioDown = "arrow.down"
-    /// Playing (bars beside a title, the tinted pill).
+    /// Playing (beside a title).
     static let playing = "waveform"
     static let sleepTimer = "moon.fill"
     /// A voice's sample: play, stop.

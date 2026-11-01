@@ -142,8 +142,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   (`MenuAvailability`); no bare `if` around a menu row. Labels from `Verbs` (its case and ellipsis
   rules), symbols from `Icons`.
 - **Button rows never wrap** (decision D21): two or more buttons side by side go in an
-  `ActionButtonRow`, which falls back from full labels to short titles, then no details, then
-  symbols alone. Give every button in one a symbol.
+  `ActionButtonRow`, which falls back from full labels to symbols alone. Give every button in one a symbol.
 - **Nothing in the bottom lip**: no control, label or footer sits below the top of the home
   indicator's strip (the bottom safe area, 34 pt on a phone with one), where the display's rounded
   corners crowd it; only page text and its background run under it. Lay a bottom piece out in the

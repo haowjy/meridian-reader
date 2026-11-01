@@ -30,24 +30,19 @@ enum PlayState: CaseIterable {
     }
 }
 
-/// The one play button, drawn from a `PlayState`: 🎧 in the address field, Listen in the Reader,
-/// a book's Continue, a row's trailing ▶, the Now Playing bar's ⏸.
+/// The one play button, drawn from a `PlayState`: 🎧 in the address field, a row's trailing ▶, the
+/// Now Playing bar's ⏸, the player's and a folder header's disc.
 ///
 /// | Look | idle | preparing, preparingVoice | playing | paused |
 /// |---|---|---|---|---|
 /// | `glyph` (rows, the bar) | ▶ | spinner | ⏸ accent | ▶ accent |
 /// | `badge` (🎧) | grey symbol | spinner | accent disc, moving bars | accent disc, still bars |
-/// | `pill` (Listen, Continue) | filled ▶ title | filled spinner title | tinted moving bars | tinted still bars |
 /// | `disc` (Now Playing's transport, full screen, a folder header, Listen's player card) | ▶ on an accent disc | spinner on the disc | ⏸ on the disc | ▶ on the disc |
 struct PlayStateButton: View {
     enum Look: Equatable {
         case glyph
         /// `idleSymbol` shows while it isn't what you hear (`headphones` in the address field).
         case badge(idleSymbol: String)
-        /// A labelled pill; the title says what it plays ("Listen", "Playing"), the lighter
-        /// detail after it how long or where ("9 min", "Ch 24"). `fit`: how much of that shows in an
-        /// `ActionButtonRow` (`.icon`: the ▶, spinner or bars alone).
-        case pill(title: String, detail: String? = nil, expands: Bool = false, fit: ActionLabelFit = .full)
         /// A round accent disc `size` wide (a `Control` size), its glyph `glyph` (a `Glyph` size), in the
         /// colour that reads on the accent. Fixed, like the toolbar glyphs (the large content viewer
         /// shows it at large text sizes): Now Playing's centre slot (`Control.tap`), the ▶ floating over
@@ -68,7 +63,6 @@ struct PlayStateButton: View {
         switch look {
         case .glyph: glyph
         case .badge(let symbol): badge(symbol)
-        case .pill(let title, let detail, let expands, let fit): pill(title, detail: detail, expands: expands, fit: fit)
         case .disc(let size, let glyph):
             PlayStateDisc(state: state, size: size, glyphSize: glyph, action: action)
         }
@@ -115,25 +109,6 @@ struct PlayStateButton: View {
         .accessibilityLabel(state == .idle ? Verbs.listen : state.accessibilityLabel)
     }
 
-    private func pill(_ title: String, detail: String?, expands: Bool, fit: ActionLabelFit) -> some View {
-        PillButton(title: title, detail: detail, style: state.isCurrent ? .tinted : .filled, expands: expands,
-                   fit: fit, action: action) {
-            switch state {
-            case .idle:
-                PillSymbol(name: Icons.play)
-            case .preparing:
-                ProgressView().controlSize(.small).tint(reading?.onAccent ?? Palette.onAccent)
-            case .preparingVoice:
-                // On the tinted pill (what you hear).
-                ProgressView().controlSize(.small).tint(reading?.accent ?? Palette.accent)
-            case .playing, .paused:
-                PlayingBars(animating: state == .playing)
-                    .frame(width: Glyph.regular, height: Glyph.regular)
-            }
-        }
-        .accessibilityLabel(PillButton<EmptyView>.accessibilityLabel(title: title, detail: detail))
-        .accessibilityValue(state == .idle ? "" : state.accessibilityLabel)
-    }
 }
 
 /// The `disc` looks: the accent of the palette it sits on (the reading page's on Now Playing), a glyph
@@ -224,7 +199,6 @@ struct PlayStateButtonGallery: View {
                     HStack(spacing: Spacing.m) {
                         PlayStateButton(state: state) {}
                         PlayStateButton(state: state, look: .badge(idleSymbol: Icons.listen)) {}
-                        PlayStateButton(state: state, look: .pill(title: Self.title(state), detail: "Ch 24")) {}
                     }
                     HStack(spacing: Spacing.m) {
                         PlayStateButton(state: state, look: .disc()) {}
@@ -234,10 +208,6 @@ struct PlayStateButtonGallery: View {
                 }
             }
         }
-    }
-
-    private static func title(_ state: PlayState) -> String {
-        state.isCurrent ? "Playing" : Verbs.continue
     }
 }
 

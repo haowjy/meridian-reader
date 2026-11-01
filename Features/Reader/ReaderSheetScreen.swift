@@ -144,7 +144,7 @@ struct ReaderSheetScreen: View {
             if !paragraphs.isEmpty {
                 let map = ReaderScrubMap(paragraphs: paragraphs, sentences: false)
                 ReaderScrubRow(map: map, position: 0, onScrubPreview: { _ in },
-                               onScrubCommit: { _ in }, isCapsule: false) {
+                               onScrubCommit: { _ in }) {
                     EmptyView()
                 }
             } else {

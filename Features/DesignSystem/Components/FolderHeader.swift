@@ -44,7 +44,6 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
 
     @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 54
     @ScaledMetric(relativeTo: .caption) private var scaledSideWidth: CGFloat = 76
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// The cover grows with the text, up to `Control.maxTextGrowth`.
     private var coverWidth: CGFloat { Control.grown(scaledCoverWidth, from: 54) }

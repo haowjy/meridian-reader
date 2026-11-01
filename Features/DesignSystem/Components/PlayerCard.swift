@@ -59,7 +59,7 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
     var origin: CardOrigin?
     /// Save, at the title row's trailing end (`SaveToggleButton`'s round face).
     @ViewBuilder var save: Save
-    /// The bare scrubber (`ReaderScrubRow` with `isCapsule: false`).
+    /// The scrubber (`ReaderScrubRow`).
     @ViewBuilder var scrub: Scrub
     /// Previous paragraph, play / pause, next paragraph (`ListenTransportView`, `card` size).
     @ViewBuilder var transport: Transport
@@ -185,8 +185,9 @@ struct ReaderPlayerCardGallery: View {
         return ReaderPlayerCard(title: "Notes on Tides, and Why the Moon Pulls Twice a Day", detail: detail) {
             SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {}, round: true)
         } scrub: {
-            ReaderScrubRow(map: map, position: 0.3, onScrubPreview: { _ in }, onScrubCommit: { _ in },
-                           isCapsule: false) { EmptyView() }
+            ReaderScrubRow(map: map, position: 0.3, onScrubPreview: { _ in }, onScrubCommit: { _ in }) {
+                EmptyView()
+            }
         } transport: {
             NowPlayingTransport(state: state, size: .card, onSkipBack: {}, onSkipForward: {}, onPlayPause: {})
         } leading: {

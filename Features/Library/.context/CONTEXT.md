@@ -153,7 +153,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   leaves the path. Rows have only ⋯ at their trailing edge. A folder
   header has Prepare, the big ▶ (Continue) and More.
 - **D21: action rows never wrap; article rows are two lines.** A row of buttons is an
-  `ActionButtonRow` (full labels → short titles → no details → symbols), never an HStack or a
+  `ActionButtonRow` (full labels → symbols), never an HStack or a
   stack that can wrap; give every button a symbol. An article row is its title on one line (up to
   three at the accessibility sizes, with the thumbnail, status line and ⋯ on a line under it) and one
   status line, the second its site everywhere except in a book or series (`kind.isBookOrSeries`), whose header names the source; a folder you made mixes sites, so its rows keep theirs. Imported pages are standard page rows; folder sort remains

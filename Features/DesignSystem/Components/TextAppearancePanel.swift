@@ -313,6 +313,29 @@ struct TextSizeStepper: View {
     }
 }
 
+extension View {
+    /// The text appearance panel as a popover pointing at this view (Aa), its arrow on its top edge.
+    func textAppearancePopover(isPresented: Binding<Bool>) -> some View {
+        modifier(TextAppearancePopover(isPresented: isPresented))
+    }
+}
+
+private struct TextAppearancePopover: ViewModifier {
+    @Binding var isPresented: Bool
+
+    @Environment(\.readingAppearance) private var appearance
+    @Environment(\.readingPalette) private var reading
+
+    func body(content: Content) -> some View {
+        content.popover(isPresented: $isPresented, arrowEdge: .top) {
+            ReadingAppearancePanel(appearance: appearance)
+                .frame(width: Panel.width)
+                .presentationCompactAdaptation(.popover)
+                .presentationBackground((reading ?? .app).card)
+        }
+    }
+}
+
 #if DEBUG
 struct TextAppearancePanelGallery: View {
     var body: some View {

@@ -5,8 +5,8 @@ import SwiftUI
 ///
 /// A `detail` follows the title in regular weight, set apart by space rather than a separator:
 /// *▶ **Listen**  9 min*, *▶ **Continue**  Ch 24*. When the pill is short of room (large text)
-/// the detail is left out; VoiceOver still reads it. In an `ActionButtonRow` it draws for the
-/// row's `fit`: the short title alone, or (`.icon`) its leading symbol alone on a round button.
+/// the detail is left out; VoiceOver still reads it. In an `ActionButtonRow` whose labels don't fit
+/// (`.icon`) it draws its leading symbol alone on a round button.
 struct PillButton<Leading: View>: View {
     enum Style {
         /// Accent fill: the main action on a screen (Listen, Continue).
@@ -14,8 +14,6 @@ struct PillButton<Leading: View>: View {
         /// Chrome fill, ink text: navigation (a sheet's close pill), secondary actions. On the
         /// player: its card fill and ink.
         case neutral
-        /// Playing tint, accent text: the playing state of a filled pill.
-        case tinted
     }
 
     enum Size {
@@ -37,8 +35,6 @@ struct PillButton<Leading: View>: View {
     var size: Size = .regular
     /// Stretches to the width it is offered (Listen between 🔖 and ⋯).
     var expands = false
-    /// The title when the row is short of room ("Start" for "From Start"); nil: the title.
-    var shortTitle: String?
     /// How much of the label shows (`ActionButtonRow`).
     var fit: ActionLabelFit = .full
     let action: () -> Void
@@ -75,22 +71,19 @@ struct PillButton<Leading: View>: View {
     @ViewBuilder
     private var label: some View {
         switch fit {
-        case .full, .short:
-            let shown = fit == .full ? title : shortTitle ?? title
+        case .full:
             // Without room for both (large text), the title alone.
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                    titleText(shown)
+                    titleText(title)
                     if let detail {
                         Text(detail)
                             .typeStyle(.row)
                             .monospacedDigit()
                     }
                 }
-                titleText(shown)
+                titleText(title)
             }
-        case .titleOnly:
-            titleText(shortTitle ?? title)
         case .icon:
             EmptyView()
         }
@@ -109,7 +102,6 @@ struct PillButton<Leading: View>: View {
         switch style {
         case .filled: reading?.onAccent ?? Palette.onAccent
         case .neutral: reading?.ink ?? Palette.ink
-        case .tinted: reading?.accent ?? Palette.accent
         }
     }
 
@@ -117,18 +109,16 @@ struct PillButton<Leading: View>: View {
         switch style {
         case .filled: reading?.accent ?? Palette.accent
         case .neutral: BottomChrome.fieldFill(reading)
-        case .tinted: reading?.highlight ?? Palette.playingTint
         }
     }
 }
 
 extension PillButton where Leading == PillSymbol {
     /// A pill with an SF Symbol before its title (nil: the title alone).
-    init(_ title: String, detail: String? = nil, shortTitle: String? = nil, systemImage: String? = nil,
+    init(_ title: String, detail: String? = nil, systemImage: String? = nil,
          style: Style = .filled, size: Size = .regular, expands: Bool = false, fit: ActionLabelFit = .full,
          action: @escaping () -> Void) {
-        self.init(title: title, detail: detail, style: style, size: size, expands: expands, shortTitle: shortTitle,
-                  fit: fit, action: action) {
+        self.init(title: title, detail: detail, style: style, size: size, expands: expands, fit: fit, action: action) {
             PillSymbol(name: systemImage)
         }
     }
@@ -211,9 +201,6 @@ struct PillButtonGallery: View {
             PreviewState("neutral on a dark reading page, close pill") {
                 PillButton("Library", systemImage: Icons.collapse, style: .neutral, size: .compact) {}
                     .onReadingPreview()
-            }
-            PreviewState("tinted · playing") {
-                PillButton("Playing", detail: "Ch 24", systemImage: Icons.playing, style: .tinted) {}
             }
             PreviewState("disabled") {
                 PillButton("Listen", systemImage: Icons.play) {}.disabled(true)

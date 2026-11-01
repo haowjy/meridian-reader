@@ -218,7 +218,7 @@ struct NowPlayingSheetGallery: View {
                     IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "previewVoice") {}
                 }
                 ReaderScrubRow(map: map, position: 0.42, buffered: [0.42...0.6],
-                               onScrubPreview: { _ in }, onScrubCommit: { _ in }, isCapsule: false) {
+                               onScrubPreview: { _ in }, onScrubCommit: { _ in }) {
                     Text("1×").typeStyle(.caption).foregroundStyle(palette.ink).fieldTextFrame()
                 }
                 if let note {
