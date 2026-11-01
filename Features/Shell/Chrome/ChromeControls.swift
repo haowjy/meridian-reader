@@ -29,16 +29,18 @@ extension ChromeDestination {
 }
 
 /// `[ 📚 Library | 🧭 Browser | ⚙︎ Settings ]`: one capsule of equal segments, each a button showing its
-/// glyph and its name side by side (the chrome's glyph, the name in `TypeStyle.row` semibold, at most
-/// XXXL). The names show only while all three fit their segments whole (`EqualSegmentsLayout` under
-/// `ViewThatFits`); otherwise every segment is its glyph alone, so the pill never wraps, clips or grows,
-/// and VoiceOver and the large content viewer keep the names. Every segment has the same glyph size and
-/// weight; lit differs by the tint and the wash only. Each segment is tapped `hitOutset` above and below
-/// the glass, `Control.tap` tall.
+/// glyph over its name, centred, as a tab bar does (the glyph `Glyph.small`, the name in
+/// `TypeStyle.caption` semibold). The names show only while all three fit whole, across their segments and
+/// within the lit wash's height (`innerCircle`) (`EqualSegmentsLayout` under `ViewThatFits`); otherwise
+/// every segment is its glyph alone at the chrome's glyph size, so the pill never wraps, clips or grows
+/// (large text sizes, a small `Control.chrome`), and VoiceOver and the large content viewer keep the
+/// names. Every segment has the same glyph size and weight; lit differs by the tint and the wash only.
+/// Each segment is tapped `hitOutset` above and below the glass, at least `Control.tap` tall.
 ///
 /// ```
-/// [ (📚 Library) |  🧭 Browser  |  ⚙︎ Settings ]     the names fit
-/// [     (📚)     |      🧭      |      ⚙︎      ]     they don't: glyphs alone
+/// [ (  📚   ) |   🧭    |    ⚙︎     ]     the names fit
+/// [ (Library) | Browser | Settings ]
+/// [   (📚)    |   🧭    |    ⚙︎     ]     they don't: glyphs alone
 /// ```
 struct ChromePill: View {
     let lit: ChromeDestination
@@ -59,10 +61,11 @@ struct ChromePill: View {
                     .frame(width: slot - 2 * Spacing.xxs, height: size.height - 2 * Spacing.xxs)
                     .offset(x: slot * CGFloat(lit.segment) + Spacing.xxs, y: Spacing.xxs)
                     .animation(reduceMotion ? nil : Motion.snappy, value: lit)
-                ViewThatFits(in: .horizontal) {
+                ViewThatFits(in: [.horizontal, .vertical]) {
                     segments(worded: true)
                     segments(worded: false)
                 }
+                .frame(width: size.width, height: K.innerCircle)
                 .frame(width: size.width, height: size.height)
             }
             .frame(width: size.width, height: size.height, alignment: .topLeading)
@@ -82,22 +85,19 @@ struct ChromePill: View {
         }
     }
 
-    /// A segment's face, centred in its third. Its horizontal padding keeps the name clear of the lit
-    /// wash's ends (inset `Spacing.xxs`) by `Spacing.xs`.
+    /// A segment's face, centred in its third: the glyph over the name, or the glyph alone. Its
+    /// horizontal padding keeps the name clear of the lit wash's ends (inset `Spacing.xxs`) by `Spacing.xs`.
     private func segment(_ destination: ChromeDestination, lit isLit: Bool, worded: Bool) -> some View {
-        HStack(spacing: Spacing.xs) {
+        VStack(spacing: 0) {
             Image(systemName: destination.symbol)
-                .font(BottomChrome.chromeGlyph)
-                .frame(height: Glyph.regular)
+                .font(worded ? .system(size: Glyph.small, weight: .medium) : BottomChrome.chromeGlyph)
             if worded {
                 Text(destination.label)
-                    .typeStyle(.row, weight: .semibold)
-                    // A fixed-height piece: past XXXL the name would crowd its glyph.
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .typeStyle(.caption, weight: .semibold)
                     .lineLimit(1)
-                    .fixedSize()
             }
         }
+        .fixedSize()
         .foregroundStyle(isLit ? Palette.accent : Palette.ink)
         .padding(.horizontal, Spacing.s)
         .frame(maxWidth: .infinity)

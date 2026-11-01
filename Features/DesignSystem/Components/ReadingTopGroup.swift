@@ -10,8 +10,8 @@ import SwiftUI
 ///
 /// ⋯ (leading) is the screen's menu as a system menu (`menu`, a section per block); Aa opens the text
 /// appearance panel pointing at it; ▶ Listen, the page's primary action, is an accent-filled capsule
-/// at the trailing end, there only while `listen` is set. `Control.chrome` high (40 pt, the bottom
-/// chrome's pieces: ⋯ and Aa are Listen's circle), tapped 44 pt (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
+/// at the trailing end, there only while `listen` is set. `Control.chrome` high, as every piece of the bottom
+/// chrome (⋯ and Aa are Listen's circle), at least `Control.tap` to tap (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
 /// (the material skin before iOS 26). In place it sits `Spacing.xs`
 /// below the status bar. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
 /// is: the grabber centred `Spacing.xs` below the sheet's top edge, the circles' tops `Spacing.m` below it

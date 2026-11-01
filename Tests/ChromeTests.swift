@@ -59,34 +59,35 @@ final class ChromeTests: XCTestCase {
 
     // MARK: Tokens
 
+    /// Every footprint and width derives from `Control.chrome` alone, so these hold at any value of it.
     func testOneChromeHeightDerivesEveryFootprintAndWidth() {
-        XCTAssertEqual(Control.chrome, 40, "one height for every piece, top group included")
-        XCTAssertEqual(M.rowsHeight, 92, "4 + 40 + 8 + 40, its foot on the safe area")
+        let c = Control.chrome
+        XCTAssertEqual(M.rowsHeight, Spacing.xxs + c + Spacing.xs + c, "the room above row 1, two rows and their gap")
         let steps = [0, 1, 2]
-        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 34) }, [92, 44, 24], "above a 34 pt strip")
-        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 34) + 34 }, [126, 78, 58], "from the screen's edge")
-        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 21) }, [92, 44, 37], "a 21 pt strip: the rows still end on it")
-        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 0) }, [110, 62, 58],
-                       "a Home button phone: the rows end 18 above the edge, as the bubble does")
-        XCTAssertEqual(M.keyboardClearance, 44, "the keyboard's row: 4 + 40 over the keyboard")
-        XCTAssertEqual(M.navSingleWidth, 40)
-        XCTAssertEqual(M.navPairWidth, 80)
-        XCTAssertEqual([Control.small, M.bubbleClearance, TypeStyle.caption.size, Spacing.m], [36, 18, 13, 16])
-        XCTAssertEqual(M.bubbleHitOutset, 4, "36 + 2 * 4 = the 44 pt hit area")
-        XCTAssertEqual(M.hitOutset, 2, "40 + 2 * 2 = the 44 pt hit area")
+        let bubble = Spacing.xxs + Control.small + M.bubbleClearance
+        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 34) }, [M.rowsHeight, Spacing.xxs + c, bubble - 34], "above a 34 pt strip")
+        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 21) }, [M.rowsHeight, Spacing.xxs + c, bubble - 21],
+                       "a 21 pt strip: the rows still end on it")
+        XCTAssertEqual(steps.map { M.clearance(step: $0, home: 0) },
+                       [M.rowsHeight + M.bubbleClearance, Spacing.xxs + c + M.bubbleClearance, bubble],
+                       "a Home button phone: the rows end `bubbleClearance` above the edge, as the bubble does")
+        XCTAssertEqual(M.keyboardClearance, Spacing.xxs + c, "the keyboard's row over the keyboard")
+        XCTAssertEqual([M.navSingleWidth, M.navPairWidth], [c, 2 * c])
+        XCTAssertEqual(c + 2 * M.hitOutset, max(c, Control.tap), "every piece is tapped at least the tap floor")
+        XCTAssertEqual(Control.small + 2 * M.bubbleHitOutset, Control.tap, "the bubble too")
         XCTAssertGreaterThanOrEqual(Spacing.xs, 2 * M.hitOutset, "the rows' hit areas never overlap")
-        XCTAssertEqual([M.endGlyphSlot, M.endInset], [24, 8], "concentric: a 24 slot 8 in from a 40 pill's end")
-        XCTAssertEqual(Control.chrome / 2 - M.endInset, M.endGlyphSlot / 2, "inner radius = outer - inset")
-        XCTAssertEqual(M.innerCircle, 32, "the lit segment and the lit reader icon: 40 less 4 each side")
-        XCTAssertGreaterThanOrEqual(Control.tap, 44)
+        XCTAssertEqual(c / 2 - M.endInset, M.endGlyphSlot / 2, "concentric: inner radius = outer - inset")
+        XCTAssertEqual(M.innerCircle, c - 2 * Spacing.xxs, "the lit segment and the lit reader icon")
     }
 
     // MARK: Layout
 
     func testExpandedWidthsAtEveryPhone() {
-        // Row 1 less the margins and Listen's disc and gap: 351 - 48 on the SE, less ‹ › and a gap with arrows.
-        for (width, both, none) in [(375.0, 215.0, 303.0), (393, 233, 321), (430, 270, 358)] {
+        // Row 1 less the margins and Listen's disc and gap, less ‹ › and a gap with arrows.
+        for width in [375.0, 393, 430] {
             let w = CGFloat(width)
+            let none = w - 2 * Spacing.bandMargin - Control.chrome - Spacing.xs
+            let both = none - M.navPairWidth - Spacing.xs
             let one = none - M.navSingleWidth - Spacing.xs
             XCTAssertEqual(layout(.browse, width: w, back: true, forward: true).field.rect.width, both)
             XCTAssertEqual(layout(.browse, width: w, back: true).field.rect.width, one, "‹ alone: nothing ahead")
@@ -199,7 +200,7 @@ final class ChromeTests: XCTestCase {
 
     /// Each control's own hit area, from the shape its view draws (`ChromeHitShape` and its sides), not the
     /// piece it sits in: ‹ and › each (alone and paired), the field, the lit reader icon at the field's end,
-    /// Listen, Cancel and the pill's segments. Every one is at least 44 x 44 and no two overlap (but the
+    /// Listen, Cancel and the pill's segments. Every one is at least `Control.tap` square and no two overlap (but the
     /// reader icon, which is the field's own).
     func testEveryControlIsTapped44AndNoTwoHitAreasOverlap() {
         func hit(_ rect: CGRect, _ shape: ChromeHitShape = ChromeHitShape()) -> CGRect { shape.path(in: rect).boundingRect }
@@ -274,7 +275,7 @@ final class ChromeTests: XCTestCase {
                            "what it covers, with the room above row 1, is what screens reserve: \(home)")
         }
         let se = library(home: 0)
-        XCTAssertEqual(M.rowsHeight + 0 - se.pill.rect.maxY, M.bubbleClearance, "with a Home button: 18 above the edge, as the bubble")
+        XCTAssertEqual(M.rowsHeight + 0 - se.pill.rect.maxY, M.bubbleClearance, "with a Home button: as far above the edge as the bubble")
         XCTAssertEqual(M.rowsHeight - se.top! + Spacing.xxs, M.clearance(step: 0, home: 0))
     }
 

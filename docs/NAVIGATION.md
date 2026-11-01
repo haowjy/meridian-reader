@@ -74,7 +74,7 @@ Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular 
 
 ```
 expanded    [‹ ›][ address / Search Library     ][🎧]     row 1: the screen's own, Listen at its end
-            [ ▤ Library | 🌐 Browser | ⚙︎ Settings ]   row 2: where you are (glyph and name; glyphs alone when the names don't fit)
+            [ ▤ Library | 🌐 Browser | ⚙︎ Settings ]   row 2: where you are (glyph over name; glyphs alone when the names don't fit)
 one row     [‹ ›][ address / Search Library     ][🎧]     first step of a scroll down: row 2 gone, row 1 in its place
 folded                     ( example.com )                second step: the field shrunk to a small glass bubble naming the page; a tap brings both rows back
 searching   [ 🔍 field                  ⊗ 🎤 ][Cancel]     the keyboard is up: margin to margin; no pill or Listen, no bubble
@@ -95,9 +95,9 @@ the pill.
 (`ChromeHome`), not in it; on a phone whose strip is shallower than 18 pt (a Home button phone has none) it ends 18 pt
 above the screen's edge, as the bubble does (`ChromeMetrics.rowLift`). The keyboard's row sits on the keyboard. The
 bubble is the one piece placed from the screen's edge: 18 pt above it, inside the strip. What the chrome covers
-above the safe area is `ChromeMetrics.clearance(step:home:)`: over a 34 pt strip 92 expanded (4 + 40 + 8 + 40), 44
+above the safe area is `ChromeMetrics.clearance(step:home:)`: over a 34 pt strip 100 expanded (4 + 44 + 8 + 44), 48
 one row (the keyboard's row too, over the keyboard), 24 the bubble (4 + 36 + 18 - 34); a view laid out to the
-screen's edge (the web view) adds the strip: 126, 78, 58.
+screen's edge (the web view) adds the strip: 134, 82, 58.
 
 - **The bubble** (`ChromeLayout.bubble`, `ChromePieces.bubblePiece`, id `chromeBubble`): what the second fold step
   ends in, on every screen that folds (the Browser's page, the Library and its folders and books, Settings and
@@ -112,11 +112,13 @@ screen's edge (the web view) adds the strip: 126, 78, 58.
   back. Sheets have no bubble. `-chromeFold P` (Debug) holds the fold at P wherever it may fold, to look at a step.
 
 - **The pill** `[Library | Browser | Settings]`: three equal segments, a third of the pill each (117 pt on the
-  SE's 375), each **its glyph and its name side by side** (Library, Browser, Settings: the chrome's glyph, the name
-  in `row` semibold, at most XXXL; ids `chromeLibrary`, `chromeBrowser`, `chromeSettings`), the lit one the screen
-  you are on (an inset capsule, 4 pt on all four sides, 32 tall, its glyph and name accent). The names show only
-  when all three fit their segments whole; otherwise (large text, a narrow phone) every segment is its glyph alone
-  (`ViewThatFits`), never wrapped or clipped, and VoiceOver and the large content viewer keep the names.
+  SE's 375), each **its glyph over its name**, centred, as a tab bar
+  (Library, Browser, Settings: the glyph 16 pt, `Glyph.small`, the name in `caption` semibold; ids `chromeLibrary`,
+  `chromeBrowser`, `chromeSettings`), the lit one the screen you are on (an inset capsule, 4 pt on all four sides,
+  36 tall, its glyph and name accent). The names show only when all three fit whole, across their segments and
+  within the lit capsule's height; otherwise (large text from XXXL, a narrow phone, a smaller `Control.chrome`)
+  every segment is its glyph alone at the chrome glyph's 20 pt (`ViewThatFits`), never wrapped or clipped, and
+  VoiceOver and the large content viewer keep the names.
 - **Settings** (compact width) is a destination like the other two: its pill segment shows it in place under
   the same chrome (`ShellState.Surface.settings`, remembered for the next launch as `settings`), Library and
   Browser leave it, and it scrolls under the chrome and folds like the Library. Its title heads the list with ⋯ at
@@ -128,23 +130,25 @@ screen's edge (the web view) adds the strip: 126, 78, 58.
   width keeps the Settings sheet (the sidebar's Settings); a Settings surface restored on regular width (or a
   window widened onto it) becomes the browser with the Settings sheet over it.
 - **Listen** (`ChromeListenButton`, id `chromeListen`, VoiceOver *Listen*, value *Playing* while it plays): a
-  40 pt glass circle ending row 1 on every screen, Library Read and the Browser's reader mode included. It shows
+  44 pt glass circle ending row 1 on every screen, Library Read and the Browser's reader mode included. It shows
   the headphones, or the app's playing bars in the accent while something plays (still under Reduce Motion).
   A tap slides Listen up: on what is bound to playback; else the page played last (`LibraryQueries.lastPlayed`),
   bound paused at its saved place so ▶ resumes it there; else Listen's empty screen, *Nothing Playing*. It is not
   drawn while typing or in Library Edit (row 1 is then the field alone).
-- **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **40 pt**
+- **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **44 pt**
   (`Control.chrome`), for every piece in every row and state (pill,
-  fields, ‹ ›, Listen, Cancel, the keyboard's row, the reading pages' top group), on every screen; the ▶ / ⏸
+  fields, ‹ ›, Listen, Cancel, the keyboard's row, the reading pages' top group), on every screen, the same as a
+  folder or book screen's system toolbar buttons. It is the one value to change: every size, inset, hit area,
+  footprint and clearance below derives from it (`ChromeMetrics`); the ▶ / ⏸
   floating over a page in full screen is not chrome and keeps `Control.bar` (48). Listen and
   the top group's ⋯ and Aa share one round glass face (`ChromeCircleFace`).
-  **Concentric:** a 40 pt end holds a 24 pt glyph slot inset 8 (`endGlyphSlot`, `endInset`), so the slot's
+  **Concentric:** a 44 pt end holds a 24 pt glyph slot inset 10 (`endGlyphSlot`, `endInset`), so the slot's
   radius is the end cap's less the inset; a lit circle inside a piece (the reader icon's, the pill's lit
-  segment) is 32, inset 4 (`innerCircle`). **Every hit area is at least 44 pt** (`Control.tap`): the glass is
-  40 tall, so the hit shape reaches 2 pt past it on every side (`hitOutset`; `ChromeHitShape`, `tapTarget(size)`); ‹ and ›
-  side by side meet at their capsule's centre and each reaches 4 pt outward instead (`arrowHitSides`), so each is
-  44 wide; with 8 pt gaps neighbouring hit areas never overlap. One 8 pt gap everywhere (`Spacing.xs`): between the rows and between
-  neighbours on a row (‹ › and the field, the field and Listen, the field and Cancel). ‹ 40, ‹ › 80. Every control glyph is 20 pt medium (`Glyph.regular`, `BottomChrome.chromeGlyph`).
+  segment) is 36, inset 4 (`innerCircle`). **Every hit area is at least 44 pt** (`Control.tap`): at 44 the glass
+  is the hit area; were `Control.chrome` below the tap floor, the hit shape would reach past the glass on every
+  side (`hitOutset`; `ChromeHitShape`, `tapTarget(size)`), ‹ and › side by side reaching outward from their
+  capsule's centre instead (`arrowHitSides`); with 8 pt gaps neighbouring hit areas never overlap. One 8 pt gap everywhere (`Spacing.xs`): between the rows and between
+  neighbours on a row (‹ › and the field, the field and Listen, the field and Cancel). ‹ 44, ‹ › 88. Every control glyph is 20 pt medium (`Glyph.regular`, `BottomChrome.chromeGlyph`).
 - **Look.** Translucent glass, nothing opaque behind it: Liquid Glass inside one
   `GlassEffectContainer` on iOS 26, every piece answering a press; earlier iOS (and a Debug launch
   with `-chromeFallback`) a blur with white at 58% over it (dark: 44, 44, 48 at 55%), an inner 0.5 pt
@@ -158,8 +162,8 @@ screen's edge (the web view) adds the strip: 126, 78, 58.
 - **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (as Safari: ‹ always, dimmed to 35%
   and disabled but in place with nowhere to go back; › beside it only while there is somewhere to go forward), on the
   Library its search field, in Library Read `[‹][(lit reader icon) site]` (the lit reader icon where the Browser's reader mode has it, the site taking the rest of the field, no ↻; a tap on the icon opens the article's live page in the Browser and a press and hold opens the top group's ⋯ menu; a page with no web address has none to open, so there a tap opens that menu and VoiceOver calls the icon *More*); Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`).
-  The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a 40 pt control
-  tapped 44 (`Control.chrome`, `tapTarget`), its glyph in the chrome ink at the chrome glyph weight
+  The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a 44 pt control
+  (`Control.chrome`, `tapTarget`), its glyph in the chrome ink at the chrome glyph weight
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
   about 150 pt (`ChromeMetrics.readerIconWidth`). There is no 🎧 in it on compact width: Listen
   is the round button after the field. While the page shows as its reader view the field is
@@ -177,8 +181,8 @@ screen's edge (the web view) adds the strip: 126, 78, 58.
   glass; the accent on the material skin), the chrome's glyph and its worded pieces' type (`row`, semibold, at most
   XXXL), `Spacing.m` each side: it plays the page from its saved spot and slides Listen up; once the page is what
   you hear (bound, playing or paused) it goes and Aa takes the corner, and it is not drawn while the page has no
-  text to read. Sizes: every piece 40 pt (`Control.chrome`, the bottom chrome's pieces: its circles are Listen's), its taps
-  reaching 44 pt (`hitOutset`), 8 pt between Aa
+  text to read. Sizes: every piece 44 pt (`Control.chrome`, the bottom chrome's pieces: its circles are Listen's), as tall
+  as a folder screen's system toolbar buttons, 8 pt between Aa
   and ▶ Listen, `Spacing.bandMargin` from the screen's edges, `Spacing.xs` above and below the row. It is the
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
   sits 8 pt below the status bar's foot. In Listen it is the sheet's top row, as Voice Memos' is: the grabber
@@ -229,10 +233,10 @@ screen's edge (the web view) adds the strip: 126, 78, 58.
 - **Web pages know the chrome (Browse, iOS 26+, compact width)**: the Browse `WKWebView` reports the chrome's
   footprint as its bottom `obscuredContentInsets` (plus min/max viewport insets), so a page's
   `position:fixed; bottom:0` banner (cookie bars, Reddit's "open in app"), sticky footers and `dvh`/`svh`/`lvh` sit
-  above the glass instead of under it. The inset follows the drawn step (`ChromeScroll.drawnStep`): 126 pt two rows,
-  78 one row (and the keyboard's row while a search is open), 58 the bubble, each at least the home-indicator
+  above the glass instead of under it. The inset follows the drawn step (`ChromeScroll.drawnStep`): 134 pt two rows,
+  82 one row (and the keyboard's row while a search is open), 58 the bubble, each at least the home-indicator
   inset (the web view extends under it, so its own inset reads 0). The Library's lists and the readers keep one
-  constant inset (126, less the home inset above the safe area). The switch happens **once per step**, not per
+  constant inset (134, less the home inset above the safe area). The switch happens **once per step**, not per
   frame: the page's fixed elements jump at each step's midpoint while the glass folds, and the page text reflows once, instead of the
   whole page re-laying out on every frame of the fold. The scroll offset does not move (the scroll view's
   `contentInset` stays constant; only the web layout inset changes). Content still scrolls under the glass.
