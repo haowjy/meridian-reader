@@ -41,6 +41,11 @@ enum ChromeMetrics {
     /// How far a piece's hit area reaches past its glass: none while the glass is itself at least
     /// `Control.tap` tall, so neighbouring hit areas never overlap.
     static let hitOutset: CGFloat = max(0, (Control.tap - Control.bar) / 2)
+    /// A circle inset `Spacing.xxs` inside a `Control.bar` piece (40 pt): the address field's lit reader icon,
+    /// and the reading pages' top group, which floats alone on the page and matches it.
+    static let innerCircle: CGFloat = Control.bar - 2 * Spacing.xxs
+    /// The hit area past an `innerCircle`'s glass, so its taps reach `Control.tap`.
+    static let innerHitOutset: CGFloat = (Control.tap - innerCircle) / 2
     /// The glyph slot at each end of a capsule, and its inset from the capsule's end, top and bottom
     /// (concentric: the slot's corners follow the end cap's, `Control.bar / 2 - endInset`). Also a band
     /// field's leading slot (🔍, or on a loaded page its 📄 / spinner), so the text starts at one place.

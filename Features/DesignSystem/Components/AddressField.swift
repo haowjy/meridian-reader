@@ -168,7 +168,7 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .font(controlFont)
                     .foregroundStyle(Palette.accent)
                     .frame(width: side, height: side)
-                    .background { Circle().fill(Palette.lit).padding(Spacing.xxs) }
+                    .background { Circle().fill(Palette.lit).frame(width: ChromeMetrics.innerCircle, height: ChromeMetrics.innerCircle) }
                     .contentShape(Circle())
                     .frame(width: side * readerReveal, alignment: .leading)
                     .opacity(readerReveal)

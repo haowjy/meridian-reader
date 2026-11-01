@@ -172,14 +172,14 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   glass; the accent on the material skin), the chrome's glyph and its worded pieces' type (`row`, semibold, at most
   XXXL), `Spacing.m` each side: it plays the page from its saved spot and slides Listen up; once the page is what
   you hear (bound, playing or paused) it goes and Aa takes the corner, and it is not drawn while the page has no
-  text to read. Sizes: every piece `Control.tap` 44 (the hit area is the glass; the bottom chrome's 48 reads larger alone on
-  the page, so the corners take the system's 44, as Voice Memos' do), 8 pt between Aa
+  text to read. Sizes: every piece 40 pt (`ChromeMetrics.innerCircle`, the size of the address field's lit reader icon; the
+  bottom chrome's 48 reads larger alone on the page), its taps reaching 44 pt (`innerHitOutset`), 8 pt between Aa
   and ▶ Listen, `Spacing.bandMargin` from the screen's edges, `Spacing.xs` above and below the row. It is the
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
   sits 8 pt below the status bar's foot. In Listen it is the sheet's top row, as Voice Memos' is: the grabber
   (36 × 5) 8 pt below the sheet's top edge, centred; ⋯ and Aa with their tops 16 pt below that edge (centres
-  38 pt) and 12 pt in from its sides, inside its rounded corners; the title starts 8 pt below the circles, so the
-  header is 68 pt. It is the page's header, so it goes in full screen and comes back
+  36 pt) and 12 pt in from its sides, inside its rounded corners; the title starts 8 pt below the circles, so the
+  header is 64 pt. It is the page's header, so it goes in full screen and comes back
   with it; in place that is the chrome's full screen, so the group, the bottom chrome and the status bar go and
   come back together, on the same curves (under Reduce Motion they fade out and in together). VoiceOver: ⋯, Aa,
   ▶ Listen, in that order.
@@ -237,7 +237,7 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   untouched. Fixture: `reader-test://pages/popup`, `testAFixedBottomPopupSitsAboveTheChrome`.
 - **Listen slides up over everything** (`NowPlayingScreen`, `ReadingShowing.cover`, a `Sheet` that covers):
   from the bottom, over the chrome, to just under the status bar, the screen behind dimmed above its rounded top, as Apple Music's player. At its
-  top a handle: the top group's row (above), 68 pt tall across the sheet in the page's colour, `( ⋯ )` and `( Aa )` in
+  top a handle: the top group's row (above), 64 pt tall across the sheet in the page's colour, `( ⋯ )` and `( Aa )` in
   its corners and the grabber centred between them, 8 pt below the sheet's top edge; the text starts below it and
   scrolls out of sight under it; there is no close button. The
   article's title is the first thing in its text, right below that row. A pull down anywhere on that row (a tap on
