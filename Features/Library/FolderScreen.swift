@@ -119,8 +119,9 @@ struct FolderScreen: View {
                         .disabled(searching)
                         .accessibilityIdentifier("folderEdit")
                     }
-                    // Compact width: the screen's ⋯, which the bottom chrome doesn't have.
-                    ToolbarItem(placement: .topBarTrailing) { LibraryTitleMenu() }
+                    // Compact width: the screen's ⋯, which the bottom chrome doesn't have. The bare
+                    // symbol: the toolbar sizes and spaces its items, so a framed face would be padded twice.
+                    ToolbarItem(placement: .topBarTrailing) { LibraryTitleMenu { Image(systemName: Icons.more) } }
                 }
             }
             .navigationBarBackButtonHidden(screen.isEditing(folderID: folder.id))
