@@ -13,7 +13,7 @@ import SwiftUI
 /// at the trailing end, there only while `listen` is set. `ChromeMetrics.innerCircle` high (40 pt, the
 /// address field's lit reader icon: the bottom chrome's 48 reads larger alone on the page), tapped 44 pt
 /// (`innerHitOutset` past the glass), `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
-/// (the material skin before iOS 26), so its hit areas are the glass itself. In place it sits `Spacing.xs`
+/// (the material skin before iOS 26). In place it sits `Spacing.xs`
 /// below the status bar. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
 /// is: the grabber centred `Spacing.xs` below the sheet's top edge, the circles' tops `Spacing.m` below it
 /// and `Spacing.bandMargin` in from its sides, so they sit inside its rounded corners. It keeps
