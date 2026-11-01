@@ -64,9 +64,11 @@ extension EnvironmentValues {
 extension View {
     /// A chrome piece's surface in `shape`: glass, the material look, or `fill` on the old band.
     /// Every chrome piece is tappable, so its glass answers a press (`interactive`; not a card
-    /// whose controls are its own).
-    func chromeSurface<S: InsettableShape>(_ shape: S, fill: Color = Palette.chrome, interactive: Bool = true) -> some View {
-        modifier(ChromeSurface(shape: shape, fill: fill, interactive: interactive))
+    /// whose controls are its own). `tint`: a primary action's colour (the reading pages' ▶ Listen),
+    /// the glass tinted with it, the material filled with it.
+    func chromeSurface<S: InsettableShape>(_ shape: S, fill: Color = Palette.chrome, tint: Color? = nil,
+                                           interactive: Bool = true) -> some View {
+        modifier(ChromeSurface(shape: shape, fill: tint ?? fill, tint: tint, interactive: interactive))
     }
 
     /// The chrome's fixed-size glyphs don't grow with text; a long press shows this one large.
@@ -83,6 +85,7 @@ extension View {
 private struct ChromeSurface<S: InsettableShape>: ViewModifier {
     let shape: S
     let fill: Color
+    let tint: Color?
     let interactive: Bool
     @Environment(\.chromeSkin) private var skin
 
@@ -90,8 +93,9 @@ private struct ChromeSurface<S: InsettableShape>: ViewModifier {
         switch skin {
         case .glass:
             if #available(iOS 26.0, *) {
+                let glass = Glass.regular.tint(tint)
                 content
-                    .glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+                    .glassEffect(interactive ? glass.interactive() : glass, in: shape)
                     .glassEffectTransition(.materialize)
             } else {
                 content.background(fill, in: shape)
@@ -101,7 +105,7 @@ private struct ChromeSurface<S: InsettableShape>: ViewModifier {
             content
                 .background {
                     shape.fill(.ultraThinMaterial)
-                        .overlay { shape.fill(Palette.glass) }
+                        .overlay { shape.fill(tint ?? Palette.glass) }
                         .shadow(color: Palette.glassShadow, radius: 11, y: 6)
                 }
                 .overlay { shape.strokeBorder(Palette.glassEdge, lineWidth: 0.5) }
@@ -124,8 +128,9 @@ private struct ChromeGlassContainer: ViewModifier {
 }
 
 /// The chrome's round button face: `content` (a glyph, the playing bars) in the chrome glyph's size and
-/// ink, centred on a glass circle that fills the frame it is given, tapped `hitOutset` past it. ⋯,
-/// Listen and Listen's close are this; each button keeps its own action and accessibility.
+/// ink, centred on a glass circle that fills the frame it is given, tapped `hitOutset` past it. The
+/// chrome's Listen and the reading pages' ⋯ and Aa (`ReadingTopGroup`) are this; each button keeps
+/// its own action and accessibility.
 struct ChromeCircleFace<Content: View>: View {
     /// What the glyph is called, and its symbol, for the large content viewer.
     let label: String
