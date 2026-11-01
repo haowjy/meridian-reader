@@ -69,13 +69,15 @@ struct ChromeLayout: Equatable {
 
     init(width w: CGFloat, state s: ChromeState) {
         typealias K = ChromeMetrics
-        let bar = Control.chrome, gap = Spacing.xs, rowGap = Spacing.xs, margin = Spacing.bandMargin
+        let bar = Control.chrome, tabBar = Control.tabBar, gap = Spacing.xs, rowGap = Spacing.xs, margin = Spacing.bandMargin
         // The box's foot is the safe area's bottom: the rows end on the home indicator's strip (`rowLift`
         // above it where it is shallow); the keyboard's form sits on the keyboard.
         let bottom = K.rowsHeight - (s.keyboard ? 0 : K.rowLift(home: s.homeInset))
+        // Row 2 (the pill, `tabBar` tall) and the keyboard's row (`chrome` tall) both end on `bottom`.
+        let row2Y = bottom - tabBar
         let rowY = bottom - bar
         // Both rows share one pair of edges, the margins, on every width.
-        let row1Y = rowY - gap - bar
+        let row1Y = row2Y - gap - bar
         let isBrowse = s.destination == .browse
         let hold = !s.fullScreen
         /// ‹ ›'s capsule for this many arrows (0, 1 or 2).
@@ -90,9 +92,9 @@ struct ChromeLayout: Equatable {
         let rightEdge = typing ? cancelRect.minX - rowGap : w - margin
 
         cancel = ChromePiece(rect: cancelRect, isShown: typing)
-        editBar = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar),
+        editBar = ChromePiece(rect: CGRect(x: margin, y: row2Y, width: w - 2 * margin, height: tabBar),
                               isShown: s.editing && hold)
-        pill = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar), isShown: row2 && !typing)
+        pill = ChromePiece(rect: CGRect(x: margin, y: row2Y, width: w - 2 * margin, height: tabBar), isShown: row2 && !typing)
 
         // ‹ ›, as Safari: in the Browser ‹ always (dimmed in place with nowhere to go back, so the field
         // keeps its place), and › beside it only while there is somewhere to go forward. Elsewhere (a
@@ -129,16 +131,17 @@ struct ChromeLayout: Equatable {
         // The bubble alone is placed from the screen's edge, inside the strip.
         let bubbleBottom = K.rowsHeight + s.homeInset - K.bubbleClearance
         let bubbleRect = CGRect(x: (w - bubbleWidth) / 2, y: bubbleBottom - Control.small, width: bubbleWidth, height: Control.small)
-        // From a row's place in the bottom row to below the screen's edge.
-        let offScreen = bar + K.rowsHeight + s.homeInset - bottom
+        // How far a piece `height` tall ending on `bottom` goes to be below the screen's edge.
+        func offScreen(_ height: CGFloat) -> CGFloat { height + K.rowsHeight + s.homeInset - bottom }
         let row2Gone = K.ramp(f, 0...0.5), row1Gone = K.ramp(f, 0.5...0.85)
         // The field hands its glass to the bubble at `handOver`; the bubble shrinks after it.
         let handOver: CGFloat = 0.6
         let shrink = K.ramp(f, handOver...1)
-        let drop = first * (bar + gap)
+        // Row 1 drops by row 2's height and the gap, so it ends on `bottom` as row 2 did.
+        let drop = first * (tabBar + gap)
         func down(_ p: ChromePiece, by gone: CGFloat, from y: CGFloat = 0) -> ChromePiece {
             guard f > 0 else { return p }
-            return ChromePiece(rect: p.rect.offsetBy(dx: 0, dy: y + gone * offScreen), isShown: p.isShown && gone < 1,
+            return ChromePiece(rect: p.rect.offsetBy(dx: 0, dy: y + gone * offScreen(p.rect.height)), isShown: p.isShown && gone < 1,
                                opacity: 1 - K.ramp(gone, 0...0.6))
         }
         pill = down(pill, by: row2Gone)

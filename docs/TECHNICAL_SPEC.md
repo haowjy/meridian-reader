@@ -81,7 +81,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   piece's rect and opacity: from 0 to 0.5 row 2 drops off the screen's edge while row 1 drops into its place,
   from 0.5 to 1 ‹ › and Listen drop off while the field's glass shrinks into the bubble, every piece going
   straight down (the keyboard's form is one row with Cancel); it is sized by `ChromeMetrics`
-  and the shared scales (every piece `Control.chrome` 44, the reading pages' top group too, the one value every chrome measure derives from, one 8 pt
+  and the shared scales (every piece `Control.chrome` 44, the reading pages' top group too, but the pill, `Control.tabBar` 48: the two values every chrome measure derives from, one 8 pt
   gap `Spacing.xs` between rows and between pieces, the rows ending on the home indicator's strip (`rowLift` above it where it is shallow), every hit area at least 44 pt, `hitOutset` past the glass only when the chrome is below that). `ChromeScroll` (`ShellState.chromeScroll`) owns
   the progress and `fullScreen` and is the one scroll controller the Library, the Browser and the
   Reader feed (`progress += dy / 120` for a scroll down, snap 150 ms after the finger stops; a scroll up

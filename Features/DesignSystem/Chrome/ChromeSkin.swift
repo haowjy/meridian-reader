@@ -156,18 +156,21 @@ extension ChromeCircleFace where Content == Image {
     }
 }
 
-/// A chrome control's hit area: `hitOutset` past its glass above and below, and at each side `leading` /
+/// A chrome control's hit area: `vertical` past its glass above and below (`hitOutset`; the pill's segments
+/// `pillHitOutset`), and at each side `leading` /
 /// `trailing` past it: `hitOutset` by default, none where a neighbour shares the glass (the pill's segments
 /// meet edge to edge), more where one must make up the width (‹ ›, `ChromeMetrics.arrowHitSides`).
 struct ChromeHitShape: Shape {
     var leading = ChromeMetrics.hitOutset
     var trailing = ChromeMetrics.hitOutset
+    /// Above and below the glass.
+    var vertical = ChromeMetrics.hitOutset
 
-    /// A segment of one capsule: only above and below.
-    static let segment = ChromeHitShape(leading: 0, trailing: 0)
+    /// One of the pill's segments: only above and below, by the pill's own outset.
+    static let segment = ChromeHitShape(leading: 0, trailing: 0, vertical: ChromeMetrics.pillHitOutset)
 
     func path(in rect: CGRect) -> Path {
-        let o = ChromeMetrics.hitOutset
+        let o = vertical
         return Path(CGRect(x: rect.minX - leading, y: rect.minY - o,
                            width: rect.width + leading + trailing, height: rect.height + 2 * o))
     }

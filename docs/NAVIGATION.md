@@ -95,9 +95,9 @@ the pill.
 (`ChromeHome`), not in it; on a phone whose strip is shallower than 18 pt (a Home button phone has none) it ends 18 pt
 above the screen's edge, as the bubble does (`ChromeMetrics.rowLift`). The keyboard's row sits on the keyboard. The
 bubble is the one piece placed from the screen's edge: 18 pt above it, inside the strip. What the chrome covers
-above the safe area is `ChromeMetrics.clearance(step:home:)`: over a 34 pt strip 100 expanded (4 + 44 + 8 + 44), 48
+above the safe area is `ChromeMetrics.clearance(step:home:)`: over a 34 pt strip 104 expanded (4 + 44 + 8 + 48), 48
 one row (the keyboard's row too, over the keyboard), 24 the bubble (4 + 36 + 18 - 34); a view laid out to the
-screen's edge (the web view) adds the strip: 134, 82, 58.
+screen's edge (the web view) adds the strip: 138, 82, 58.
 
 - **The bubble** (`ChromeLayout.bubble`, `ChromePieces.bubblePiece`, id `chromeBubble`): what the second fold step
   ends in, on every screen that folds (the Browser's page, the Library and its folders and books, Settings and
@@ -111,12 +111,12 @@ screen's edge (the web view) adds the strip: 134, 82, 58.
   (`ChromeScreen.bubbleTitle`). Audio keeps playing while folded; the bubble's tap and a scroll up bring both rows
   back. Sheets have no bubble. `-chromeFold P` (Debug) holds the fold at P wherever it may fold, to look at a step.
 
-- **The pill** `[Library | Browser | Settings]`: three equal segments, a third of the pill each (117 pt on the
+- **The pill** `[Library | Browser | Settings]`: 48 pt tall (`Control.tabBar`, the one piece not `Control.chrome`), three equal segments, a third of the pill each (117 pt on the
   SE's 375), each **its glyph over its name**, centred, as a tab bar
   (Library, Browser, Settings: the glyph 16 pt, `Glyph.small`, the name in `caption` semibold; ids `chromeLibrary`,
   `chromeBrowser`, `chromeSettings`), the lit one the screen you are on (an inset capsule, 4 pt on all four sides,
-  36 tall, its glyph and name accent). The names show only when all three fit whole, across their segments and
-  within the lit capsule's height; otherwise (large text from XXXL, a narrow phone, a smaller `Control.chrome`)
+  40 tall, `pillLitHeight`, its glyph and name accent). The names show only when all three fit whole, across their segments and
+  within the lit capsule's height; otherwise (large text from XXXL, a narrow phone, a smaller `Control.tabBar`)
   every segment is its glyph alone at the chrome glyph's 20 pt (`ViewThatFits`), never wrapped or clipped, and
   VoiceOver and the large content viewer keep the names.
 - **Settings** (compact width) is a destination like the other two: its pill segment shows it in place under
@@ -135,18 +135,19 @@ screen's edge (the web view) adds the strip: 134, 82, 58.
   A tap slides Listen up: on what is bound to playback; else the page played last (`LibraryQueries.lastPlayed`),
   bound paused at its saved place so ▶ resumes it there; else Listen's empty screen, *Nothing Playing*. It is not
   drawn while typing or in Library Edit (row 1 is then the field alone).
-- **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **44 pt**
-  (`Control.chrome`), for every piece in every row and state (pill,
-  fields, ‹ ›, Listen, Cancel, the keyboard's row, the reading pages' top group), on every screen, the same as a
-  folder or book screen's system toolbar buttons. It is the one value to change: every size, inset, hit area,
-  footprint and clearance below derives from it (`ChromeMetrics`); the ▶ / ⏸
+- **One shape system.** Every piece is a capsule or a circle (radius = height / 2). Two heights: **44 pt**
+  (`Control.chrome`) for every piece in every row and state but the pill (fields, ‹ ›, Listen, Cancel, the
+  keyboard's row, the reading pages' top group), on every screen, the same as a folder or book screen's system
+  toolbar buttons; **48 pt** (`Control.tabBar`) for the pill (and Library Edit's actions in its place). They are
+  the only values to change: every size, inset, hit area, footprint and clearance below derives from them
+  (`ChromeMetrics`); the ▶ / ⏸
   floating over a page in full screen is not chrome and keeps `Control.bar` (48). Listen and
   the top group's ⋯ and Aa share one round glass face (`ChromeCircleFace`).
   **Concentric:** a 44 pt end holds a 24 pt glyph slot inset 10 (`endGlyphSlot`, `endInset`), so the slot's
-  radius is the end cap's less the inset; a lit circle inside a piece (the reader icon's, the pill's lit
-  segment) is 36, inset 4 (`innerCircle`). **Every hit area is at least 44 pt** (`Control.tap`): at 44 the glass
-  is the hit area; were `Control.chrome` below the tap floor, the hit shape would reach past the glass on every
-  side (`hitOutset`; `ChromeHitShape`, `tapTarget(size)`), ‹ and › side by side reaching outward from their
+  radius is the end cap's less the inset; a lit shape inside a piece is inset 4: the reader icon's
+  circle 36 (`innerCircle`), the pill's lit segment 40 tall (`pillLitHeight`). **Every hit area is at least 44 pt** (`Control.tap`): at 44 the glass
+  is the hit area; were `Control.chrome` or `Control.tabBar` below the tap floor, the hit shape would reach past the
+  glass on every side (`hitOutset`, `pillHitOutset`; `ChromeHitShape`, `tapTarget(size)`), ‹ and › side by side reaching outward from their
   capsule's centre instead (`arrowHitSides`); with 8 pt gaps neighbouring hit areas never overlap. One 8 pt gap everywhere (`Spacing.xs`): between the rows and between
   neighbours on a row (‹ › and the field, the field and Listen, the field and Cancel). ‹ 44, ‹ › 88. Every control glyph is 20 pt medium (`Glyph.regular`, `BottomChrome.chromeGlyph`).
 - **Look.** Translucent glass, nothing opaque behind it: Liquid Glass inside one
@@ -233,10 +234,10 @@ screen's edge (the web view) adds the strip: 134, 82, 58.
 - **Web pages know the chrome (Browse, iOS 26+, compact width)**: the Browse `WKWebView` reports the chrome's
   footprint as its bottom `obscuredContentInsets` (plus min/max viewport insets), so a page's
   `position:fixed; bottom:0` banner (cookie bars, Reddit's "open in app"), sticky footers and `dvh`/`svh`/`lvh` sit
-  above the glass instead of under it. The inset follows the drawn step (`ChromeScroll.drawnStep`): 134 pt two rows,
+  above the glass instead of under it. The inset follows the drawn step (`ChromeScroll.drawnStep`): 138 pt two rows,
   82 one row (and the keyboard's row while a search is open), 58 the bubble, each at least the home-indicator
   inset (the web view extends under it, so its own inset reads 0). The Library's lists and the readers keep one
-  constant inset (134, less the home inset above the safe area). The switch happens **once per step**, not per
+  constant inset (138, less the home inset above the safe area). The switch happens **once per step**, not per
   frame: the page's fixed elements jump at each step's midpoint while the glass folds, and the page text reflows once, instead of the
   whole page re-laying out on every frame of the fold. The scroll offset does not move (the scroll view's
   `contentInset` stays constant; only the web layout inset changes). Content still scrolls under the glass.

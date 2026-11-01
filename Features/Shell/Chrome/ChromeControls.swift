@@ -31,11 +31,12 @@ extension ChromeDestination {
 /// `[ 📚 Library | 🧭 Browser | ⚙︎ Settings ]`: one capsule of equal segments, each a button showing its
 /// glyph over its name, centred, as a tab bar does (the glyph `Glyph.small`, the name in
 /// `TypeStyle.caption` semibold). The names show only while all three fit whole, across their segments and
-/// within the lit wash's height (`innerCircle`) (`EqualSegmentsLayout` under `ViewThatFits`); otherwise
+/// within the lit wash's height (`pillLitHeight`) (`EqualSegmentsLayout` under `ViewThatFits`); otherwise
 /// every segment is its glyph alone at the chrome's glyph size, so the pill never wraps, clips or grows
-/// (large text sizes, a small `Control.chrome`), and VoiceOver and the large content viewer keep the
+/// (large text sizes, a small `Control.tabBar`), and VoiceOver and the large content viewer keep the
 /// names. Every segment has the same glyph size and weight; lit differs by the tint and the wash only.
-/// Each segment is tapped `hitOutset` above and below the glass, at least `Control.tap` tall.
+/// The pill is `Control.tabBar` tall; each segment is tapped `pillHitOutset` above and below the glass,
+/// at least `Control.tap` tall.
 ///
 /// ```
 /// [ (  📚   ) |   🧭    |    ⚙︎     ]     the names fit
@@ -65,7 +66,7 @@ struct ChromePill: View {
                     segments(worded: true)
                     segments(worded: false)
                 }
-                .frame(width: size.width, height: K.innerCircle)
+                .frame(width: size.width, height: K.pillLitHeight)
                 .frame(width: size.width, height: size.height)
             }
             .frame(width: size.width, height: size.height, alignment: .topLeading)
@@ -104,7 +105,7 @@ struct ChromePill: View {
         .accessibilityHidden(true)
     }
 
-    /// The touch layer: one button per segment, `hitOutset` past the glass above and below.
+    /// The touch layer: one button per segment, `pillHitOutset` past the glass above and below.
     private func controls(slot: CGFloat, size: CGSize) -> some View {
         ForEach(ChromeDestination.allCases, id: \.self) { destination in
             Button { onSelect(destination) } label: {

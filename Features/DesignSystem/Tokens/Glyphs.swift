@@ -4,18 +4,21 @@ import SwiftUI
 /// these. Sizes, not spacing: changing the spacing scale never resizes them.
 ///
 /// ```
-/// small 36 · chrome 44 · tap 44 · bar 48 · prominent 62
+/// small 36 · chrome 44 · tap 44 · tabBar 48 · bar 48 · prominent 62
 /// ```
 enum Control {
     /// A small face: a round icon control, a field control (mic, the speed), a compact pill (a
     /// sheet's bar buttons), a folder header's side controls, the folded chrome's bubble.
     static let small: CGFloat = 36
-    /// Every piece of the compact chrome: both bottom rows (‹ ›, the field, Listen, Cancel, the
-    /// keyboard's row, the pill) and the reading pages' top group (⋯, Aa, ▶ Listen), so the circles at
-    /// the top and the foot are one size. The one value to change: every chrome measure, inset, hit
-    /// outset, footprint and clearance derives from it (`ChromeMetrics`). Below the tap floor a piece is
-    /// tapped `ChromeMetrics.hitOutset` past its glass.
+    /// Every piece of the compact chrome but the pill: row 1 (‹ ›, the field, Listen), the keyboard's
+    /// row and Cancel, and the reading pages' top group (⋯, Aa, ▶ Listen), so the circles at the top and
+    /// the foot are one size. With `tabBar` the only values to change: every chrome measure, inset, hit
+    /// outset, footprint and clearance derives from the two (`ChromeMetrics`). Below the tap floor a piece
+    /// is tapped `ChromeMetrics.hitOutset` past its glass.
     static let chrome: CGFloat = 44
+    /// The compact chrome's pill (row 2, and Library Edit's actions in its place); every other chrome
+    /// piece is `chrome`.
+    static let tabBar: CGFloat = 48
     /// The tap floor: no hit area is smaller, whatever it looks like. A toolbar's row, a row's ▶
     /// and ⋯, Now Playing's transport disc, a player card tool.
     static let tap: CGFloat = 44
