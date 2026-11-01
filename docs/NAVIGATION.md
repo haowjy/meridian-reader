@@ -187,8 +187,8 @@ screen's edge (the web view) adds the strip: 134, 82, 58.
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
   sits on the safe area's top and 16 pt in from the screen's edges (`Spacing.topBarMargin`), where a navigation bar's buttons sit (a book's or folder's `‹ … Edit ⋯`), so both rows line up. In Listen it is the sheet's top row, as Voice Memos' is: the grabber
   (36 × 5) 8 pt below the sheet's top edge, centred; ⋯ and Aa with their tops 16 pt below that edge (centres
-  36 pt) and 12 pt in from its sides, inside its rounded corners; the title starts 8 pt below the circles, so the
-  header is 64 pt. It is the page's header, so it goes in full screen and comes back
+  16 pt + half of `Control.chrome`) and 12 pt in from its sides, inside its rounded corners; the title starts 8 pt below the circles, so the
+  header is 16 pt + `Control.chrome` + 8 pt. It is the page's header, so it goes in full screen and comes back
   with it; in place that is the chrome's full screen, so the group, the bottom chrome and the status bar go and
   come back together, on the same curves (under Reduce Motion they fade out and in together). VoiceOver: ⋯, Aa,
   ▶ Listen, in that order.
