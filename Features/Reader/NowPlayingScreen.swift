@@ -3,7 +3,7 @@ import SwiftUI
 /// Now Playing, Listen: what you hear, opened up (`NowPlayingSheet`). The Reader's page in the
 /// same reading theme and type: the spoken paragraph highlighted in full ink like the rest, on the
 /// highlight. Presented over everything by the shell: on compact width a cover that slides up over
-/// the chrome too, the reading pages' top group at its top, the grabber between ⋯ and Aa (`ReadingTopGroup`), and the
+/// the chrome too, the reading pages' top group at its top, the grabber between Aa and ⋯ (`ReadingTopGroup`), and the
 /// player card at its foot (`ReaderPlayerCard`: Save, speed, Voice); on regular width a sheet. It holds no article of its own: it shows `speech.nowPlaying` and the
 /// playing page's content, looked up in the library by its key.
 ///

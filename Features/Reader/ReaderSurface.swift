@@ -63,7 +63,7 @@ struct ReaderSurface: View {
         .task(id: WarmKey(id: article.id, count: article.document.count)) { listen.warmUp() }
     }
 
-    /// ⋯, Aa and, until this page is what you hear, ▶ Listen; the header, gone in full screen.
+    /// Aa, ▶ Listen until this page is what you hear, and ⋯; the header, gone in full screen.
     private func topGroup(_ listen: QuickListen, hearing: Bool) -> ReadingTopGroup {
         let press: (() -> Void)? = hearing || listen.isDisabled ? nil : { listen.press() }
         return ReadingTopGroup(menu: menu, menuID: "readerMore", appearanceOpen: $appearanceOpen, listen: press)

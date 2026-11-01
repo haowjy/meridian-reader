@@ -4,13 +4,14 @@ import SwiftUI
 /// Library Read in place, and Listen at its top, the grabber between them), one layout on all three:
 ///
 /// ```
-/// ( ⋯ )                          ( Aa ) ( ▶ Listen )     in place, the page not what you hear
-/// ( ⋯ )                                         ( Aa )     in place once it is, and Listen
+/// ( Aa )                          ( ▶ Listen ) ( ⋯ )     in place, the page not what you hear
+/// ( Aa )                                         ( ⋯ )     in place once it is, and Listen
 /// ```
 ///
-/// ⋯ (leading) is the screen's menu as a system menu (`menu`, a section per block); Aa opens the text
-/// appearance panel pointing at it; ▶ Listen, the page's primary action, is an accent-filled capsule
-/// at the trailing end, there only while `listen` is set. `Control.chrome` high, as every piece of the bottom
+/// ⋯ (trailing, where every other screen has its ⋯) is the screen's menu as a system menu (`menu`, a
+/// section per block); Aa (leading) opens the text appearance panel pointing at it; ▶ Listen, the page's
+/// primary action, is an accent-filled capsule just before ⋯, there only while `listen` is set. VoiceOver
+/// reads them as they sit: Aa, ▶ Listen, ⋯. `Control.chrome` high, as every piece of the bottom
 /// chrome (⋯ and Aa are Listen's circle), at least `Control.tap` to tap (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, in place `Spacing.topBarMargin` from the screen's edges (a navigation bar's buttons'), the chrome's glyph and glass
 /// (the material skin before iOS 26). In place it sits on the safe area's
 /// top, level with a navigation bar's buttons. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
@@ -25,7 +26,7 @@ struct ReadingTopGroup: View {
     @Binding var appearanceOpen: Bool
     /// ▶ Listen's tap; nil: no ▶ Listen (the page is what you hear, or Listen itself).
     var listen: (() -> Void)?
-    /// Listen's sheet: the grabber centred between ⋯ and Aa, level with their tops.
+    /// Listen's sheet: the grabber centred between Aa and ⋯, level with their tops.
     var carriesGrabber = false
 
     @Environment(\.readingPalette) private var reading
@@ -33,15 +34,15 @@ struct ReadingTopGroup: View {
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
-            TitleMenuButton(id: menuID, blocks: menu) {
-                ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
-                    .frame(width: Control.chrome, height: Control.chrome)
-            }
-            Spacer(minLength: 0)
             appearance
+            Spacer(minLength: 0)
             if let listen {
                 ListenCapsule(action: listen)
                     .transition(.opacity)
+            }
+            TitleMenuButton(id: menuID, blocks: menu) {
+                ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
+                    .frame(width: Control.chrome, height: Control.chrome)
             }
         }
         .padding(.horizontal, carriesGrabber ? Spacing.bandMargin : Spacing.topBarMargin)

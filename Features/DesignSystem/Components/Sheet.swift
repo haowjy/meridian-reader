@@ -11,7 +11,7 @@ import SwiftUI
 /// Apple Music's player: the screen behind shows dimmed above it, and with `largePullTargets` its
 /// top is a handle (full width, opaque in the page's colour, the text starting below it): a band
 /// `Control.bar` tall, the grabber centred, or with `headerHasGrabber` the header itself, which draws
-/// the grabber (Listen: its top group, the grabber between ⋯ and Aa) and its band (the player card) pulls it too, whatever the text's scroll
+/// the grabber (Listen: its top group, the grabber between Aa and ⋯) and its band (the player card) pulls it too, whatever the text's scroll
 /// position. The handle takes hold further down than it is drawn: a drag down that starts up to
 /// `grabReach` below it, over the top of the text, pulls too, unseen (a tap or a drag up there is
 /// the text's). A drag down from the dimmed strip just above the sheet pulls as well; one that
