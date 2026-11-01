@@ -285,10 +285,13 @@ extension HTMLReadingWebView {
         /// Hands a pull at the top of the text to the sheet around it (`SheetPullHandoff`), and reports the finger.
         let pullHandoff = ScrollPullHandoff()
 
-        /// Where the text's offset goes: the compact chrome's collapse (`ReadingChrome`). A finger's
-        /// scroll (dragging or decelerating) decides it; any other move (following the audio, a
-        /// scrub, a restore) only moves the point the next finger scroll is measured from.
+        /// Where the text's offset goes: the compact chrome (`ReadingChrome`), through `report`.
         private var offsetObservation: NSKeyValueObservation?
+        /// Code is writing the offset (`movingByCode`): its reports are moves, never a finger.
+        private var codeWrites = 0
+        /// The farthest offset the last report was clamped to; a change of it (an inset at the foot,
+        /// a reflow, a rotation) makes that report a move.
+        private var lastFarthest: CGFloat?
 
         /// Notes a finger drag through the scroll view's pan (WebKit owns its delegate;
         /// programmatic scrolls never reach it): the user took over the text; a pull down at the top
@@ -308,17 +311,38 @@ extension HTMLReadingWebView {
             pullHandoff.onRelease = { [weak self] velocity in self?.layout.dragEnded(velocity: velocity) }
             pullHandoff.attach(to: scrollView)
             offsetObservation = scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scrollView, _ in
-                let byFinger = scrollView.isDragging || scrollView.isDecelerating
-                let farthest = scrollView.contentSize.height + scrollView.adjustedContentInset.bottom
-                    + scrollView.adjustedContentInset.top - scrollView.bounds.height
-                let offset = min(Self.scrolledIn(scrollView), max(farthest, 0))
                 MainActor.assumeIsolated {
                     guard let self else { return }
                     self.updateSpotSide()
-                    guard !self.jumpMode else { return }
-                    if byFinger { self.chrome?.userScrolled(to: offset) } else { self.chrome?.textMoved(to: offset) }
+                    self.report(scrollView, byFinger: scrollView.isDragging || scrollView.isDecelerating)
                 }
             }
+        }
+
+        /// The one place the text's offset reaches the chrome: a finger's scroll (`userScrolled`) or a
+        /// move (`textMoved`, which only re-anchors). The offset is clamped at the farthest it can go,
+        /// so a bottom rebound reports nothing. A finger report is a move when code wrote the offset
+        /// (`movingByCode`) or the clamp moved: entering full screen drops the foot's inset, and near
+        /// the end that would read as a scroll up of the inset's height, bringing the bars straight back.
+        func report(_ scrollView: UIScrollView, byFinger: Bool) {
+            let farthest = max(0, scrollView.contentSize.height + scrollView.adjustedContentInset.bottom
+                + scrollView.adjustedContentInset.top - scrollView.bounds.height)
+            let clampMoved = farthest != lastFarthest
+            lastFarthest = farthest
+            guard !jumpMode else { return }
+            let offset = min(Self.scrolledIn(scrollView), farthest)
+            if byFinger, !clampMoved, codeWrites == 0 {
+                chrome?.userScrolled(to: offset)
+            } else {
+                chrome?.textMoved(to: offset)
+            }
+        }
+
+        /// Writes the text's offset from code: the writes' reports are moves (`report`).
+        func movingByCode(_ write: () -> Void) {
+            codeWrites += 1
+            defer { codeWrites -= 1 }
+            write()
         }
 
         /// How far the text is scrolled from its top (below the header's inset); negative while a

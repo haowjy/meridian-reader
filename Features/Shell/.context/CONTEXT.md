@@ -97,6 +97,14 @@ changing the shell code.
   gesture's continuity whenever it changes or goes nil, keeping what is drawn: the first accepted report
   after that only sets the baseline, so a fling under a Listen that opened and closed never lands its
   travel at once.
+- **A reading page's offset reports are a finger's or a move's, kept apart end to end.** The coordinator's
+  `report(_:byFinger:)` is the only caller of `ReadingChrome.userScrolled` (finger) and `textMoved` (move,
+  which only re-anchors). A finger report (`isDragging || isDecelerating`) is a move when code wrote the
+  offset (every write in `Features/Reader/` goes through `movingByCode`, even mid-fling: a reflow, `showTop`,
+  a page swipe's `y = 0`) or when the farthest offset it is clamped to changed since the last report:
+  entering full screen drops the foot's inset by the chrome's height, and within that distance of the end
+  the clamp would read as a scroll up of that height. A new offset write in a reader goes through
+  `movingByCode`, or a fling under it toggles the bars.
 - **Regular width: the browser and the Library share the field band** (`SurfaceBand`: the field and its ✕),
   over the clustered dock; the dock's toolbar is a `BottomToolbarLayout` whose items name their slots
   (`.toolbarSlot`), one role per slot on both surfaces. Compact width has no band: `ChromeHost` draws it.

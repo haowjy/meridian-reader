@@ -323,12 +323,14 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         paged = false
         guard host.loaded else { return }
         let locate = start.map { "window.__readerSpokenRect(\($0.paragraph), \($0.offset), \($0.offset + 1))" } ?? "null"
-        webView.evaluateJavaScript("window.__readerPaged(false, 0, 0); \(locate)") { [weak sv] result, _ in
-            guard let sv else { return }
+        webView.evaluateJavaScript("window.__readerPaged(false, 0, 0); \(locate)") { [weak self, weak sv] result, _ in
+            guard let self, let sv else { return }
             sv.contentInset.right = 0
-            sv.contentOffset.x = 0
-            if let rect = result as? [Double], let top = rect.first {
-                sv.contentOffset.y = sv.readingLayout.clamped(CGFloat(top) - sv.contentInset.top)
+            host.movingByCode {
+                sv.contentOffset.x = 0
+                if let rect = result as? [Double], let top = rect.first {
+                    sv.contentOffset.y = sv.readingLayout.clamped(CGFloat(top) - sv.contentInset.top)
+                }
             }
         }
     }
@@ -437,14 +439,14 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         guard let sv = scrollView, let shown = model.shown, pageWidth > 0 else { return }
         let i = min(max(index, 0), shown.count - 1)
         let offset = CGPoint(x: CGFloat(i) * pageWidth, y: 0)
-        if sv.contentOffset != offset { sv.setContentOffset(offset, animated: animated) }
+        if sv.contentOffset != offset { host.movingByCode { sv.setContentOffset(offset, animated: animated) } }
         pageShown(i)
     }
 
     /// The scroll view moved (a swipe, a slide): the page under it once it rests on one.
     private func offsetChanged(_ sv: UIScrollView) {
         guard paged, pageWidth > 0, let shown = model.shown else { return }
-        if abs(sv.contentOffset.y) > 0.5 { sv.contentOffset.y = 0 }
+        if abs(sv.contentOffset.y) > 0.5 { host.movingByCode { sv.contentOffset.y = 0 } }
         let exact = sv.contentOffset.x / pageWidth
         let index = Int(exact.rounded())
         // A slide interrupted part-way (seen in the overview while playing, C117) settles on the
