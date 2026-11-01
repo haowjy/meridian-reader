@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The controls floating at the top of every compact reading page (the Browser's reader mode and
-/// Library Read in place, and Listen under its grabber), one layout on all three:
+/// Library Read in place, and Listen at its top, the grabber between them), one layout on all three:
 ///
 /// ```
 /// ( ⋯ )                          ( Aa ) ( ▶ Listen )     in place, the page not what you hear
@@ -12,9 +12,11 @@ import SwiftUI
 /// appearance panel pointing at it; ▶ Listen, the page's primary action, is an accent-filled capsule
 /// at the trailing end, there only while `listen` is set. `Control.tap` high (the bottom chrome's 48 pt
 /// reads larger alone on the page, so the corners take the system's 44, as Voice Memos' do), `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
-/// (the material skin before iOS 26), so its hit areas are the glass itself. It sits `Spacing.xs` below
-/// what is above it and keeps `Spacing.xs` under it: drawn in a reading page's header, the text starts
-/// clear below it. It is a reading page's header, so it goes with the bars in full screen (`ReadingBars`).
+/// (the material skin before iOS 26), so its hit areas are the glass itself. In place it sits `Spacing.xs`
+/// below the status bar. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
+/// is: the grabber centred `Spacing.xs` below the sheet's top edge, the circles' tops `Spacing.m` below it
+/// and `Spacing.bandMargin` in from its sides, so they sit inside its rounded corners. It keeps
+/// `Spacing.xs` under it: drawn in a reading page's header, the text starts clear below it. It is a reading page's header, so it goes with the bars in full screen (`ReadingBars`).
 struct ReadingTopGroup: View {
     /// The screen's menu, a section per block.
     let menu: [[MenuRow]]
@@ -23,6 +25,8 @@ struct ReadingTopGroup: View {
     @Binding var appearanceOpen: Bool
     /// ▶ Listen's tap; nil: no ▶ Listen (the page is what you hear, or Listen itself).
     var listen: (() -> Void)?
+    /// Listen's sheet: the grabber centred between ⋯ and Aa, level with their tops.
+    var carriesGrabber = false
 
     @Environment(\.readingPalette) private var reading
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -41,7 +45,11 @@ struct ReadingTopGroup: View {
             }
         }
         .padding(.horizontal, Spacing.bandMargin)
-        .padding(.vertical, Spacing.xs)
+        .padding(.top, carriesGrabber ? Spacing.m : Spacing.xs)
+        .padding(.bottom, Spacing.xs)
+        .overlay(alignment: .top) {
+            if carriesGrabber { SheetGrabber().padding(.top, Spacing.xs) }
+        }
         .chromeGlassContainer()
         .environment(\.chromeSkin, ChromeSkin.current)
         .animation(reduceMotion ? nil : Motion.snappy, value: listen == nil)
@@ -107,8 +115,11 @@ struct ReadingTopGroupGallery: View {
             PreviewState("in place, not playing") {
                 ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: {})
             }
-            PreviewState("in place, playing; Listen") {
+            PreviewState("in place, playing") {
                 ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open)
+            }
+            PreviewState("Listen's sheet top, the grabber between") {
+                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, carriesGrabber: true)
             }
             PreviewState("on a reading theme") {
                 ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: {})

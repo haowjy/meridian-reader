@@ -163,7 +163,7 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   the Library and the reading pages' ▶ Listen start and control playback.
 - **The reading pages' top group** (`ReadingTopGroup`, the same component on all three): on the Browser's
   reader mode and Library Read `( ⋯ ) … ( Aa ) ( ▶ Listen )` floating at the top of the page; on Listen
-  `( ⋯ ) … ( Aa )` under the grabber. ⋯ (`readerMore`; Listen's `listenMore`) is a glass circle at the leading
+  `( ⋯ ) … ( Aa )` at the sheet's top corners, the grabber between them. ⋯ (`readerMore`; Listen's `listenMore`) is a glass circle at the leading
   edge, the screen's menu as a system menu: in the Browser what a press and hold on the field's reader icon opens,
   in Library Read the Library's screen menu (what the Library's title line ⋯ has), in Listen *Play from a
   Paragraph* then the page's rows at `nowPlaying`. Aa (`readerAppearance`, VoiceOver *Text Appearance*) is a glass
@@ -176,8 +176,10 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   the page, so the corners take the system's 44, as Voice Memos' do), 8 pt between Aa
   and ▶ Listen, `Spacing.bandMargin` from the screen's edges, `Spacing.xs` above and below the row. It is the
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
-  sits 8 pt below the status bar's foot; in Listen 8 pt below the grabber's 48 pt band (the band is Listen's
-  pull handle, so the group starts under it). It is the page's header, so it goes in full screen and comes back
+  sits 8 pt below the status bar's foot. In Listen it is the sheet's top row, as Voice Memos' is: the grabber
+  (36 × 5) 8 pt below the sheet's top edge, centred; ⋯ and Aa with their tops 16 pt below that edge (centres
+  38 pt) and 12 pt in from its sides, inside its rounded corners; the title starts 8 pt below the circles, so the
+  header is 68 pt. It is the page's header, so it goes in full screen and comes back
   with it; in place that is the chrome's full screen, so the group, the bottom chrome and the status bar go and
   come back together, on the same curves (under Reduce Motion they fade out and in together). VoiceOver: ⋯, Aa,
   ▶ Listen, in that order.
@@ -235,9 +237,11 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   untouched. Fixture: `reader-test://pages/popup`, `testAFixedBottomPopupSitsAboveTheChrome`.
 - **Listen slides up over everything** (`NowPlayingScreen`, `ReadingShowing.cover`, a `Sheet` that covers):
   from the bottom, over the chrome, to just under the status bar, the screen behind dimmed above its rounded top, as Apple Music's player. At its
-  top a handle: a band 48 pt tall across the sheet in the page's colour, the grabber centred in it, the text starting
-  below it and scrolling out of sight under it; there is no close button. Under the band the top group, `( ⋯ ) … ( Aa )` (above), and the
-  article's title is the first thing in its text, below the group. A pull down anywhere on that band or the group's row, on the dimmed strip just above it, on the top 48 pt of the text below it
+  top a handle: the top group's row (above), 68 pt tall across the sheet in the page's colour, `( ⋯ )` and `( Aa )` in
+  its corners and the grabber centred between them, 8 pt below the sheet's top edge; the text starts below it and
+  scrolls out of sight under it; there is no close button. The
+  article's title is the first thing in its text, right below that row. A pull down anywhere on that row (a tap on
+  ⋯ or Aa is the button; a drag that starts on one pulls), on the dimmed strip just above it, on the top 48 pt of the text below it
   (unseen: a tap or a drag up there is still the text's), or on the player card, whatever the text's scroll position (a
   drag that starts higher, in the status bar, is the system's) (a UIKit pan, `SheetPullPan`, so a drag that starts on a control pulls too; the scrubber keeps its drag), or on the text when it is at its top, follows the finger and closes it when let go far enough or
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
@@ -990,7 +994,7 @@ The two widths present them differently:
 | | Compact width | Regular width |
 |---|---|---|
 | Reader | In place, under the bottom chrome (`ReaderSurface`): the Browser's reader mode and Library Read ("Bottom chrome", above). No sheet, grabber, close pill, top bar or bottom band: the top group (⋯, Aa, ▶ Listen) floats at the top, ‹ starts row 1, the heading reads the title, then "site  length" | A `Sheet` over the surface that opened it (`ReaderSheetScreen`): grabber, close pill, top bar, bottom band |
-| Listen | Listen: a `Sheet` that covers the screen and the chrome, with a grabber, the top group (⋯, Aa) under it, the article's title at the top of its text and the player card at its foot; a pull down closes it ("Bottom chrome", above) | A `Sheet` over everything that shrinks back into the Now Playing bar; its close pill names where it plays from |
+| Listen | Listen: a `Sheet` that covers the screen and the chrome, with ⋯ and Aa (the top group) in its top corners, the grabber between them, the article's title at the top of its text and the player card at its foot; a pull down closes it ("Bottom chrome", above) | A `Sheet` over everything that shrinks back into the Now Playing bar; its close pill names where it plays from |
 | Into Listen | The chrome's round Listen, a reader's ▶ Listen, a Library row | The Now Playing bar (tap, swipe up), the Reader's ▶ |
 
 The rest of this section describes the regular-width sheets unless it names compact width; the

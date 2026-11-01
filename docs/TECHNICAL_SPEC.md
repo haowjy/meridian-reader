@@ -102,7 +102,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   sizes: the text's top inset is its height, so the title starts below it; in place the header is clear and follows the
   fold (`ChromeScroll.drawnStep == 0`). Listen is not under the chrome: it is a `Sheet` that
   covers the screen (`ReadingShowing.cover`), with no close button (a pull down on its grabber or card (`SheetPullPan`), or VoiceOver's escape,
-  closes it), the top group under its grabber, the article's title at the top of its text and its player card (`ReaderPlayerCard`) at its foot.
+  closes it), the top group in its top corners, the grabber between them (`ReadingTopGroup.carriesGrabber`), the article's title at the top of its text and its player card (`ReaderPlayerCard`) at its foot.
 - **Reading pages.** The Reader and Listen are one `ReadingPage` (`ReaderSheet` and
   `NowPlayingSheet` supply their bands): `ReadingBars` lays the text out to the screen's foot with the
   top bar and the band drawn over it, the text's scroll insets keeping its first and last lines clear of

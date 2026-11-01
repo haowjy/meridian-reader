@@ -113,8 +113,9 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
                 overText
             }
         case .cover(let onClose):
-            // No top bar: the grabber, over the header (the top group, then the ☝︎ hint).
-            Sheet(onDismiss: onClose, palette: palette, chrome: chrome, largePullTargets: true) {
+            // No top bar: the header is the top group, the grabber between its corner buttons
+            // (`ReadingTopGroup.carriesGrabber`), then the ☝︎ hint.
+            Sheet(onDismiss: onClose, palette: palette, chrome: chrome, largePullTargets: true, headerHasGrabber: true) {
                 banner
             } content: {
                 text

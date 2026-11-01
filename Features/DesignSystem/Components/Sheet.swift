@@ -9,8 +9,9 @@ import SwiftUI
 /// `Radius.card`. Used by Follow's chapter preview and, on regular width, the Reader and Now
 /// Playing. Compact width's Listen (and its *Nothing Playing*) is the same sheet, over the chrome too, as
 /// Apple Music's player: the screen behind shows dimmed above it, and with `largePullTargets` its
-/// top is a handle (`Control.bar` tall, full width, opaque in the page's colour, the grabber centred,
-/// the text starting below it) and its band (the player card) pulls it too, whatever the text's scroll
+/// top is a handle (full width, opaque in the page's colour, the text starting below it): a band
+/// `Control.bar` tall, the grabber centred, or with `headerHasGrabber` the header itself, which draws
+/// the grabber (Listen: its top group, the grabber between ⋯ and Aa) and its band (the player card) pulls it too, whatever the text's scroll
 /// position. The handle takes hold further down than it is drawn: a drag down that starts up to
 /// `grabReach` below it, over the top of the text, pulls too, unseen (a tap or a drag up there is
 /// the text's). A drag down from the dimmed strip just above the sheet pulls as well; one that
@@ -36,9 +37,11 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     let palette: ReadingPalette
     /// The reading sheets' bars and full screen; nil: the header above the content, no band.
     private let chrome: ReadingChrome?
-    /// Compact Listen: the top band is a `Control.bar` handle that takes hold `grabReach` lower, and
-    /// the band pulls it too.
+    /// Compact Listen: the top is a handle that takes hold `grabReach` lower, and the band pulls it too.
     private let largePullTargets: Bool
+    /// The header draws the grabber itself (Listen's top group, its corner buttons level with it), so
+    /// the sheet draws no grabber band of its own.
+    private let headerHasGrabber: Bool
     private let header: Header
     private let content: Content
     private let band: Band
@@ -46,12 +49,13 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
 
     /// A reading sheet: the text under the header and `band`, `overText` floating over it.
     init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, chrome: ReadingChrome, largePullTargets: Bool = false,
-         @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content, @ViewBuilder band: () -> Band,
+         headerHasGrabber: Bool = false, @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content, @ViewBuilder band: () -> Band,
          @ViewBuilder overText: () -> OverText) {
         self.onDismiss = onDismiss
         self.palette = palette
         self.chrome = chrome
         self.largePullTargets = largePullTargets
+        self.headerHasGrabber = headerHasGrabber
         self.header = header()
         self.content = content()
         self.band = band()
@@ -147,12 +151,15 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
 
     /// The grabber and the header: pulled down, they pull the sheet (the pan is the whole sheet's,
     /// limited to touches that start above the header's foot). With `largePullTargets` the grabber
-    /// is centred in a band `Control.bar` tall, so there is something to take hold of. A reading
+    /// is centred in a band `Control.bar` tall, so there is something to take hold of; with
+    /// `headerHasGrabber` the header is that band, its grabber its own. A reading
     /// sheet's header starts `gap` lower than its text (the text runs up under the gap, out of
     /// sight until full screen) and is opaque (`ReadingBars`): the text scrolls out of sight under it.
     private var headerBlock: some View {
         VStack(spacing: 0) {
-            if largePullTargets {
+            if headerHasGrabber {
+                // The header draws it.
+            } else if largePullTargets {
                 SheetGrabber()
                     .frame(maxWidth: .infinity, minHeight: Control.bar)
             } else {
@@ -258,6 +265,7 @@ extension Sheet where Band == EmptyView, OverText == EmptyView {
         self.palette = palette
         chrome = nil
         self.largePullTargets = largePullTargets
+        headerHasGrabber = false
         self.header = header()
         self.content = content()
         band = EmptyView()
