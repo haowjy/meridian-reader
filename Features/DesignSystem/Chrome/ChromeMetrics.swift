@@ -52,6 +52,14 @@ enum ChromeMetrics {
     /// ‹ alone is a circle; with › it is a capsule of two circles' width.
     static let navSingleWidth: CGFloat = Control.chrome
     static let navPairWidth: CGFloat = 2 * Control.chrome
+    /// How far an arrow's hit area reaches past its circle at its leading and trailing sides. Alone, `hitOutset`
+    /// each side. In the pair the two meet at the capsule's centre (neither reaches into the other) and each
+    /// makes up `Control.tap` outward instead: ‹ into the margin, › into the gap before the field.
+    static func arrowHitSides(paired: Bool, isBack: Bool) -> (leading: CGFloat, trailing: CGFloat) {
+        guard paired else { return (hitOutset, hitOutset) }
+        let outward = max(0, Control.tap - navSingleWidth)
+        return isBack ? (outward, 0) : (0, outward)
+    }
 
     // MARK: - The bubble (the folded chrome)
 

@@ -156,7 +156,7 @@ struct ChromePieces: View, Animatable {
                 .minimumScaleFactor(0.8)
                 .dynamicTypeSize(...Self.largestText)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
+                .contentShape(ChromeHitShape())
                 .chromeLargeContent(Verbs.cancel, symbol: Icons.close)
         }
         .buttonStyle(.plain)

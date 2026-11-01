@@ -173,7 +173,8 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .foregroundStyle(Palette.accent)
                     .frame(width: side, height: side)
                     .background { Circle().fill(Palette.lit).frame(width: ChromeMetrics.innerCircle, height: ChromeMetrics.innerCircle) }
-                    .contentShape(Circle())
+                    // The capsule's end, `hitOutset` past it: 44 pt to tap.
+                    .contentShape(ChromeHitShape())
                     .frame(width: side * readerReveal, alignment: .leading)
                     .opacity(readerReveal)
                     .clipped()

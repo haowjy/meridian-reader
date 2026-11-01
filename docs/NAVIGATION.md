@@ -141,8 +141,9 @@ screen's edge (the web view) adds the strip: 126, 78, 58.
   **Concentric:** a 40 pt end holds a 24 pt glyph slot inset 8 (`endGlyphSlot`, `endInset`), so the slot's
   radius is the end cap's less the inset; a lit circle inside a piece (the reader icon's, the pill's lit
   segment) is 32, inset 4 (`innerCircle`). **Every hit area is at least 44 pt** (`Control.tap`): the glass is
-  40 tall, so the hit shape reaches 2 pt past it on every side (`hitOutset`; `ChromeHitShape`, `tapTarget(size)`), and
-  with 8 pt gaps neighbouring hit areas never overlap. One 8 pt gap everywhere (`Spacing.xs`): between the rows and between
+  40 tall, so the hit shape reaches 2 pt past it on every side (`hitOutset`; `ChromeHitShape`, `tapTarget(size)`); ‹ and ›
+  side by side meet at their capsule's centre and each reaches 4 pt outward instead (`arrowHitSides`), so each is
+  44 wide; with 8 pt gaps neighbouring hit areas never overlap. One 8 pt gap everywhere (`Spacing.xs`): between the rows and between
   neighbours on a row (‹ › and the field, the field and Listen, the field and Cancel). ‹ 40, ‹ › 80. Every control glyph is 20 pt medium (`Glyph.regular`, `BottomChrome.chromeGlyph`).
 - **Look.** Translucent glass, nothing opaque behind it: Liquid Glass inside one
   `GlassEffectContainer` on iOS 26, every piece answering a press; earlier iOS (and a Debug launch

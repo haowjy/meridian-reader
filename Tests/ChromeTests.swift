@@ -173,7 +173,7 @@ final class ChromeTests: XCTestCase {
         }
     }
 
-    func testEveryPieceIsAsTallAsTheChromeWideEnoughToTapAndInsideTheMargins() {
+    func testEveryPieceIsAsTallAsTheChromeAndInsideTheMargins() {
         for width in [375.0, 393, 430].map({ CGFloat($0) }) {
             for destination in ChromeDestination.allCases {
                 for (progress, keyboard) in [(0.0, false), (1.0, false), (0.0, true)] {
@@ -182,7 +182,6 @@ final class ChromeTests: XCTestCase {
                     let shown = [l.pill, l.field, l.nav, l.listen, l.cancel].filter(\.isShown)
                     for piece in shown {
                         XCTAssertEqual(piece.rect.height, Control.chrome, tag)
-                        XCTAssertGreaterThanOrEqual(piece.rect.width + 2 * M.hitOutset, Control.tap, "a 44 pt hit area with the outset: \(tag)")
                         XCTAssertGreaterThanOrEqual(piece.rect.minX, Spacing.bandMargin - 0.01, tag)
                         XCTAssertLessThanOrEqual(piece.rect.maxX, width - Spacing.bandMargin + 0.01, tag)
                         XCTAssertEqual(piece.radius, Control.chrome / 2, "capsule \(tag)")
@@ -193,18 +192,71 @@ final class ChromeTests: XCTestCase {
                             XCTAssertGreaterThanOrEqual(gap, Spacing.xs - 0.01, tag)
                         }
                     }
-                    // Every hit area (the glass and `hitOutset` round it) is 44 tall and overlaps no other.
-                    let hits = shown.map { $0.rect.insetBy(dx: -M.hitOutset, dy: -M.hitOutset) }
-                    for (i, a) in hits.enumerated() {
-                        XCTAssertEqual(a.height, max(Control.tap, Control.chrome), tag)
-                        for b in hits[(i + 1)...] {
-                            XCTAssertTrue(a.intersection(b).isNull || a.intersection(b).width * a.intersection(b).height < 0.01, "hit areas overlap: \(tag)")
+                }
+            }
+        }
+    }
+
+    /// Each control's own hit area, from the shape its view draws (`ChromeHitShape` and its sides), not the
+    /// piece it sits in: ‹ and › each (alone and paired), the field, the lit reader icon at the field's end,
+    /// Listen, Cancel and the pill's segments. Every one is at least 44 x 44 and no two overlap (but the
+    /// reader icon, which is the field's own).
+    func testEveryControlIsTapped44AndNoTwoHitAreasOverlap() {
+        func hit(_ rect: CGRect, _ shape: ChromeHitShape = ChromeHitShape()) -> CGRect { shape.path(in: rect).boundingRect }
+        for width in [375.0, 393, 430].map({ CGFloat($0) }) {
+            for destination in ChromeDestination.allCases {
+                for forward in [false, true] {
+                    for keyboard in [false, true] {
+                        let l = layout(destination, width: width, back: true, forward: forward, keyboard: keyboard)
+                        let tag = "\(width) \(destination) forward \(forward) keyboard \(keyboard)"
+                        var hits: [(String, CGRect)] = []
+                        if l.nav.isShown {
+                            let side = M.navSingleWidth, paired = l.navShowsBack && l.navShowsForward
+                            if l.navShowsBack {
+                                let s = M.arrowHitSides(paired: paired, isBack: true)
+                                hits.append(("‹", hit(CGRect(x: l.nav.rect.minX, y: l.nav.rect.minY, width: side, height: side),
+                                                      ChromeHitShape(leading: s.leading, trailing: s.trailing))))
+                            }
+                            if l.navShowsForward {
+                                let s = M.arrowHitSides(paired: paired, isBack: false)
+                                let x = l.nav.rect.minX + (l.navShowsBack ? side : 0)
+                                hits.append(("›", hit(CGRect(x: x, y: l.nav.rect.minY, width: side, height: side),
+                                                      ChromeHitShape(leading: s.leading, trailing: s.trailing))))
+                            }
+                        }
+                        if l.field.isShown { hits.append(("field", hit(l.field.rect))) }
+                        if l.listen.isShown { hits.append(("listen", hit(l.listen.rect))) }
+                        if l.cancel.isShown { hits.append(("cancel", hit(l.cancel.rect))) }
+                        if l.pill.isShown {
+                            let n = CGFloat(ChromeDestination.allCases.count), slot = l.pill.rect.width / n
+                            for i in 0..<Int(n) {
+                                hits.append(("segment \(i)", hit(CGRect(x: l.pill.rect.minX + CGFloat(i) * slot, y: l.pill.rect.minY,
+                                                                       width: slot, height: l.pill.rect.height), .segment)))
+                            }
+                        }
+                        // The lit reader icon: a circle as tall as the field at its leading end.
+                        let reader = hit(CGRect(x: l.field.rect.minX, y: l.field.rect.minY, width: Control.chrome, height: Control.chrome))
+                        XCTAssertGreaterThanOrEqual(reader.width, Control.tap - 0.01, "the reader icon: \(tag)")
+                        XCTAssertGreaterThanOrEqual(reader.height, Control.tap - 0.01, "the reader icon: \(tag)")
+                        for (name, rect) in hits {
+                            XCTAssertGreaterThanOrEqual(rect.width, Control.tap - 0.01, "\(name) wide enough: \(tag)")
+                            XCTAssertGreaterThanOrEqual(rect.height, Control.tap - 0.01, "\(name) tall enough: \(tag)")
+                            if name != "field" {
+                                XCTAssertLessThan(area(rect.intersection(reader)), 0.01, "\(name) overlaps the reader icon: \(tag)")
+                            }
+                        }
+                        for (i, a) in hits.enumerated() {
+                            for b in hits[(i + 1)...] {
+                                XCTAssertLessThan(area(a.1.intersection(b.1)), 0.01, "\(a.0) and \(b.0) overlap: \(tag)")
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    private func area(_ r: CGRect) -> CGFloat { r.isNull ? 0 : r.width * r.height }
 
     func testTheRowsEndOnTheHomeIndicatorStrip() {
         let browse = layout(.browse, back: true, forward: true)

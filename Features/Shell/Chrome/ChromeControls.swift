@@ -108,7 +108,7 @@ struct ChromePill: View {
     private func controls(slot: CGFloat, size: CGSize) -> some View {
         ForEach(ChromeDestination.allCases, id: \.self) { destination in
             Button { onSelect(destination) } label: {
-                Color.clear.contentShape(ChromeHitShape(sides: false))
+                Color.clear.contentShape(ChromeHitShape.segment)
             }
                 .buttonStyle(.plain)
                 .frame(width: slot, height: size.height)
@@ -123,7 +123,9 @@ struct ChromePill: View {
 
 /// ‹ and ›: one capsule of one circle per button, in the frame the host gives it. The frame
 /// animates between one and two circles' width, so › fades as it narrows. A button that can't act
-/// stays, dimmed and out of the taps' way; one that isn't `shown` has no circle.
+/// stays, dimmed and out of the taps' way; one that isn't `shown` has no circle. Each arrow is tapped
+/// `Control.tap` square: alone `hitOutset` round its circle, in the pair outward from the centre
+/// (`ChromeMetrics.arrowHitSides`).
 struct ChromeNavigation: View {
     let showsBack: Bool
     let showsForward: Bool
@@ -142,11 +144,11 @@ struct ChromeNavigation: View {
             let side = ChromeMetrics.navSingleWidth
             HStack(spacing: 0) {
                 if showsBack {
-                    button(Icons.back, label: Verbs.back, id: backID, enabled: canGoBack, action: onBack)
+                    button(Icons.back, label: Verbs.back, id: backID, enabled: canGoBack, isBack: true, action: onBack)
                         .frame(width: side)
                 }
                 if showsForward {
-                    button(Icons.forward, label: Verbs.forward, id: forwardID, enabled: canGoForward, action: onForward)
+                    button(Icons.forward, label: Verbs.forward, id: forwardID, enabled: canGoForward, isBack: false, action: onForward)
                         .frame(width: side)
                         .opacity(showsBack ? min(1, max(0, (proxy.size.width - side) / side)) : 1)
                 }
@@ -156,15 +158,16 @@ struct ChromeNavigation: View {
         .chromeSurface(Capsule())
     }
 
-    private func button(_ symbol: String, label: String, id: String, enabled: Bool,
+    private func button(_ symbol: String, label: String, id: String, enabled: Bool, isBack: Bool,
                         action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        let sides = ChromeMetrics.arrowHitSides(paired: showsBack && showsForward, isBack: isBack)
+        return Button(action: action) {
             Image(systemName: symbol)
                 .font(BottomChrome.chromeGlyph)
                 .foregroundStyle(Palette.ink)
                 .opacity(enabled ? 1 : Self.disabledOpacity)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(ChromeHitShape(sides: false))
+                .contentShape(ChromeHitShape(leading: sides.leading, trailing: sides.trailing))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
