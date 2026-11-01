@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// ⋯ at the end of a screen's title line (the Library home, a folder's navigation bar, Settings,
-/// Library Read): the screen's menu as a system menu, a section per block (`MenuRows`). Plain ink by
-/// default, or `face` for a round glass face where it floats over text.
+/// Library Read): the screen's menu as a system menu, a section per block (`MenuRows`). A glass circle by
+/// default (`TitleMenuGlyph`), or `face`.
 struct TitleMenuButton<Face: View>: View {
     let id: String
     let blocks: [[MenuRow]]
@@ -25,14 +25,13 @@ extension TitleMenuButton where Face == TitleMenuGlyph {
     }
 }
 
-/// The title line's ⋯: the toolbar's glyph in the ink, a 44 pt tap.
+/// The title line's ⋯: the same glass circle as the reading pages' ⋯ (`ChromeCircleFace`, `Control.chrome`),
+/// so every screen's ⋯ is one bubble.
 struct TitleMenuGlyph: View {
     var body: some View {
-        Image(systemName: Icons.more)
-            .font(.system(size: Glyph.regular))
-            .foregroundStyle(Palette.ink)
-            .frame(width: Control.tap, height: Control.tap)
-            .contentShape(Rectangle())
+        ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
+            .frame(width: Control.chrome, height: Control.chrome)
+            .environment(\.chromeSkin, ChromeSkin.current)
     }
 }
 
@@ -45,7 +44,10 @@ struct TitleLine<Trailing: View>: View {
         HStack(alignment: .center, spacing: Spacing.s) {
             ScreenTitle(title)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            // The title keeps the page margin; its ⋯ sits where every top bar's buttons sit
+            // (`Spacing.topBarMargin` from the edge), so ⋯ lands in one place on every screen.
             trailing
+                .offset(x: Spacing.pageMargin - Spacing.topBarMargin)
         }
     }
 }

@@ -183,9 +183,9 @@ screen's edge (the web view) adds the strip: 134, 82, 58.
   you hear (bound, playing or paused) it goes and Aa takes the corner, and it is not drawn while the page has no
   text to read. Sizes: every piece 44 pt (`Control.chrome`, the bottom chrome's pieces: its circles are Listen's), as tall
   as a folder screen's system toolbar buttons, 8 pt between Aa
-  and ▶ Listen, `Spacing.bandMargin` from the screen's edges, `Spacing.xs` above and below the row. It is the
+  and ▶ Listen, `Spacing.topBarMargin` (16) from the screen's edges in place and `Spacing.bandMargin` (12) from the sheet's in Listen, `Spacing.xs` below the row. It is the
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
-  sits 8 pt below the status bar's foot. In Listen it is the sheet's top row, as Voice Memos' is: the grabber
+  sits on the safe area's top and 16 pt in from the screen's edges (`Spacing.topBarMargin`), where a navigation bar's buttons sit (a book's or folder's `‹ … Edit ⋯`), so both rows line up. In Listen it is the sheet's top row, as Voice Memos' is: the grabber
   (36 × 5) 8 pt below the sheet's top edge, centred; ⋯ and Aa with their tops 16 pt below that edge (centres
   36 pt) and 12 pt in from its sides, inside its rounded corners; the title starts 8 pt below the circles, so the
   header is 64 pt. It is the page's header, so it goes in full screen and comes back
@@ -506,7 +506,7 @@ the same spot. ⋯ is never replaced.
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
 back up, as does the regular-width dock's ‹ (dimmed at the home). The home's title line is *Library* with ⋯ at
-its end on compact width, then **Library / History** tabs, the system's segmented control at 44 pt (`SegmentedTabs`) (C104; History is the `recent` case,
+its end on compact width (a glass circle, the reading pages' ⋯; Settings' title line has the same), then **Library / History** tabs, the system's segmented control at 44 pt (`SegmentedTabs`) (C104; History is the `recent` case,
 stored as `history`, once labelled Recent); the bottom field searches the tab on screen and says so (*Search Library* on
 Library, *Search History*). On a folder's screen it searches that folder,
 everything under it, and says so (*Search Demo Finance*): the results stand under the folder's

@@ -11,9 +11,9 @@ import SwiftUI
 /// ⋯ (leading) is the screen's menu as a system menu (`menu`, a section per block); Aa opens the text
 /// appearance panel pointing at it; ▶ Listen, the page's primary action, is an accent-filled capsule
 /// at the trailing end, there only while `listen` is set. `Control.chrome` high, as every piece of the bottom
-/// chrome (⋯ and Aa are Listen's circle), at least `Control.tap` to tap (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
-/// (the material skin before iOS 26). In place it sits `Spacing.xs`
-/// below the status bar. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
+/// chrome (⋯ and Aa are Listen's circle), at least `Control.tap` to tap (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, in place `Spacing.topBarMargin` from the screen's edges (a navigation bar's buttons'), the chrome's glyph and glass
+/// (the material skin before iOS 26). In place it sits on the safe area's
+/// top, level with a navigation bar's buttons. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
 /// is: the grabber centred `Spacing.xs` below the sheet's top edge, the circles' tops `Spacing.m` below it
 /// and `Spacing.bandMargin` in from its sides, so they sit inside its rounded corners. It keeps
 /// `Spacing.xs` under it: drawn in a reading page's header, the text starts clear below it. It is a reading page's header, so it goes with the bars in full screen (`ReadingBars`).
@@ -44,8 +44,8 @@ struct ReadingTopGroup: View {
                     .transition(.opacity)
             }
         }
-        .padding(.horizontal, Spacing.bandMargin)
-        .padding(.top, carriesGrabber ? Spacing.m : Spacing.xs)
+        .padding(.horizontal, carriesGrabber ? Spacing.bandMargin : Spacing.topBarMargin)
+        .padding(.top, carriesGrabber ? Spacing.m : 0)
         .padding(.bottom, Spacing.xs)
         .overlay(alignment: .top) {
             if carriesGrabber { SheetGrabber().padding(.top, Spacing.xs) }

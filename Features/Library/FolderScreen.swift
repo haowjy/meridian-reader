@@ -124,8 +124,9 @@ struct FolderScreen: View {
                         ToolbarSpacer(.fixed, placement: .topBarTrailing)
                     }
                     // Compact width: the screen's ⋯, which the bottom chrome doesn't have. The bare
-                    // symbol: the toolbar sizes and spaces its items, so a framed face would be padded twice.
-                    ToolbarItem(placement: .topBarTrailing) { LibraryTitleMenu { Image(systemName: Icons.more) } }
+                    // symbol: the toolbar sizes and spaces its items, so a framed face would be padded twice; in the
+                    // ink, as every other screen's ⋯ is.
+                    ToolbarItem(placement: .topBarTrailing) { LibraryTitleMenu { Image(systemName: Icons.more).foregroundStyle(Palette.ink) } }
                 }
             }
             .navigationBarBackButtonHidden(screen.isEditing(folderID: folder.id))

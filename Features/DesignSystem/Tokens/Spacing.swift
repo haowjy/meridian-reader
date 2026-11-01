@@ -19,6 +19,9 @@ enum Spacing {
     static let pageMargin: CGFloat = 20
     /// Leading and trailing edge of the bottom chrome band (field capsule, toolbar, bars).
     static let bandMargin: CGFloat = s
+    /// Leading and trailing edge of a top bar's buttons: where the system's navigation bar draws them
+    /// (a book's or folder's `‹ … Edit ⋯`), and the in-place reading pages' top group, so the two line up.
+    static let topBarMargin: CGFloat = m
 }
 
 /// Corner radii: two. Fields, pills and round controls are true capsules and circles (`Capsule()`,
