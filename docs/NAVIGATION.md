@@ -267,15 +267,15 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   Title of the article, one line…              (🔖)
   example.com                         6 min left
   ━━━━━━━━━━━━━━━━●──────────────────────────────
-  1×       ⏮        (  ▶  )        ⏭       Voice
+  Voice    ⏮        (  ▶  )        ⏭          1×
   ```
 
   Row 1: the title on one line (cut with …), then Save, a round 36 pt button. The title
   opens the article's own place in the Library or its page, and never seeks; only the track does.
   Row 2, one text step smaller: the site at the left (it truncates) and the time left at the right; the
   page's status note (preparing, voice and language notes) or "Finished" alone in its place. Then the
-  full-width scrubber, no times. Under it one row, no labels: the speed (1×) at the card's left margin,
-  Voice (VoiceOver: "Voice", never a voice's name) at its right; between them ⏮, a 62 pt ▶ / ⏸ and ⏭
+  full-width scrubber, no times. Under it one row, no labels: Voice (VoiceOver: "Voice", never a voice's name) at the card's
+  left margin, the speed (1×) at its right (it changes more often, so it sits under the thumb); between them ⏮, a 62 pt ▶ / ⏸ and ⏭
   (`NowPlayingTransport`'s `card` size), centred. Aa and ⋯ are the top group's. **Jump to Audio** is not in the card: scrolled away from the audio, a thin accent pill,
   "↑ Jump to Audio" or "↓ Jump to Audio" in the pills' type, 4 pt above and below (an `OverTextPill`; the same on regular width;
   its tap area 44 pt), floats in the middle 12 pt above the card (above

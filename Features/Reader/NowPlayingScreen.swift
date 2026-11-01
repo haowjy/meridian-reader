@@ -177,13 +177,13 @@ struct NowPlayingScreen: View {
             } transport: {
                 ListenTransportView(size: .card, speech: speech)
             } leading: {
-                SpeedButton(speech: speech)
-                    .playerCardTool()
-            } trailing: {
                 IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "nowPlayingVoice", round: false) {
                     shell.present(.voice(.article(now.articleKey)))
                 }
                 .playerCardTool()
+            } trailing: {
+                SpeedButton(speech: speech)
+                    .playerCardTool()
             }
         }
     }

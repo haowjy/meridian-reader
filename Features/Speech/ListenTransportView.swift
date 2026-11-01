@@ -64,7 +64,7 @@ struct ListenTransportView: View {
 }
 
 /// The playback speed ("1×", "1.25×"): at the trailing end of the regular-width scrub capsule, and
-/// over Aa in the compact player card. A tap opens the speed list, pointing at it.
+/// at the trailing end of the compact player card. A tap opens the speed list, pointing at it.
 struct SpeedButton: View {
     @Bindable var speech: SpeechController
     @State private var showsPicker = false

@@ -47,7 +47,7 @@ struct CardOrigin {
 /// Notes on Tides, and Why the Moon Pul…  (🔖)    title (one line); Save
 /// example.org                   6 min left    site leading, time left trailing (or one note)
 /// ━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━   scrubber, no times
-/// 1×        ⏮       (  ▶  )       ⏭    Voice   `leading` and `trailing` at the margins, the
+/// Voice     ⏮       (  ▶  )       ⏭       1×   `leading` and `trailing` at the margins, the
 ///                                             transport centred between them
 /// ```
 struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View, Trailing: View>: View {
@@ -63,9 +63,9 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
     @ViewBuilder var scrub: Scrub
     /// Previous paragraph, play / pause, next paragraph (`ListenTransportView`, `card` size).
     @ViewBuilder var transport: Transport
-    /// The small control at the leading margin (speed): a `playerCardTool`.
+    /// The small control at the leading margin (Voice): a `playerCardTool`.
     @ViewBuilder var leading: Leading
-    /// The one at the trailing margin (Voice): a `playerCardTool`.
+    /// The one at the trailing margin (speed): a `playerCardTool`.
     @ViewBuilder var trailing: Trailing
 
     @Environment(\.readingPalette) private var reading
@@ -191,10 +191,10 @@ struct ReaderPlayerCardGallery: View {
         } transport: {
             NowPlayingTransport(state: state, size: .card, onSkipBack: {}, onSkipForward: {}, onPlayPause: {})
         } leading: {
-            Text("1×").fieldTextFrame().playerCardTool()
-        } trailing: {
             IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "previewVoice", round: false) {}
                 .playerCardTool()
+        } trailing: {
+            Text("1×").fieldTextFrame().playerCardTool()
         }
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.surface, style: .continuous))
     }
