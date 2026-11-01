@@ -292,6 +292,10 @@ extension HTMLReadingWebView {
         /// The farthest offset the last report was clamped to; a change of it (an inset at the foot,
         /// a reflow, a rotation) makes that report a move.
         private var lastFarthest: CGFloat?
+        #if DEBUG
+        /// `-readerProbe` is writing the offset: its reports are the probe's own (`report` sends nothing).
+        var probeSilences = false
+        #endif
 
         /// Notes a finger drag through the scroll view's pan (WebKit owns its delegate;
         /// programmatic scrolls never reach it): the user took over the text; a pull down at the top
@@ -330,6 +334,9 @@ extension HTMLReadingWebView {
             let clampMoved = farthest != lastFarthest
             lastFarthest = farthest
             guard !jumpMode else { return }
+            #if DEBUG
+            guard !probeSilences else { return }
+            #endif
             let offset = min(Self.scrolledIn(scrollView), farthest)
             if byFinger, !clampMoved, codeWrites == 0 {
                 chrome?.userScrolled(to: offset)
@@ -576,6 +583,7 @@ extension HTMLReadingWebView {
             layout.opened()
             #if DEBUG
             scrollToEndIfAsked()
+            runProbeIfAsked()
             #endif
             guard case .handOver(let handOver) = hold else {
                 measureTextTop()

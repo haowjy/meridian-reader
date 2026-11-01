@@ -48,8 +48,8 @@ Regular width keeps the Reader and Listen sheets ("iPad and regular width").
   text, so they never pull. In Listen a pull alone keeps following the audio (it moves
   nothing); once the drag moves the text, following stops as for any drag. In full screen the
   text hands no pull to the sheet: a pull down at its top only rubber-bands and brings the bars
-  back, and a pull that begins with them showing closes the sheet as above. (Compact full screen,
-  which is the chrome's, is left by the middle tap alone.)
+  back, and a pull that begins with them showing closes the sheet as above. (Listen's full screen is
+  left by the middle tap alone; an in-place reader's, which is the chrome's, by the tap or a scroll up of 24 pt.)
 - It moves like a system sheet: it rises from the bottom and leaves the same way. The surface
   stays as it is underneath (the page or start page, the Library's screen), so the pull reveals
   where you're going back to: the sheet follows the finger (up only with rubber-band resistance;
@@ -100,14 +100,14 @@ one row (the keyboard's row too, over the keyboard), 24 the bubble (4 + 36 + 18 
 screen's edge (the web view) adds the strip: 142, 86, 58.
 
 - **The bubble** (`ChromeLayout.bubble`, `ChromePieces.bubblePiece`, id `chromeBubble`): what the second fold step
-  ends in, on every screen that folds (the Browser's page, the Library and its folders and books, Library Read,
-  the Browser's reader mode in Scroll mode, Settings and its pages). Safari's minimized address bar: a **glass
+  ends in, on every screen that folds (the Browser's page, the Library and its folders and books, Settings and
+  its pages; never Library Read or the Browser's reader mode, which are expanded or full screen). Safari's minimized address bar: a **glass
   capsule** on the field's surface (`chromeSurface`, `BottomChrome.fieldFill`), 36 pt tall (`Control.small`),
   13 pt semibold ink (`TypeStyle.caption`'s size, fixed), 16 pt padding each side (`Spacing.m`), as wide as its text and
   padding, at most margin to margin, centred, its bottom 18 pt above the screen's edge (`bubbleClearance`, just over
   the home indicator). The hit area is its width and 44 pt tall (`bubbleHitOutset` 4 above and below). It names
-  where you are: the page's domain on the Browser (no `www.`, no path), the screen's title in the Library, the
-  article's title in Library Read, the source in the Browser's reader mode, *Settings* in Settings
+  where you are: the page's domain on the Browser (no `www.`, no path), the screen's title in the Library,
+  *Settings* in Settings
   (`ChromeScreen.bubbleTitle`). Audio keeps playing while folded; the bubble's tap and a scroll up bring both rows
   back. Sheets have no bubble. `-chromeFold P` (Debug) holds the fold at P wherever it may fold, to look at a step.
 
@@ -176,10 +176,10 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   and ▶ Listen, `Spacing.bandMargin` from the screen's edges, `Spacing.xs` above and below the row. It is the
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
   sits 8 pt below the status bar's foot; in Listen 8 pt below the grabber's 48 pt band (the band is Listen's
-  pull handle, so the group starts under it). It goes in full screen, and in place it follows the fold: it fades
-  out once the chrome leaves two rows (a scroll down, `-chromeFold`) and comes back with them (a scroll up of
-  24 pt, the bubble's tap, the top of the text); Pages mode never folds, so it stays. VoiceOver: ⋯, Aa, ▶ Listen,
-  in that order.
+  pull handle, so the group starts under it). It is the page's header, so it goes in full screen and comes back
+  with it; in place that is the chrome's full screen, so the group, the bottom chrome and the status bar go and
+  come back together, on the same curves (under Reduce Motion they fade out and in together). VoiceOver: ⋯, Aa,
+  ▶ Listen, in that order.
 - **Collapse follows the finger down, in steps; a scroll up brings it back at once.** One progress value
   (`ChromeScroll`), 0 two rows, 0.5 one row, 1 the bubble: `progress += dy / 120` for a scroll down (60 pt a
   step), ignored while the keyboard or the ⋯ panel is up, and 150 ms after the finger stops a part-way step
@@ -187,8 +187,20 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   between (`ChromeScroll.revealDistance`) brings both rows back, as Safari does, on every screen that folds.**
   The rows also come back by a tap on the bubble, by reaching the top of the content (offset <= 4, which resets
   progress to 0) (invariant 12), and by what is not a scroll: a new page or screen loading, opening the address
-  or search field, VoiceOver being on. The Library, the Browser and the in-place readers feed it; **Listen does not**
-  (it has no chrome), the Browser's start page does not fold, and an in-place reader folds only in Scroll mode.
+  or search field, VoiceOver being on. The Library, the Browser's page and Settings feed it; **Listen does not**
+  (it has no chrome), the Browser's start page does not fold, and **an in-place reader never folds** (below).
+  **Only the screen showing drives the chrome** (`ChromeSource`, `ShellState.chromeDriver`): the web page under
+  the reader mode, the Library under Library Read and anything under Listen or a sheet move nothing, and after
+  Listen or a sheet closes, the next scroll only sets where the following one is measured from.
+- **An in-place reader is expanded or full screen, nothing between** (`ChromePolicy.reads`). In Scroll mode
+  **60 pt of scrolling down in one gesture** (`ChromeScroll.fullScreenDistance`, the moment a page's row 2 goes;
+  about two and a half lines, so adjusting a line or two never hides anything) enters full screen: the top group,
+  the bottom chrome and the status bar go together, exactly as the middle tap does. **A scroll up of 24 pt brings
+  them all back, however full screen began** (a scroll or the tap), and so does the middle tap. After a reveal,
+  hiding again takes a fresh 60 pt down. The top of the text doesn't reveal on its own (a scroll up to it does), and
+  the rebound from a pull past the top never counts as a scroll down, while the pull itself counts as a scroll up.
+  Only a finger counts: a move of the text by the app (following, a restore, a reflow, a jump, the end gliding to a
+  new end) never toggles it. Pages mode and VoiceOver: the middle tap alone (VoiceOver keeps the bars).
   **The bubble's tap does not pin.** `ChromeScroll.expandByHand` brings both rows back and grants a short grace:
   scroll reports within 0.35 s (`tapQuiet`, a fling already under way) move nothing, then the next 24 pt of
   scrolling down (`refoldGrace`) folds nothing, and past it the fold follows the finger again. The tap-swallow
@@ -271,10 +283,11 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   there; *Paste Text…* saves, then opens the new article in Library Read; *Import from…* and a shared book
   file close the import sheet on the new book's screen.
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
-  `ReaderSurface`): the chrome folds on scroll in Scroll mode like a page (to a bubble naming the source) and stays expanded in Pages mode, the address keeps the
+  `ReaderSurface`): the chrome never folds; it is expanded or full screen (a deliberate scroll down in Scroll
+  mode or the middle tap; a scroll up of 24 pt or the tap brings it back, above), the address keeps the
   URL, the reader icon sits in a lit capsule and toggles back. The
   text is a reading page like the Reader's (`ReadingPage`, in place): Pages or Scroll as the
-  Appearance setting says, the footer, a tap in the middle for full screen, *Play from Here* on a
+  Appearance setting says, the footer, full screen, *Play from Here* on a
   selection, and it opens at the page's saved listening spot, underlined. The reader's theme runs up
   under the status bar. Under the title the source line reads "site  length" (a long site gives way
   first, an ellipsis). Over the top of the page floats the top group, `( ⋯ ) … ( Aa ) ( ▶ Listen )` (above):
@@ -283,14 +296,14 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   chrome's round Listen then opens it) and while the page has no text to read. The
   reader stays a plain reader while its page plays: no spoken paragraph, underlined sentence, following
   or Jump to Audio (the playhead is Listen's), and no saved-spot underline (a page that isn't playing
-  keeps its saved spot underlined); *Play from Here* moves the playhead and slides Listen up. The end of the text scrolls to just above the chrome as it is drawn
-  (two rows, one, the bubble). Full screen is the text alone, down to the screen's foot, where its end then scrolls: no floating
-  ▶ / ⏸ (that is Listen's and the regular-width sheets'). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor. The web page
+  keeps its saved spot underlined); *Play from Here* moves the playhead and slides Listen up. The end of the text scrolls to just above the
+  chrome's two rows. Full screen is the text alone, down to the screen's foot, where its end then scrolls: no floating
+  ▶ / ⏸ (that is Listen's and the regular-width sheets'). While another layer covers the reader it stays mounted and quiet: no status bar change, and its scroll moves no chrome (it isn't the screen showing); closed back to, it is as it was, full screen included. The web page
   under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
   what ‹ does (back, which closes the reader).
 - **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
   a row's ⋯ → Read shows the article's text over the Library, which stays the lit segment and under it
-  with its scroll; the chrome folds to a bubble naming the article on a scroll down in Scroll mode and stays expanded in Pages mode (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
+  with its scroll; the chrome is expanded or full screen as in the Browser's reader mode (never folded), ‹ (`libraryReaderBack`)
   or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][(lit reader icon) site][Listen]`, laid out as the
   Browser's reader mode (the icon's tap opens the live page in the Browser). The top group is the Browser
   reader mode's, its ⋯ the Library's screen menu; its ▶ Listen starts the page. Nothing plays until then. Opening a saved page anywhere else on compact width
@@ -1198,22 +1211,22 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
 
 The Reader and Listen read full screen the same way (`ReadingChrome`); Follow's chapter preview doesn't.
 
-- **Full screen is a tap in the middle of the text, in and out, and nothing else.** In a compact
-  in-place reader it removes the whole bottom chrome: its rows (or bubble), the fade and the status bar
-  go (fade only under Reduce Motion), the home indicator dims, and the text shows alone, never
+- **Full screen is a tap in the middle of the text, in and out; in a compact in-place reader in Scroll
+  mode, also a scroll** (60 pt down in one gesture enters it, 24 pt up leaves it, however it began: "An
+  in-place reader is expanded or full screen", above). In a compact in-place reader it removes the whole
+  bottom chrome (its two rows), the top group, the fade and the status bar together (fading together under
+  Reduce Motion), the home indicator dims, and the text shows alone, never
   moving, down to the screen's foot, with nothing floating over it. In compact Listen the player card slides off, the status bar hides
   and the sheet's top gap, rounded corners and dim go: the page covers the screen; the
   chrome under Listen keeps its state. In every reader, Scroll mode, the end of the text then scrolls down
   to the home indicator's strip (with the bars up, to just above what floats: the card, the band, the
   chrome as drawn); the text on screen stays where it is as they go or come, and a text at its end stays
-  at its end. Pages mode keeps its pages as they are. **Scrolling does nothing to the chrome in full screen, and
-  scrolling never enters or leaves it.** Leaving full screen returns to what the chrome was before
-  (folded stays folded). On regular width the sheet's grabber, top bar and bottom band hide and show
+  at its end. Pages mode keeps its pages as they are. **Listen's and the regular-width sheets' full screen are
+  the tap's alone: scrolling never enters or leaves them.** Leaving full screen brings the chrome back
+  expanded (an in-place reader's chrome never folds). On regular width the sheet's grabber, top bar and bottom band hide and show
   together the same way, and the sheet covers the screen as Listen's does.
-  The app's own scrolls (following the audio, a scrub, opening at a spot) never change it. The bars
+  The app's own scrolls (following the audio, a scrub, opening at a spot, a reflow) never change it. The bars
   stay while VoiceOver runs, while ☝︎ is on, and while Aa or ⋯ is open.
-- **Not in full screen**, scrolling down folds the chrome to the capsule (above), in Scroll mode only; the text
-  never moves for it.
 - **Taps on the text** (not on a link; ☝︎ keeps its paragraph taps): the right 30% of the width
   goes forward a screen, the left 30% back one (the visible text less one line, landing with a
   whole line at the top: below the top bar, or below the fade in full screen; on the
@@ -1231,8 +1244,8 @@ The Reader and Listen read full screen the same way (`ReadingChrome`); Follow's 
   tap in the middle leaves full screen instead, and the bars come back. It isn't there while
   the bars show.
 - **At the top**, a pull down in full screen rubber-bands and, on regular width, brings the bars
-  back; scrolling never leaves it, and compact full screen is left by the middle tap alone
-  (on regular width it never closes the sheet; a pull that begins with the bars showing closes it as
+  back; in a compact in-place reader it is a scroll up and brings them back after 24 pt; Listen's is left by
+  the middle tap alone (on regular width it never closes the sheet; a pull that begins with the bars showing closes it as
   usual, and while it pulls the sheet it never hides or shows the bars).
 - The floating *Jump to Audio* (Listen, both widths) shows only while the text is away from
   the audio, centred just above the card or band, and in Scroll's full screen above the home

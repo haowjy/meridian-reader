@@ -27,21 +27,22 @@ enum ReadingShowing {
 /// What a reading page shown in place needs from the compact chrome, as plain values and closures
 /// (the shell supplies them; the design system never names it).
 struct ReadingInPlace {
-    /// The room the chrome takes at the bottom at its current fold step (above the home indicator's
-    /// strip): the end of the text scrolls to just above it.
+    /// The room the chrome's two rows take at the bottom (above the home indicator's strip): the end
+    /// of the text scrolls to just above it. A reader's chrome never folds, so only full screen changes
+    /// what floats at the foot.
     var bottomClearance: CGFloat
     /// The home indicator's strip (the window's bottom safe area). The page in place is laid out
     /// through the bottom safe area, under the chrome, so it can't measure the strip itself.
     var homeIndicator: CGFloat
     /// The text, scrolled by a finger, to this offset from its top.
     var scrolled: (CGFloat) -> Void
-    /// The text moved without a finger deciding anything: the fold measures from here.
+    /// The text moved without a finger deciding anything: the chrome measures from here.
     var anchored: (CGFloat) -> Void
-    /// Full screen, owned by the compact chrome: the reading page reads and toggles it here, and the
-    /// whole chrome goes or comes back with it.
+    /// Full screen, owned by the compact chrome: the reading page reads it here and the centre tap
+    /// toggles it; a scroll in Scroll mode can too (`ChromeScroll`). The whole chrome goes or comes back
+    /// with it.
     var fullScreen: Binding<Bool>
-    /// Something else is on screen over this page: it leaves the status bar and the chrome's fold
-    /// to what is showing.
+    /// Something else is on screen over this page: it leaves the status bar to what is showing.
     var covered = false
 }
 

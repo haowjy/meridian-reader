@@ -78,8 +78,8 @@ enum ChromeMetrics {
 
     /// What the chrome covers above the safe area's bottom at a fold step (`ChromeScroll.drawnStep`), a strip
     /// `home` deep under it: 0 two rows (108 pt over a 34 pt strip), 1 one row (52), 2 the bubble (24). The
-    /// same at step 0 on every destination, so a screen never resizes when the chrome folds. From the
-    /// screen's edge, add `home` (142, 86, 58).
+    /// same at step 0 on every destination, so a screen never resizes when the chrome folds; an in-place
+    /// reader keeps step 0's (its chrome never folds). From the screen's edge, add `home` (142, 86, 58).
     static func clearance(step: Int, home: CGFloat) -> CGFloat {
         switch step {
         case ...0: rowsHeight + rowLift(home: home)

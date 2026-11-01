@@ -2,6 +2,17 @@ import CoreGraphics
 import Observation
 import QuartzCore
 
+/// What scrolling does to the compact chrome on the screen showing (picked by `ChromeHost`).
+enum ChromePolicy: Equatable {
+    /// Web pages, the Library, Settings: the continuous fold to the bubble.
+    case folds
+    /// The start page, Library Edit, VoiceOver off a reader: two rows, whatever the scroll.
+    case holds
+    /// An in-place reader: expanded or full screen, nothing between. `scrollHides`: Scroll mode
+    /// without VoiceOver; Pages and VoiceOver toggle by the centre tap alone.
+    case reads(scrollHides: Bool)
+}
+
 /// A surface that can drive the compact chrome by scrolling. Only the one showing does
 /// (`ChromeScroll.driver`); a new surface that scrolls needs a case here and a branch in
 /// `ShellState.chromeDriver`, or its reports are dropped.
@@ -18,8 +29,10 @@ enum ChromeSource: Equatable {
     case settings
 }
 
-/// The one owner of how far the compact chrome has folded, and its scroll controller, fed by the
-/// Library, the Browser and the Reader alike. Scroll views report their offset; this keeps a
+/// The one owner of the compact chrome's visibility, and its scroll controller, fed by the Library,
+/// the Browser, Settings and the in-place readers alike. What scrolling does is the `policy`.
+///
+/// **Folds** (web pages, the Library, Settings). Scroll views report their offset; this keeps a
 /// continuous `progress` (0 expanded, 1 collapsed) that follows the finger on the way down only:
 /// `progress += dy / travel` for a scroll down; a scroll up of `revealDistance` brings both rows back
 /// at once, as Safari does (the owner's call). It folds in two steps: 0 to 0.5 takes row 2 away (one row left), 0.5 to 1 shrinks the
@@ -32,13 +45,17 @@ enum ChromeSource: Equatable {
 /// stepped by a display link while it still has ground to cover. What is drawn follows `displayed`;
 /// rules (the swipe) read `progress`.
 ///
+/// **Reads** (an in-place reader): `fullScreen` alone, no fold. In Scroll mode one gesture's
+/// `fullScreenDistance` of scrolling down enters full screen and a scroll up of `revealDistance` leaves
+/// it, however it began (the centre tap's toggle is the other way in and out, through
+/// `ReadingInPlace.fullScreen`). Hiding travel is measured on the offset clamped at the top, so the
+/// rebound from a pull past the top never hides; the pull itself counts toward a reveal. A move
+/// (`anchor`) never toggles. Pages mode and VoiceOver toggle by the tap alone.
+///
 /// Every report names its source, and only the driver's counts (`driver`, read when the report is
 /// delivered: a web view's report queued before a reader opened is judged against the reader).
 /// Whenever the driver changes or is suspended (Listen or a sheet up), the gesture's continuity is
 /// dropped: the next accepted report only sets the baseline, so travel from before never counts.
-///
-/// Full screen is not scroll's: it is set only by the reading page's middle tap
-/// (`ReadingInPlace.fullScreen`), and scrolling never touches it.
 @MainActor
 @Observable
 final class ChromeScroll {
@@ -46,7 +63,8 @@ final class ChromeScroll {
     private(set) var progress: CGFloat = 0
     /// `progress` as drawn: it chases `progress` a frame at a time (`smoothing`).
     private(set) var displayed: CGFloat = 0
-    /// The Reader's full screen: the chrome is removed.
+    /// An in-place reader's full screen: the chrome, the reader's top group and the status bar are
+    /// gone. False unless the policy is `.reads`.
     private(set) var fullScreen = false
     /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
     var isLocked = false
@@ -56,13 +74,16 @@ final class ChromeScroll {
     /// Points of scrolling down still ignored after the bubble's tap: the rows stay for a short
     /// scroll (and the tail of a fling already under way), then fold again. Never a lasting pin.
     private(set) var grace: CGFloat = 0
-    /// The destination keeps its chrome expanded whatever the scroll (Listen, a reader in Pages mode):
-    /// scroll reports move nothing, and turning it on expands.
-    var holdsExpanded = false {
+    /// What scrolling does on the screen showing. Anything but `.folds` unfolds; anything but `.reads`
+    /// leaves full screen. `.reads(true)` and `.reads(false)` share the full screen.
+    var policy: ChromePolicy = .folds {
         didSet {
-            if holdsExpanded { expand() }
+            guard policy != oldValue else { return }
+            if policy != .folds { expand() }
+            if case .reads = policy {} else { setFullScreen(false) }
+            clearReading()
             #if DEBUG
-            if !holdsExpanded, Self.forcedFold != nil { set(0) }
+            if policy == .folds, Self.forcedFold != nil { set(0) }
             #endif
         }
     }
@@ -74,14 +95,18 @@ final class ChromeScroll {
     }
 
     #if DEBUG
-    /// `-chromeFold`: every fold is this one, but where the chrome is held expanded. Set by the launch (`AppMain`).
+    /// `-chromeFold`: every fold is this one, where the chrome folds (`.folds`). Set by the launch (`AppMain`).
     static var forcedFold: CGFloat?
     #endif
 
     /// Points of scrolling that fold the chrome all the way.
     static let travel: CGFloat = 120
-    /// Points of scrolling up, with no scroll down between, that bring the rows back.
+    /// Points of scrolling up, with no scroll down between, that bring the rows back (and leave a
+    /// reader's full screen).
     static let revealDistance: CGFloat = 24
+    /// Points of scrolling down in one gesture that take a reader to full screen: the moment a page's
+    /// row 2 goes, about two and a half lines, so adjusting a line or two never hides the chrome.
+    static let fullScreenDistance: CGFloat = travel / 2
     /// Scrolling down after the bubble's tap brought the rows back that folds nothing.
     static let refoldGrace: CGFloat = 24
     /// After the bubble's tap, scroll reports this soon are a fling already under way and move nothing.
@@ -109,6 +134,8 @@ final class ChromeScroll {
     @ObservationIgnored private var continuity: ChromeSource?
     /// Points scrolled up since the last scroll down.
     @ObservationIgnored private var upward: CGFloat = 0
+    /// A reader's points scrolled down in this gesture, less what came back up.
+    @ObservationIgnored private var downward: CGFloat = 0
     @ObservationIgnored private var settling: Task<Void, Never>?
     @ObservationIgnored private var ticker: FrameTicker?
     @ObservationIgnored private var lastFrame: CFTimeInterval = 0
@@ -117,9 +144,19 @@ final class ChromeScroll {
     /// A scroll view's content offset, 0 at its top edge (below its own top inset), from `source`.
     func scrolled(to offset: CGFloat, from source: ChromeSource) {
         guard accepts(source, at: offset) else { return }
-        let delta = offset - last
+        let previous = last
         last = offset
-        guard !isLocked, !holdsExpanded, !fullScreen else { return }
+        guard !isLocked else { return }
+        switch policy {
+        case .folds: fold(to: offset, from: previous)
+        case .reads(scrollHides: true): read(to: offset, from: previous)
+        case .holds, .reads(scrollHides: false): break
+        }
+    }
+
+    /// The fold's rule: down folds with the finger, `revealDistance` up expands, the top expands.
+    private func fold(to offset: CGFloat, from previous: CGFloat) {
+        let delta = offset - previous
         if offset <= Self.topEdge {
             settling?.cancel()
             grace = 0
@@ -145,16 +182,37 @@ final class ChromeScroll {
         scheduleSettle()
     }
 
-    /// The offset moved without a finger (a restore, following the audio, a scrub), or in a state
-    /// where the finger decides nothing (full screen): the next report measures from here, and no
-    /// fold is decided by the move itself. The top still always expands (a status-bar tap).
+    /// The reading rule: `fullScreenDistance` down (clamped at the top) enters full screen,
+    /// `revealDistance` up (raw, so a pull past the top counts) leaves it.
+    private func read(to offset: CGFloat, from previous: CGFloat) {
+        let delta = offset - previous
+        guard delta != 0, abs(delta) <= Self.jump else { return }
+        if delta > 0 {
+            downward += max(0, offset) - max(0, previous)
+            upward = 0
+            if !fullScreen, downward >= Self.fullScreenDistance { setFullScreen(true) }
+        } else {
+            upward -= delta
+            downward = max(0, downward + delta)
+            if fullScreen, upward >= Self.revealDistance { setFullScreen(false) }
+        }
+    }
+
+    /// The offset moved without a finger (a restore, following the audio, a scrub, a reflow) or a
+    /// gesture begins: the next report measures from here, and the move itself decides nothing. On a
+    /// folding screen the top still expands (a status-bar tap); a reader never toggles on a move.
     func anchor(at offset: CGFloat, from source: ChromeSource) {
         guard driver() == source else { return }
         continuity = source
         last = offset
-        if offset <= Self.topEdge {
-            grace = 0
-            set(0)
+        switch policy {
+        case .folds:
+            if offset <= Self.topEdge {
+                grace = 0
+                set(0)
+            }
+        case .reads: clearReading()
+        case .holds: break
         }
     }
 
@@ -177,6 +235,7 @@ final class ChromeScroll {
     func expand() {
         settling?.cancel()
         grace = 0
+        clearReading()
         set(0)
     }
 
@@ -188,8 +247,12 @@ final class ChromeScroll {
         tappedAt = CACurrentMediaTime()
     }
 
+    /// A reader's full screen, by the centre tap (through the binding) or the reading rule. Each
+    /// change starts the travel afresh: re-hiding after a reveal takes a full `fullScreenDistance`.
     func setFullScreen(_ on: Bool) {
-        if fullScreen != on { fullScreen = on }
+        guard fullScreen != on else { return }
+        fullScreen = on
+        clearReading()
     }
 
     /// A different scroll view is now the one driving the chrome (a destination, a pushed screen):
@@ -208,6 +271,7 @@ final class ChromeScroll {
             continuity = source
             last = offset
             upward = 0
+            downward = 0
             return false
         }
         return true
@@ -224,6 +288,11 @@ final class ChromeScroll {
         }
     }
 
+    private func clearReading() {
+        upward = 0
+        downward = 0
+    }
+
     private func scheduleSettle() {
         settling?.cancel()
         settling = Task { [weak self] in
@@ -235,7 +304,7 @@ final class ChromeScroll {
 
     private func set(_ value: CGFloat) {
         #if DEBUG
-        let value = Self.forcedFold.map { holdsExpanded ? 0 : $0 } ?? value
+        let value = Self.forcedFold.map { policy == .folds ? $0 : 0 } ?? value
         #endif
         if progress != value { progress = value }
         if displayed != value, ticker == nil { startSmoothing() }

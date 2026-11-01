@@ -369,9 +369,9 @@ struct BrowseStartView: View {
         )
     }
 
-    /// What the folded chrome's bubble names: the page's domain (no `www.`, no path), or in reader mode its source.
+    /// What the folded chrome's bubble names: the page's domain (no `www.`, no path). Reader mode never folds.
     private var bubbleTitle: String {
-        let host = shell.pageReader?.sourceLabel ?? webStore.currentURL?.host() ?? ""
+        let host = webStore.currentURL?.host() ?? ""
         let name = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
         return name.isEmpty ? String(localized: "Browser") : name
     }

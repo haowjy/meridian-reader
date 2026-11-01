@@ -97,10 +97,20 @@ enum LaunchHooks {
         if options.failsLibrarySaves { library.saveContext = { _ in throw InjectedSaveFailure() } }
     }
 
+    /// `-tapListenWhen fullScreen`: until an in-place reader is in full screen, polled every 100 ms for
+    /// up to 10 s; logged either way.
+    private static func waitForFullScreen(_ shell: ShellState) async {
+        for _ in 0..<100 where !shell.chromeScroll.fullScreen {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        ListenTimingLog.log("debug_tap_listen_when", ["fullScreen": shell.chromeScroll.fullScreen], console: true)
+    }
+
     /// `-failLibrarySaves`' refusal.
     private struct InjectedSaveFailure: Error {}
 
-    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-openLibraryFolder`, `-tapListen`, `-tapLibraryRow`,
+    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-openLibraryFolder`, `-tapListen`
+    /// (`-tapListenWhen`), `-tapLibraryRow`,
     /// `-pasteText`, `-importBook`, `-listenDemo`, `-playTestEPUB`, `-chainDemoChapters`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
                                shell: ShellState, follow: FollowCenter?) async {
@@ -113,8 +123,12 @@ enum LaunchHooks {
             if let folder = folders.first(where: { $0.name == name }) { shell.showLibrary(at: library.path(to: folder)) }
         }
 
-        if options.tapsListen {
-            try? await Task.sleep(for: .seconds(1))
+        if options.tapsListen || options.tapsListenWhenFullScreen {
+            if options.tapsListenWhenFullScreen {
+                await waitForFullScreen(shell)
+            } else {
+                try? await Task.sleep(for: .seconds(1))
+            }
             ChromeListenButton.open(speech: speech, shell: shell,
                                     lastPlayed: (try? library.context.fetch(LibraryQueries.lastPlayed))?.first(where: \.isLive))
             if let close = options.closesListenAfter {

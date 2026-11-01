@@ -19,6 +19,7 @@
 		069A3DF5CB732F3E5804C928 /* KokoroRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3559B0329B50693785E81B8F /* KokoroRoute.swift */; };
 		0727841C55A970070F764F49 /* Sheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A64466059BA1017F1DE3DC /* Sheet.swift */; };
 		07286D582F2241FC9C07F626 /* LaunchOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A90987D414269FE1F330324 /* LaunchOptions.swift */; };
+		07F091E9A0E87FCF3FCE0F4A /* HTMLReadingView+Probe.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7A06C3F6D4FFC611E337BE2 /* HTMLReadingView+Probe.swift */; };
 		0837421BFA6A1AE7D2EE614C /* FolderMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 760ADC276A4146F0BE3E2294 /* FolderMenu.swift */; };
 		0873CE00AC68C50AC5733977 /* KokoroONNXModelPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB71DE59C5D155E6D3904EFE /* KokoroONNXModelPatch.swift */; };
 		09A4FA5A8F1EF26771857925 /* SingleCallPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 264C34073CA37199E56A6632 /* SingleCallPolicy.swift */; };
@@ -690,6 +691,7 @@
 		A495A228331A86FE4FAC2582 /* voice-preview-kokoro-af_heart.m4a */ = {isa = PBXFileReference; path = "voice-preview-kokoro-af_heart.m4a"; sourceTree = "<group>"; };
 		A6699FCCDCEC663DF47C259B /* MenuRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuRegistry.swift; sourceTree = "<group>"; };
 		A6A414F24CB0DFCEF2AD94F3 /* SynthRenderGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthRenderGate.swift; sourceTree = "<group>"; };
+		A7A06C3F6D4FFC611E337BE2 /* HTMLReadingView+Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HTMLReadingView+Probe.swift"; sourceTree = "<group>"; };
 		A7A14C91D4840D6F1622E30C /* ListenDebugPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenDebugPanel.swift; sourceTree = "<group>"; };
 		A8A296DA5C750F41A7D56DB0 /* ArticleExtracting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleExtracting.swift; sourceTree = "<group>"; };
 		A8F1BF82B5A05DA01B9DDBD5 /* KokoroLaunchMigrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroLaunchMigrations.swift; sourceTree = "<group>"; };
@@ -1064,6 +1066,7 @@
 				0EB4AF1A5EA196F0B14FC2BB /* HTMLReadingView.swift */,
 				1992E55CA098BCF5096CE34A /* HTMLReadingView+Coordinator.swift */,
 				E7BD1C7A2846DAF77E88C0AC /* HTMLReadingView+Pages.swift */,
+				A7A06C3F6D4FFC611E337BE2 /* HTMLReadingView+Probe.swift */,
 				4F281BBC75D28D7241661226 /* HTMLReadingView+Script.swift */,
 				1B04C8F969776B1C14B370B5 /* HTMLReadingView+Scroll.swift */,
 				21EDD5368A81C7A644D265B1 /* HTMLReadingView+Taps.swift */,
@@ -1950,6 +1953,7 @@
 				5122938D727BDFCA5579362D /* GoogleSuggestClient.swift in Sources */,
 				5B282FC0E72AD5C063000799 /* HTMLReadingView+Coordinator.swift in Sources */,
 				E1BDC736E2E06F4A46B60E23 /* HTMLReadingView+Pages.swift in Sources */,
+				07F091E9A0E87FCF3FCE0F4A /* HTMLReadingView+Probe.swift in Sources */,
 				C210BF1BAA579B67F6004B48 /* HTMLReadingView+Script.swift in Sources */,
 				3F36A286F58C419D99FD31F0 /* HTMLReadingView+Scroll.swift in Sources */,
 				B7F0D9F45FBB6FCEA9C04831 /* HTMLReadingView+Taps.swift in Sources */,

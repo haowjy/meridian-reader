@@ -79,6 +79,10 @@ struct LaunchOptions: Equatable {
     /// `-readerScrollToEnd`: the first reading page shown goes to the end of its text, as a finger would
     /// (`HTMLReadingWebView.Coordinator.scrollsToEndOnOpen`).
     var readerScrollsToEnd = false
+    /// `-readerProbe STEPS`: the first reading page shown runs these steps once it has loaded and laid
+    /// out, logging `ReaderProbe step=… fullScreen=… offset=…` after each (`ReaderProbeStep.parse`:
+    /// `a` anchor, `dN` / `uN` N pt down / up, `pN` a pull to -N, `rN` a rebound to N, `c` the centre tap).
+    var readerProbe: [ReaderProbeStep]?
     /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
     /// saved articles and bookmarks again.
     var rerunsLibraryMigration = false
@@ -115,6 +119,9 @@ struct LaunchOptions: Equatable {
     var listensDemo = false
     /// `-tapListen`: once launched, what a tap on the chrome's Listen does (with `-closeListenAfter`, then closes).
     var tapsListen = false
+    /// `-tapListenWhen fullScreen`: the same once an in-place reader is in full screen (polled every
+    /// 100 ms, up to 10 s), in place of `-tapListen`'s fixed second.
+    var tapsListenWhenFullScreen = false
     /// `-tapLibraryRow <title>`: once launched, what a tap on the Library row of the first page whose
     /// title starts with `<title>` does (`LibraryActions.tap`), from the Library.
     var tapsLibraryRow: String?
@@ -179,6 +186,7 @@ struct LaunchOptions: Equatable {
         forcesChromeFallback = flags.contains("-chromeFallback")
         readerFullScreen = flags.contains("-readerFullScreen")
         readerScrollsToEnd = flags.contains("-readerScrollToEnd")
+        readerProbe = value(after: "-readerProbe").flatMap(ReaderProbeStep.parse)
         chromeFold = value(after: "-chromeFold").flatMap(Double.init).map { CGFloat($0) }
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
         seedsDemoBook = flags.contains("-seedDemoBook")
@@ -191,6 +199,7 @@ struct LaunchOptions: Equatable {
         playsTestEPUB = flags.contains("-playTestEPUB")
         listensDemo = flags.contains("-listenDemo")
         tapsListen = flags.contains("-tapListen")
+        tapsListenWhenFullScreen = value(after: "-tapListenWhen") == "fullScreen"
         tapsLibraryRow = value(after: "-tapLibraryRow")
         pastesText = value(after: "-pasteText")
         importsBook = flags.contains("-importBook")

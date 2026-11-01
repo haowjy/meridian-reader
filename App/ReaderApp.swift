@@ -19,6 +19,7 @@ enum AppMain {
         ChromeScroll.forcedFold = LaunchOptions.current.chromeFold
         ReadingChrome.opensInFullScreen = LaunchOptions.current.readerFullScreen
         HTMLReadingWebView.Coordinator.scrollsToEndOnOpen = LaunchOptions.current.readerScrollsToEnd
+        HTMLReadingWebView.Coordinator.probeSteps = LaunchOptions.current.readerProbe
         #endif
         ReaderApp.main()
     }

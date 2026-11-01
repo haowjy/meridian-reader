@@ -48,7 +48,10 @@ changing the shell code.
   removed: no switch of style mid-gesture, so nothing flickers. The ⋯ panel opened from either
   sheet takes the theme too (`MenuContext.isOnReadingPage`).
 - **Full screen is the reading sheet's own state** (`ReadingChrome`, in
-  `DesignSystem/Components/`), not the shell's: `ReaderSheet` and `NowPlayingSheet` each hold one
+  `DesignSystem/Components/`), not the shell's (an in-place reader's is the shell's: `ChromeScroll.fullScreen`
+  through `ReadingInPlace.fullScreen`, set by the centre tap or the reading rule, so the page's top group and the
+  chrome read one value; under Reduce Motion `ChromeHost` fades itself on that live value rather than through its
+  delayed dip, so both fade together): `ReaderSheet` and `NowPlayingSheet` each hold one
   and hand it to `Sheet(chrome:)`, which draws the header and the band over the text, measures
   them into the web view's insets and puts the chrome in its content's environment. The bottom
   inset is what floats at the foot (in Scroll's full screen the home indicator's strip alone); a

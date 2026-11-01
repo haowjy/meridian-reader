@@ -18,8 +18,6 @@ final class ChromeTests: XCTestCase {
         var state = ChromeState(destination: .browse, progress: 1)
         XCTAssertEqual(state.collapse, 1)
         XCTAssertEqual(state.fold, 1)
-        state.readerMode = true
-        XCTAssertEqual(state.collapse, 1, "reader mode in Scroll mode folds like a page (the host holds Pages mode expanded)")
         state = ChromeState(destination: .library, progress: 1, editing: true)
         XCTAssertEqual(state.collapse, 0)
         let typing = ChromeState(destination: .library, progress: 1, keyboard: true)
@@ -349,6 +347,15 @@ final class ChromeTests: XCTestCase {
         return chrome
     }
 
+    /// A controller driven by Library Read in Scroll mode.
+    @MainActor
+    private func readerChrome() -> ChromeScroll {
+        let chrome = ChromeScroll()
+        chrome.driver = { .libraryReader }
+        chrome.policy = .reads(scrollHides: true)
+        return chrome
+    }
+
     @MainActor
     private func scroll(_ chrome: ChromeScroll, to offsets: [CGFloat], from source: ChromeSource = .library) {
         offsets.forEach { chrome.scrolled(to: $0, from: source) }
@@ -432,31 +439,32 @@ final class ChromeTests: XCTestCase {
         chrome.anchor(at: 10, from: .library)
         scroll(chrome, to: [130])
         XCTAssertEqual(chrome.progress, 1, "a Library scrolled down")
-        chrome.holdsExpanded = true
-        XCTAssertEqual(chrome.progress, 0, "coming to a held screen (Pages mode, Edit) from a folded Library: expanded")
+        chrome.policy = .holds
+        XCTAssertEqual(chrome.progress, 0, "coming to a held screen (the start page, Edit) from a folded Library: expanded")
         chrome.anchor(at: 10, from: .library)
         scroll(chrome, to: [60, 120, 200, 300])
         XCTAssertEqual(chrome.progress, 0)
-        chrome.holdsExpanded = false
+        chrome.policy = .folds
         chrome.reset()
         scroll(chrome, to: [130])
         XCTAssertEqual(chrome.progress, 1, "other destinations fold again")
     }
 
     @MainActor
-    func testTheKeyboardAndFullScreenIgnoreScrolling() {
+    func testTheKeyboardIgnoresScrollingAndANewScreenLeavesFullScreen() {
         let chrome = libraryChrome()
         chrome.isLocked = true
         chrome.anchor(at: 10, from: .library)
         scroll(chrome, to: [80])
         XCTAssertEqual(chrome.progress, 0, "keyboard or ⋯ panel up")
         chrome.isLocked = false
+        chrome.policy = .reads(scrollHides: true)
         chrome.setFullScreen(true)
-        scroll(chrome, to: [100, 200])
-        XCTAssertEqual(chrome.progress, 0, "full screen is the middle tap's alone")
-        XCTAssertTrue(chrome.fullScreen, "scrolling never leaves it")
         chrome.reset()
         XCTAssertFalse(chrome.fullScreen, "a new screen starts expanded, out of full screen")
+        chrome.setFullScreen(true)
+        chrome.policy = .folds
+        XCTAssertFalse(chrome.fullScreen, "full screen exists only on a reader")
     }
 
     @MainActor
@@ -507,6 +515,104 @@ final class ChromeTests: XCTestCase {
         scroll(chrome, to: [480], from: .browserReader)
         XCTAssertEqual(chrome.progress, 0.75 + 20 / ChromeScroll.travel, accuracy: 0.001,
                        "suspended and resumed without a report between: the travel before it is dropped all the same")
+
+        chrome.policy = .reads(scrollHides: true)
+        chrome.anchor(at: 100, from: .browserReader)
+        scroll(chrome, to: [400], from: .browser)
+        scroll(chrome, to: [400], from: .libraryReader)
+        XCTAssertFalse(chrome.fullScreen, "a reader: the surfaces under it hide nothing")
+        scroll(chrome, to: [159], from: .browserReader)
+        XCTAssertFalse(chrome.fullScreen, "59 pt from the reader's own baseline")
+        scroll(chrome, to: [140, 159], from: .browserReader)
+        XCTAssertFalse(chrome.fullScreen, "the 19 pt back up is taken off the travel")
+        scroll(chrome, to: [160], from: .browserReader)
+        XCTAssertTrue(chrome.fullScreen)
+        shell.source = nil
+        await Task.yield()
+        for source in [ChromeSource.browserReader, .browser, .library] { scroll(chrome, to: [0], from: source) }
+        XCTAssertTrue(chrome.fullScreen, "under Listen nothing reveals the reader")
+        shell.source = .browserReader
+        await Task.yield()
+        XCTAssertTrue(chrome.fullScreen, "closing Listen leaves the reader as it was")
+        scroll(chrome, to: [700], from: .browserReader)
+        scroll(chrome, to: [680], from: .browserReader)
+        XCTAssertTrue(chrome.fullScreen, "after Listen a fling's first report is a baseline, then 20 up stays")
+        shell.source = .library
+        chrome.policy = .folds
+        XCTAssertFalse(chrome.fullScreen, "on the Library full screen is off")
+    }
+
+    /// A reader is expanded or full screen: 60 pt of one gesture down enters, 24 pt up leaves, and it never folds.
+    @MainActor
+    func testAReaderGoesFullScreenAfterADeliberateScrollDownAndBackAfter24Up() {
+        let chrome = readerChrome()
+        chrome.anchor(at: 10, from: .libraryReader)
+        scroll(chrome, to: [40, 69], from: .libraryReader)
+        XCTAssertFalse(chrome.fullScreen, "59 pt: still expanded")
+        scroll(chrome, to: [70], from: .libraryReader)
+        XCTAssertTrue(chrome.fullScreen, "60 pt: full screen")
+        XCTAssertEqual(chrome.progress, 0, "a reader never folds")
+        scroll(chrome, to: [60, 47], from: .libraryReader)
+        XCTAssertTrue(chrome.fullScreen, "23 pt up: still full screen")
+        scroll(chrome, to: [46], from: .libraryReader)
+        XCTAssertFalse(chrome.fullScreen, "24 pt up: back")
+        scroll(chrome, to: [100], from: .libraryReader)
+        XCTAssertFalse(chrome.fullScreen, "after a reveal re-hiding takes a fresh 60 pt")
+        scroll(chrome, to: [106], from: .libraryReader)
+        XCTAssertTrue(chrome.fullScreen)
+        XCTAssertEqual(chrome.progress, 0)
+    }
+
+    /// The rebound from a pull past the top never hides; the pull itself reveals.
+    @MainActor
+    func testTheTopReboundNeverHidesAndThePullReveals() {
+        let chrome = readerChrome()
+        chrome.anchor(at: 0, from: .libraryReader)
+        chrome.setFullScreen(true)
+        scroll(chrome, to: [-20], from: .libraryReader)
+        XCTAssertTrue(chrome.fullScreen)
+        scroll(chrome, to: [-40, -60, -80], from: .libraryReader)
+        XCTAssertFalse(chrome.fullScreen, "the pull is a scroll up: back from -24")
+        scroll(chrome, to: [-60, -40, -20, 0], from: .libraryReader)
+        XCTAssertFalse(chrome.fullScreen, "the rebound is clamped at the top: no travel")
+        scroll(chrome, to: [60], from: .libraryReader)
+        XCTAssertTrue(chrome.fullScreen, "a real 60 pt down")
+    }
+
+    /// A move (a restore, a reflow, a jump, a gesture's start) never toggles a reader, and re-anchors the travel.
+    @MainActor
+    func testAMoveNeverTogglesAReader() {
+        let chrome = readerChrome()
+        chrome.anchor(at: 300, from: .libraryReader)
+        chrome.setFullScreen(true)
+        chrome.anchor(at: 0, from: .libraryReader)
+        XCTAssertTrue(chrome.fullScreen, "the top reached by a move keeps full screen")
+        scroll(chrome, to: [700], from: .libraryReader)
+        XCTAssertTrue(chrome.fullScreen, "a 700 pt jump is not a finger")
+        chrome.setFullScreen(false)
+        chrome.anchor(at: 100, from: .libraryReader)
+        scroll(chrome, to: [140], from: .libraryReader)
+        chrome.anchor(at: 140, from: .libraryReader)
+        scroll(chrome, to: [180], from: .libraryReader)
+        XCTAssertFalse(chrome.fullScreen, "two 40 pt gestures never add up")
+    }
+
+    /// Pages mode and VoiceOver: full screen by the tap alone, kept across the switch between the two rules.
+    @MainActor
+    func testPagesAndVoiceOverReadersToggleOnlyByTheTap() {
+        let chrome = readerChrome()
+        chrome.policy = .reads(scrollHides: false)
+        chrome.anchor(at: 10, from: .libraryReader)
+        scroll(chrome, to: [310], from: .libraryReader)
+        XCTAssertFalse(chrome.fullScreen, "Pages: a scroll hides nothing")
+        chrome.setFullScreen(true)
+        scroll(chrome, to: [200, 100, 50], from: .libraryReader)
+        XCTAssertTrue(chrome.fullScreen, "nor reveals")
+        chrome.policy = .reads(scrollHides: true)
+        XCTAssertTrue(chrome.fullScreen, "Pages to Scroll keeps full screen")
+        chrome.policy = .reads(scrollHides: false)
+        XCTAssertTrue(chrome.fullScreen)
+        XCTAssertEqual(chrome.progress, 0)
     }
 
     func testSwipeUpIsPastTheDistanceAndMoreUpThanAcross() {

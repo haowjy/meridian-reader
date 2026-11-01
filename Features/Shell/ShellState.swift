@@ -460,11 +460,11 @@ final class ShellState {
     }
 
     /// The Library's Read and the Browser's reader mode in place: the end of the text scrolls to just
-    /// above the chrome as drawn (two rows, one, the bubble: `ChromeScroll.drawnStep`), and its scroll
-    /// and full screen are the chrome's, reported as `source` (`.browserReader`, `.libraryReader`).
+    /// above the chrome's two rows (a reader's chrome never folds), and its scroll and full screen are
+    /// the chrome's, reported as `source` (`.browserReader`, `.libraryReader`).
     func pageReadingInPlace(_ source: ChromeSource) -> ReadingInPlace {
         ReadingInPlace(
-            bottomClearance: ChromeHome.clearance(step: chromeScroll.drawnStep),
+            bottomClearance: ChromeHome.clearance(step: 0),
             homeIndicator: ChromeHome.inset,
             scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0, from: source) },
             anchored: { [chromeScroll] in chromeScroll.anchor(at: $0, from: source) },

@@ -39,11 +39,10 @@ struct LibraryChrome {
         return menu
     }
 
-    /// What the folded chrome's bubble names: the article being read in place, else the folder on top, else the
-    /// home's tab (Library, History).
+    /// What the folded chrome's bubble names: the folder on top, else the home's tab (Library, History).
+    /// Library Read never folds.
     var bubbleTitle: String {
-        let name: String?
-        if let article = shell.libraryReader { name = article.title ?? article.sourceLabel } else { name = screenMenu.topFolder?.name }
+        let name = screenMenu.topFolder?.name
         return name.flatMap { $0.isEmpty ? nil : $0 } ?? shell.homeTab.title
     }
 

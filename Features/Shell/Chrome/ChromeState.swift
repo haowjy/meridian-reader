@@ -15,7 +15,7 @@ struct ChromeState: Equatable {
     /// Continuous, driven by scrolling down (`ChromeScroll`); a scroll up of `revealDistance` brings
     /// both rows back at once.
     var progress: CGFloat = 0
-    /// An in-place reader's full screen: nothing is drawn.
+    /// An in-place reader's full screen (a scroll down or its middle tap): nothing is drawn.
     var fullScreen = false
     /// The browser has somewhere to go back to / forward to (‹ ›). A new page has neither.
     var canGoBack = false
@@ -23,7 +23,8 @@ struct ChromeState: Equatable {
     /// A search is editing: the one-row keyboard form.
     var keyboard = false
     /// The Browser shows its page as the Reader draws it, in place (a Library page read in place is
-    /// the Library's own). It folds on a scroll like any page, in Scroll mode only (`ChromeHost`).
+    /// the Library's own). It never folds: an in-place reader is expanded or full screen
+    /// (`ChromePolicy.reads`).
     var readerMode = false
     /// A Library selection's action bar is row 2: the chrome stays expanded.
     var editing = false
@@ -33,8 +34,9 @@ struct ChromeState: Equatable {
     /// on its top, the bubble inside it (`ChromeMetrics.bubbleClearance` above the screen's edge).
     var homeInset: CGFloat = ChromeMetrics.homeIndicatorStrip
 
-    /// Edit holds the chrome expanded, whatever the scroll says (its bar is row 2). Reader mode in
-    /// Pages mode is held by the host (`ChromeScroll.holdsExpanded`), which never lets progress rise.
+    /// Edit holds the chrome expanded, whatever the scroll says (its bar is row 2). Every other screen
+    /// that never folds (an in-place reader, the start page) is held by its policy (`ChromeScroll.policy`),
+    /// which never lets progress rise.
     var collapse: CGFloat { editing ? 0 : min(1, max(0, progress)) }
 
     /// How far the rows have folded: not while the keyboard is up (its own one-row form).

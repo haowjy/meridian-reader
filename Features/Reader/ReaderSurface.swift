@@ -3,8 +3,8 @@ import SwiftUI
 /// The Library's Read and the Browser's reader mode on compact width: an article's text in place
 /// of the page under the bottom chrome, through the same reading page as the Reader and Now
 /// Playing (`ReadingPage`, in place). So the text reads as the Appearance setting says (Pages or
-/// Scroll), with the footer, a tap in the middle for full screen (the text alone, down to the
-/// screen's foot: nothing floats over it), and *Play from Here* on a selection; the text opens at
+/// Scroll), with the footer, full screen (the text alone, down to the screen's foot: nothing floats
+/// over it), and *Play from Here* on a selection; the text opens at
 /// the page's saved listening spot, underlined.
 ///
 /// The title, then "site  length", are the first thing in the text and scroll with it. Over its top
@@ -12,7 +12,8 @@ import SwiftUI
 /// page is what you hear, ▶ Listen, which plays the page from its saved spot (`QuickListen`) and slides
 /// Listen up over this surface, which stays mounted under it: closing Listen shows it again where it
 /// was. The group is the header: the text starts below it, scrolls under it, and it goes with the
-/// chrome on a scroll down (and in full screen) and comes back with it. ‹ and the page's field are the
+/// chrome in full screen (a deliberate scroll down in Scroll mode, or the middle tap) and comes back
+/// with it (a scroll up of 24 pt, or the tap). The chrome never folds here. ‹ and the page's field are the
 /// chrome's. It is a plain reader whatever plays: the playhead (the spoken paragraph, its underlined
 /// sentence, the text following the audio, Jump to Audio) is Listen's alone. Links navigate the
 /// browser.
@@ -62,12 +63,10 @@ struct ReaderSurface: View {
         .task(id: WarmKey(id: article.id, count: article.document.count)) { listen.warmUp() }
     }
 
-    /// ⋯, Aa and, until this page is what you hear, ▶ Listen; with the chrome, gone once it folds
-    /// (Scroll mode; Pages never folds).
+    /// ⋯, Aa and, until this page is what you hear, ▶ Listen; the header, gone in full screen.
     private func topGroup(_ listen: QuickListen, hearing: Bool) -> ReadingTopGroup {
         let press: (() -> Void)? = hearing || listen.isDisabled ? nil : { listen.press() }
-        return ReadingTopGroup(menu: menu, menuID: "readerMore", appearanceOpen: $appearanceOpen, listen: press,
-                               shows: shell.chromeScroll.drawnStep == 0)
+        return ReadingTopGroup(menu: menu, menuID: "readerMore", appearanceOpen: $appearanceOpen, listen: press)
     }
 
     /// The shell's in-place reading; covered, it leaves the status bar to what shows.

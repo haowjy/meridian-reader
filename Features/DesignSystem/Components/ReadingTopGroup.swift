@@ -14,10 +14,7 @@ import SwiftUI
 /// high, `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
 /// (the material skin before iOS 26), so its hit areas are the glass itself. It sits `Spacing.xs` below
 /// what is above it and keeps `Spacing.xs` under it: drawn in a reading page's header, the text starts
-/// clear below it.
-///
-/// `shows` fades it out and back (the compact chrome's fold: gone with the chrome on a scroll down,
-/// back with it); the opacity is outside the glass container, so the glass fades too.
+/// clear below it. It is a reading page's header, so it goes with the bars in full screen (`ReadingBars`).
 struct ReadingTopGroup: View {
     /// The screen's menu, a section per block.
     let menu: [[MenuRow]]
@@ -26,7 +23,6 @@ struct ReadingTopGroup: View {
     @Binding var appearanceOpen: Bool
     /// ▶ Listen's tap; nil: no ▶ Listen (the page is what you hear, or Listen itself).
     var listen: (() -> Void)?
-    var shows = true
 
     @Environment(\.readingPalette) private var reading
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -49,11 +45,6 @@ struct ReadingTopGroup: View {
         .chromeGlassContainer()
         .environment(\.chromeSkin, ChromeSkin.current)
         .animation(reduceMotion ? nil : Motion.snappy, value: listen == nil)
-        // Outside the container: an opacity inside it would leave the glass showing.
-        .opacity(shows ? 1 : 0)
-        .allowsHitTesting(shows)
-        .accessibilityHidden(!shows)
-        .animation(shows ? Motion.fadeIn : Motion.fadeOut, value: shows)
         .accessibilityElement(children: .contain)
         // Drawn over the text, after it: VoiceOver reads it first, as it sits.
         .accessibilitySortPriority(1)

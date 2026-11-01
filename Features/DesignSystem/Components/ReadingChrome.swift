@@ -11,11 +11,13 @@ import UIKit
 /// text on screen stays where it is (`ScrollTextLayout.setInsets`). On compact width the whole
 /// bottom chrome goes with them (`ReadingInPlace`).
 ///
-/// - **Full screen is a tap in the middle of the text, in and out, and nothing else**
-///   (`tappedCentre`). Scrolling never enters or leaves it; a tap at either edge turns a screen
-///   (`revealFloatingControl`) and leaves the bars as they are (`TapZone`). On regular width a pull
-///   down at the top of the text brings the bars back (`pulledDownAtTop`); compact full screen is
-///   left by the middle tap alone.
+/// - **Full screen is a tap in the middle of the text, in and out** (`tappedCentre`). A tap at either
+///   edge turns a screen (`revealFloatingControl`) and leaves the bars as they are (`TapZone`). On
+///   regular width a pull down at the top of the text brings the bars back (`pulledDownAtTop`).
+///   Listen's full screen is left by the middle tap alone. In place, full screen is the compact
+///   chrome's (`ReadingInPlace.fullScreen`), and in Scroll mode a deliberate scroll down enters it and a
+///   scroll up of 24 pt leaves it, however it began (`ChromeScroll`'s reading rule): this page only
+///   reports its scroll, and from `hidden` down nothing knows which hand flipped it.
 /// - In full screen what floats over the text (the small play / pause at the bottom right, and
 ///   Jump to Audio while the text is away from the audio) shows as one group (`floatingControl`)
 ///   until `floatingDuration` after full screen begins, a scroll by a finger, an edge tap (a page
@@ -56,16 +58,16 @@ final class ReadingChrome {
     /// How long the floating play / pause stays after it appears.
     static let floatingDuration: Duration = .seconds(3)
 
-    /// Compact width: where the text's own scrolling goes (the chrome host's collapse), as an
-    /// offset from the text's top; set by `present`. Not called in full screen.
+    /// In place: where the text's own scrolling goes (the compact chrome), as an offset from the
+    /// text's top; set by `present`.
     @ObservationIgnored var onUserScroll: (CGFloat) -> Void = { _ in }
-    /// Compact width: the text moved without a finger deciding anything (a restore, following the
-    /// audio, a scrub, or any move in full screen); the collapse measures from here next.
+    /// In place: the text moved without a finger deciding anything (a restore, following the audio, a
+    /// scrub, a reflow) or a drag began; the chrome measures from here next.
     @ObservationIgnored var onScrollAnchor: (CGFloat) -> Void = { _ in }
     @ObservationIgnored private var floatingTimer: Task<Void, Never>?
     /// A pull down at the top of the text in full screen brings the bars back: true only for a
-    /// regular-width sheet (`ReadingShowing.sheet`). Compact full screen, Listen's and in place, is
-    /// left by the middle tap alone.
+    /// regular-width sheet (`ReadingShowing.sheet`). Listen's full screen is left by the middle tap
+    /// alone; in place, the compact chrome's reading rule reads the pull as a scroll up.
     @ObservationIgnored private var pullShowsBars = false
 
     /// How the page is shown (`ReadingPage`, before its first frame). In place, full screen is the
@@ -102,10 +104,10 @@ final class ReadingChrome {
         if let fullScreen { fullScreen.wrappedValue = value } else { ownHidden = value }
     }
 
-    /// A finger scrolled the text to `offset` (0 at its top). Full screen takes no part in it.
+    /// A finger scrolled the text to `offset` (0 at its top): in place, the compact chrome decides
+    /// what it does; in full screen what floats over the text shows a while longer.
     func userScrolled(to offset: CGFloat) {
-        guard hidden else { return onUserScroll(offset) }
-        onScrollAnchor(offset)
+        onUserScroll(offset)
         revealFloatingControl()
     }
 
