@@ -179,6 +179,7 @@ final class ShellState {
     }
     /// The Browser's page as the Reader draws it, in place of the page (nil = the page itself).
     /// The address pill's reader icon toggles it; it is the page's own, so it ends when the page changes.
+    /// It stays while another destination shows, so the Browser comes back as it was left.
     private(set) var pageReader: ReaderArticle? {
         didSet { syncChromeDriver() }
     }
@@ -581,14 +582,14 @@ final class ShellState {
         show(.settings)
     }
 
-    /// `new` on screen: what belonged only to the surface it replaces goes (its search, its page read
-    /// in place, a Reader opened from the Library). What it shows stays for the next visit.
+    /// `new` on screen: what belonged only to the surface it replaces goes (its search, a Library page
+    /// read in place, a Reader opened from the Library). What it shows stays for the next visit, the
+    /// Browser's reader mode included.
     private func show(_ new: Surface) {
         guard surface != new else { return }
         switch surface {
         case .browse:
             endAddressSearch()
-            closePageReader()
         case .library:
             endLibrarySearch()
             libraryReader = nil

@@ -111,12 +111,21 @@ enum LaunchHooks {
 
     /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-openLibraryFolder`, `-tapListen`
     /// (`-tapListenWhen`), `-tapLibraryRow`,
-    /// `-pasteText`, `-importBook`, `-listenDemo`, `-playTestEPUB`, `-chainDemoChapters`.
+    /// `-pasteText`, `-importBook`, `-listenDemo`, `-playTestEPUB`, `-chainDemoChapters`,
+    /// `-switchDestinationAndBack`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
                                shell: ShellState, follow: FollowCenter?) async {
         if options.opensDemoInReader { await openNewestInReader(in: library, shell: shell) }
         if options.opensSettings { await openSettings(options, shell: shell) }
         if options.readsDemoInLibrary { await readNewestInLibrary(in: library, shell: shell) }
+        if let away = options.switchesDestinationAndBack {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(5))
+                if away == "settings" { shell.showSettings() } else { shell.openLibrary() }
+                try? await Task.sleep(for: .seconds(2))
+                shell.showBrowser()
+            }
+        }
         if let name = options.opensLibraryFolder {
             try? await Task.sleep(for: .seconds(1))
             let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []

@@ -38,6 +38,9 @@ struct LaunchOptions: Equatable {
     var opensDemoInReader = false
     /// `-readDemoInLibrary` (with `-seedDemoArticle`): start in Library Read on it (the Reader sheet on regular width).
     var readsDemoInLibrary = false
+    /// `-switchDestinationAndBack library|settings`: 5 s after launch, what a tap on that pill segment
+    /// does, then 2 s later the Browser's segment, to check the Browser comes back as it was left.
+    var switchesDestinationAndBack: String?
     /// `-openLibrary`: start in the library.
     var opensLibrary = false
     /// `-openLibraryFolder <name>`: once launched, the Library on the first folder named `<name>`
@@ -171,6 +174,7 @@ struct LaunchOptions: Equatable {
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
         readsDemoInLibrary = flags.contains("-readDemoInLibrary")
+        switchesDestinationAndBack = value(after: "-switchDestinationAndBack")
         opensLibrary = flags.contains("-openLibrary")
         opensLibraryFolder = value(after: "-openLibraryFolder")
         settingsSearch = value(after: "-searchSettings")
