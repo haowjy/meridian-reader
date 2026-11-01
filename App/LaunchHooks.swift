@@ -100,13 +100,18 @@ enum LaunchHooks {
     /// `-failLibrarySaves`' refusal.
     private struct InjectedSaveFailure: Error {}
 
-    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-tapListen`, `-tapLibraryRow`,
+    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-openLibraryFolder`, `-tapListen`, `-tapLibraryRow`,
     /// `-pasteText`, `-importBook`, `-listenDemo`, `-playTestEPUB`, `-chainDemoChapters`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
                                shell: ShellState, follow: FollowCenter?) async {
         if options.opensDemoInReader { await openNewestInReader(in: library, shell: shell) }
         if options.opensSettings { await openSettings(options, shell: shell) }
         if options.readsDemoInLibrary { await readNewestInLibrary(in: library, shell: shell) }
+        if let name = options.opensLibraryFolder {
+            try? await Task.sleep(for: .seconds(1))
+            let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
+            if let folder = folders.first(where: { $0.name == name }) { shell.showLibrary(at: library.path(to: folder)) }
+        }
 
         if options.tapsListen {
             try? await Task.sleep(for: .seconds(1))

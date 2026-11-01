@@ -40,6 +40,9 @@ struct LaunchOptions: Equatable {
     var readsDemoInLibrary = false
     /// `-openLibrary`: start in the library.
     var opensLibrary = false
+    /// `-openLibraryFolder <name>`: once launched, the Library on the first folder named `<name>`
+    /// (`-seedDemoFolders`' "Demo Finance"), as a tap on its row does.
+    var opensLibraryFolder: String?
     /// `-openSettings`: once launched, what a tap on the pill's Settings does. `-searchSettings <text>`:
     /// then Search Settings holds the text. `-openSettingsPage <page>` (`voice`, `appearance`, …): then
     /// that page is pushed.
@@ -162,6 +165,7 @@ struct LaunchOptions: Equatable {
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
         readsDemoInLibrary = flags.contains("-readDemoInLibrary")
         opensLibrary = flags.contains("-openLibrary")
+        opensLibraryFolder = value(after: "-openLibraryFolder")
         settingsSearch = value(after: "-searchSettings")
         settingsPage = value(after: "-openSettingsPage").flatMap(SettingsRoute.init(rawValue:))
         opensSettings = flags.contains("-openSettings") || settingsSearch != nil || settingsPage != nil
