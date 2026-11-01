@@ -109,7 +109,7 @@ private struct AddressAccessories: View {
 
     var body: some View {
         // Nothing at all while not searching: an empty view here still takes the field's stack gap,
-        // which would push ↻ (and Aa) off the end cap's centre.
+        // which would push ↻ off the end cap's centre.
         if searching {
             HStack(spacing: 0) {
                 if !text.isEmpty { ClearBox(text: $text) }
@@ -221,12 +221,6 @@ struct BrowseAddressField: View {
         return web.isLoading ? .stop : .reload
     }
 
-    /// Aa while the compact chrome shows the page's reader view and no search is open.
-    private var appearanceBinding: Binding<Bool>? {
-        guard compact, !search.isActive, shell.pageReader != nil else { return nil }
-        return Bindable(shell).readerAppearanceOpen
-    }
-
     private typealias Field = AddressField<TextFieldBox, AddressAccessories>
 
     private var readerButton: Field.ReaderButton {
@@ -238,7 +232,7 @@ struct BrowseAddressField: View {
 
     var body: some View {
         @Bindable var search = search
-        Field(reader: readerButton, listen: listenState, reload: reloadButton, appearance: appearanceBinding,
+        Field(reader: readerButton, listen: listenState, reload: reloadButton,
               holdMenu: search.isActive ? nil : holdMenu, onOpenReader: onOpenReader, onListen: onListen, onReload: onReload) {
             TextFieldBox(text: $search.text, isDictating: isDictating, focus: focus, onSubmit: onSubmit)
         } accessory: {
@@ -251,7 +245,5 @@ struct BrowseAddressField: View {
             }
         }
         .animation(Motion.snappy, value: listenState)
-        // Aa goes while a search is open: its panel closes with it, and stays closed when Aa returns.
-        .onChange(of: search.isActive) { _, active in if active { shell.readerAppearanceOpen = false } }
     }
 }

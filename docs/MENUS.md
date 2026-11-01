@@ -157,12 +157,9 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| textAppearance | the browser shows the web page, not its reader | never |
 | follow | never | browser: no web page up |
 | reload | never | no page up |
 | preparedAudio | never | never |
-
-The row is the second path to the panel: Aa in the address field (`readerAppearance`) opens it too, and the panel points at Aa either way.
 
 ### screen at libraryHome
 
@@ -235,7 +232,7 @@ The names for the chrome that runs along the bottom of every screen.
 | `PlayerCard` | enum | Shared constants (artwork size, progress height) and the flat card surface for `NowPlayingBar`. |
 | `NowPlayingBar` | view | The compact flat card (artwork, title, groove progress line, play/pause) on the `PlayerCard` surface (no shadow), in `SurfaceBand`'s top row. |
 | `NowPlayingBarView` | view | The same card in the Reader's band; hides on Listen and while sheets are up. |
-| `ReaderPlayerCard` | view | Compact Listen's player card, sized to its rows, no divider: title and Save; site and time left; scrubber; speed over Aa and Voice over ⋯ at the margins, the `card`-size transport centred between. Drawn on glass by the cover band. |
+| `ReaderPlayerCard` | view | Compact Listen's player card, sized to its rows, no divider: title and Save; site and time left; scrubber; speed and Voice at the margins, the `card`-size transport centred between (Aa and ⋯ are the top group's, `ReadingTopGroup`). Drawn on glass by the cover band. |
 | `ReadingBottomBand` | view | The bottom band of the Reader and Listen: integrated controls flat on the page background, separated by a hairline divider. |
 | `ReadingPage` | view | A reading page in place (compact) or in a `Sheet` (regular), laid out by `ReadingBars`. |
 | `ReaderSheet` | view | The Reader's page: its band and Listen over `ReadingPage`. |
@@ -244,4 +241,4 @@ The names for the chrome that runs along the bottom of every screen.
 | `ListenTransportView` | view | Speech-bound wrapper for `NowPlayingTransport` (skips, play/pause disc) with swipe gesture. |
 | `NowPlayingTransport` | view | The 5-slot transport row component: skip-back, play/pause disc (44 pt), skip-forward. |
 | `ReaderScrubRow` | view | The scrub bar in the bottom band (Listen: live; Reader: position 0). |
-| `IconButton` | view | The app's one icon button: on the round face (36 pt, field fill, hairline, 20 pt medium glyph (`BottomChrome.chromeGlyph`) via `roundFieldControl`) for Voice, Aa and ☝︎ in a sheet's top bar and beside the player's title, or a bare toolbar cell (`round: false`) in the compact card's tools row. Lit, it takes the accent. The bookmark (`SaveToggleButton(round:)`) draws the same two faces (`iconButtonFace`). |
+| `IconButton` | view | The app's one icon button: on the round face (36 pt, field fill, hairline, 20 pt medium glyph (`BottomChrome.chromeGlyph`) via `roundFieldControl`) for Voice, Aa and ☝︎ in a sheet's top bar and beside the player's title, or a bare toolbar cell (`round: false`) in the compact card's tools row (Voice). Lit, it takes the accent. The bookmark (`SaveToggleButton(round:)`) draws the same two faces (`iconButtonFace`). |

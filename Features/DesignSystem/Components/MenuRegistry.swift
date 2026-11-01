@@ -52,7 +52,7 @@ enum MenuRegistry {
         // A prepare
         case reprepare, removePrepare
         // A screen's own rows
-        case newFolder, importFile, pasteText, addLink, textAppearance, follow, sort, reload, preparedAudio, settings
+        case newFolder, importFile, pasteText, addLink, follow, sort, reload, preparedAudio, settings
         // The Prepared Audio list's own ⋯ (C135)
         case deleteAllPrepared, clearListeningAudio
     }
@@ -89,8 +89,6 @@ enum MenuRegistry {
         var hasListeningAudio = false
         // A screen
         var hasWebPage = false
-        /// The browser shows a page's reader (compact width), where *Text Appearance* stands in for the Aa the chrome has no room for.
-        var inReaderMode = false
         /// *Follow…* can run (the browser: a web page is up).
         var canFollow = true
     }
@@ -183,8 +181,6 @@ enum MenuRegistry {
         Spec(option: .importFile, kind: .screen, places: [.add, .edit]),
         Spec(option: .pasteText, kind: .screen, places: [.add, .edit]),
         Spec(option: .addLink, kind: .screen, places: [.add, .edit]),
-        Spec(option: .textAppearance, kind: .screen, places: [.browser],
-             applies: { $0.inReaderMode }, hiddenIf: "the browser shows the web page, not its reader"),
         Spec(option: .follow, kind: .screen, places: [.browser],
              enabled: { $0.canFollow }, greyIf: "browser: no web page up"),
         Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen]),

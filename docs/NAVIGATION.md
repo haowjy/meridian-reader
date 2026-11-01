@@ -67,8 +67,9 @@ Regular width keeps the Reader and Listen sheets ("iPad and regular width").
 
 On iPhone (any compact width) one floating chrome host (`Features/Shell/Chrome/ChromeHost.swift`)
 sits over three destinations, the Library, the Browser and Settings (and the in-place readers). Listen is
-not a destination: it slides up over the chrome. The chrome has no ⋯: the Library's screens, Library Read and
-Settings have ⋯ on their title line, and the Browser's menu is a press and hold on its field's leading glyph. There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
+not a destination: it slides up over the chrome. The chrome has no ⋯: the Library's screens and
+Settings have ⋯ on their title line, the reading pages (the Browser's reader mode, Library Read, Listen) in their
+top group, and the Browser's menu is also a press and hold on its field's leading glyph. There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
 Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular width", below).
 
 ```
@@ -132,8 +133,8 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   drawn while typing or in Library Edit (row 1 is then the field alone).
 - **One shape system.** Every piece is a capsule or a circle (radius = height / 2). One height, **48 pt**
   (`Control.bar`, Safari's address bar and buttons), for every piece in every row and state (pill,
-  fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, Library Read's ⋯), on every screen. Listen and
-  Library Read's ⋯ share one round glass face (`ChromeCircleFace`).
+  fields, ‹ ›, Listen, Cancel, the floating ▶ / ⏸, the reading pages' top group), on every screen. Listen and
+  the top group's ⋯ and Aa share one round glass face (`ChromeCircleFace`).
   **Concentric:** a 48 pt end holds a 24 pt glyph slot inset 12 (`endGlyphSlot`, `endInset`), so the slot's
   radius is the end cap's less the inset. **Every hit area is at least 44 pt** (`Control.tap`): the glass is
   48 tall, so the hit shape is the glass itself (`hitOutset` 0; `ChromeHitShape`, `tapTarget(size)`), and
@@ -151,17 +152,34 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   container) does fade glass, which is how Reduce Motion cross-fades.
 - **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (as Safari: ‹ always, dimmed to 35%
   and disabled but in place with nowhere to go back; › beside it only while there is somewhere to go forward), on the
-  Library its search field, in Library Read `[‹][site  Aa]` (the reader mode's field with its reader icon and ↻ slots left empty, so the site and Aa sit where the address and Aa do there); Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`).
+  Library its search field, in Library Read `[‹][(lit reader icon) site]` (the lit reader icon where the Browser's reader mode has it, the site taking the rest of the field, no ↻; a tap on the icon opens the article's live page in the Browser, a page with no web address has none to open; a press and hold opens the top group's ⋯ menu); Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`).
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a whole
   44 x 44 control (`Control.tap`), its glyph in the chrome ink at the chrome glyph weight
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
   about 150 pt (`ChromeMetrics.readerIconWidth`). There is no 🎧 in it on compact width: Listen
   is the round button after the field. While the page shows as its reader view the field is
-  `[reader icon][URL][Aa][↻]`: Aa (`readerAppearance`, VoiceOver *Text Appearance*) is the same 44 x 44
-  control as ↻ and sits before it, so the URL truncates first. Aa is not drawn on the web page or while
-  the search field is open (opening search closes its panel).
+  `[lit reader icon][URL][↻]`, the page alone: Aa is in the reading page's top group, not the field.
 - **Row 2** is the pill alone, margin to margin; it never moves or resizes across destinations and states. There is no play / pause in the chrome: Listen, the row's tap in
-  the Library and the readers' ▶ Listen start and control playback.
+  the Library and the reading pages' ▶ Listen start and control playback.
+- **The reading pages' top group** (`ReadingTopGroup`, the same component on all three): on the Browser's
+  reader mode and Library Read `( ⋯ ) … ( Aa ) ( ▶ Listen )` floating at the top of the page; on Listen
+  `( ⋯ ) … ( Aa )` under the grabber. ⋯ (`readerMore`; Listen's `listenMore`) is a glass circle at the leading
+  edge, the screen's menu as a system menu: in the Browser what a press and hold on the field's reader icon opens,
+  in Library Read the Library's screen menu (what the Library's title line ⋯ has), in Listen *Play from a
+  Paragraph* then the page's rows at `nowPlaying`. Aa (`readerAppearance`, VoiceOver *Text Appearance*) is a glass
+  circle at the trailing end that opens the text appearance panel, a popover pointing at it, Aa lit while it is open.
+  **▶ Listen** (`inPlaceListen`), the page's primary action, is an accent-filled capsule at the far right (tinted
+  glass; the accent on the material skin), the chrome's glyph and its worded pieces' type (`row`, semibold, at most
+  XXXL), `Spacing.m` each side: it plays the page from its saved spot and slides Listen up; once the page is what
+  you hear (bound, playing or paused) it goes and Aa takes the corner, and it is not drawn while the page has no
+  text to read. The chrome's sizes: every piece `Control.bar` 48 (the hit area is the glass), 8 pt between Aa
+  and ▶ Listen, `Spacing.bandMargin` from the screen's edges, `Spacing.xs` above and below the row. It is the
+  page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
+  sits 8 pt below the status bar's foot; in Listen 8 pt below the grabber's 48 pt band (the band is Listen's
+  pull handle, so the group starts under it). It goes in full screen, and in place it follows the fold: it fades
+  out once the chrome leaves two rows (a scroll down, `-chromeFold`) and comes back with them (a scroll up of
+  24 pt, the bubble's tap, the top of the text); Pages mode never folds, so it stays. VoiceOver: ⋯, Aa, ▶ Listen,
+  in that order.
 - **Collapse follows the finger down, in steps; a scroll up brings it back at once.** One progress value
   (`ChromeScroll`), 0 two rows, 0.5 one row, 1 the bubble: `progress += dy / 120` for a scroll down (60 pt a
   step), ignored while the keyboard or the ⋯ panel is up, and 150 ms after the finger stops a part-way step
@@ -204,8 +222,8 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
 - **Listen slides up over everything** (`NowPlayingScreen`, `ReadingShowing.cover`, a `Sheet` that covers):
   from the bottom, over the chrome, to just under the status bar, the screen behind dimmed above its rounded top, as Apple Music's player. At its
   top a handle: a band 48 pt tall across the sheet in the page's colour, the grabber centred in it, the text starting
-  below it and scrolling out of sight under it; there is no close button. The article's title is the first thing in its
-  text. A pull down anywhere on that band, on the dimmed strip just above it, on the top 48 pt of the text below it
+  below it and scrolling out of sight under it; there is no close button. Under the band the top group, `( ⋯ ) … ( Aa )` (above), and the
+  article's title is the first thing in its text, below the group. A pull down anywhere on that band or the group's row, on the dimmed strip just above it, on the top 48 pt of the text below it
   (unseen: a tap or a drag up there is still the text's), or on the player card, whatever the text's scroll position (a
   drag that starts higher, in the status bar, is the system's) (a UIKit pan, `SheetPullPan`, so a drag that starts on a control pulls too; the scrubber keeps its drag), or on the text when it is at its top, follows the finger and closes it when let go far enough or
   flung while still heading down, and springs back otherwise; VoiceOver's escape gesture closes it too. Closing shows exactly what was under it: the surface,
@@ -219,23 +237,20 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   Title of the article, one line…              (🔖)
   example.com                         6 min left
   ━━━━━━━━━━━━━━━━●──────────────────────────────
-  1×                                       Voice
-           ⏮        (  ▶  )        ⏭
-  Aa                                         ⋯
+  1×       ⏮        (  ▶  )        ⏭       Voice
   ```
 
   Row 1: the title on one line (cut with …), then Save, a round 36 pt button. The title
   opens the article's own place in the Library or its page, and never seeks; only the track does.
   Row 2, one text step smaller: the site at the left (it truncates) and the time left at the right; the
   page's status note (preparing, voice and language notes) or "Finished" alone in its place. Then the
-  full-width scrubber, no times. Under it two rows of small glyphs, no labels, at the card's margins:
-  the speed (1×) over Aa at the left, Voice (VoiceOver: "Voice", never a voice's name) over ⋯ at the
-  right; between them ⏮, a 62 pt ▶ / ⏸ and ⏭ (`NowPlayingTransport`'s `card` size), centred across
-  both rows. **Jump to Audio** is not in the card: scrolled away from the audio, a thin accent pill,
-  "↑ Jump to Audio" or "↓ Jump to Audio" in the pills' type, 4 pt above and below (an `OverTextPill`, the in-place readers' "▶ Listen" its twin; the same on regular width;
+  full-width scrubber, no times. Under it one row, no labels: the speed (1×) at the card's left margin,
+  Voice (VoiceOver: "Voice", never a voice's name) at its right; between them ⏮, a 62 pt ▶ / ⏸ and ⏭
+  (`NowPlayingTransport`'s `card` size), centred. Aa and ⋯ are the top group's. **Jump to Audio** is not in the card: scrolled away from the audio, a thin accent pill,
+  "↑ Jump to Audio" or "↓ Jump to Audio" in the pills' type, 4 pt above and below (an `OverTextPill`; the same on regular width;
   its tap area 44 pt), floats in the middle 12 pt above the card (above
   the home indicator's strip in full screen) and brings the text back to the spoken sentence; while the text follows the audio, or once the article has finished, it isn't there.
-  ⋯ (`listenMore`) is a system menu, a section per
+  The top group's ⋯ (`listenMore`) is a system menu, a section per
   group: *Play from a Paragraph*; *Go to <folder or Library>*, *Save to Folder…*,
   *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place). There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the
   card slides off, the status bar hides and Listen stops being a sheet: the gap at its top, its rounded
@@ -252,48 +267,46 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
 - **Starting something new** (compact width): a Library row's tap plays the article or chapter and slides
   Listen up (a followed story's chapter still waiting for its text plays once it is in, and Listen stays
   down); a reader's ▶ Listen does the same; a page shared from Safari opens in the Browser straight in
-  reader view (once it has loaded and if it is readable; else the page itself), its ▶ Listen floating
+  reader view (once it has loaded and if it is readable; else the page itself), its ▶ Listen in the top group
   there; *Paste Text…* saves, then opens the new article in Library Read; *Import from…* and a shared book
   file close the import sheet on the new book's screen.
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
   `ReaderSurface`): the chrome folds on scroll in Scroll mode like a page (to a bubble naming the source) and stays expanded in Pages mode, the address keeps the
-  URL (narrower by one round control), the reader icon sits in a lit capsule and toggles back. The
+  URL, the reader icon sits in a lit capsule and toggles back. The
   text is a reading page like the Reader's (`ReadingPage`, in place): Pages or Scroll as the
   Appearance setting says, the footer, a tap in the middle for full screen, *Play from Here* on a
   selection, and it opens at the page's saved listening spot, underlined. The reader's theme runs up
   under the status bar. Under the title the source line reads "site  length" (a long site gives way
-  first, an ellipsis). **▶ Listen** is a thin accent pill floating centred just above the chrome, Jump to
-  Audio's twin (`OverTextPill`: its type, padding, press style and 44 pt tap), in Scroll and Pages; it rides
-  the chrome as it folds and unfolds (above two rows, one, the bubble). It plays the page from its saved
-  spot and slides Listen up. It is gone once this page is what you hear (the chrome's round Listen then
-  opens it), in full screen, and while the page has no text to read. In Scroll the end of the text scrolls
-  to just above it; in Pages the card (the overview) is centred between the top and the pill, so it ends
-  above it, and the footer shows only in full screen, where the pill isn't. The
+  first, an ellipsis). Over the top of the page floats the top group, `( ⋯ ) … ( Aa ) ( ▶ Listen )` (above):
+  the title starts below it, and in Pages the card (the overview) is centred between it and the chrome. ▶ Listen
+  plays the page from its saved spot and slides Listen up; it is gone once this page is what you hear (the
+  chrome's round Listen then opens it) and while the page has no text to read. The
   reader stays a plain reader while its page plays: no spoken paragraph, underlined sentence, following
   or Jump to Audio (the playhead is Listen's), and no saved-spot underline (a page that isn't playing
   keeps its saved spot underlined); *Play from Here* moves the playhead and slides Listen up. The end of the text scrolls to just above the chrome as it is drawn
-  (two rows, one, the bubble), and the ▶ Listen pill while it shows. Full screen is the text alone, down to the screen's foot, where its end then scrolls: no floating
-  ▶ / ⏸ (that is Listen's and the regular-width sheets'). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor. Aa is in the address field beside ↻ (`readerAppearance`), and ⋯ → *Text Appearance* opens the same panel, a popover pointing at Aa either way. The web page
+  (two rows, one, the bubble). Full screen is the text alone, down to the screen's foot, where its end then scrolls: no floating
+  ▶ / ⏸ (that is Listen's and the regular-width sheets'). While another layer covers the reader it stays mounted and quiet: no status bar change, no fold anchor. The web page
   under the reader takes no touches and is hidden from VoiceOver; a swipe from the left edge does
   what ‹ does (back, which closes the reader).
 - **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
   a row's ⋯ → Read shows the article's text over the Library, which stays the lit segment and under it
   with its scroll; the chrome folds to a bubble naming the article on a scroll down in Scroll mode and stays expanded in Pages mode (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
-  or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][site  Aa][Listen]`, laid out as the
-  Browser's reader mode: Aa opens the text appearance panel. The Library's ⋯ is a round glass face at the
-  top right, on the title's line, gone in full screen. The floating ▶ Listen starts it, as in the
-  Browser's reader mode. Nothing plays until then. Opening a saved page anywhere else on compact width
+  or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][(lit reader icon) site][Listen]`, laid out as the
+  Browser's reader mode (the icon's tap opens the live page in the Browser). The top group is the Browser
+  reader mode's, its ⋯ the Library's screen menu; its ▶ Listen starts the page. Nothing plays until then. Opening a saved page anywhere else on compact width
   (Prepared Audio's rows) opens it here too. At regular width Read keeps opening the sheet.
   A search in the Library ends when Read opens, so the chrome shows the reader's row and not the keyboard form.
 - **⋯ is not in the chrome.** Each screen's menu keeps its rows and their order (`MenuContext`) and is a
   system menu (`MenuRows`, `TitleMenuButton`), the panel's big buttons as its last section:
   - the Library home: ⋯ at the end of the title's line (`libraryMore`); a folder's screen: ⋯ beside Edit in its
-    navigation bar; Library Read: a round ⋯ at the top right. The Library's menu adds *New Folder…*,
+    navigation bar; Library Read: the top group's ⋯ (and a press and hold on the field's reader icon). The Library's menu adds *New Folder…*,
     *Import from…* and *Paste Text…* to its screen's rows, and *Browsing History* is among its last rows. *Paste
     Text…*'s *Save* opens the new article in Library Read.
   - Settings: ⋯ at the end of its title's line (`settingsMore`).
+  - Listen: the top group's ⋯ (`listenMore`, above).
   - the Browser (page, start page, reader mode): a press and hold on the field's leading glyph (the reader
-    icon, or 🔍 where there is none, `addressMenu`); a tap on the reader icon still toggles reader mode.
+    icon, or 🔍 where there is none, `addressMenu`); a tap on the reader icon still toggles reader mode. In
+    reader mode the top group's ⋯ opens the same menu.
     Its rows: *Open in Reader* (or *Show Web Page*), *Listen* (Listen over the page you hear; another readable
     page is extracted and plays, and Listen rises once it starts), then the page's menu and the screen's rows
     regular width's ⋯ shows (*Save to Folder…*, *Follow…*, *Reload*, …), then *Library* and *Browsing History*.
@@ -961,8 +974,8 @@ The two widths present them differently:
 
 | | Compact width | Regular width |
 |---|---|---|
-| Reader | In place, under the bottom chrome (`ReaderSurface`): the Browser's reader mode and Library Read ("Bottom chrome", above). No sheet, grabber, close pill, top bar or bottom band: Aa is in the chrome's field, ‹ starts row 1, the heading reads the title, then "site  length", and "▶ Listen" floats above the chrome | A `Sheet` over the surface that opened it (`ReaderSheetScreen`): grabber, close pill, top bar, bottom band |
-| Listen | Listen: a `Sheet` that covers the screen and the chrome, with a grabber, the article's title at the top of its text and the player card at its foot; a pull down closes it ("Bottom chrome", above) | A `Sheet` over everything that shrinks back into the Now Playing bar; its close pill names where it plays from |
+| Reader | In place, under the bottom chrome (`ReaderSurface`): the Browser's reader mode and Library Read ("Bottom chrome", above). No sheet, grabber, close pill, top bar or bottom band: the top group (⋯, Aa, ▶ Listen) floats at the top, ‹ starts row 1, the heading reads the title, then "site  length" | A `Sheet` over the surface that opened it (`ReaderSheetScreen`): grabber, close pill, top bar, bottom band |
+| Listen | Listen: a `Sheet` that covers the screen and the chrome, with a grabber, the top group (⋯, Aa) under it, the article's title at the top of its text and the player card at its foot; a pull down closes it ("Bottom chrome", above) | A `Sheet` over everything that shrinks back into the Now Playing bar; its close pill names where it plays from |
 | Into Listen | The chrome's round Listen, a reader's ▶ Listen, a Library row | The Now Playing bar (tap, swipe up), the Reader's ▶ |
 
 The rest of this section describes the regular-width sheets unless it names compact width; the
@@ -1122,7 +1135,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
   doesn't move the text, so following goes on). Then *Jump to Audio* shows, on both widths: a thin accent pill
-  (`OverTextPill`, the in-place readers' "▶ Listen" its twin, 4 pt above and below its label) floating centred on the line just
+  (`OverTextPill`, 4 pt above and below its label) floating centred on the line just
   above what floats at the text's foot (compact Listen's player card, regular width's band; the home indicator's strip
   in full screen), with an arrow that points to the spoken sentence, ↑ when it is above the visible text and ↓ when
   below (Pages: on an earlier or a later page). While it shows, Scroll mode's text leaves its line clear: the end of
@@ -1136,8 +1149,8 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   says "Finished" where the time left was (the Reader shows the article's length), and ▶
   plays the article again.
 - **Controls** (the band): optional status notes, then `[🔖][⏮][▶︎][⏭][⋯]` in the five-slot
-  grid, then the scrub row and speed. (Compact width's Listen has the player card instead, its ⋯ a
-  small system menu: "Bottom chrome", above.) ▶︎ / ⏸ is a 44 pt round button (accent fill, dark glyph; fixed size,
+  grid, then the scrub row and speed. (Compact width's Listen has the player card instead, its ⋯ the
+  top group's system menu: "Bottom chrome", above.) ▶︎ / ⏸ is a 44 pt round button (accent fill, dark glyph; fixed size,
   like the toolbar glyphs), as tall as the row, so every slot sits where it does on the other
   surfaces. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
   (D4). A sideways swipe on the row skips too.
@@ -1293,8 +1306,8 @@ time; Follow's chapter preview always scrolls.
 
 One reading appearance for both sheets (`ReadingAppearance`, stored in UserDefaults
 `reading.theme`, `reading.font`, `reading.textSize`, `reading.lineSpacing`, `reading.layout`), separate from the
-app's theme. **Aa**, in both sheets' top bars just left of ☝︎, opens a compact panel pointing at
-it; Settings › Reading has the same controls. Both edit the one store, so they never disagree,
+app's theme. **Aa**, in both sheets' top bars just left of ☝︎ (on compact width in the reading pages' top
+group), opens a compact panel pointing at it; Settings › Reading has the same controls. Both edit the one store, so they never disagree,
 and the article under the panel changes as you choose (colours repaint in place; a typeface, size or
 spacing change reflows the text and keeps the line on screen where it was).
 
@@ -1413,7 +1426,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Browser ⋯ / Reader ⋯ / Listen ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
 | ⋯ → Website (Reader, Listen) | no shortcut | leaves the Reader (the sheet closes on regular width, and the library) and shows / loads the page in the browser; audio continues |
 | ⋯ → Settings (`SettingsView`); on iPad also the sidebar's Settings | Done | `.sheet` (a form sheet on iPad); Voice, Language, Speed, Appearance, Reading, Prepared Audio and Acknowledgements push inside it |
-| Reader / Listen → Aa (`TextAppearanceControl`); Browser reader mode → Aa in the address field, or ⋯ → Text Appearance | tap outside | popover from Aa |
+| Reader / Listen → Aa (`TextAppearanceControl`; compact width: the top group's Aa, `ReadingTopGroup`) | tap outside | popover from Aa |
 | ⋯ → Share | — | `.sheet` (system share sheet) |
 | ⋯ → History (`BrowseHistoryView`) | Done (grabber) | `.sheet`, medium/large |
 | Library (`LibrarySurface`): the home | the chrome's Browser (the sidebar's on iPad) | in-place surface (shared bottom chrome); leave restores browse |

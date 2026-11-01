@@ -7,13 +7,13 @@ import SwiftUI
 /// screen's foot: nothing floats over it), and *Play from Here* on a selection; the text opens at
 /// the page's saved listening spot, underlined.
 ///
-/// The title, then "site  length", are the first thing in the text and scroll with it. "▶ Listen",
-/// a thin accent pill (an `OverTextPill`, Jump to Audio's twin), floats centred just above the
-/// chrome, riding it as it folds, in Scroll and Pages, until this page is what you hear (then the
-/// chrome's round Listen opens it); not in full screen. It plays the page from its saved spot
-/// (`QuickListen`) and slides Listen up over this surface, which stays mounted under it: closing
-/// Listen shows it again where it was. What is around the text is the chrome's (the field with Aa,
-/// ‹). It is a plain reader whatever plays: the playhead (the spoken paragraph, its underlined
+/// The title, then "site  length", are the first thing in the text and scroll with it. Over its top
+/// floats the reading pages' group (`ReadingTopGroup`): ⋯ (`menu`, the screen's menu), Aa and, until this
+/// page is what you hear, ▶ Listen, which plays the page from its saved spot (`QuickListen`) and slides
+/// Listen up over this surface, which stays mounted under it: closing Listen shows it again where it
+/// was. The group is the header: the text starts below it, scrolls under it, and it goes with the
+/// chrome on a scroll down (and in full screen) and comes back with it. ‹ and the page's field are the
+/// chrome's. It is a plain reader whatever plays: the playhead (the spoken paragraph, its underlined
 /// sentence, the text following the audio, Jump to Audio) is Listen's alone. Links navigate the
 /// browser.
 struct ReaderSurface: View {
@@ -25,12 +25,15 @@ struct ReaderSurface: View {
     /// The left-edge swipe: what the chrome's ‹ does (the web view's own swipe sits under this
     /// view, out of reach). nil when there is nothing to go back to.
     let onEdgeSwipeBack: (() -> Void)?
+    /// The screen's menu, the top group's ⋯ (the Browser's field menu, the Library's screen menu).
+    let menu: [[MenuRow]]
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
     @Environment(\.readingAppearance) private var appearance
 
     @State private var chrome = ReadingChrome()
+    @State private var appearanceOpen = false
 
     private var palette: ReadingPalette { appearance.palette(accent: AppAppearance.shared.accent) }
 
@@ -41,7 +44,7 @@ struct ReaderSurface: View {
         ReadingPage(showing: .inPlace(place), chrome: chrome, palette: palette) {
             EmptyView()
         } banner: {
-            EmptyView()
+            topGroup(listen, hearing: hearing)
         } text: {
             text(listen, hearing: hearing)
         } band: {
@@ -49,13 +52,20 @@ struct ReaderSurface: View {
         } floating: {
             EmptyView()
         } overText: {
-            OverTextPill(label: Verbs.listen, symbol: Icons.play, shows: !hearing && !listen.isDisabled && !chrome.hidden,
-                         identifier: "inPlaceListen", holdsPagesRoom: true, action: listen.press)
+            EmptyView()
         }
         .overlay(alignment: .leading) { edgeSwipe }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("inPlaceReader")
         .task(id: WarmKey(id: article.id, count: article.document.count)) { listen.warmUp() }
+    }
+
+    /// ⋯, Aa and, until this page is what you hear, ▶ Listen; with the chrome, gone once it folds
+    /// (Scroll mode; Pages never folds).
+    private func topGroup(_ listen: QuickListen, hearing: Bool) -> ReadingTopGroup {
+        let press: (() -> Void)? = hearing || listen.isDisabled ? nil : { listen.press() }
+        return ReadingTopGroup(menu: menu, menuID: "readerMore", appearanceOpen: $appearanceOpen, listen: press,
+                               shows: shell.chromeScroll.drawnStep == 0)
     }
 
     /// The shell's in-place reading, silent while covered: a hidden reader's follow moves must not
@@ -75,7 +85,7 @@ struct ReaderSurface: View {
     private func text(_ listen: QuickListen, hearing: Bool) -> some View {
         HTMLReadingView(
             html: article.readingHTML,
-            heading: ReaderHeading(title: article.title, detail: detail(listen), besideMenu: true),
+            heading: ReaderHeading(title: article.title, detail: detail(listen)),
             activeParagraphIndex: nil, sentence: hearing ? nil : savedSentence(listen.start), opensAtSentence: !hearing,
             onOpenLink: { shell.navigate(to: $0) },
             pageTimeLeft: { [document = article.document, rate = speech.rateMultiplier] in

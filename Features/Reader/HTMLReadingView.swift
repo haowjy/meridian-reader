@@ -13,8 +13,6 @@ struct ReaderHeading: Equatable {
     /// The title shows elsewhere (C141: the player card), so neither it nor the article's own
     /// matching leading heading shows in the text.
     var titleHidden = false
-    /// A ⋯ floats at the text's top right (the in-place readers): the title wraps short of it.
-    var besideMenu = false
 }
 
 /// Lets the owner read where the text is scrolled to (the Reader hands it to Now Playing, D2).
@@ -132,7 +130,6 @@ struct HTMLReadingView: View {
         )
         .background(palette.background)
         .modifier(ReadingPagesCard(active: paged, overview: chrome?.hidden == false, insets: chrome?.insets ?? ReaderTextInsets(),
-                                   clearance: chrome?.pageCardClearance ?? 0,
                                    cardHeight: paged ? pages.cardHeight : 0))
         .overlay {
             if paged { ReadingPageFrame(pages: pages, palette: palette, timeLeft: pageTimeLeft) }

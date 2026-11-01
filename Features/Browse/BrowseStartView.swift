@@ -132,9 +132,13 @@ struct BrowseStartView: View {
                     }
 
                     if let article = shell.pageReader, !isRegular {
-                        ReaderSurface(article: article, speech: speech, covered: isCovered,
-                                      onEdgeSwipeBack: webStore.canGoBack ? goBack : nil)
-                            .id(article.id)
+                        // Its ⋯ is the menu a press and hold on the field's reader icon opens.
+                        pageLookup { page in
+                            ReaderSurface(article: article, speech: speech, covered: isCovered,
+                                          onEdgeSwipeBack: webStore.canGoBack ? goBack : nil,
+                                          menu: holdMenu(pageActions(page)))
+                        }
+                        .id(article.id)
                     }
                 }
                 .ignoresSafeArea(.container, edges: isRegular ? [] : .bottom)
@@ -257,11 +261,13 @@ struct BrowseStartView: View {
                     .transition(.opacity)
                 // Library Read: the page's text in place of the Library, which stays under it as it was.
                 if let article = shell.libraryReader, !isRegular {
+                    let chrome = libraryChrome
                     ReaderSurface(article: article, speech: speech,
                                   covered: shell.reader != nil || shell.isNowPlayingPresented,
-                                  onEdgeSwipeBack: shell.closeLibraryReader)
+                                  onEdgeSwipeBack: shell.closeLibraryReader, menu: chrome.compactMenu.blocks)
+                        // *Stop Preparing* from its ⋯ asks here.
+                        .turnOffPrepareQuestion(chrome.turningOff)
                         .id(article.id)
-                        .overlay(alignment: .topTrailing) { libraryReadMenu }
                         .covered(shell.reader != nil || shell.isNowPlayingPresented)
                         .transition(.opacity)
                 }
@@ -299,22 +305,6 @@ struct BrowseStartView: View {
         var libraryReader: Bool
     }
 
-    /// Library Read's ⋯ (the Library's screen menu, which the chrome has no ⋯ for): a round face at
-    /// the top right over the text, on its title's line, gone in full screen with the chrome.
-    @ViewBuilder
-    private var libraryReadMenu: some View {
-        if !shell.chromeScroll.fullScreen {
-            LibraryTitleMenu {
-                ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
-                    .frame(width: Control.bar, height: Control.bar)
-            }
-            .environment(\.libraryChrome, libraryChrome)
-            .readingSurface(readingAppearance.palette(accent: AppAppearance.shared.accent))
-            .padding(.trailing, Spacing.bandMargin)
-            .transition(.opacity)
-        }
-    }
-
     // MARK: - Compact bottom chrome
 
     private var libraryChrome: LibraryChrome {
@@ -325,11 +315,16 @@ struct BrowseStartView: View {
     /// The host for the browser's and the Library's chrome. The browser's depends on the page
     /// (saved or not), so the host sits inside its lookup.
     private var compactChrome: some View {
-        let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
-        return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
+        pageLookup { page in
             ChromeHost(browse: browseChromeScreen(page), library: libraryChrome.chromeScreen(), settings: settingsChromeScreen)
                 .frame(maxHeight: .infinity, alignment: .bottom)
         }
+    }
+
+    /// The Library's article for the page the browser shows (nil: not saved, or no page).
+    private func pageLookup<Content: View>(@ViewBuilder _ content: @escaping (Article?) -> Content) -> some View {
+        let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
+        return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical, content: content)
     }
 
     private func browseChromeScreen(_ libraryPage: Article?) -> ChromeScreen {
@@ -467,13 +462,12 @@ struct BrowseStartView: View {
     }
 
     /// The browser's ⋯: the page's menu (`ArticleMenu`) while a page is up, then *New Search*,
-    /// *Text Appearance* (in reader mode), *Follow…*, *Reload*, *Prepared audio*, then the
+    /// *Follow…*, *Reload*, *Prepared audio*, then the
     /// tiles (`MenuContext.tiles`), the Reader's last.
     private func menu(_ actions: ArticleActions) -> MenuContext {
         var facts = MenuRegistry.Facts()
         facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
         facts.hasWebPage = hasPage
-        facts.inReaderMode = shell.pageReader != nil
         // No *New Search*: a tap on the address field starts one (C98).
         let screen = MenuContext.screenRows(at: .browser, facts: facts, shell: shell) { option in
             switch option {
@@ -481,10 +475,6 @@ struct BrowseStartView: View {
                 return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) {
                     guard let url = webStore.currentURL else { return }
                     shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
-                }
-            case .textAppearance:
-                return MenuRow(id: "moreTextAppearance", title: Verbs.textAppearance, icon: Icons.textAppearance) {
-                    shell.readerAppearanceOpen = true
                 }
             case .reload:
                 return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: reload)

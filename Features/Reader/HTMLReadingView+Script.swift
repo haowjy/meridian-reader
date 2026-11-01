@@ -388,7 +388,7 @@ extension HTMLReadingWebView.Coordinator {
 
     /// The title (hidden when the player card shows it) and the source line.
     private static func headerHTML(_ heading: ReaderHeading) -> String {
-        var html = heading.besideMenu ? "<header class=\"reader-heading beside-menu\">" : "<header class=\"reader-heading\">"
+        var html = "<header class=\"reader-heading\">"
         if let title = heading.title {
             html += heading.titleHidden
                 ? "<div class=\"reader-title\" data-hidden=\"1\" style=\"display:none\">\(escape(title))</div>"

@@ -3,8 +3,8 @@ import SwiftUI
 /// Now Playing, Listen: what you hear, opened up (`NowPlayingSheet`). The Reader's page in the
 /// same reading theme and type: the spoken paragraph highlighted in full ink like the rest, on the
 /// highlight. Presented over everything by the shell: on compact width a cover that slides up over
-/// the chrome too, with the player card at its foot (`ReaderPlayerCard`: Save, speed, Aa, Voice, ⋯); on
-/// regular width a sheet. It holds no article of its own: it shows `speech.nowPlaying` and the
+/// the chrome too, the reading pages' top group under its grabber (`ReadingTopGroup`: ⋯, Aa) and the
+/// player card at its foot (`ReaderPlayerCard`: Save, speed, Voice); on regular width a sheet. It holds no article of its own: it shows `speech.nowPlaying` and the
 /// playing page's content, looked up in the library by its key.
 ///
 /// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
@@ -19,8 +19,9 @@ import SwiftUI
 /// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎
 ///   then a tap on a paragraph plays from there; 🔖 saves / removes (tap) or files the page
 ///   (long-press, *Save to Folder…*); ⋯ is the page's menu at `.nowPlaying` (on compact width a
-///   small system menu). Both act through `ArticleActions`, as in the Reader. Voice (an `IconButton`)
-///   opens the Voice picker: beside the title in regular width's band, over ⋯ on the compact card.
+///   system menu, the top group's). Both act through `ArticleActions`, as in the Reader. Voice (an
+///   `IconButton`) opens the Voice picker: beside the title in regular width's band, at the compact
+///   card's trailing edge.
 /// - At the end it stays: the text stays, all in full ink, the player card says "● Finished" (the ring, full)
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
 /// - A tap in the middle of the text reads full screen, as in the Reader (`ReadingPage`,
@@ -48,6 +49,8 @@ struct NowPlayingScreen: View {
     @State private var scrubMap: ReaderScrubMap?
     @State private var scrubPreview: Int?
     @State private var scrollRequest: ReaderScrollRequest?
+    /// Compact width: the top group's Aa panel is open.
+    @State private var appearanceOpen = false
 
     /// This showing has had something bound: losing it closes Listen, where opening with nothing
     /// shows *Nothing Playing*.
@@ -118,7 +121,7 @@ struct NowPlayingScreen: View {
             onJumpToAudio: { following = true },
             palette: palette
         ) {
-            // The top bar is regular width's; compact Listen's has only the grabber (Aa, ⋯ and ☝︎ are in the card).
+            // The top bar is regular width's; compact Listen's header is the top group (⋯ holds ☝︎).
             TextAppearanceControl()
         } accessory: {
             IconButton(symbol: jumpMode ? Icons.jumpOn : Icons.jump,
@@ -126,7 +129,12 @@ struct NowPlayingScreen: View {
                        identifier: "listenJump", isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
                 .disabled(speech.document.isEmpty)
         } banner: {
-            if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
+            VStack(spacing: 0) {
+                if !regular {
+                    ReadingTopGroup(menu: menuBlocks(now, actions), menuID: "listenMore", appearanceOpen: $appearanceOpen)
+                }
+                if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
+            }
         } text: {
             text(now, readerArticle: actions.readerArticle)
         } band: {
@@ -170,36 +178,23 @@ struct NowPlayingScreen: View {
             } leading: {
                 SpeedButton(speech: speech)
                     .playerCardTool()
-                TextAppearanceControl(arrowEdge: .bottom, round: false)
-                    .playerCardTool()
             } trailing: {
                 IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "nowPlayingVoice", round: false) {
                     shell.present(.voice(.article(now.articleKey)))
                 }
                 .playerCardTool()
-                moreMenu(now, actions)
-                    .playerCardTool()
             }
         }
     }
 
-    /// Compact width's ⋯: a system menu. *Play from a Paragraph* (Listen's own: compact Listen has no
+    /// Compact width's ⋯ (the top group's): *Play from a Paragraph* (Listen's own: compact Listen has no
     /// top bar for ☝︎), then the page's rows at `.nowPlaying` (`ArticleMenu`), each block a section.
-    private func moreMenu(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
+    private func menuBlocks(_ now: NowPlaying, _ actions: ArticleActions) -> [[MenuRow]] {
         let jumpRow = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
                               availability: MenuAvailability(when: !speech.document.isEmpty)) {
             withAnimation(Motion.snappy) { jumpMode.toggle() }
         }
-        return Menu {
-            MenuRows([jumpRow])
-            ArticleMenu(actions: actions, place: .nowPlaying(actions.goTo(now)))
-        } label: {
-            Image(systemName: Icons.more)
-                .foregroundStyle(appearance.palette(accent: AppAppearance.shared.accent).ink)
-                .toolbarIconFrame()
-        }
-        .accessibilityLabel(Verbs.more)
-        .accessibilityIdentifier("listenMore")
+        return [[jumpRow]] + ArticleMenu(actions: actions, place: .nowPlaying(actions.goTo(now))).blocks
     }
 
     /// The integrated bottom band: title + Voice (trailing), scrub, notes, transport — all flat on

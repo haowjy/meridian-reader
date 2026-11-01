@@ -61,8 +61,11 @@ struct LibraryChrome {
             backID: "libraryReaderBack",
             onBack: shell.closeLibraryReader,
             field: { focus in
-                // Reading a page in place: the page's site and Aa, laid out as the Browser's reader mode field.
-                if let article = shell.libraryReader { return AnyView(LibraryReaderField(article: article)) }
+                // Reading a page in place: the lit reader icon and the page's site, as the Browser's reader mode field.
+                if let article = shell.libraryReader {
+                    return AnyView(LibraryReaderField(article: article, menu: compactMenu.blocks,
+                                                      openPage: article.origin.url.map { url in { shell.openWebsite(url) } }))
+                }
                 return AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt,
                                     focus: focus, fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard))
             },
@@ -80,7 +83,7 @@ extension EnvironmentValues {
 
 /// The ⋯ on a Library screen's title line (compact width): the menu of the screen on top, the same
 /// rows in the same order as the chrome's ⋯ had (`compactMenu`). *Stop Preparing* asks by it.
-/// `face`: how it is drawn (the title's glyph; a glass circle over Library Read's text).
+/// `face`: how it is drawn (the title's glyph, or the bare symbol in a toolbar).
 struct LibraryTitleMenu<Face: View>: View {
     @ViewBuilder var face: Face
 
@@ -98,16 +101,17 @@ extension LibraryTitleMenu where Face == TitleMenuGlyph {
     init() { self.init { TitleMenuGlyph() } }
 }
 
-/// The Library's Read, row 1's field: the page's site and Aa, the Browser's reader mode field with its
-/// 📄 and ↻ slots left empty, so the text and Aa sit exactly where they do there. Listening starts
-/// from the floating ▶ Listen.
+/// The Library's Read, row 1's field: the lit reader icon where the Browser's reader mode has it, then
+/// the page's site, the rest of the field. A tap on the icon opens the article's live page in the
+/// Browser (a page with no web address has none to open: the tap does nothing); a press and hold
+/// opens the screen's menu, the top group's ⋯. Listening starts from the top group's ▶ Listen.
 private struct LibraryReaderField: View {
     let article: ReaderArticle
-
-    @State private var appearanceOpen = false
+    let menu: [[MenuRow]]
+    let openPage: (() -> Void)?
 
     var body: some View {
-        AddressField(reader: .reserved, reload: .reserved, appearance: $appearanceOpen) {
+        AddressField(reader: .showing, holdMenu: menu, onOpenReader: openPage ?? {}) {
             Text(article.sourceLabel)
                 .lineLimit(1)
                 .truncationMode(.middle)

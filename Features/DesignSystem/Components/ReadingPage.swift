@@ -10,7 +10,8 @@ enum ReadingShowing {
     /// on glass at the foot, with what it was over left as it was.
     case cover(onClose: () -> Void)
     /// Compact width's in-place readers (the Library's Read, the Browser's reader mode): under the
-    /// bottom chrome. No sheet, pill, grabber or pull down; over the text only `overText` (Listen's pill).
+    /// bottom chrome. No sheet, pill, grabber or pull down; the header (`banner`, the top group) is
+    /// clear, so the text scrolls under what floats in it.
     case inPlace(ReadingInPlace)
 
     /// The sheet's close pill, at the leading edge of its top bar:
@@ -48,9 +49,10 @@ struct ReadingInPlace {
 /// (`ReaderSheet`) and Now Playing (`NowPlayingSheet`) are the same page with different bands.
 ///
 /// Regular width puts it in a `Sheet` with a grabber and a close pill. Compact width's Listen is
-/// the same sheet as a cover, the grabber alone at its top and its band a card on glass. Compact
-/// width's in-place readers draw it edge to edge with the text and `overText` alone: the top bar,
-/// the `band` and `floating` are the sheet's, and what is around the text is the chrome's.
+/// the same sheet as a cover, the grabber at its top over its header (the top group) and its band a
+/// card on glass. Compact width's in-place readers draw it edge to edge with the text and a clear
+/// header (the top group) over it: the top bar, the `band` and `floating` are the sheet's, and what
+/// is at the foot is the chrome's.
 struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floating: View,
                    OverText: View>: View {
     let showing: ReadingShowing
@@ -58,7 +60,8 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
     let palette: ReadingPalette
     /// The top bar's trailing controls: Aa, then ☝︎. A cover has no top bar.
     @ViewBuilder var trailing: Trailing
-    /// Under the top bar, in the header (the ☝︎ hint): the text's top inset grows with it.
+    /// Under the top bar, in the header (compact width's top group, the ☝︎ hint): the text's top
+    /// inset grows with it.
     @ViewBuilder var banner: Banner
     @ViewBuilder var text: Reading
     /// The integrated bottom band: title, scrub, transport, all flat on the page background.
@@ -109,7 +112,7 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
                 overText
             }
         case .cover(let onClose):
-            // No top bar: the grabber alone (its controls are in the player card).
+            // No top bar: the grabber, over the header (the top group, then the ☝︎ hint).
             Sheet(onDismiss: onClose, palette: palette, chrome: chrome, largePullTargets: true) {
                 banner
             } content: {
@@ -131,7 +134,7 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
     }
 }
 
-/// The page drawn in place: the page's colour edge to edge, `ReadingBars` over it, the status bar
+/// The page drawn in place: the page's colour edge to edge, `ReadingBars` over it (its header clear), the status bar
 /// and home indicator following full screen, and the chrome host told what the text does.
 private struct InPlaceFrame<Header: View, Content: View, OverText: View>: View {
     let place: ReadingInPlace
@@ -147,7 +150,8 @@ private struct InPlaceFrame<Header: View, Content: View, OverText: View>: View {
     /// `ReadingBars` measures as the whole screen's room (the text's bottom inset was 812 pt, so
     /// the middle of the visible text was off the page and a jump to the audio left it at the top).
     var body: some View {
-        ReadingBars(chrome: chrome, headerBackground: palette.background, headerSlide: statusBarHeight,
+        // A clear header: the top group floats over the text, which scrolls under it.
+        ReadingBars(chrome: chrome, headerBackground: Color.clear, headerSlide: statusBarHeight,
                     bottomClearance: place.bottomClearance, homeIndicator: place.homeIndicator, header: header,
                     content: content, band: Color.clear.frame(height: 0), overText: overText)
             .background(palette.background.ignoresSafeArea())

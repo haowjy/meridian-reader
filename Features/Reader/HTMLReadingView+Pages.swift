@@ -547,8 +547,6 @@ struct ReadingPagesCard: ViewModifier {
     let active: Bool
     let overview: Bool
     let insets: ReaderTextInsets
-    /// A pill's line above the bottom inset that the card keeps clear of (`ReadingChrome.pageCardClearance`).
-    var clearance: CGFloat = 0
     /// The card's height in the page (`ReadingPages.cardHeight`, C117): the text area, so no
     /// empty footer strip; 0 until known (the whole height).
     var cardHeight: CGFloat = 0
@@ -559,10 +557,9 @@ struct ReadingPagesCard: ViewModifier {
     func body(content: Content) -> some View {
         GeometryReader { proxy in
             let h = proxy.size.height
-            let room = h - insets.top - insets.bottom - clearance - 2 * Spacing.m
-            // The card (the text area, C117) is centred in the room between the bars and above the
-            // in-place readers' Listen; nothing is kept for Jump to Audio, which may float over the
-            // card's foot.
+            let room = h - insets.top - insets.bottom - 2 * Spacing.m
+            // The card (the text area, C117) is centred in the room between the bars; nothing is
+            // kept for Jump to Audio, which may float over the card's foot.
             let card = cardHeight > 0 ? min(cardHeight, h) : h
             let scale = active && overview && h > 0 ? min(0.8, max(0.4, room / card)) : 1
             let centre = insets.top + Spacing.m + room / 2

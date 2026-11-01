@@ -1,23 +1,20 @@
 import SwiftUI
 
 /// A thin accent pill floating in the middle of the line just above what floats at a reading
-/// page's foot (the card, the compact chrome, or the strip in full screen), in the pills' type
-/// (row, semibold) with just 4 pt above and below: Listen's "↑ Jump to Audio" and the in-place
-/// readers' "▶ Listen", one look for both. It fades in and out with `shows`; in full screen only
-/// with the floating play / pause (`ReadingChrome.showsFloating`), so the two come and go together.
+/// page's foot (the card, or the strip in full screen), in the pills' type (row, semibold) with
+/// just 4 pt above and below: Listen's "↑ Jump to Audio". It fades in and out with `shows`; in full
+/// screen only with the floating play / pause (`ReadingChrome.showsFloating`), so the two come and
+/// go together.
 ///
 /// While it shows, Scroll mode's text leaves its line clear at the end
-/// (`ReadingChrome.overTextClearance`). A pill that stays while the page shows (`holdsPagesRoom`:
-/// the in-place readers' Listen) has Pages' card end above it too (`ReadingChrome.pageCardClearance`);
-/// Jump to Audio comes and goes with the audio, so the card keeps still and it may float over the
-/// card's foot.
+/// (`ReadingChrome.overTextClearance`). It comes and goes with the audio, so Pages' card keeps still
+/// and it may float over the card's foot.
 struct OverTextPill: View {
     let label: String
     let symbol: String
     let shows: Bool
     var hint = ""
     let identifier: String
-    var holdsPagesRoom = false
     let action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -53,12 +50,9 @@ struct OverTextPill: View {
             }
         }
         .frame(maxWidth: .infinity)
-        // The text's end (and, holding Pages' room, the card) stays clear of the pill while it
-        // shows (0 tall when it doesn't).
+        // The text's end stays clear of the pill while it shows (0 tall when it doesn't).
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-            let clearance = height > 0 ? height + Spacing.s : 0
-            chrome?.overTextClearance = clearance
-            if holdsPagesRoom { chrome?.pageCardClearance = clearance }
+            chrome?.overTextClearance = height > 0 ? height + Spacing.s : 0
         }
         // Reduce Motion: a cross-fade, no spring.
         .animation(visible ? (reduceMotion ? Motion.fadeIn : Motion.snappy) : Motion.fadeOut, value: visible)
@@ -73,8 +67,8 @@ struct OverTextPillGallery: View {
                 OverTextPill(label: Verbs.jumpToAudio, symbol: Icons.jumpToAudioUp, shows: true,
                              identifier: "previewJump") {}
             }
-            PreviewState("Listen, on a reading theme") {
-                OverTextPill(label: Verbs.listen, symbol: Icons.play, shows: true, identifier: "previewListen") {}
+            PreviewState("Jump to Audio, on a reading theme") {
+                OverTextPill(label: Verbs.jumpToAudio, symbol: Icons.jumpToAudioDown, shows: true, identifier: "previewJumpDown") {}
                     .environment(\.readingPalette, ReadingTheme.sepia.palette(accent: .jade))
             }
         }

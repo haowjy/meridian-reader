@@ -47,9 +47,8 @@ struct CardOrigin {
 /// Notes on Tides, and Why the Moon Pul…  (🔖)    title (one line); Save
 /// example.org                   6 min left    site leading, time left trailing (or one note)
 /// ━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━   scrubber, no times
-/// 1×                                  Voice   `leading` over each other, `trailing` too, at the
-///          ⏮       (  ▶  )       ⏭            margins; the transport centred across both rows
-/// Aa                                    ⋯
+/// 1×        ⏮       (  ▶  )       ⏭    Voice   `leading` and `trailing` at the margins, the
+///                                             transport centred between them
 /// ```
 struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View, Trailing: View>: View {
     let title: String
@@ -64,9 +63,9 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
     @ViewBuilder var scrub: Scrub
     /// Previous paragraph, play / pause, next paragraph (`ListenTransportView`, `card` size).
     @ViewBuilder var transport: Transport
-    /// The leading column's two small controls, top to bottom (speed, Aa): `playerCardTool`s.
+    /// The small control at the leading margin (speed): a `playerCardTool`.
     @ViewBuilder var leading: Leading
-    /// The trailing column's two (Voice, ⋯): `playerCardTool`s.
+    /// The one at the trailing margin (Voice): a `playerCardTool`.
     @ViewBuilder var trailing: Trailing
 
     @Environment(\.readingPalette) private var reading
@@ -144,13 +143,13 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
         }
     }
 
-    /// The tools at the margins, two over two, and the transport centred across both rows.
+    /// The tools at the margins and the transport centred between them.
     private var controls: some View {
         ZStack {
             HStack(spacing: 0) {
-                VStack(spacing: 0) { leading }
+                leading
                 Spacer(minLength: 0)
-                VStack(spacing: 0) { trailing }
+                trailing
             }
             transport
         }
@@ -158,8 +157,7 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
 }
 
 extension View {
-    /// A player card tool (speed, Aa, Voice, ⋯): a `Control.tap` square, its glyph or text centred, so
-    /// the two in a column share a centre and two columns' taps never overlap.
+    /// A player card tool (speed, Voice): a `Control.tap` square, its glyph or text centred.
     func playerCardTool() -> some View {
         frame(width: Control.tap, height: Control.tap)
             .contentShape(Rectangle())
@@ -193,12 +191,9 @@ struct ReaderPlayerCardGallery: View {
             NowPlayingTransport(state: state, size: .card, onSkipBack: {}, onSkipForward: {}, onPlayPause: {})
         } leading: {
             Text("1×").fieldTextFrame().playerCardTool()
-            IconButton(symbol: Icons.textAppearance, label: Verbs.textAppearance, identifier: "previewAa", round: false) {}
-                .playerCardTool()
         } trailing: {
             IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "previewVoice", round: false) {}
                 .playerCardTool()
-            Image(systemName: Icons.more).toolbarIconFrame().playerCardTool()
         }
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.surface, style: .continuous))
     }

@@ -142,14 +142,6 @@ enum ReadingStyle {
                          column-gap: calc(var(--caption) * \(Int(Spacing.s)) / \(Int(TypeStyle.caption.size))); }
         .reader-detail span { flex: 0 0 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .reader-detail span:first-child { flex-shrink: 1; color: var(--secondary); }
-        /* Clear of Library Read's ⋯ (a `Control.bar` circle at the top right, `Spacing.bandMargin` in from the edge,
-           level with the text's top): the title's lines beside it wrap short of it, however large the text, and
-           the source line starts under it. The Browser's reader mode keeps the same room, so the two read alike.
-           On the body, not the header: the leading-heading dedupe can move the header below the article's heading. */
-        body:has(.beside-menu)::before { content: ""; float: right;
-                         width: \(Int(Control.bar + Spacing.bandMargin - Spacing.pageMargin + Spacing.xs))px;
-                         height: \(Int(Control.bar - Spacing.xs))px; }
-        .reader-detail { clear: right; }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
         html.reader-paged [data-reader-index] { transition: none; }

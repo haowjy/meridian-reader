@@ -13,7 +13,7 @@ import SwiftUI
 /// `Sheet` and `ReadingInPlace` (compact width's readers) both draw this; they differ in what
 /// surrounds it. `bottomClearance` is the room under the band that something else occupies (the
 /// compact chrome at its current fold step, whose card is the band there).
-/// What floats over the text (Jump to Audio or the in-place readers' Listen, the play button in full
+/// What floats over the text (Jump to Audio, the play button in full
 /// screen) sits above the band
 /// and that room while the bars show, above the strip in full screen.
 struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: View, OverText: View>: View {

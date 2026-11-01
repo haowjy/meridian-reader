@@ -177,7 +177,7 @@ final class ShellState {
     private(set) var pageReader: ReaderArticle?
     /// A Library page read in place (Library *Read*): its text replaces the Library's content, like the
     /// Browser's reader mode, under the same chrome with the Library segment lit. Nothing plays until
-    /// the floating ▶ Listen (which raises Now Playing over it); ‹ (or the edge swipe) puts the
+    /// the top group's ▶ Listen (which raises Now Playing over it); ‹ (or the edge swipe) puts the
     /// Library back as it was.
     private(set) var libraryReader: ReaderArticle?
     /// Compact width reads in place (`libraryReader`, `pageReader`) and has Settings as a destination;
@@ -190,9 +190,6 @@ final class ShellState {
             present(.settings)
         }
     }
-    /// The text appearance panel of the Browser's in-place reader: open from Aa in the address field or from ⋯ → Text
-    /// Appearance, always pointing at Aa (the Library's has Aa on its capsule).
-    var readerAppearanceOpen = false
     /// Counts the endings of an in-place reader (`closePageReader`): an extraction that began
     /// under an earlier count opens nothing (the user left, or the page moved on, meanwhile).
     private(set) var pageReaderEpoch = 0
@@ -350,7 +347,6 @@ final class ShellState {
     /// The page itself again.
     func closePageReader() {
         pageReader = nil
-        readerAppearanceOpen = false
         pageReaderEpoch += 1
     }
 
