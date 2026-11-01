@@ -103,15 +103,15 @@ extension LibraryTitleMenu where Face == TitleMenuGlyph {
 
 /// The Library's Read, row 1's field: the lit reader icon where the Browser's reader mode has it, then
 /// the page's site, the rest of the field. A tap on the icon opens the article's live page in the
-/// Browser (a page with no web address has none to open: the tap does nothing); a press and hold
-/// opens the screen's menu, the top group's ⋯. Listening starts from the top group's ▶ Listen.
+/// Browser; a press and hold opens the screen's menu, the top group's ⋯. A page with no web address
+/// (a book's chapter, pasted text) has none to open: the icon's tap opens the menu, and it reads as *More*. Listening starts from the top group's ▶ Listen.
 private struct LibraryReaderField: View {
     let article: ReaderArticle
     let menu: [[MenuRow]]
     let openPage: (() -> Void)?
 
     var body: some View {
-        AddressField(reader: .showing, holdMenu: menu, onOpenReader: openPage ?? {}) {
+        AddressField(reader: .showing, holdMenu: menu, onOpenReader: openPage) {
             Text(article.sourceLabel)
                 .lineLimit(1)
                 .truncationMode(.middle)

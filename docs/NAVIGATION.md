@@ -152,7 +152,7 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   container) does fade glass, which is how Reduce Motion cross-fades.
 - **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (as Safari: ‹ always, dimmed to 35%
   and disabled but in place with nowhere to go back; › beside it only while there is somewhere to go forward), on the
-  Library its search field, in Library Read `[‹][(lit reader icon) site]` (the lit reader icon where the Browser's reader mode has it, the site taking the rest of the field, no ↻; a tap on the icon opens the article's live page in the Browser, a page with no web address has none to open; a press and hold opens the top group's ⋯ menu); Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`).
+  Library its search field, in Library Read `[‹][(lit reader icon) site]` (the lit reader icon where the Browser's reader mode has it, the site taking the rest of the field, no ↻; a tap on the icon opens the article's live page in the Browser and a press and hold opens the top group's ⋯ menu; a page with no web address has none to open, so there a tap opens that menu and VoiceOver calls the icon *More*); Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`).
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a whole
   44 x 44 control (`Control.tap`), its glyph in the chrome ink at the chrome glyph weight
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below

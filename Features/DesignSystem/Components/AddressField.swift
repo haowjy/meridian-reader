@@ -52,7 +52,9 @@ struct AddressField<Field: View, Accessory: View>: View {
     var reload: ReloadButton?
     /// The menu a press and hold on the leading glyph opens (nil: none).
     var holdMenu: [[MenuRow]]?
-    var onOpenReader: () -> Void = {}
+    /// 📄's tap. nil with a `holdMenu` (Library Read on a page with no web address): the lit 📄 has
+    /// nothing to show, so a tap opens the menu and it reads as *More*.
+    var onOpenReader: (() -> Void)? = {}
     var onListen: () -> Void = {}
     var onReload: () -> Void = {}
     @ViewBuilder var field: Field
@@ -174,25 +176,32 @@ struct AddressField<Field: View, Accessory: View>: View {
             }
             .allowsHitTesting(readerReveal > 0.5)
             .accessibilityHidden(readerReveal < 0.5)
-            .accessibilityLabel(Verbs.showWebPage)
+            .accessibilityLabel(onOpenReader == nil ? Verbs.more : Verbs.showWebPage)
             .accessibilityAddTraits(.isSelected)
             .accessibilityIdentifier("addressReader")
-            .chromeLargeContent(Verbs.showWebPage, symbol: Icons.readerShowing)
+            .chromeLargeContent(onOpenReader == nil ? Verbs.more : Verbs.showWebPage, symbol: Icons.readerShowing)
             .transition(.opacity)
         }
     }
 }
 
 extension AddressField {
-    /// 📄: a tap toggles the reader view; with a `holdMenu`, a press and hold opens it.
+    /// 📄: a tap toggles the reader view; with a `holdMenu`, a press and hold opens it (with no
+    /// `onOpenReader`, a tap does).
     @ViewBuilder
     fileprivate func readerControl(@ViewBuilder _ label: () -> some View) -> some View {
         if let holdMenu {
-            Menu { MenuRows(blocks: holdMenu) } label: { label() } primaryAction: { onOpenReader() }
-                .menuStyle(.button)
-                .buttonStyle(.plain)
+            if let onOpenReader {
+                Menu { MenuRows(blocks: holdMenu) } label: { label() } primaryAction: { onOpenReader() }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+            } else {
+                Menu { MenuRows(blocks: holdMenu) } label: { label() }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+            }
         } else {
-            Button(action: onOpenReader, label: label)
+            Button(action: { onOpenReader?() }, label: label)
                 .buttonStyle(.plain)
         }
     }
@@ -200,7 +209,7 @@ extension AddressField {
 
 extension AddressField where Accessory == EmptyView {
     init(reader: ReaderButton = .hidden, listen: PlayState? = nil, reload: ReloadButton? = nil,
-         onOpenReader: @escaping () -> Void = {}, onListen: @escaping () -> Void = {},
+         onOpenReader: (() -> Void)? = {}, onListen: @escaping () -> Void = {},
          onReload: @escaping () -> Void = {}, @ViewBuilder field: () -> Field) {
         self.init(reader: reader, listen: listen, reload: reload, onOpenReader: onOpenReader, onListen: onListen,
                   onReload: onReload, field: field, accessory: { EmptyView() })
