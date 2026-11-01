@@ -17,7 +17,7 @@ struct TokensGallery: View {
     ]
     private let radii: [(String, CGFloat)] = [("card", Radius.card), ("surface", Radius.surface)]
     private let controls: [(String, CGFloat)] = [
-        ("small", Control.small), ("tap", Control.tap), ("bar", Control.bar), ("prominent", Control.prominent),
+        ("small", Control.small), ("chrome", Control.chrome), ("tap", Control.tap), ("bar", Control.bar), ("prominent", Control.prominent),
     ]
     private let glyphs: [(String, CGFloat)] = [("small", Glyph.small), ("regular", Glyph.regular), ("large", Glyph.large)]
 

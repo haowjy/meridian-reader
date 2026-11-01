@@ -75,7 +75,7 @@ private struct BottomChromeField: ViewModifier {
             .padding(.leading, leading)
             .padding(.trailing, trailing)
             .padding(.vertical, Spacing.xxs)
-            .frame(height: isChromeField ? Control.bar : Control.grown(height, from: Control.tap))
+            .frame(height: isChromeField ? Control.chrome : Control.grown(height, from: Control.tap))
             .chromeSurface(Capsule(), fill: BottomChrome.fieldFill(reading))
     }
 }

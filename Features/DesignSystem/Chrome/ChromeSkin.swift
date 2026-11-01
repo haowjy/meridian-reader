@@ -46,7 +46,7 @@ extension EnvironmentValues {
         set { self[ChromeSkinKey.self] = newValue }
     }
 
-    /// The field is in the compact chrome: `Control.bar` high, whatever the text size
+    /// The field is in the compact chrome: `Control.chrome` high, whatever the text size
     /// (elsewhere its own, 44 pt at the default text size).
     var isChromeField: Bool {
         get { self[IsChromeFieldKey.self] }

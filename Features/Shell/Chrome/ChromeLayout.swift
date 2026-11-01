@@ -69,7 +69,7 @@ struct ChromeLayout: Equatable {
 
     init(width w: CGFloat, state s: ChromeState) {
         typealias K = ChromeMetrics
-        let bar = Control.bar, gap = Spacing.xs, rowGap = Spacing.xs, margin = Spacing.bandMargin
+        let bar = Control.chrome, gap = Spacing.xs, rowGap = Spacing.xs, margin = Spacing.bandMargin
         // The box's foot is the safe area's bottom: the rows end on the home indicator's strip (`rowLift`
         // above it where it is shallow); the keyboard's form sits on the keyboard.
         let bottom = K.rowsHeight - (s.keyboard ? 0 : K.rowLift(home: s.homeInset))

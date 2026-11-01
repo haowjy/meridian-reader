@@ -92,8 +92,8 @@ struct AddressField<Field: View, Accessory: View>: View {
                     Image(systemName: reload == .stop ? Icons.close : Icons.reload)
                         .font(controlFont)
                         .foregroundStyle(Palette.ink)
-                        .frame(width: Control.tap, height: Control.tap)
-                        .contentShape(Rectangle())
+                        .frame(width: reloadSide, height: reloadSide)
+                        .tapTarget(reloadSide)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(reload == .stop ? Verbs.stopLoading : Verbs.reload)
@@ -103,14 +103,18 @@ struct AddressField<Field: View, Accessory: View>: View {
             }
             accessory
         }
-        // In the chrome a 24 pt glyph slot (📄, 🔍, 🎤, ⊗) sits `fieldEndInset` in from the capsule's end, so it
-        // is concentric with the end cap; a 44 pt button (↻ / ✕, 🎧) sits 2 pt in, which centres it the same way.
+        // In the chrome a 24 pt glyph slot (📄, 🔍, 🎤, ⊗) sits `endInset` in from the capsule's end, so it is
+        // concentric with the end cap; ↻ / ✕ is a circle as tall as the capsule at its very end, centred the same
+        // way (tapped 44). On the band a 44 pt button (↻ / ✕, 🎧) sits 2 pt in.
         .bottomChromeField(leading: reader == .showing ? leadingInset * (1 - readerReveal) : leadingInset,
                            trailing: reload != nil || listen != nil
-                               ? (Control.bar - Control.tap) / 2
+                               ? (isChromeField ? 0 : Spacing.xxs / 2)
                                : Accessory.self == EmptyView.self ? Spacing.s
                                : isChromeField ? ChromeMetrics.endInset : Spacing.xxs)
     }
+
+    /// ↻ / ✕'s frame: the capsule's height in the chrome, `Control.tap` on the band.
+    private var reloadSide: CGFloat { isChromeField ? Control.chrome : Control.tap }
 
     /// The leading glyph slot's inset: concentric with the end cap in the chrome.
     private var leadingInset: CGFloat { isChromeField ? ChromeMetrics.endInset : Spacing.s }
@@ -162,7 +166,7 @@ struct AddressField<Field: View, Accessory: View>: View {
         case .showing:
             // The reader view shows: the icon sits in a lit capsule inset from the field's edge,
             // concentric with it (the pill's lit segment, the same fill).
-            let side = Control.bar
+            let side = Control.chrome
             readerControl {
                 Image(systemName: Icons.readerShowing)
                     .font(controlFont)

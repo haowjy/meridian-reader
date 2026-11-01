@@ -10,9 +10,8 @@ import SwiftUI
 ///
 /// ⋯ (leading) is the screen's menu as a system menu (`menu`, a section per block); Aa opens the text
 /// appearance panel pointing at it; ▶ Listen, the page's primary action, is an accent-filled capsule
-/// at the trailing end, there only while `listen` is set. `ChromeMetrics.innerCircle` high (40 pt, the
-/// address field's lit reader icon: the bottom chrome's 48 reads larger alone on the page), tapped 44 pt
-/// (`innerHitOutset` past the glass), `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
+/// at the trailing end, there only while `listen` is set. `Control.chrome` high (40 pt, the bottom
+/// chrome's pieces: ⋯ and Aa are Listen's circle), tapped 44 pt (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
 /// (the material skin before iOS 26). In place it sits `Spacing.xs`
 /// below the status bar. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
 /// is: the grabber centred `Spacing.xs` below the sheet's top edge, the circles' tops `Spacing.m` below it
@@ -36,8 +35,7 @@ struct ReadingTopGroup: View {
         HStack(spacing: Spacing.xs) {
             TitleMenuButton(id: menuID, blocks: menu) {
                 ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
-                    .frame(width: ChromeMetrics.innerCircle, height: ChromeMetrics.innerCircle)
-            .contentShape(Rectangle().inset(by: -ChromeMetrics.innerHitOutset))
+                    .frame(width: Control.chrome, height: Control.chrome)
             }
             Spacer(minLength: 0)
             appearance
@@ -67,8 +65,7 @@ struct ReadingTopGroup: View {
                 Image(systemName: Icons.textAppearance)
                     .foregroundStyle(appearanceOpen ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink)
             }
-            .frame(width: ChromeMetrics.innerCircle, height: ChromeMetrics.innerCircle)
-            .contentShape(Rectangle().inset(by: -ChromeMetrics.innerHitOutset))
+            .frame(width: Control.chrome, height: Control.chrome)
         }
         .buttonStyle(.plain)
         .textAppearancePopover(isPresented: $appearanceOpen)
@@ -97,8 +94,8 @@ private struct ListenCapsule: View {
             .fixedSize()
             .foregroundStyle(reading?.onAccent ?? Palette.onAccent)
             .padding(.horizontal, Spacing.m)
-            .frame(height: ChromeMetrics.innerCircle)
-            .contentShape(Capsule().inset(by: -ChromeMetrics.innerHitOutset))
+            .frame(height: Control.chrome)
+            .contentShape(Capsule().inset(by: -ChromeMetrics.hitOutset))
             .chromeSurface(Capsule(), tint: reading?.accent ?? Palette.accent)
         }
         .buttonStyle(.plain)

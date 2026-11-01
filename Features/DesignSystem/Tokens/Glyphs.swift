@@ -4,17 +4,22 @@ import SwiftUI
 /// these. Sizes, not spacing: changing the spacing scale never resizes them.
 ///
 /// ```
-/// small 36 · tap 44 · bar 48 · prominent 62
+/// small 36 · chrome 40 · tap 44 · bar 48 · prominent 62
 /// ```
 enum Control {
     /// A small face: a round icon control, a field control (mic, the speed), a compact pill (a
     /// sheet's bar buttons), a folder header's side controls, the folded chrome's bubble.
     static let small: CGFloat = 36
+    /// Every piece of the compact chrome: both bottom rows (‹ ›, the field, Listen, Cancel, the
+    /// keyboard's row, the pill) and the reading pages' top group (⋯, Aa, ▶ Listen), so the circles at
+    /// the top and the foot are one size. Below the tap floor: each is tapped `ChromeMetrics.hitOutset`
+    /// past its glass.
+    static let chrome: CGFloat = 40
     /// The tap floor: no hit area is smaller, whatever it looks like. A toolbar's row, a row's ▶
     /// and ⋯, Now Playing's transport disc, a player card tool.
     static let tap: CGFloat = 44
-    /// A labelled pill, every piece of the compact chrome (Safari's address bar, measured on an
-    /// iPhone 17 Pro, iOS 26), the ▶ floating over a page in full screen.
+    /// A labelled pill, a sheet's grab band, a card list row's minimum, the ▶ floating over a page in
+    /// full screen.
     static let bar: CGFloat = 48
     /// The prominent ▶: Listen's player card and a folder header.
     static let prominent: CGFloat = 62

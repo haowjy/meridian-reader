@@ -28,10 +28,18 @@ extension ChromeDestination {
     var segment: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
-/// `[ 📚 | 🧭 | ⚙︎ ]`: one capsule of equal segments, each a button showing its glyph only (Library,
-/// Browser and Settings are their names for VoiceOver and the large content viewer). Every segment has the same glyph size
-/// and weight; lit differs by the glyph's tint and the wash only. Each segment is tapped
-/// `hitOutset` above and below the glass, `Control.tap` tall.
+/// `[ 📚 Library | 🧭 Browser | ⚙︎ Settings ]`: one capsule of equal segments, each a button showing its
+/// glyph and its name side by side (the chrome's glyph, the name in `TypeStyle.row` semibold, at most
+/// XXXL). The names show only while all three fit their segments whole (`EqualSegmentsLayout` under
+/// `ViewThatFits`); otherwise every segment is its glyph alone, so the pill never wraps, clips or grows,
+/// and VoiceOver and the large content viewer keep the names. Every segment has the same glyph size and
+/// weight; lit differs by the tint and the wash only. Each segment is tapped `hitOutset` above and below
+/// the glass, `Control.tap` tall.
+///
+/// ```
+/// [ (📚 Library) |  🧭 Browser  |  ⚙︎ Settings ]     the names fit
+/// [     (📚)     |      🧭      |      ⚙︎      ]     they don't: glyphs alone
+/// ```
 struct ChromePill: View {
     let lit: ChromeDestination
     let onSelect: (ChromeDestination) -> Void
@@ -51,12 +59,11 @@ struct ChromePill: View {
                     .frame(width: slot - 2 * Spacing.xxs, height: size.height - 2 * Spacing.xxs)
                     .offset(x: slot * CGFloat(lit.segment) + Spacing.xxs, y: Spacing.xxs)
                     .animation(reduceMotion ? nil : Motion.snappy, value: lit)
-                ForEach(ChromeDestination.allCases, id: \.self) { destination in
-                    let isLit = destination == lit
-                    let center = (CGFloat(destination.segment) + 0.5) * slot
-                    segment(destination, lit: isLit)
-                        .position(x: center, y: size.height / 2)
+                ViewThatFits(in: .horizontal) {
+                    segments(worded: true)
+                    segments(worded: false)
                 }
+                .frame(width: size.width, height: size.height)
             }
             .frame(width: size.width, height: size.height, alignment: .topLeading)
             .clipShape(Capsule())
@@ -66,12 +73,35 @@ struct ChromePill: View {
         .chromeSurface(Capsule())
     }
 
-    private func segment(_ destination: ChromeDestination, lit isLit: Bool) -> some View {
-        Image(systemName: destination.symbol)
-            .font(BottomChrome.chromeGlyph)
-            .foregroundStyle(isLit ? Palette.accent : Palette.ink)
-            .frame(height: Glyph.regular)
-            .accessibilityHidden(true)
+    /// The three segments' faces, equal thirds; `worded` with their names.
+    private func segments(worded: Bool) -> some View {
+        EqualSegmentsLayout(spacing: 0) {
+            ForEach(ChromeDestination.allCases, id: \.self) { destination in
+                segment(destination, lit: destination == lit, worded: worded)
+            }
+        }
+    }
+
+    /// A segment's face, centred in its third. Its horizontal padding keeps the name clear of the lit
+    /// wash's ends (inset `Spacing.xxs`) by `Spacing.xs`.
+    private func segment(_ destination: ChromeDestination, lit isLit: Bool, worded: Bool) -> some View {
+        HStack(spacing: Spacing.xs) {
+            Image(systemName: destination.symbol)
+                .font(BottomChrome.chromeGlyph)
+                .frame(height: Glyph.regular)
+            if worded {
+                Text(destination.label)
+                    .typeStyle(.row, weight: .semibold)
+                    // A fixed-height piece: past XXXL the name would crowd its glyph.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+        }
+        .foregroundStyle(isLit ? Palette.accent : Palette.ink)
+        .padding(.horizontal, Spacing.s)
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
     }
 
     /// The touch layer: one button per segment, `hitOutset` past the glass above and below.

@@ -9,7 +9,7 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   (`ChromeListenButton`), row 2 the pill alone; there is no ⋯ or ▶ in the chrome. Each destination hands the
   host a `ChromeScreen` (field, arrows, bubble title). A screen's ⋯ is on its title line (`TitleMenuButton`,
   `LibraryTitleMenu`, drawing `MenuContext.blocks`); the Browser's is `AddressField`'s `holdMenu`. One state (`ChromeState`), one pure layout (`ChromeLayout`, from
-  `ChromeMetrics`, Safari's sizes: `Control.bar` 48, 108 pt of rows ending on the home indicator's strip) and one scroll controller (`ChromeScroll`: on a
+  `ChromeMetrics`: `Control.chrome` 40, 92 pt of rows ending on the home indicator's strip) and one scroll controller (`ChromeScroll`: on a
   folding screen a scroll down folds it; a scroll up of `revealDistance`, the bubble's tap or the top of the text expand it); Library Read and Browse reader
   mode open in place via `ReaderSurface` and feed it; their ⋯, Aa and ▶ Listen are the reading pages' top group
   (`ReadingTopGroup`, the page's header, shown unless the page is in full screen), which Listen has too (⋯, Aa). The host draws translucent glass (`ChromeSkin`; App
