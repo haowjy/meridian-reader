@@ -89,11 +89,12 @@ final class ChromeTests: XCTestCase {
         // Row 1 less the margins and Listen's disc and gap: 351 - 46 on the SE, less ‹ › and a gap with arrows.
         for (width, both, none) in [(375.0, 191.0, 295.0), (393, 209, 313), (430, 246, 350)] {
             let w = CGFloat(width)
+            let one = none - M.navSingleWidth - Spacing.xs
             XCTAssertEqual(layout(.browse, width: w, back: true, forward: true).field.rect.width, both)
-            XCTAssertEqual(layout(.browse, width: w, back: true).field.rect.width, both, "‹ alone still shows the pair: › dimmed")
-            XCTAssertEqual(layout(.browse, width: w, forward: true).field.rect.width, both, "› alone: ‹ dimmed")
+            XCTAssertEqual(layout(.browse, width: w, back: true).field.rect.width, one, "‹ alone: nothing ahead")
+            XCTAssertEqual(layout(.browse, width: w, forward: true).field.rect.width, both, "› works: the pair, ‹ dimmed")
             XCTAssertEqual(layout(.library, width: w, back: true).field.rect.width, none, "no arrows outside the Browser")
-            XCTAssertEqual(layout(.browse, width: w).field.rect.width, none)
+            XCTAssertEqual(layout(.browse, width: w).field.rect.width, one, "a new page keeps ‹, dimmed")
             XCTAssertEqual(layout(.library, width: w).field.rect.width, none)
             XCTAssertEqual(layout(.library, width: w).pill.rect.width, w - 2 * Spacing.bandMargin, "the pill alone, margin to margin")
             XCTAssertEqual(layout(.settings, width: w).field.rect.width, none, "Search Settings as wide as Search Library")
@@ -138,9 +139,9 @@ final class ChromeTests: XCTestCase {
             XCTAssertTrue(expanded.navShowsBack && expanded.navShowsForward, "the pair, ‹ dimmed, at \(width)")
             XCTAssertEqual(expanded.nav.rect.width, M.navPairWidth)
         }
-        let neither = layout(.browse)
-        XCTAssertFalse(neither.nav.isShown, "a new page has nothing to go back or forward to")
-        XCTAssertFalse(layout(.browse, back: false, forward: false).nav.isShown)
+        let fresh = layout(.browse)
+        XCTAssertTrue(fresh.navShowsBack && !fresh.navShowsForward, "a new page: ‹ alone, dimmed")
+        XCTAssertEqual(fresh.nav.rect.width, M.navSingleWidth)
     }
 
     /// One pill, one width, one x on every destination and state: tabs never move or resize it.
@@ -166,7 +167,8 @@ final class ChromeTests: XCTestCase {
                 let tag = "\(destination) at \(width)"
                 XCTAssertEqual(l.pill.rect.minX, Spacing.bandMargin, tag)
                 XCTAssertEqual(l.pill.rect.maxX, width - Spacing.bandMargin, tag)
-                XCTAssertEqual(l.field.rect.minX, l.pill.rect.minX, "row 1 starts where row 2 does, \(tag)")
+                let rowStart = l.nav.isShown ? l.nav.rect.minX : l.field.rect.minX
+                XCTAssertEqual(rowStart, l.pill.rect.minX, "row 1 starts where row 2 does, \(tag)")
                 XCTAssertEqual(l.listen.rect.maxX, l.pill.rect.maxX, "row 1 ends where row 2 does, \(tag)")
                 XCTAssertFalse(l.cancel.isShown, "no ⋯ and no Cancel at rest, \(tag)")
             }
@@ -321,8 +323,8 @@ final class ChromeTests: XCTestCase {
         }
     }
 
-    func testBrowseArrowsDropForANewPageAndOutsideTheBrowser() {
-        XCTAssertFalse(layout(.browse).nav.isShown, "a new page has neither arrow")
+    func testBrowseAlwaysHasBackAndNothingElseDoes() {
+        XCTAssertTrue(layout(.browse).nav.isShown, "a new page keeps ‹")
         XCTAssertFalse(layout(.library, back: true).nav.isShown, "only the Browser has arrows")
         XCTAssertFalse(layout(.settings, back: true).nav.isShown, "only the Browser has arrows")
     }

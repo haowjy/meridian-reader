@@ -149,9 +149,9 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   leaves the tree (inside the glass container an opacity above a piece's glass is ignored) and the
   glass materializes in and out with a content cross-fade; the whole host's opacity (outside the
   container) does fade glass, which is how Reduce Motion cross-fades.
-- **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (the pair shows whenever either way is
-  open, the half that cannot move dimmed to 35% and disabled but in place; nothing on a new page), on the
-  Library its search field, in Library Read `[Aa  site]`; Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`).
+- **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (as Safari: ‹ always, dimmed to 35%
+  and disabled but in place with nowhere to go back; › beside it only while there is somewhere to go forward), on the
+  Library its search field, in Library Read `[‹][site  Aa]` (the reader mode's field with its reader icon and ↻ slots left empty, so the site and Aa sit where the address and Aa do there); Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`).
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a whole
   44 x 44 control (`Control.tap`), its glyph in the chrome ink at the chrome glyph weight
   and size, centred on the capsule's end radius; the URL truncates and the reader icon gives way below
@@ -279,7 +279,7 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
 - **Library Read replaces the Library in place** (same `ReaderSurface`, `ShellState.libraryReader`):
   a row's ⋯ → Read shows the article's text over the Library, which stays the lit segment and under it
   with its scroll; the chrome folds to a bubble naming the article on a scroll down in Scroll mode and stays expanded in Pages mode (as in the Browser's reader mode), ‹ (`libraryReaderBack`)
-  or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][Aa  site][Listen]`, as the
+  or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][site  Aa][Listen]`, laid out as the
   Browser's reader mode: Aa opens the text appearance panel. The Library's ⋯ is a round glass face at the
   top right, on the title's line, gone in full screen. The floating ▶ Listen starts it, as in the
   Browser's reader mode. Nothing plays until then. Opening a saved page anywhere else on compact width

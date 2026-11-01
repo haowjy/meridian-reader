@@ -61,7 +61,7 @@ struct LibraryChrome {
             backID: "libraryReaderBack",
             onBack: shell.closeLibraryReader,
             field: { focus in
-                // Reading a page in place: Aa and the page's site, as the Browser's reader mode shows its page.
+                // Reading a page in place: the page's site and Aa, laid out as the Browser's reader mode field.
                 if let article = shell.libraryReader { return AnyView(LibraryReaderField(article: article)) }
                 return AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt,
                                     focus: focus, fieldIdentifier: "librarySearchField", onSubmit: search.lowerKeyboard))
@@ -98,23 +98,21 @@ extension LibraryTitleMenu where Face == TitleMenuGlyph {
     init() { self.init { TitleMenuGlyph() } }
 }
 
-/// The Library's Read, row 1's field: Aa (the text appearance panel) and the page's site, as the
-/// Browser's reader mode shows Aa with its address. Listening starts from the floating ▶ Listen.
+/// The Library's Read, row 1's field: the page's site and Aa, the Browser's reader mode field with its
+/// 📄 and ↻ slots left empty, so the text and Aa sit exactly where they do there. Listening starts
+/// from the floating ▶ Listen.
 private struct LibraryReaderField: View {
     let article: ReaderArticle
 
-    @Environment(\.readingPalette) private var reading
+    @State private var appearanceOpen = false
 
     var body: some View {
-        HStack(spacing: Spacing.xxs) {
-            TextAppearanceControl(arrowEdge: .bottom)
+        AddressField(reader: .reserved, reload: .reserved, appearance: $appearanceOpen) {
             Text(article.sourceLabel)
-                .typeStyle(.row)
-                .foregroundStyle(reading?.ink ?? Palette.ink)
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        } accessory: {
+            EmptyView()
         }
-        .bottomChromeField(leading: Spacing.xxs, trailing: Spacing.s)
     }
 }

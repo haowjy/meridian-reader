@@ -94,12 +94,11 @@ struct ChromeLayout: Equatable {
                               isShown: s.editing && hold)
         pill = ChromePiece(rect: CGRect(x: margin, y: rowY, width: w - 2 * margin, height: bar), isShown: row2 && !typing)
 
-        // ‹ ›. In the Browser: the pair whenever either way is open, the one that isn't dimmed (so ›
-        // never hides behind a lone ‹ after going back to the first page). Elsewhere (a Library page
-        // read in place): ‹ alone. The keyboard's form has neither.
-        let pair = isBrowse && (s.canGoBack || s.canGoForward)
-        let back: CGFloat = pair || (s.readerMode && s.canGoBack) ? 1 : 0
-        let forward: CGFloat = pair ? 1 : 0
+        // ‹ ›, as Safari: in the Browser ‹ always (dimmed in place with nowhere to go back, so the field
+        // keeps its place), and › beside it only while there is somewhere to go forward. Elsewhere (a
+        // Library page read in place): ‹ alone. The keyboard's form has neither.
+        let back: CGFloat = isBrowse || (s.readerMode && s.canGoBack) ? 1 : 0
+        let forward: CGFloat = isBrowse && s.canGoForward ? 1 : 0
         navShowsBack = !s.keyboard && back > 0
         navShowsForward = !s.keyboard && forward > 0
         let navExpanded = ChromePiece(rect: CGRect(x: margin, y: row1Y, width: navWidth(back + forward), height: bar),

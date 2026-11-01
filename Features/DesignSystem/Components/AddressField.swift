@@ -10,6 +10,7 @@ import SwiftUI
 /// ```
 /// ( 📄 news.example.org/…              ↻ )     compact
 /// ( 📄 news.example.org/…         Aa   ↻ )     compact, reader view
+/// (    news.example.org           Aa     )     compact, Library Read (`.reserved` slots)
 /// ( 📄 news.example.org/…              🎧 )    regular
 /// ```
 ///
@@ -35,6 +36,8 @@ struct AddressField<Field: View, Accessory: View>: View {
         case available
         /// The page shows as its reader view: 📄 lit, a tap shows the web page again.
         case showing
+        /// Library Read: the lit 📄's room left empty, so the text starts where the reader mode's address does.
+        case reserved
     }
 
     /// The compact trailing button.
@@ -42,6 +45,8 @@ struct AddressField<Field: View, Accessory: View>: View {
         case reload
         /// The page is loading: ✕ stops it.
         case stop
+        /// Library Read: ↻'s room left empty, so Aa sits where it does in the Browser's reader mode.
+        case reserved
     }
 
     var reader: ReaderButton = .hidden
@@ -101,7 +106,11 @@ struct AddressField<Field: View, Accessory: View>: View {
                 .accessibilityIdentifier("readerAppearance")
                 .chromeLargeContent(Verbs.textAppearance, symbol: Icons.textAppearance)
             }
-            if let reload {
+            if reload == .reserved {
+                Color.clear
+                    .frame(width: Control.tap, height: Control.tap)
+                    .accessibilityHidden(true)
+            } else if let reload {
                 Button(action: onReload) {
                     Image(systemName: reload == .stop ? Icons.close : Icons.reload)
                         .font(controlFont)
@@ -119,7 +128,7 @@ struct AddressField<Field: View, Accessory: View>: View {
         }
         // In the chrome a 24 pt glyph slot (📄, 🔍, 🎤, ⊗) sits `fieldEndInset` in from the capsule's end, so it
         // is concentric with the end cap; a 44 pt button (↻ / ✕, 🎧) sits 2 pt in, which centres it the same way.
-        .bottomChromeField(leading: reader == .showing ? leadingInset * (1 - readerReveal) : leadingInset,
+        .bottomChromeField(leading: reader == .showing || reader == .reserved ? leadingInset * (1 - readerReveal) : leadingInset,
                            trailing: reload != nil || appearance != nil || listen != nil
                                ? (Control.bar - Control.tap) / 2
                                : Accessory.self == EmptyView.self ? Spacing.s
@@ -195,6 +204,10 @@ struct AddressField<Field: View, Accessory: View>: View {
             .accessibilityIdentifier("addressReader")
             .chromeLargeContent(Verbs.showWebPage, symbol: Icons.readerShowing)
             .transition(.opacity)
+        case .reserved:
+            Color.clear
+                .frame(width: Control.bar * readerReveal, height: Control.bar)
+                .accessibilityHidden(true)
         }
     }
 }

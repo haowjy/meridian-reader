@@ -12,7 +12,8 @@ struct ChromeScreen {
     var onCancel: () -> Void = {}
     /// Starts the session when the idle field is tapped.
     var begin: () -> Void = {}
-    /// ‹ and ›. `canGoBack` / `canGoForward` false drops the button (› alone) or both (a new page).
+    /// ‹ and ›. In the Browser ‹ always shows (`canGoBack` false dims it) and › only when `canGoForward`;
+    /// elsewhere ‹ shows only when `canGoBack`.
     var canGoBack = false
     var canGoForward = false
     var backID = ""

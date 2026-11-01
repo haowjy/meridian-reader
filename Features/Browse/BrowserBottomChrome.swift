@@ -108,9 +108,13 @@ private struct AddressAccessories: View {
     let onMic: () -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            if searching && !text.isEmpty { ClearBox(text: $text) }
-            MicBox(shown: searching && text.isEmpty, isDictating: isDictating, isListening: isListening, action: onMic)
+        // Nothing at all while not searching: an empty view here still takes the field's stack gap,
+        // which would push ↻ (and Aa) off the end cap's centre.
+        if searching {
+            HStack(spacing: 0) {
+                if !text.isEmpty { ClearBox(text: $text) }
+                MicBox(shown: text.isEmpty, isDictating: isDictating, isListening: isListening, action: onMic)
+            }
         }
     }
 }
