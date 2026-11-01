@@ -93,13 +93,15 @@ changing the shell code.
   carries its own left-edge swipe for ‹. The rest of design 5e is under "Planned"
   there. Regular width is untouched.
 - **Only the surface showing drives the compact chrome.** Every report to `ChromeScroll` names its
-  `ChromeSource`, and the check against `driver` (`ShellState.chromeDriver`) runs when the report is
-  delivered, not when it was sent: the Browser's web view queues its offset reports in a `Task`, and keeps
-  sending them under a reader, the Library or Listen (hit testing off doesn't stop KVO). A refused report
-  touches nothing, not even the baseline. `ChromeScroll` watches the driver (Observation) and drops the
-  gesture's continuity whenever it changes or goes nil, keeping what is drawn: the first accepted report
-  after that only sets the baseline, so a fling under a Listen that opened and closed never lands its
-  travel at once.
+  `ChromeSource`, and the check against `driver` runs when the report is delivered, not when it was
+  sent: the Browser's web view queues its offset reports in a `Task`, and keeps sending them under a
+  reader, the Library, Listen or a sheet (hit testing off doesn't stop KVO). A refused report touches
+  nothing, not even the baseline. The driver is `ShellState.chromeDriver` (nil under Listen, the Reader,
+  any sheet or the Files picker), handed over by `syncChromeDriver` from the `didSet` of every property it
+  reads, so each transition reaches `ChromeScroll.drive` synchronously; a new input to `chromeDriver`
+  needs the same `didSet`. `drive` drops the gesture's continuity on every change, keeping what is drawn:
+  the first accepted report after it only sets the baseline, so a fling under a Listen or sheet that
+  opened and closed never lands its travel at once, however quickly the changes follow each other.
 - **A reading page's offset reports are a finger's or a move's, kept apart end to end.** The coordinator's
   `report(_:byFinger:)` is the only caller of `ReadingChrome.userScrolled` (finger) and `textMoved` (move,
   which only re-anchors). A finger report (`isDragging || isDecelerating`) is a move when code wrote the

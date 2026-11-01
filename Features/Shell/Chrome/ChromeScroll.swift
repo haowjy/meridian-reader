@@ -52,10 +52,11 @@ enum ChromeSource: Equatable {
 /// rebound from a pull past the top never hides; the pull itself counts toward a reveal. A move
 /// (`anchor`) never toggles. Pages mode and VoiceOver toggle by the tap alone.
 ///
-/// Every report names its source, and only the driver's counts (`driver`, read when the report is
+/// Every report names its source, and only the driver's counts (`driver`, checked when the report is
 /// delivered: a web view's report queued before a reader opened is judged against the reader).
-/// Whenever the driver changes or is suspended (Listen or a sheet up), the gesture's continuity is
-/// dropped: the next accepted report only sets the baseline, so travel from before never counts.
+/// Every change of the driver (`drive`), suspension under Listen or a sheet included, drops the
+/// gesture's continuity at once: the next accepted report only sets the baseline, so travel from
+/// before never counts.
 @MainActor
 @Observable
 final class ChromeScroll {
@@ -88,11 +89,9 @@ final class ChromeScroll {
         }
     }
 
-    /// The surface whose reports count, evaluated at each delivery; nil: none (Listen or a sheet is
-    /// up). Installed by `ShellState`. Setting it starts watching it: any change drops continuity.
-    @ObservationIgnored var driver: () -> ChromeSource? = { nil } {
-        didSet { watchDriver() }
-    }
+    /// The surface whose reports count; nil: none (Listen or a sheet is up). Set by `ShellState`
+    /// through `drive` on every change of what it shows.
+    @ObservationIgnored private(set) var driver: ChromeSource?
 
     #if DEBUG
     /// `-chromeFold`: every fold is this one, where the chrome folds (`.folds`). Set by the launch (`AppMain`).
@@ -202,7 +201,7 @@ final class ChromeScroll {
     /// gesture begins: the next report measures from here, and the move itself decides nothing. On a
     /// folding screen the top still expands (a status-bar tap); a reader never toggles on a move.
     func anchor(at offset: CGFloat, from source: ChromeSource) {
-        guard driver() == source else { return }
+        guard driver == source else { return }
         continuity = source
         last = offset
         switch policy {
@@ -266,7 +265,7 @@ final class ChromeScroll {
     /// Whether a finger report from `source` moves anything: only the driver's, and the first after
     /// continuity was dropped just sets the baseline.
     private func accepts(_ source: ChromeSource, at offset: CGFloat) -> Bool {
-        guard driver() == source else { return false }
+        guard driver == source else { return false }
         guard continuity == source else {
             continuity = source
             last = offset
@@ -277,15 +276,12 @@ final class ChromeScroll {
         return true
     }
 
-    /// Drops continuity whenever anything `driver` reads changes (a reader opening, Listen going up
-    /// or down), keeping what is drawn. Observation fires once, before the change; it is renewed after.
-    private func watchDriver() {
-        withObservationTracking { _ = driver() } onChange: { [weak self] in
-            MainActor.assumeIsolated {
-                self?.continuity = nil
-                Task { @MainActor in self?.watchDriver() }
-            }
-        }
+    /// `source` drives the chrome from now (nil: nothing, under Listen or a sheet). A change drops
+    /// continuity at once, keeping what is drawn, so no change between two reports goes unseen.
+    func drive(_ source: ChromeSource?) {
+        guard source != driver else { return }
+        driver = source
+        continuity = nil
     }
 
     private func clearReading() {

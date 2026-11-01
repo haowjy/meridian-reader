@@ -190,8 +190,9 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   or search field, VoiceOver being on. The Library, the Browser's page and Settings feed it; **Listen does not**
   (it has no chrome), the Browser's start page does not fold, and **an in-place reader never folds** (below).
   **Only the screen showing drives the chrome** (`ChromeSource`, `ShellState.chromeDriver`): the web page under
-  the reader mode, the Library under Library Read and anything under Listen or a sheet move nothing, and after
-  Listen or a sheet closes, the next scroll only sets where the following one is measured from.
+  the reader mode, the Library under Library Read and anything under Listen or a sheet (Voice, Share, Follow,
+  History, the Files picker, …) move nothing, and after Listen or a sheet closes, the next scroll only sets where
+  the following one is measured from.
 - **An in-place reader is expanded or full screen, nothing between** (`ChromePolicy.reads`). In Scroll mode
   **60 pt of scrolling down in one gesture** (`ChromeScroll.fullScreenDistance`, the moment a page's row 2 goes;
   about two and a half lines, so adjusting a line or two never hides anything) enters full screen: the top group,

@@ -151,7 +151,10 @@ final class ShellState {
     let chromeScroll = ChromeScroll()
 
     private(set) var surface: Surface = .browse {
-        didSet { remember() }
+        didSet {
+            remember()
+            syncChromeDriver()
+        }
     }
     /// The Library's pushed screens, nearest the home first (`[.folder(Fiction), .folder(Short
     /// stories)]`). Kept while the browser is up, so 🌐 and back return to the same folder.
@@ -171,15 +174,21 @@ final class ShellState {
     }
     /// The Reader sheet (nil = closed; regular width only). Its close ends it through `readerDidClose`
     /// once it has gone.
-    private(set) var reader: ReaderSheetState?
+    private(set) var reader: ReaderSheetState? {
+        didSet { syncChromeDriver() }
+    }
     /// The Browser's page as the Reader draws it, in place of the page (nil = the page itself).
     /// The address pill's reader icon toggles it; it is the page's own, so it ends when the page changes.
-    private(set) var pageReader: ReaderArticle?
+    private(set) var pageReader: ReaderArticle? {
+        didSet { syncChromeDriver() }
+    }
     /// A Library page read in place (Library *Read*): its text replaces the Library's content, like the
     /// Browser's reader mode, under the same chrome with the Library segment lit. Nothing plays until
     /// the top group's ▶ Listen (which raises Now Playing over it); ‹ (or the edge swipe) puts the
     /// Library back as it was.
-    private(set) var libraryReader: ReaderArticle?
+    private(set) var libraryReader: ReaderArticle? {
+        didSet { syncChromeDriver() }
+    }
     /// Compact width reads in place (`libraryReader`, `pageReader`) and has Settings as a destination;
     /// regular width keeps the Reader sheet and the Settings sheet, so a Settings surface (restored, or
     /// the window widened) becomes the browser with the Settings sheet over it.
@@ -196,19 +205,26 @@ final class ShellState {
     /// This showing of Now Playing (nil = down), Listen: over everything, the compact chrome
     /// included. It shows what you hear, so it holds no article of its own. Its close reports the
     /// showing it closed (`nowPlayingDidClose`), so a close that lands late can't take down a newer one.
-    private(set) var nowPlayingPresentation: UUID?
+    private(set) var nowPlayingPresentation: UUID? {
+        didSet { syncChromeDriver() }
+    }
     var isNowPlayingPresented: Bool { nowPlayingPresentation != nil }
     /// Where Now Playing's text opens: the Reader's scroll position (its reading page's
     /// `handOver`) when its Listen turned it into Now Playing (it appears in place, without
     /// rising). nil = it rises and finds the audio.
     private(set) var nowPlayingOpensAt: ReadingHandOver?
     var sheet: ShellSheet? {
-        didSet { if sheet == nil { overSheet = nil } }
+        didSet {
+            if sheet == nil { overSheet = nil }
+            syncChromeDriver()
+        }
     }
     /// A sheet over `sheet` (`ShellSheet.showsOverASheet`); it goes with it.
     var overSheet: ShellSheet?
     /// *Import Book…*'s Files picker is up (`pickBook(into:)`).
-    var isPickingBook = false
+    var isPickingBook = false {
+        didSet { syncChromeDriver() }
+    }
     /// Where the picked book goes (nil: the Library's top level).
     private(set) var bookPickDestination: UUID?
     /// The open ⋯ menu (nil = closed), rendered by the shell's one `MorphMenuOverlay`.
@@ -243,7 +259,8 @@ final class ShellState {
          restores: Bool = false) {
         self.isHearing = isHearing
         self.memory = memory
-        chromeScroll.driver = { [weak self] in self?.chromeDriver }
+        // Observers don't run in an initializer: the restored surface is handed over on the way out.
+        defer { syncChromeDriver() }
         guard restores, let memory else { return }
         homeTab = memory.loadHomeTab()
         if let last = memory.load() {
@@ -272,10 +289,11 @@ final class ShellState {
         if case .library = surface { true } else { false }
     }
 
-    /// The surface whose scrolling moves the compact chrome: the one showing, and nothing while Listen
-    /// or a sheet covers it (`ChromeScroll.driver` reads this at each report).
+    /// The surface whose scrolling moves the compact chrome: the one showing, and nothing while Listen,
+    /// the Reader or any sheet (the Files picker included) covers it. Every property it reads calls
+    /// `syncChromeDriver` when it changes, so the controller's driver is never out of step.
     var chromeDriver: ChromeSource? {
-        if isNowPlayingPresented || reader != nil { return nil }
+        if isNowPlayingPresented || reader != nil || sheet != nil || isPickingBook { return nil }
         return switch surface {
         case .browse: pageReader != nil ? .browserReader : .browser
         case .library: libraryReader != nil ? .libraryReader : .library
@@ -285,6 +303,11 @@ final class ShellState {
 
     var isInSettings: Bool {
         if case .settings = surface { true } else { false }
+    }
+
+    /// Hands `chromeDriver` to the controller, synchronously with the change that moved it.
+    private func syncChromeDriver() {
+        chromeScroll.drive(chromeDriver)
     }
 
     /// `path` up to its first folder that no longer exists: a deleted folder falls back to its

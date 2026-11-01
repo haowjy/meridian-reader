@@ -343,7 +343,7 @@ final class ChromeTests: XCTestCase {
     @MainActor
     private func libraryChrome() -> ChromeScroll {
         let chrome = ChromeScroll()
-        chrome.driver = { .library }
+        chrome.drive(.library)
         return chrome
     }
 
@@ -351,7 +351,7 @@ final class ChromeTests: XCTestCase {
     @MainActor
     private func readerChrome() -> ChromeScroll {
         let chrome = ChromeScroll()
-        chrome.driver = { .libraryReader }
+        chrome.drive(.libraryReader)
         chrome.policy = .reads(scrollHides: true)
         return chrome
     }
@@ -483,10 +483,9 @@ final class ChromeTests: XCTestCase {
     /// up (no driver) nothing counts, and after it the first report only sets a fresh baseline, so a
     /// fling's travel from before never lands at once.
     @MainActor
-    func testOnlyTheDrivingSurfaceMovesTheChrome() async {
-        let shell = DrivingSurface()
+    func testOnlyTheDrivingSurfaceMovesTheChrome() {
         let chrome = ChromeScroll()
-        chrome.driver = { shell.source }
+        chrome.drive(.browserReader)
         chrome.anchor(at: 10, from: .browserReader)
         scroll(chrome, to: [310], from: .browser)
         scroll(chrome, to: [310], from: .libraryReader)
@@ -494,13 +493,11 @@ final class ChromeTests: XCTestCase {
         scroll(chrome, to: [70], from: .browserReader)
         XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "the reader measures from its own baseline")
 
-        shell.source = nil
-        await Task.yield()
+        chrome.drive(nil)
         scroll(chrome, to: [100, 400], from: .browserReader)
         scroll(chrome, to: [400], from: .browser)
         XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "Listen up: nothing under it drives")
-        shell.source = .browserReader
-        await Task.yield()
+        chrome.drive(.browserReader)
         scroll(chrome, to: [420], from: .browserReader)
         XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "back: the first report is a fresh baseline")
         scroll(chrome, to: [450], from: .browserReader)
@@ -508,10 +505,8 @@ final class ChromeTests: XCTestCase {
 
         chrome.anchor(at: 450, from: .browserReader)
         scroll(chrome, to: [470], from: .browserReader)
-        shell.source = nil
-        await Task.yield()
-        shell.source = .browserReader
-        await Task.yield()
+        chrome.drive(nil)
+        chrome.drive(.browserReader)
         scroll(chrome, to: [480], from: .browserReader)
         XCTAssertEqual(chrome.progress, 0.75 + 20 / ChromeScroll.travel, accuracy: 0.001,
                        "suspended and resumed without a report between: the travel before it is dropped all the same")
@@ -527,19 +522,53 @@ final class ChromeTests: XCTestCase {
         XCTAssertFalse(chrome.fullScreen, "the 19 pt back up is taken off the travel")
         scroll(chrome, to: [160], from: .browserReader)
         XCTAssertTrue(chrome.fullScreen)
-        shell.source = nil
-        await Task.yield()
+        chrome.drive(nil)
         for source in [ChromeSource.browserReader, .browser, .library] { scroll(chrome, to: [0], from: source) }
         XCTAssertTrue(chrome.fullScreen, "under Listen nothing reveals the reader")
-        shell.source = .browserReader
-        await Task.yield()
+        chrome.drive(.browserReader)
         XCTAssertTrue(chrome.fullScreen, "closing Listen leaves the reader as it was")
         scroll(chrome, to: [700], from: .browserReader)
         scroll(chrome, to: [680], from: .browserReader)
         XCTAssertTrue(chrome.fullScreen, "after Listen a fling's first report is a baseline, then 20 up stays")
-        shell.source = .library
+        chrome.drive(.library)
         chrome.policy = .folds
         XCTAssertFalse(chrome.fullScreen, "on the Library full screen is off")
+
+        // Two suspensions in a row, a baseline set between them: neither leaks travel.
+        chrome.drive(.browserReader)
+        chrome.policy = .reads(scrollHides: true)
+        chrome.anchor(at: 100, from: .browserReader)
+        chrome.drive(nil)
+        chrome.drive(.browserReader)
+        scroll(chrome, to: [200], from: .browserReader)
+        chrome.drive(nil)
+        scroll(chrome, to: [250], from: .browserReader)
+        chrome.drive(.browserReader)
+        scroll(chrome, to: [260], from: .browserReader)
+        XCTAssertFalse(chrome.fullScreen, "the first report after each resume is only a baseline")
+        scroll(chrome, to: [319], from: .browserReader)
+        XCTAssertFalse(chrome.fullScreen)
+        scroll(chrome, to: [320], from: .browserReader)
+        XCTAssertTrue(chrome.fullScreen, "60 pt from the fresh baseline")
+    }
+
+    /// The shell suspends the chrome under anything that covers the screen showing, a sheet included.
+    @MainActor
+    func testListenTheReaderAndAnySheetSuspendTheChrome() {
+        let shell = ShellState()
+        XCTAssertEqual(shell.chromeScroll.driver, .browser)
+        shell.present(.history)
+        XCTAssertNil(shell.chromeScroll.driver, "a sheet over the Browser")
+        shell.sheet = nil
+        XCTAssertEqual(shell.chromeScroll.driver, .browser)
+        shell.isPickingBook = true
+        XCTAssertNil(shell.chromeScroll.driver, "the Files picker")
+        shell.isPickingBook = false
+        shell.showNowPlaying()
+        XCTAssertNil(shell.chromeScroll.driver, "Listen")
+        shell.hideNowPlaying()
+        shell.openLibrary()
+        XCTAssertEqual(shell.chromeScroll.driver, .library)
     }
 
     /// A reader is expanded or full screen: 60 pt of one gesture down enters, 24 pt up leaves, and it never folds.
@@ -620,11 +649,4 @@ final class ChromeTests: XCTestCase {
         XCTAssertFalse(ChromeScroll.isSwipeUp(CGSize(width: 5, height: -20)))
         XCTAssertFalse(ChromeScroll.isSwipeUp(CGSize(width: 60, height: -40)))
     }
-}
-
-/// What `ShellState.chromeDriver` reads, as an observable value the controller watches.
-@MainActor
-@Observable
-private final class DrivingSurface {
-    var source: ChromeSource? = .browserReader
 }

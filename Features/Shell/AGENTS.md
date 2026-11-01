@@ -19,7 +19,8 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   set by `ChromeHost`): `.folds` on pages, lists and Settings; `.holds` on the start page, in Edit and under
   VoiceOver; `.reads` on an in-place reader, which is expanded or full screen (`ChromeScroll.fullScreen`, the one
   value the chrome and the page's `ReadingChrome.hidden` both read), never folded. Only the driver's reports count (`ShellState.chromeDriver`,
-  the surface showing, nil under Listen or a sheet). A new surface that scrolls needs a `ChromeSource` case and a
+  the surface showing, nil under Listen, the Reader, any sheet or the Files picker; every property it reads
+  hands it to `ChromeScroll.drive` from its `didSet`). A new surface that scrolls needs a `ChromeSource` case and a
   `chromeDriver` branch, or its reports are dropped. Listen and the top group's ⋯ and Aa share one round face, `ChromeCircleFace`. Change the host, never one screen.
 - **Listen is not under the chrome.** `isNowPlayingPresented` draws `NowPlayingScreen` above the chrome
   in `BrowseStartView.layers`, as a `Sheet` that covers the screen (`ReadingShowing.cover`), below the ⋯
