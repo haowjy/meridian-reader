@@ -172,7 +172,8 @@ screen's edge (the web view) adds the strip: 142, 86, 58.
   glass; the accent on the material skin), the chrome's glyph and its worded pieces' type (`row`, semibold, at most
   XXXL), `Spacing.m` each side: it plays the page from its saved spot and slides Listen up; once the page is what
   you hear (bound, playing or paused) it goes and Aa takes the corner, and it is not drawn while the page has no
-  text to read. The chrome's sizes: every piece `Control.bar` 48 (the hit area is the glass), 8 pt between Aa
+  text to read. Sizes: every piece `Control.tap` 44 (the hit area is the glass; the bottom chrome's 48 reads larger alone on
+  the page, so the corners take the system's 44, as Voice Memos' do), 8 pt between Aa
   and ▶ Listen, `Spacing.bandMargin` from the screen's edges, `Spacing.xs` above and below the row. It is the
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
   sits 8 pt below the status bar's foot; in Listen 8 pt below the grabber's 48 pt band (the band is Listen's

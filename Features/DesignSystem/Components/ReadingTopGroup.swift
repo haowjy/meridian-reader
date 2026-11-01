@@ -10,8 +10,8 @@ import SwiftUI
 ///
 /// ⋯ (leading) is the screen's menu as a system menu (`menu`, a section per block); Aa opens the text
 /// appearance panel pointing at it; ▶ Listen, the page's primary action, is an accent-filled capsule
-/// at the trailing end, there only while `listen` is set. The bottom chrome's pieces: `Control.bar`
-/// high, `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
+/// at the trailing end, there only while `listen` is set. `Control.tap` high (the bottom chrome's 48 pt
+/// reads larger alone on the page, so the corners take the system's 44, as Voice Memos' do), `Spacing.xs` apart, `Spacing.bandMargin` from the screen's edges, the chrome's glyph and glass
 /// (the material skin before iOS 26), so its hit areas are the glass itself. It sits `Spacing.xs` below
 /// what is above it and keeps `Spacing.xs` under it: drawn in a reading page's header, the text starts
 /// clear below it. It is a reading page's header, so it goes with the bars in full screen (`ReadingBars`).
@@ -31,7 +31,7 @@ struct ReadingTopGroup: View {
         HStack(spacing: Spacing.xs) {
             TitleMenuButton(id: menuID, blocks: menu) {
                 ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
-                    .frame(width: Control.bar, height: Control.bar)
+                    .frame(width: Control.tap, height: Control.tap)
             }
             Spacer(minLength: 0)
             appearance
@@ -57,7 +57,7 @@ struct ReadingTopGroup: View {
                 Image(systemName: Icons.textAppearance)
                     .foregroundStyle(appearanceOpen ? reading?.accent ?? Palette.accent : reading?.ink ?? Palette.ink)
             }
-            .frame(width: Control.bar, height: Control.bar)
+            .frame(width: Control.tap, height: Control.tap)
         }
         .buttonStyle(.plain)
         .textAppearancePopover(isPresented: $appearanceOpen)
@@ -86,7 +86,7 @@ private struct ListenCapsule: View {
             .fixedSize()
             .foregroundStyle(reading?.onAccent ?? Palette.onAccent)
             .padding(.horizontal, Spacing.m)
-            .frame(height: Control.bar)
+            .frame(height: Control.tap)
             .contentShape(Capsule())
             .chromeSurface(Capsule(), tint: reading?.accent ?? Palette.accent)
         }
