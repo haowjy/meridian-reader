@@ -180,9 +180,11 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   circle at the leading end that opens the text appearance panel, a popover pointing at it, Aa lit while it is open.
   **▶ Listen** (`inPlaceListen`), the page's primary action, is an accent-filled capsule just before ⋯ (tinted
   glass; the accent on the material skin), the chrome's glyph and its worded pieces' type (`row`, semibold, at most
-  XXXL), `Spacing.m` each side: it plays the page from its saved spot and slides Listen up; once the page is what
-  you hear (bound, playing or paused) it goes and Aa takes the corner, and it is not drawn while the page has no
-  text to read. Sizes: every piece 44 pt (`Control.chrome`, the bottom chrome's pieces: its circles are Listen's), as tall
+  XXXL), `Spacing.m` each side: it plays the page from its saved spot and slides Listen up. It never goes while
+  the page has text: once the page is what you hear (bound, playing or paused) the same capsule in the same place
+  shows the live state, the playing bars and *Listen* while it plays, ▶ and *Listen* while paused, and its tap only
+  slides Listen up, never restarting or moving playback (VoiceOver *Open Listen*). It is not drawn while the page
+  has no text to read, so in place the row is `( Aa ) … ( Listen ) ( ⋯ )`. Sizes: every piece 44 pt (`Control.chrome`, the bottom chrome's pieces: its circles are Listen's), as tall
   as a folder screen's system toolbar buttons, 8 pt between Aa
   and ▶ Listen, `Spacing.topBarMargin` (16) from the screen's edges in place and `Spacing.bandMargin` (12) from the sheet's in Listen, `Spacing.xs` below the row. It is the
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
@@ -308,8 +310,8 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   under the status bar. Under the title the source line reads "site  length" (a long site gives way
   first, an ellipsis). Over the top of the page floats the top group, `( Aa ) … ( ▶ Listen ) ( ⋯ )` (above):
   the title starts below it, and in Pages the card (the overview) is centred between it and the chrome. ▶ Listen
-  plays the page from its saved spot and slides Listen up; it is gone once this page is what you hear (the
-  chrome's round Listen then opens it) and while the page has no text to read. The
+  plays the page from its saved spot and slides Listen up; once this page is what you hear it shows the playing
+  bars or ▶ and only slides Listen up. It is not drawn while the page has no text to read. The
   reader stays a plain reader while its page plays: no spoken paragraph, underlined sentence, following
   or Jump to Audio (the playhead is Listen's), and no saved-spot underline (a page that isn't playing
   keeps its saved spot underlined); *Play from Here* moves the playhead and slides Listen up. The end of the text scrolls to just above the

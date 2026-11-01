@@ -186,6 +186,8 @@ enum Verbs {
     static let waitForWiFi = String(localized: "Wait for Wi‑Fi")
     static let textSize = String(localized: "Text Size")
     static let listenDebug = String(localized: "Listen Debug")
+    /// The reading pages' ▶ Listen once the page is what you hear: it only opens Listen.
+    static let openListen = String(localized: "Open Listen")
 
     // MARK: Sheets
 

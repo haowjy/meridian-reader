@@ -4,14 +4,16 @@ import SwiftUI
 /// Library Read in place, and Listen at its top, the grabber between them), one layout on all three:
 ///
 /// ```
-/// ( Aa )                          ( ▶ Listen ) ( ⋯ )     in place, the page not what you hear
-/// ( Aa )                                         ( ⋯ )     in place once it is, and Listen
+/// ( Aa )                          ( ▶ Listen ) ( ⋯ )     in place: ▶, or the playing bars while the page plays
+/// ( Aa )                                         ( ⋯ )     Listen
 /// ```
 ///
 /// ⋯ (trailing, where every other screen has its ⋯) is the screen's menu as a system menu (`menu`, a
 /// section per block); Aa (leading) opens the text appearance panel pointing at it; ▶ Listen, the page's
-/// primary action, is an accent-filled capsule just before ⋯, there only while `listen` is set. VoiceOver
-/// reads them as they sit: Aa, ▶ Listen, ⋯. `Control.chrome` high, as every piece of the bottom
+/// primary action, is an accent-filled capsule just before ⋯, there while `listen` is set (in place,
+/// whenever the page has text). Once the page is what you hear it stays, in the same place and size,
+/// showing the live state (`ReadingListen.Face`) and only opening Listen. VoiceOver reads them as they
+/// sit: Aa, ▶ Listen, ⋯. `Control.chrome` high, as every piece of the bottom
 /// chrome (⋯ and Aa are Listen's circle), at least `Control.tap` to tap (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, in place `Spacing.topBarMargin` from the screen's edges (a navigation bar's buttons'), the chrome's glyph and glass
 /// (the material skin before iOS 26). In place it sits on the safe area's
 /// top, level with a navigation bar's buttons. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
@@ -24,8 +26,8 @@ struct ReadingTopGroup: View {
     let menuID: String
     /// The text appearance panel is open (Aa lit, pointing at it).
     @Binding var appearanceOpen: Bool
-    /// ▶ Listen's tap; nil: no ▶ Listen (the page is what you hear, or Listen itself).
-    var listen: (() -> Void)?
+    /// ▶ Listen; nil: none (Listen itself, or a page with no text to read).
+    var listen: ReadingListen?
     /// Listen's sheet: the grabber centred between Aa and ⋯, level with their tops.
     var carriesGrabber = false
 
@@ -37,7 +39,7 @@ struct ReadingTopGroup: View {
             appearance
             Spacer(minLength: 0)
             if let listen {
-                ListenCapsule(action: listen)
+                ListenCapsule(listen: listen)
                     .transition(.opacity)
             }
             TitleMenuButton(id: menuID, blocks: menu) {
@@ -75,17 +77,39 @@ struct ReadingTopGroup: View {
     }
 }
 
-/// ▶ Listen: the chrome's glyph and its worded pieces' type on an accent-filled capsule.
+/// The top group's ▶ Listen: what it shows and what its tap does.
+struct ReadingListen {
+    enum Face {
+        /// The page isn't what you hear: ▶ plays it and opens Listen.
+        case start
+        /// The page is what you hear, playing (the playing bars) or paused (▶): the tap only opens Listen.
+        case playing, paused
+    }
+
+    var face: Face
+    var action: () -> Void
+}
+
+/// ▶ Listen: the chrome's glyph (or the playing bars, in the glyph's slot so the capsule keeps its width)
+/// and its worded pieces' type on an accent-filled capsule.
 private struct ListenCapsule: View {
-    let action: () -> Void
+    let listen: ReadingListen
 
     @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        Button(action: action) {
+        Button(action: listen.action) {
             HStack(spacing: Spacing.xs) {
-                Image(systemName: Icons.play)
-                    .font(BottomChrome.chromeGlyph)
+                Group {
+                    if listen.face == .playing {
+                        PlayingBars(animating: true)
+                            .frame(height: Glyph.small)
+                    } else {
+                        Image(systemName: Icons.play)
+                            .font(BottomChrome.chromeGlyph)
+                    }
+                }
+                .frame(width: Glyph.regular)
                 Text(Verbs.listen)
                     .typeStyle(.row, weight: .semibold)
                     // A fixed-height piece: past XXXL the word would clip.
@@ -100,7 +124,8 @@ private struct ListenCapsule: View {
             .chromeSurface(Capsule(), tint: reading?.accent ?? Palette.accent)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Verbs.listen)
+        .accessibilityLabel(listen.face == .start ? Verbs.listen : Verbs.openListen)
+        .accessibilityValue(listen.face == .playing ? String(localized: "Playing") : "")
         .accessibilityIdentifier("inPlaceListen")
         .chromeLargeContent(Verbs.listen, symbol: Icons.play)
     }
@@ -113,17 +138,20 @@ struct ReadingTopGroupGallery: View {
 
     var body: some View {
         PreviewGallery {
-            PreviewState("in place, not playing") {
-                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: {})
+            PreviewState("in place, not what you hear") {
+                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .start) {})
             }
             PreviewState("in place, playing") {
-                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open)
+                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .playing) {})
+            }
+            PreviewState("in place, paused") {
+                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .paused) {})
             }
             PreviewState("Listen's sheet top, the grabber between") {
                 ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, carriesGrabber: true)
             }
             PreviewState("on a reading theme") {
-                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: {})
+                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .start) {})
                     .onReadingPreview(.sepia)
             }
         }
