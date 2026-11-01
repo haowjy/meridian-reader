@@ -89,6 +89,14 @@ changing the shell code.
   theme. The in-place reader (`ReaderSurface`) covers a web view that takes no touches, so it
   carries its own left-edge swipe for ‹. The rest of design 5e is under "Planned"
   there. Regular width is untouched.
+- **Only the surface showing drives the compact chrome.** Every report to `ChromeScroll` names its
+  `ChromeSource`, and the check against `driver` (`ShellState.chromeDriver`) runs when the report is
+  delivered, not when it was sent: the Browser's web view queues its offset reports in a `Task`, and keeps
+  sending them under a reader, the Library or Listen (hit testing off doesn't stop KVO). A refused report
+  touches nothing, not even the baseline. `ChromeScroll` watches the driver (Observation) and drops the
+  gesture's continuity whenever it changes or goes nil, keeping what is drawn: the first accepted report
+  after that only sets the baseline, so a fling under a Listen that opened and closed never lands its
+  travel at once.
 - **Regular width: the browser and the Library share the field band** (`SurfaceBand`: the field and its ✕),
   over the clustered dock; the dock's toolbar is a `BottomToolbarLayout` whose items name their slots
   (`.toolbarSlot`), one role per slot on both surfaces. Compact width has no band: `ChromeHost` draws it.

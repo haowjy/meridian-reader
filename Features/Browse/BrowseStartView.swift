@@ -119,7 +119,7 @@ struct BrowseStartView: View {
                         WebView(store: webStore,
                                 bottomInset: isRegular ? 0 : ChromeHome.clearance(step: 0),
                                 obscuredBottom: obscuredBottom,
-                                onScroll: isRegular ? nil : { [chrome = shell.chromeScroll] in chrome.scrolled(to: $0) })
+                                onScroll: isRegular ? nil : { [chrome = shell.chromeScroll] in chrome.scrolled(to: $0, from: .browser) })
                             .opacity(hasPage ? 1 : 0)
                             // Under the in-place reader the page is neither touched nor read aloud.
                             .allowsHitTesting(hasPage && shell.pageReader == nil)
@@ -134,7 +134,7 @@ struct BrowseStartView: View {
                     if let article = shell.pageReader, !isRegular {
                         // Its ⋯ is the menu a press and hold on the field's reader icon opens.
                         pageLookup { page in
-                            ReaderSurface(article: article, speech: speech, covered: isCovered,
+                            ReaderSurface(article: article, speech: speech, source: .browserReader, covered: isCovered,
                                           onEdgeSwipeBack: webStore.canGoBack ? goBack : nil,
                                           menu: holdMenu(pageActions(page)))
                         }
@@ -262,7 +262,7 @@ struct BrowseStartView: View {
                 // Library Read: the page's text in place of the Library, which stays under it as it was.
                 if let article = shell.libraryReader, !isRegular {
                     let chrome = libraryChrome
-                    ReaderSurface(article: article, speech: speech,
+                    ReaderSurface(article: article, speech: speech, source: .libraryReader,
                                   covered: shell.reader != nil || shell.isNowPlayingPresented,
                                   onEdgeSwipeBack: shell.closeLibraryReader, menu: chrome.compactMenu.blocks)
                         // *Stop Preparing* from its ⋯ asks here.
@@ -518,7 +518,7 @@ struct BrowseStartView: View {
             onClearSearches: { recentSearchesRaw = "" }
         )
         .modifier(CompactChromeInsets(isCompact: !isRegular))
-        .modifier(CompactChromeScroll(isCompact: !isRegular))
+        .modifier(CompactChromeScroll(isCompact: !isRegular, source: .browser))
     }
 
     // MARK: - Address

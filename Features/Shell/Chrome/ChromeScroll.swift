@@ -2,6 +2,22 @@ import CoreGraphics
 import Observation
 import QuartzCore
 
+/// A surface that can drive the compact chrome by scrolling. Only the one showing does
+/// (`ChromeScroll.driver`); a new surface that scrolls needs a case here and a branch in
+/// `ShellState.chromeDriver`, or its reports are dropped.
+enum ChromeSource: Equatable {
+    /// The Browser's web page or start page.
+    case browser
+    /// The Browser's reader mode, in place.
+    case browserReader
+    /// The Library's screens.
+    case library
+    /// Library Read, in place.
+    case libraryReader
+    /// Settings in place.
+    case settings
+}
+
 /// The one owner of how far the compact chrome has folded, and its scroll controller, fed by the
 /// Library, the Browser and the Reader alike. Scroll views report their offset; this keeps a
 /// continuous `progress` (0 expanded, 1 collapsed) that follows the finger on the way down only:
@@ -15,6 +31,11 @@ import QuartzCore
 /// `displayed` is its per-frame smoothing: an exponential filter with a `smoothing` time constant,
 /// stepped by a display link while it still has ground to cover. What is drawn follows `displayed`;
 /// rules (the swipe) read `progress`.
+///
+/// Every report names its source, and only the driver's counts (`driver`, read when the report is
+/// delivered: a web view's report queued before a reader opened is judged against the reader).
+/// Whenever the driver changes or is suspended (Listen or a sheet up), the gesture's continuity is
+/// dropped: the next accepted report only sets the baseline, so travel from before never counts.
 ///
 /// Full screen is not scroll's: it is set only by the reading page's middle tap
 /// (`ReadingInPlace.fullScreen`), and scrolling never touches it.
@@ -44,6 +65,12 @@ final class ChromeScroll {
             if !holdsExpanded, Self.forcedFold != nil { set(0) }
             #endif
         }
+    }
+
+    /// The surface whose reports count, evaluated at each delivery; nil: none (Listen or a sheet is
+    /// up). Installed by `ShellState`. Setting it starts watching it: any change drops continuity.
+    @ObservationIgnored var driver: () -> ChromeSource? = { nil } {
+        didSet { watchDriver() }
     }
 
     #if DEBUG
@@ -77,6 +104,9 @@ final class ChromeScroll {
     }
 
     @ObservationIgnored private var last: CGFloat = 0
+    /// The source of the last accepted report; nil once the driver changed or was suspended, so the
+    /// next accepted report starts a fresh baseline.
+    @ObservationIgnored private var continuity: ChromeSource?
     /// Points scrolled up since the last scroll down.
     @ObservationIgnored private var upward: CGFloat = 0
     @ObservationIgnored private var settling: Task<Void, Never>?
@@ -84,8 +114,9 @@ final class ChromeScroll {
     @ObservationIgnored private var lastFrame: CFTimeInterval = 0
     @ObservationIgnored private var tappedAt: CFTimeInterval = -1
 
-    /// A scroll view's content offset, 0 at its top edge (below its own top inset).
-    func scrolled(to offset: CGFloat) {
+    /// A scroll view's content offset, 0 at its top edge (below its own top inset), from `source`.
+    func scrolled(to offset: CGFloat, from source: ChromeSource) {
+        guard accepts(source, at: offset) else { return }
         let delta = offset - last
         last = offset
         guard !isLocked, !holdsExpanded, !fullScreen else { return }
@@ -117,7 +148,9 @@ final class ChromeScroll {
     /// The offset moved without a finger (a restore, following the audio, a scrub), or in a state
     /// where the finger decides nothing (full screen): the next report measures from here, and no
     /// fold is decided by the move itself. The top still always expands (a status-bar tap).
-    func anchor(at offset: CGFloat) {
+    func anchor(at offset: CGFloat, from source: ChromeSource) {
+        guard driver() == source else { return }
+        continuity = source
         last = offset
         if offset <= Self.topEdge {
             grace = 0
@@ -165,6 +198,30 @@ final class ChromeScroll {
         setFullScreen(false)
         last = 0
         expand()
+    }
+
+    /// Whether a finger report from `source` moves anything: only the driver's, and the first after
+    /// continuity was dropped just sets the baseline.
+    private func accepts(_ source: ChromeSource, at offset: CGFloat) -> Bool {
+        guard driver() == source else { return false }
+        guard continuity == source else {
+            continuity = source
+            last = offset
+            upward = 0
+            return false
+        }
+        return true
+    }
+
+    /// Drops continuity whenever anything `driver` reads changes (a reader opening, Listen going up
+    /// or down), keeping what is drawn. Observation fires once, before the change; it is renewed after.
+    private func watchDriver() {
+        withObservationTracking { _ = driver() } onChange: { [weak self] in
+            MainActor.assumeIsolated {
+                self?.continuity = nil
+                Task { @MainActor in self?.watchDriver() }
+            }
+        }
     }
 
     private func scheduleSettle() {

@@ -341,13 +341,23 @@ final class ChromeTests: XCTestCase {
 
     // MARK: Scroll
 
+    /// A controller driven by the Library, as on its screens.
     @MainActor
-    private func scroll(_ chrome: ChromeScroll, to offsets: [CGFloat]) { offsets.forEach { chrome.scrolled(to: $0) } }
+    private func libraryChrome() -> ChromeScroll {
+        let chrome = ChromeScroll()
+        chrome.driver = { .library }
+        return chrome
+    }
+
+    @MainActor
+    private func scroll(_ chrome: ChromeScroll, to offsets: [CGFloat], from source: ChromeSource = .library) {
+        offsets.forEach { chrome.scrolled(to: $0, from: source) }
+    }
 
     @MainActor
     func testProgressFollowsTheFingerDownSixtyPointsAStepAndAScrollUpRevealsBothRows() {
-        let chrome = ChromeScroll()
-        chrome.anchor(at: 10)
+        let chrome = libraryChrome()
+        chrome.anchor(at: 10, from: .library)
         scroll(chrome, to: [70])
         XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "60 pt: one row")
         scroll(chrome, to: [200])
@@ -362,16 +372,16 @@ final class ChromeTests: XCTestCase {
 
     @MainActor
     func testAFoldStoppedBetweenStepsFinishesItsStep() {
-        let down = ChromeScroll()
-        down.anchor(at: 10)
+        let down = libraryChrome()
+        down.anchor(at: 10, from: .library)
         scroll(down, to: [40])
         down.settle()
         XCTAssertEqual(down.progress, 0.5, "a first step stopped partway ends at one row")
         scroll(down, to: [60])
         down.settle()
         XCTAssertEqual(down.progress, 1, "a second step stopped partway ends at the bubble")
-        let reverse = ChromeScroll()
-        reverse.anchor(at: 10)
+        let reverse = libraryChrome()
+        reverse.anchor(at: 10, from: .library)
         scroll(reverse, to: [40, 30, 20, 12, 10])
         reverse.settle()
         XCTAssertEqual(reverse.progress, 0, "turning back 30 pt brings both rows back")
@@ -383,8 +393,8 @@ final class ChromeTests: XCTestCase {
     /// again (no lasting pin); a fling under way at the tap moves nothing for `tapQuiet`.
     @MainActor
     func testATapExpandFoldsAgainAfterAShortScrollDown() async throws {
-        let chrome = ChromeScroll()
-        chrome.anchor(at: 10)
+        let chrome = libraryChrome()
+        chrome.anchor(at: 10, from: .library)
         scroll(chrome, to: [70, 130, 190])
         XCTAssertEqual(chrome.progress, 1)
         chrome.expandByHand()
@@ -406,8 +416,8 @@ final class ChromeTests: XCTestCase {
     @MainActor
     func testANewScreenOrPageClearsTheGrace() {
         for clear in [{ (c: ChromeScroll) in c.reset() }, { $0.expand() }] {
-            let chrome = ChromeScroll()
-            chrome.anchor(at: 10)
+            let chrome = libraryChrome()
+            chrome.anchor(at: 10, from: .library)
             chrome.expandByHand()
             clear(chrome)
             XCTAssertEqual(chrome.grace, 0)
@@ -418,13 +428,13 @@ final class ChromeTests: XCTestCase {
 
     @MainActor
     func testAHeldDestinationNeverFoldsAndLeavingItStartsExpanded() {
-        let chrome = ChromeScroll()
-        chrome.anchor(at: 10)
+        let chrome = libraryChrome()
+        chrome.anchor(at: 10, from: .library)
         scroll(chrome, to: [130])
         XCTAssertEqual(chrome.progress, 1, "a Library scrolled down")
         chrome.holdsExpanded = true
         XCTAssertEqual(chrome.progress, 0, "coming to a held screen (Pages mode, Edit) from a folded Library: expanded")
-        chrome.anchor(at: 10)
+        chrome.anchor(at: 10, from: .library)
         scroll(chrome, to: [60, 120, 200, 300])
         XCTAssertEqual(chrome.progress, 0)
         chrome.holdsExpanded = false
@@ -435,9 +445,9 @@ final class ChromeTests: XCTestCase {
 
     @MainActor
     func testTheKeyboardAndFullScreenIgnoreScrolling() {
-        let chrome = ChromeScroll()
+        let chrome = libraryChrome()
         chrome.isLocked = true
-        chrome.anchor(at: 10)
+        chrome.anchor(at: 10, from: .library)
         scroll(chrome, to: [80])
         XCTAssertEqual(chrome.progress, 0, "keyboard or ⋯ panel up")
         chrome.isLocked = false
@@ -451,13 +461,52 @@ final class ChromeTests: XCTestCase {
 
     @MainActor
     func testAProgrammaticMoveMovesNothingAndTheTopStillExpands() {
-        let chrome = ChromeScroll()
-        chrome.anchor(at: 295)
+        let chrome = libraryChrome()
+        chrome.anchor(at: 295, from: .library)
         scroll(chrome, to: [296, 1000])
         XCTAssertEqual(chrome.progress, 1 / ChromeScroll.travel, accuracy: 0.001, "a 700 pt jump is not a finger")
         scroll(chrome, to: [200, 100])
-        chrome.anchor(at: 0)
+        chrome.anchor(at: 0, from: .library)
         XCTAssertEqual(chrome.progress, 0)
+    }
+
+    /// Only the surface showing moves the chrome: the Browser's page under its reader mode and the
+    /// Library under Library Read are refused without touching the reader's baseline; while Listen is
+    /// up (no driver) nothing counts, and after it the first report only sets a fresh baseline, so a
+    /// fling's travel from before never lands at once.
+    @MainActor
+    func testOnlyTheDrivingSurfaceMovesTheChrome() async {
+        let shell = DrivingSurface()
+        let chrome = ChromeScroll()
+        chrome.driver = { shell.source }
+        chrome.anchor(at: 10, from: .browserReader)
+        scroll(chrome, to: [310], from: .browser)
+        scroll(chrome, to: [310], from: .libraryReader)
+        XCTAssertEqual(chrome.progress, 0, "a surface under the reader moves nothing")
+        scroll(chrome, to: [70], from: .browserReader)
+        XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "the reader measures from its own baseline")
+
+        shell.source = nil
+        await Task.yield()
+        scroll(chrome, to: [100, 400], from: .browserReader)
+        scroll(chrome, to: [400], from: .browser)
+        XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "Listen up: nothing under it drives")
+        shell.source = .browserReader
+        await Task.yield()
+        scroll(chrome, to: [420], from: .browserReader)
+        XCTAssertEqual(chrome.progress, 0.5, accuracy: 0.001, "back: the first report is a fresh baseline")
+        scroll(chrome, to: [450], from: .browserReader)
+        XCTAssertEqual(chrome.progress, 0.75, accuracy: 0.001)
+
+        chrome.anchor(at: 450, from: .browserReader)
+        scroll(chrome, to: [470], from: .browserReader)
+        shell.source = nil
+        await Task.yield()
+        shell.source = .browserReader
+        await Task.yield()
+        scroll(chrome, to: [480], from: .browserReader)
+        XCTAssertEqual(chrome.progress, 0.75 + 20 / ChromeScroll.travel, accuracy: 0.001,
+                       "suspended and resumed without a report between: the travel before it is dropped all the same")
     }
 
     func testSwipeUpIsPastTheDistanceAndMoreUpThanAcross() {
@@ -465,4 +514,11 @@ final class ChromeTests: XCTestCase {
         XCTAssertFalse(ChromeScroll.isSwipeUp(CGSize(width: 5, height: -20)))
         XCTAssertFalse(ChromeScroll.isSwipeUp(CGSize(width: 60, height: -40)))
     }
+}
+
+/// What `ShellState.chromeDriver` reads, as an observable value the controller watches.
+@MainActor
+@Observable
+private final class DrivingSurface {
+    var source: ChromeSource? = .browserReader
 }

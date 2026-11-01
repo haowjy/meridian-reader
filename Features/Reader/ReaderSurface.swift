@@ -19,8 +19,10 @@ import SwiftUI
 struct ReaderSurface: View {
     let article: ReaderArticle
     let speech: SpeechController
+    /// Which reader it is, for the chrome: only the surface showing drives it (`ShellState.chromeDriver`).
+    let source: ChromeSource
     /// Another layer is over it (the Library, Now Playing, a sheet): it stays mounted for its place
-    /// in the text, but leaves the status bar and the chrome's fold to what shows.
+    /// in the text, but leaves the status bar to what shows.
     let covered: Bool
     /// The left-edge swipe: what the chrome's ‹ does (the web view's own swipe sits under this
     /// view, out of reach). nil when there is nothing to go back to.
@@ -68,14 +70,10 @@ struct ReaderSurface: View {
                                shows: shell.chromeScroll.drawnStep == 0)
     }
 
-    /// The shell's in-place reading, silent while covered: a hidden reader's follow moves must not
-    /// become the Library's fold anchor.
+    /// The shell's in-place reading; covered, it leaves the status bar to what shows.
     private var inPlace: ReadingInPlace {
-        var place = shell.pageReadingInPlace
-        guard covered else { return place }
-        place.scrolled = { _ in }
-        place.anchored = { _ in }
-        place.covered = true
+        var place = shell.pageReadingInPlace(source)
+        place.covered = covered
         return place
     }
 

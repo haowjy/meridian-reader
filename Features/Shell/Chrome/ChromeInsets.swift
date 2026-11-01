@@ -37,14 +37,14 @@ extension View {
 /// Where a screen's scroll position goes: the chrome folds a step at a time as it scrolls down (a tap on
 /// the bubble opens it).
 extension View {
-    /// Reports this view's scroll views' offset to `chrome`, past the rubber band at both ends.
-    func chromeScrollSource(_ chrome: ChromeScroll) -> some View {
+    /// Reports this view's scroll views' offset to `chrome` as `source`, past the rubber band at both ends.
+    func chromeScrollSource(_ chrome: ChromeScroll, as source: ChromeSource) -> some View {
         onScrollGeometryChange(for: CGFloat.self) { geometry in
             let top = geometry.contentInsets.top
             let farthest = geometry.contentSize.height + geometry.contentInsets.bottom + top - geometry.containerSize.height
             return min(geometry.contentOffset.y + top, max(farthest, 0))
         } action: { _, offset in
-            chrome.scrolled(to: offset)
+            chrome.scrolled(to: offset, from: source)
         }
     }
 }
@@ -70,12 +70,13 @@ struct CompactChromeInsets: ViewModifier {
 /// a modifier above the navigation stack doesn't reach inside it.
 struct CompactChromeScroll: ViewModifier {
     let isCompact: Bool
+    let source: ChromeSource
     @Environment(ShellState.self) private var shell
 
     func body(content: Content) -> some View {
         if isCompact {
             content
-                .chromeScrollSource(shell.chromeScroll)
+                .chromeScrollSource(shell.chromeScroll, as: source)
                 .onAppear { shell.chromeScroll.reset() }
         } else {
             content

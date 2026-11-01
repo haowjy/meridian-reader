@@ -243,6 +243,7 @@ final class ShellState {
          restores: Bool = false) {
         self.isHearing = isHearing
         self.memory = memory
+        chromeScroll.driver = { [weak self] in self?.chromeDriver }
         guard restores, let memory else { return }
         homeTab = memory.loadHomeTab()
         if let last = memory.load() {
@@ -269,6 +270,17 @@ final class ShellState {
 
     var isInLibrary: Bool {
         if case .library = surface { true } else { false }
+    }
+
+    /// The surface whose scrolling moves the compact chrome: the one showing, and nothing while Listen
+    /// or a sheet covers it (`ChromeScroll.driver` reads this at each report).
+    var chromeDriver: ChromeSource? {
+        if isNowPlayingPresented || reader != nil { return nil }
+        return switch surface {
+        case .browse: pageReader != nil ? .browserReader : .browser
+        case .library: libraryReader != nil ? .libraryReader : .library
+        case .settings: .settings
+        }
     }
 
     var isInSettings: Bool {
@@ -449,13 +461,13 @@ final class ShellState {
 
     /// The Library's Read and the Browser's reader mode in place: the end of the text scrolls to just
     /// above the chrome as drawn (two rows, one, the bubble: `ChromeScroll.drawnStep`), and its scroll
-    /// and full screen are the chrome's.
-    var pageReadingInPlace: ReadingInPlace {
+    /// and full screen are the chrome's, reported as `source` (`.browserReader`, `.libraryReader`).
+    func pageReadingInPlace(_ source: ChromeSource) -> ReadingInPlace {
         ReadingInPlace(
             bottomClearance: ChromeHome.clearance(step: chromeScroll.drawnStep),
             homeIndicator: ChromeHome.inset,
-            scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0) },
-            anchored: { [chromeScroll] in chromeScroll.anchor(at: $0) },
+            scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0, from: source) },
+            anchored: { [chromeScroll] in chromeScroll.anchor(at: $0, from: source) },
             fullScreen: Binding(get: { [chromeScroll] in chromeScroll.fullScreen }, set: { [chromeScroll] in chromeScroll.setFullScreen($0) }))
     }
 

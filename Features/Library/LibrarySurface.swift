@@ -37,9 +37,9 @@ struct LibrarySurface: View {
                 LibraryHomeView(articleSort: ArticleSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
                                 tab: shell.homeTab,
                                 searchText: search.isActive && shell.librarySearchFolder == nil ? search.text : "")
-                    .modifier(CompactChromeScroll(isCompact: !isRegular))
+                    .modifier(CompactChromeScroll(isCompact: !isRegular, source: .library))
                     .navigationDestination(for: LibraryRoute.self) {
-                        LibraryRouteView(route: $0).modifier(CompactChromeScroll(isCompact: !isRegular))
+                        LibraryRouteView(route: $0).modifier(CompactChromeScroll(isCompact: !isRegular, source: .library))
                     }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
