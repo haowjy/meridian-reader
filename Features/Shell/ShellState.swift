@@ -616,9 +616,11 @@ final class ShellState {
     }
 
     /// The article's own page: revealed as it is when it's the page already loaded (no reload,
-    /// scroll kept), else loaded. Audio keeps playing.
+    /// scroll kept), else loaded. Audio keeps playing. Either way it is the web page: a reader view
+    /// kept from an earlier visit to the Browser closes.
     func openWebsite(_ url: URL) {
         if let current = web.currentURL, current.isSamePage(as: url) {
+            closePageReader()
             endAddressSearch()
             showBrowser()
         } else {
