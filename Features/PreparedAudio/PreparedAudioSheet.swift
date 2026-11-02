@@ -192,7 +192,11 @@ struct PreparedAudioList: View {
                        menu: AnyView(menu), showsListening: false)
             .opensOnTap { open(article) }
             .contextMenu { AnyView(menu) }
-            .swipeActions(edge: .trailing) { menu.removeRow.swipeButton(role: .destructive) }
+            .swipeActions(edge: .trailing) {
+                // The tint alone: the row stays while playback needs its audio, and the list reloads
+                // after a delete (AGENTS.md's swipe rule).
+                menu.removeRow.swipeButton()
+            }
             .accessibilityIdentifier("listeningAudioRow")
     }
 

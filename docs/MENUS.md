@@ -155,7 +155,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | Option | Hidden when | Greyed when |
 |---|---|---|
 | reprepare | audio from listening | still preparing |
-| removePrepare | never | never |
+| removePrepare | never | audio from listening that playback needs now |
 
 ### screen at reader
 
@@ -216,7 +216,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 | deleteAllPrepared (*Delete All…*) | something is prepared | confirms, then deletes every prepared article and its audio; folders stay |
 | clearListeningAudio (*Clear Audio from Listening…*) | From Listening has rows | confirms, then deletes that audio only |
 
-Row menu: *Delete Audio* (`menuDeleteAudio`) on every row; *Prepare Again* only on prepared rows (*Keep* is gone, C138: audio not in its article's voice never plays).
+Row menu: *Delete Audio* (`menuDeleteAudio`, the swipe's *Delete*) on every row, greyed on a From Listening row while playback needs its audio; *Prepare Again* only on prepared rows (*Keep* is gone, C138: audio not in its article's voice never plays).
 
 ## Bottom-chrome glossary (C143)
 

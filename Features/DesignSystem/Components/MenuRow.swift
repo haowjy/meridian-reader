@@ -46,12 +46,14 @@ struct MenuRow: Identifiable {
     /// symbol, red, its action. `role: .destructive` only where the action takes the row out of the list's data at
     /// once; a row that can stay (it asks first, or a save can fail) takes the tint alone
     /// (AGENTS.md's swipe rule).
+    /// Dimmed and inert while its availability says it can't run.
     func swipeButton(role: ButtonRole? = nil) -> some View {
         let title = swipeTitle ?? title
         return Button(role: role, action: action) {
             if let icon { Label(title, systemImage: icon) } else { Text(title) }
         }
         .tint(Palette.destructive)
+        .disabled(availability != .enabled)
     }
 }
 

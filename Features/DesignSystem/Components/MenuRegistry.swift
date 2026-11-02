@@ -88,6 +88,8 @@ enum MenuRegistry {
         var isQueued = false
         /// A row of From Listening: audio made while listening, not prepared (C135).
         var isListeningAudio = false
+        /// Playback needs its audio now (the article playing): it can't be deleted.
+        var audioInUse = false
         // The Prepared Audio list
         var hasPrepared = false
         var hasListeningAudio = false
@@ -179,7 +181,8 @@ enum MenuRegistry {
         // A prepare. Its ↓ mark pauses and resumes.
         Spec(option: .reprepare, kind: .prepare, places: [.preparedAudio], applies: { !$0.isListeningAudio },
              enabled: { !$0.isQueued }, hiddenIf: "audio from listening", greyIf: "still preparing"),
-        Spec(option: .removePrepare, kind: .prepare, places: [.preparedAudio]),
+        Spec(option: .removePrepare, kind: .prepare, places: [.preparedAudio], enabled: { !$0.audioInUse },
+             greyIf: "audio from listening that playback needs now"),
 
         // A screen's own rows (＋ has New Folder and Import Book; the address field starts a search).
         // ＋ makes things in the screen on top; the ⋯ panels keep only Sort, Reload and the tail.
