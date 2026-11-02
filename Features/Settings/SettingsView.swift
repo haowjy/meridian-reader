@@ -108,6 +108,7 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settingsTitle")
                     .listHeader()
                 }
+                .headerOnlySection()
             }
             ListeningSettingsSection(speech: speech)
             appearanceAndReadingSection
@@ -125,7 +126,7 @@ struct SettingsView: View {
                 .listRowBackground(Color.clear)
             }
         }
-        .cardListStyle()
+        .cardListStyle(underTitleLine: inPlace)
         .accessibilityIdentifier("settingsList")
     }
 

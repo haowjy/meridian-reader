@@ -17,13 +17,20 @@ extension View {
     /// content (two lines, a control, large text) keeps its height. With `listCard()` this is the one
     /// card-row policy: no row sets a height of its own; the List's minimum and `SymbolRow`'s
     /// (`rowMinimum`, which grows with the text) are this one value.
-    func cardListStyle() -> some View {
+    ///
+    /// `underTitleLine`: the list's first section is the screen's title line (the Library home, Settings
+    /// in place), which is its top bar, at the top of the safe area; otherwise the list is under a
+    /// system bar, and its first content starts `Spacing.belowTopBar` under that bar's buttons.
+    func cardListStyle(underTitleLine: Bool = false) -> some View {
         let minimum = Control.bar
         return listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
             .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
             .listSectionSpacing(Spacing.m)
+            // The list's own top margin (35 pt in iOS 26) replaced: its first content `belowTopBar` under
+            // the system bar's buttons.
+            .contentMargins(.top, underTitleLine ? 0 : Spacing.belowTopBar - Spacing.systemBarFoot, for: .scrollContent)
             .environment(\.defaultMinListRowHeight, minimum)
             .environment(\.rowMinimum, minimum)
     }
@@ -49,6 +56,13 @@ extension View {
     func listHeader() -> some View {
         textCase(nil)
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xxs, trailing: 0))
+    }
+
+    /// A section that is only a header (a screen's title line, a folder's header): what follows starts
+    /// `Spacing.m` under it, the gap between cards, which is also `Spacing.belowTopBar` under a title
+    /// line. The header keeps `listHeader`'s `Spacing.xxs` below it, so the section spacing is the rest.
+    func headerOnlySection() -> some View {
+        listSectionSpacing(Spacing.m - Spacing.xxs)
     }
 
     /// A note under a card: a footnote in line with the card, `Spacing.xs` below it.

@@ -61,7 +61,7 @@ struct LibraryHomeView: View {
             } header: {
                 // The tabs sit under the title in its header, not as a row: a row would take the
                 // card list's minimum row height.
-                VStack(spacing: Spacing.s) {
+                VStack(spacing: Spacing.belowTopBar) {
                     TitleLine(title: Verbs.library) { LibraryTitleMenu() }
                         .accessibilityIdentifier("libraryTitle")
                     SegmentedTabs(label: String(localized: "Library view"),
@@ -71,6 +71,7 @@ struct LibraryHomeView: View {
                 }
                 .listHeader()
             }
+            .headerOnlySection()
             Section {
                 ForEach(folders, id: \.id) { folder in
                     LibraryFolderRow(folder: folder)
@@ -89,7 +90,7 @@ struct LibraryHomeView: View {
                     .listRowBackground(Color.clear)
             }
         }
-        .cardListStyle()
+        .cardListStyle(underTitleLine: true)
         .statusBarBacking()
         .environment(\.libraryScreenKey, isFiltered ? .filtered(under: nil) : .home)
         .animation(Motion.standard, value: articles.map(\.listenKey))

@@ -22,6 +22,12 @@ enum Spacing {
     /// Leading and trailing edge of a top bar's buttons: where the system's navigation bar draws them
     /// (a book's or folder's `‹ … Edit ⋯`), and the in-place reading pages' top group, so the two line up.
     static let topBarMargin: CGFloat = m
+    /// From the foot of a top bar's buttons (a navigation bar's, a title line's ⋯, the reading pages' top
+    /// group) to the first content under it.
+    static let belowTopBar: CGFloat = m
+    /// How far a system navigation bar runs below its buttons (iOS 26, measured: buttons 62–106, bar to
+    /// 116 on an iPhone 17 Pro). A list under one starts this much lower than under a title line.
+    static let systemBarFoot: CGFloat = 10
 }
 
 /// Corner radii: two. Fields, pills and round controls are true capsules and circles (`Capsule()`,

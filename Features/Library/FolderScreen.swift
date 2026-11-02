@@ -191,6 +191,7 @@ private struct FolderContentsList: View {
                     }
                     .listHeader()
             }
+            .headerOnlySection()
             if isEditing {
                 Section {
                     NewFolderEditRow { screen.makeFolder(in: folder) }
