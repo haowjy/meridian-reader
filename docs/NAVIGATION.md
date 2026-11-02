@@ -34,8 +34,8 @@ Regular width keeps the Reader and Listen sheets ("iPad and regular width").
 
 - `.sheet`: swipe-down is built in (show the grabber), from the header or from a scrolling body at
   its top: the Move tree, the import sheet (except while it works), Browsing History,
-  Settings, Prepared Audio, Edit Details. Their *Done*, *Cancel*, *Save* and *Import* are one
-  pill, the neutral one the Reader's close pill is (`SheetBarButton`).
+  Settings, Prepared Audio, Edit Details. Their *Done*, *Cancel*, *Save* and *Import* are plain
+  toolbar buttons the system styles (`SheetBarButton`); an input sheet's ✕ is the system's close button.
 - The design system's `Sheet` (Follow's chapter preview, and the Reader and Listen on regular width,
   in place, not a `.sheet` or `fullScreenCover`): pulling the header (grabber or the top bar) down calls
   the same close action as its button. Closing never stops audio.
@@ -59,7 +59,7 @@ Regular width keeps the Reader and Listen sheets ("iPad and regular width").
   (where the release speed would carry it is past 72 pt), it carries on off the bottom at the
   finger's speed; otherwise it springs back (`Motion.settle`). Pulled down and then pushed back
   up before letting go, it stays (`SwipeGesturePolicy.shouldCommitDownwardDismiss`, the rule of
-  every pull-to-dismiss: the sheets, Listen, the ⋯ panel). The header and the text use the same rule.
+  every pull-to-dismiss: the sheets, Listen). The header and the text use the same rule.
   Under Reduce Motion it fades in and out instead. What is under a sheet takes no touches until it
   has gone.
 
@@ -204,7 +204,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   ▶ Listen, in that order.
 - **Collapse follows the finger down, in steps; a scroll up brings it back at once.** One progress value
   (`ChromeScroll`), 0 two rows, 0.5 one row, 1 the bubble: `progress += dy / 120` for a scroll down (60 pt a
-  step), ignored while the keyboard or the ⋯ panel is up, and 150 ms after the finger stops a part-way step
+  step), ignored while the keyboard or a ⋯ menu is up, and 150 ms after the finger stops a part-way step
   settles forward to its end (`ChromeScroll.stepEnd`: 0, 0.5 or 1). **A scroll up of 24 pt with no scroll down
   between (`ChromeScroll.revealDistance`) brings both rows back, as Safari does, on every screen that folds.**
   The rows also come back by a tap on the bubble, by reaching the top of the content (offset <= 4, which resets
@@ -439,38 +439,23 @@ the same spot. ⋯ is never replaced.
   cancels it, silently); jade with moving bars when this article is playing
   (tap: pause); jade with still bars when it is loaded and paused (tap: resume). It never
   navigates.
-- **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
-  the article's own menu (the same rows as everywhere the article's menu shows: "Menus", below; its
-  add, audio, item and remove groups), then the navigation tiles,
-  then a row of big buttons **Library**, **Browsing History**, and **Reader** (rightmost, nearest the
-  thumb, like Safari's All Tabs). The web page's *Save to Library* and *Save to Folder…* extract it first; in an open reader they save the text it shows.
+- **⋯** opens a system menu (SwiftUI `Menu`, on iPhone and iPad alike): the article's own menu (the
+  same rows as everywhere the article's menu shows: "Menus", below; its add, audio, item and remove
+  groups), then, on regular width, the navigation rows **Settings**, **Library** and **Reader**
+  (**Library**, **Browsing History** and **Reader** on compact width), each block a section. The web page's *Save to Library* and *Save to Folder…* extract it first; in an open reader they save the text it shows.
   *Follow…* reads the story the article belongs to ("Follow a story", below). On the start page there
   is no page, so no page rows; *Reload* and the Reader toggle show dimmed; the Reader toggle is dimmed on pages that
   aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, Browsing History, the Move tree)
-  run after the panel has closed.
-- **The ⋯ panel** (`MorphMenuOverlay`: one overlay for the browser toolbar ⋯, the library
-  toolbar ⋯, the Reader's ⋯ and regular width's Listen ⋯; its rows come from the surface that opened it,
-  `MenuContext`: the item's menu, the screen's rows, the big buttons) is not a popover: it is placed so the bottom-right button's icon (Reader,
-  or Website in the Reader and Listen — marked with `morphMenuFocus`) sits slightly up and to
-  the left of the ⋯ glyph (Safari's feel: **12 pt left, 10 pt up**), not dead-on on top of it.
+  run after the menu has closed (the system closes it, then calls the action).
+- **Every ⋯ is `Menu { MenuRows(blocks: context.blocks) }`**: the browser toolbar ⋯, the library
+  toolbar ⋯, the Reader's ⋯ and regular width's Listen ⋯, as the title-line ⋯ and the hold menu
+  already were. Rows come from the surface that opened it (`MenuContext`: the item's menu, the
+  screen's rows, the navigation rows). The menu takes the system's look, not the reading theme's.
   Like every menu in the app (the long-press ones too), it keeps its shape (decision DR-09): a row
   that applies to what the menu is for but can't run now shows dimmed, and only a row that can
   never apply to that kind of item is left out (`MenuAvailability`). A toggle is one row showing
   the face for the item's state (*Save* / *Remove from Library*, *Mark as Finished* /
-  *Unfinished*). A row that deletes something is red in it as in a long-press menu. Its rows are
-  44 pt (`Control.tap`, a system menu's row), so at the default text size every panel fits on
-  an iPhone 17 Pro, a folder's screen's too. A panel taller than the room above its ⋯ (larger
-  text) stops below the status bar and its rows scroll; the big buttons stay at the bottom. It covers
-  the button and the toolbar around it, so the bottom row lands under the thumb, and grows out of
-  that point (the glass grows from the button's circle to the panel's frame and corners, never
-  stretched; the rows fade / un-blur in) while the ⋯ glyph
-  fades, and the rest of the screen dims. Tapping the dimmed area,
-  swiping the panel down, or Escape (VoiceOver scrub / hardware Esc) collapses it back into the
-  button (a swipe-down collapses it at the release speed). While dragged, the panel follows the
-  finger down and resists going up (rubber band); the drag's axis is fixed by its first movement,
-  so a horizontal drag leaves the panel in place and a drag that drifts sideways doesn't make it
-  jump. The sheets' pull-down follows the same rules. Light glass on iOS 26 (thick material
-  before). Debug › is a native `Menu`.
+  *Unfinished*). A row that deletes something is red in it as in a long-press menu. Debug › is a submenu.
 - **One saved state**: the browser's 🔖 and ⋯, the Reader and Listen all read "is this page
   saved?" from the article for its address, else its key (`ArticleActions`, `ArticleLookup`), the article
   Save saves into and *Remove from Library* removes, and they follow a change made anywhere at
@@ -1140,7 +1125,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
   stays readable. The article's title is the first thing in its text; when the article's own first
   heading repeats it, that heading takes the title's look and shows once. The spoken paragraph is on the theme's highlight;
-  every paragraph stays in full ink (C105). The *Jump to Audio* pill takes the theme's accent and its ink on the accent; the scrub row, the bubble, the jump hint, the ⋯ panel and the speed popover
+  every paragraph stays in full ink (C105). The *Jump to Audio* pill takes the theme's accent and its ink on the accent; the scrub row, the bubble, the jump hint, the ⋯ menu and the speed menu
   take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on the
   same reading article, in both, so everything below applies to it too.
 - **The bottom band** (flat on the page background, no card, no shadow) shows the artwork tile,
@@ -1220,7 +1205,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
     by characters (chunk boundaries found by counting letters; stitched paragraphs use the stored
     chunk durations), with a 0.25 s lead-in so the first word isn't clipped. Not rendered yet: the
     render queue does that chunk first (then the rest of the paragraph).
-- **Speed** (*1×*, at the end of the scrub capsule; a tap opens the list, 0.75× to 2×; Settings ›
+- **Speed** (*1×*, at the end of the scrub capsule; a tap opens a system menu, 0.75× to 2×, the current one checked; Settings ›
   Listening has it as a row, *Speed 1× ›*, opening the same list): applied in place — the current sentence keeps going at the new speed.
   A pitch-preserving time-stretch on the player (`AVAudioPlayer.enableRate` / `rate`; all audio
   is rendered at 1×), so nothing is re-queued, re-rendered or restarted. The rate is persisted
@@ -1494,7 +1479,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 |--------|--------|--------------|
 | Browser (start page / web page) | — | root |
 | Browser → editing the address | Cancel (text), right of the field | in place; tap outside or drag down |
-| Browser ⋯ / Reader ⋯ / Listen ⋯ / Library ⋯ | — | morph panel over the button (same design; rows per surface) |
+| Browser ⋯ / Reader ⋯ / Listen ⋯ / Library ⋯ | — | system menu from the button (rows per surface) |
 | ⋯ → Website (Reader, Listen) | no shortcut | leaves the Reader (the sheet closes on regular width, and the library) and shows / loads the page in the browser; audio continues |
 | ⋯ → Settings (`SettingsView`); on iPad also the sidebar's Settings | Done | `.sheet` (a form sheet on iPad); Voice, Language, Speed, Appearance, Reading, Prepared Audio and Acknowledgements push inside it |
 | Reader / Listen → Aa (`TextAppearanceControl`; compact width: the top group's Aa, `ReadingTopGroup`) | tap outside | popover from Aa |
@@ -1512,7 +1497,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Reader (`ReaderSheetScreen`), regular width: 📄, ⋯ → Reader, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface, pull the header down (compact width reads in place: `ReaderSurface`) |
 | Listen (`NowPlayingScreen`): the chrome's Listen, a reader's ▶ Listen, a Library row, the bar, the Reader of the playing article, crash resume | compact: none (pull down; VoiceOver: escape); regular: *⌄ <playing from>* pill, top left | compact: a `Sheet` that covers the screen and the chrome, pull down to close; regular: `Sheet` over everything, pull the header down |
 | Listen debug panel | Done | `.sheet` (over Settings when opened from it) |
-| Speed picker | — | popover |
+| Speed picker | — | system menu |
 
 The browser's own ‹ / › are web-history buttons (the web view also has its edge swipes), not screens.
 

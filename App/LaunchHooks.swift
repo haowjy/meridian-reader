@@ -148,7 +148,7 @@ enum LaunchHooks {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(3))
                 // An in-place reader's ⋯ is a system menu, which nothing opens without a tap: its page
-                // rows (the same `ArticleMenu` at the same place) show in the ⋯ panel instead.
+                // rows (the same `ArticleMenu` at the same place) show in the probe panel instead.
                 let inPlace = shell.isNowPlayingPresented ? nil
                     : shell.libraryReader.map { ($0, ArticleMenu.Place.open) } ?? shell.pageReader.map { ($0, .browser) }
                 var context = ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
@@ -159,7 +159,7 @@ enum LaunchHooks {
                                                  preparedAudio: preparedAudio, follow: follow)
                     context.item = ArticleMenu(actions: actions, place: place).rows
                 }
-                shell.openMenu(context, from: CGRect(x: 340, y: 760, width: 44, height: 44))
+                MenuProbeState.shared.context = context
             }
         }
 

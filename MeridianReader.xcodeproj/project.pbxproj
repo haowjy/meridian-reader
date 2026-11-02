@@ -168,7 +168,6 @@
 		62F8D035CCB30BB7DB1B1383 /* ListeningSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADA216D1FF95E806A5DC56FA /* ListeningSettings.swift */; };
 		6348FB462038E373D08858AA /* MenuProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B560BEB6339DBFB3DDD51F60 /* MenuProbe.swift */; };
 		6351E9B7FF5012D829846B96 /* CoreMLCompileCacheJanitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8122E991A69FF2C278D81194 /* CoreMLCompileCacheJanitor.swift */; };
-		63592059F8B5319E135331E6 /* MoreMenuPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2D1ECC1F9AF15CAC13AA6B /* MoreMenuPanel.swift */; };
 		63A131CCF737B7B538093CC6 /* LocalListenPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C52F7DFE899099765B08FB8 /* LocalListenPlayer.swift */; };
 		63BFE7539228880AF1CADD9E /* ListenResumePoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89C956E7331DFB2230E0CD14 /* ListenResumePoint.swift */; };
 		64001F180E03972BB38B7DC8 /* LibraryAudioWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B114B6E15DB4EDC14820DA9 /* LibraryAudioWork.swift */; };
@@ -329,7 +328,6 @@
 		BB56BF71709D1A89C6965130 /* voice-preview-phonon-fennick-the-young-elf.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 8703BE3D816E932F2026571C /* voice-preview-phonon-fennick-the-young-elf.m4a */; };
 		BB6DD8EA504A7CA4DF5074A5 /* BookIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE87CED22585911F468DF75 /* BookIdentity.swift */; };
 		BB8ED6490EDDC7F6CD156973 /* ShellToastLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E4B75EEF75D37CA6E2894A /* ShellToastLayer.swift */; };
-		BD3A164DFA743937080819A1 /* MorphMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935F458969E94244662AB111 /* MorphMenu.swift */; };
 		BD92B68586E92D7509B26B01 /* SwipeGesturePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E658C722F1CC777F1A54C633 /* SwipeGesturePolicy.swift */; };
 		BE406CAE610E87236F714D5E /* MarkupElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C2B698F1A42EFC5CEA6160 /* MarkupElement.swift */; };
 		BF21488EE0F85F1570FBEB20 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4BBC45633BF1DE4189369E /* WebView.swift */; };
@@ -736,7 +734,6 @@
 		91376A2DBF383B9E05CA1EDC /* TextAppearancePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextAppearancePanel.swift; sourceTree = "<group>"; };
 		9183BA3D19C9CB2EB8094B06 /* PlayerCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerCard.swift; sourceTree = "<group>"; };
 		934D4015FB3219B950DE2852 /* ListenUnitSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenUnitSource.swift; sourceTree = "<group>"; };
-		935F458969E94244662AB111 /* MorphMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorphMenu.swift; sourceTree = "<group>"; };
 		93EDFABA0EA9EEBE4262E2D8 /* BrowserBottomChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserBottomChrome.swift; sourceTree = "<group>"; };
 		9442D964D3363955C9DA29B1 /* ArticleOrigin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleOrigin.swift; sourceTree = "<group>"; };
 		94719A7F10D0D0FD27E78E03 /* MeridianReaderTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MeridianReaderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -940,7 +937,6 @@
 		FABF8DCDADBF530570E8FB5E /* SpeechController+Advance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SpeechController+Advance.swift"; sourceTree = "<group>"; };
 		FB14C9DD07614A9B9847C261 /* voice-preview-phonon-harper.m4a */ = {isa = PBXFileReference; path = "voice-preview-phonon-harper.m4a"; sourceTree = "<group>"; };
 		FB20CD84C206E2A2EE897839 /* ExtractorEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractorEnvironment.swift; sourceTree = "<group>"; };
-		FB2D1ECC1F9AF15CAC13AA6B /* MoreMenuPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreMenuPanel.swift; sourceTree = "<group>"; };
 		FB43C2800F03FC6F63B2EE9E /* LibraryStore+Voice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryStore+Voice.swift"; sourceTree = "<group>"; };
 		FBCAB2B40B8432E82F549C9F /* voice-preview-phonon-old-mortlake.m4a */ = {isa = PBXFileReference; path = "voice-preview-phonon-old-mortlake.m4a"; sourceTree = "<group>"; };
 		FC2D33B33A2E941E5709DB0E /* FluidAudioProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FluidAudioProvider.swift; sourceTree = "<group>"; };
@@ -1341,7 +1337,6 @@
 				73E94E5E93EE460FD354D960 /* BottomChrome.swift */,
 				A213CF00F806799411B5B721 /* ChromeMetrics.swift */,
 				5C27B71CA4EFC5B4693E6629 /* ChromeSkin.swift */,
-				935F458969E94244662AB111 /* MorphMenu.swift */,
 				8F6BB9089424CE86EF44C291 /* RegularBand.swift */,
 				526BBFF20A689960CBD8A475 /* SystemBars.swift */,
 			);
@@ -1785,7 +1780,6 @@
 				49553A97DD0B7DD9D06C339D /* ClusteredPlayerDock.swift */,
 				A12FEF1C46050C8B91A4CFF5 /* ListenOrigin.swift */,
 				D9CEB484482FC612C45B82B4 /* MenuContext.swift */,
-				FB2D1ECC1F9AF15CAC13AA6B /* MoreMenuPanel.swift */,
 				5F30F44AE90070FA7751D970 /* NowPlayingBarView.swift */,
 				BC5FDEDCE6CD91BD4FE659FC /* RegularShellSidebar.swift */,
 				BBEB8EDAFD92CBD73D0AEE15 /* SearchSession.swift */,
@@ -2248,8 +2242,6 @@
 				6348FB462038E373D08858AA /* MenuProbe.swift in Sources */,
 				C88F4A2ADD2A404ED00472EE /* MenuRegistry.swift in Sources */,
 				8DDFDA29EA5881C7C9456959 /* MenuRow.swift in Sources */,
-				63592059F8B5319E135331E6 /* MoreMenuPanel.swift in Sources */,
-				BD3A164DFA743937080819A1 /* MorphMenu.swift in Sources */,
 				A83A8FED09DDD4414B81042C /* Motion.swift in Sources */,
 				B2B8B921BD919BE1483F41BD /* MoveTreeSheet.swift in Sources */,
 				ACE2D69B2C6FA70CF133AFFA /* NavigationWait.swift in Sources */,

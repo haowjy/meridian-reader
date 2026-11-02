@@ -77,8 +77,6 @@ struct LaunchOptions: Equatable {
     var bakeArticlePrefix: String?
     /// `-scrubBubbleDemo` (with `-uiTesting`): freeze a mid-drag scrubber frame for a screenshot.
     var scrubBubbleDemo = false
-    /// `-slowMenuAnimation`: slow the ⋯ morph so a mid-animation frame can be captured.
-    var slowMenuAnimation = false
     /// `-chromeFallback`: draw the compact bottom chrome in its pre-iOS 26 skin (the blur and
     /// glass tint) on a new OS, since no older simulator runtime is installed to look at it.
     var forcesChromeFallback = false
@@ -237,7 +235,6 @@ struct LaunchOptions: Equatable {
         seedsHistory = flags.contains("-seedHistory")
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
-        slowMenuAnimation = flags.contains("-slowMenuAnimation")
         forcesChromeFallback = flags.contains("-chromeFallback")
         readerFullScreen = flags.contains("-readerFullScreen")
         readerScrollsToEnd = flags.contains("-readerScrollToEnd")

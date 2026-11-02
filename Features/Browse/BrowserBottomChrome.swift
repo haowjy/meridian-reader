@@ -74,7 +74,9 @@ struct BrowserBottomChrome: View {
             BandToolbarButton(systemImage: Icons.history, label: Verbs.browsingHistory,
                               identifier: "browseHistory") { shell.present(.history) }
                 .toolbarSlot(3)
-            MoreMenuButton(id: "browseMore", menu: menu)
+            TitleMenuButton(id: "browseMore", blocks: menu().blocks) {
+                Image(systemName: Icons.more).toolbarIconFrame()
+            }
                 .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
     }

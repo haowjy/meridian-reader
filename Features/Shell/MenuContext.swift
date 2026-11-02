@@ -1,16 +1,13 @@
 import SwiftUI
 
-/// The item's menu, then the screen's actions. Compact width draws system-menu sections;
-/// regular width keeps its navigation tiles. Registry groups travel with each `MenuRow`.
+/// The item's menu, then the screen's actions, then (regular width) navigation tiles, drawn as a
+/// system menu's sections (`MenuRows(blocks:)`). Registry groups travel with each `MenuRow`.
 struct MenuContext {
     var item: [MenuRow] = []
     var screen: [MenuRow]
     var tiles: [MenuRow]
-    /// Opened on a reading page (the Reader, Now Playing or the Browser's reader mode): the panel takes its colours.
-    var isOnReadingPage = false
 
-    /// The same rows in a system menu (`MenuRows`, a title line's ⋯ on compact width): the item's, the
-    /// screen's, then the tiles as rows, a section each.
+    /// The rows by section for `MenuRows`: the item's, the screen's, then the tiles, a section each.
     var blocks: [[MenuRow]] { [item, screen, tiles] }
 
     /// The screen's registry rows: *Browsing History* from here, every other row from `custom`, the

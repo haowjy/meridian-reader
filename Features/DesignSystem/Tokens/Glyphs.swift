@@ -71,9 +71,8 @@ enum Glyph {
     static let siteTile: CGFloat = 60
 }
 
-/// The floating panels: the ⋯ panel and Aa.
+/// The floating Aa panel.
 enum Panel {
-    /// One width for both, so they read as one kind of thing.
     static let width: CGFloat = 320
 }
 

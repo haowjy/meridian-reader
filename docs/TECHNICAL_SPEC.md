@@ -45,7 +45,7 @@ Core/
   TTS/          chunking, render queue, audio cache, run state, engine plumbing (no library imports)
   Web/          WebView + store, URL helpers, favicons, Google suggestions
 Features/
-  Shell/    ShellState, the compact bottom chrome (`Chrome/`: `ChromeState`, `ChromeLayout`, `ChromeScroll`, `ChromeHost`, `ChromePieces`; its `ChromeMetrics` are in `DesignSystem/Chrome/`), ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
+  Shell/    ShellState, the compact bottom chrome (`Chrome/`: `ChromeState`, `ChromeLayout`, `ChromeScroll`, `ChromeHost`, `ChromePieces`; its `ChromeMetrics` are in `DesignSystem/Chrome/`), search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
   DesignSystem/  tokens (incl. `RegularLayout`: the iPad sidebar, readable-measure and sheet widths)
   Browse/   start page (Frequently Visited), browser chrome, page actions (PageArticleService), dictation
   Reader/   the Reader, Listen (text that follows the audio, scrub row, controls)
@@ -108,7 +108,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   them (`ReadingShowing`): regular width inside a `Sheet`, compact Listen inside a `Sheet` that covers
   the screen (its full screen its own), compact in-place readers under the chrome (their scroll and full
   screen the chrome's). `Sheet` and `SheetPullHandoff` also serve Follow's chapter preview. Every
-  pull-to-dismiss (the sheets, Listen, the ⋯ panel, the regular band's pull that lowers the keyboard)
+  pull-to-dismiss (the sheets, Listen, the regular band's pull that lowers the keyboard)
   commits through `SwipeGesturePolicy.shouldCommitDownwardDismiss`: far enough or flung, and still heading
   down at the release (the predicted end past the commit distance), so a pull pushed back up stays.
   A new heading over the same text (the length line changing as it is listened to) is swapped into the
@@ -140,8 +140,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   synthetic EPUB, the offline test pages' `TestPageSchemeHandler`) live in
   `App/Fixtures/`; App hands Core, the design system and Features what a launch asks for: the
   test pages' handler to the browser's web view (`webViewSchemeHandlers`) and to the
-  `URLPageFetcher` behind Follow's `FetchQueue`, the ⋯ panel's test marker and slowed morph
-  (`morphMenuMarksFocus`, `morphMenuAnimation`), search suggestions none (or the fixed `-stubSuggestions` rows) under `-uiTesting` and the
+  `URLPageFetcher` behind Follow's `FetchQueue`, search suggestions none (or the fixed `-stubSuggestions` rows) under `-uiTesting` and the
   scrub-bubble screenshot (environment values from `LaunchTestHooks`), the test EPUB in place of
   the Files picker (`BookImportActions.importsTestBook`, set in `AppMain`). No Feature reads
   `LaunchOptions`.
@@ -575,7 +574,7 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 
 ## Input sheets
 
-`InputSheet` in DesignSystem owns the ✕ (`SheetBarButton`'s icon form), inline title, content slot and
+`InputSheet` in DesignSystem owns the ✕ (`SheetBarButton`'s close form, the system's close button), inline title, content slot and
 bottom actions. `FollowSheet` and `PasteTextSheet` supply only feature content and actions. Both
 are presented by `ShellState.sheet`; no second presentation flag lives on the Library screen.
 `FollowFlow` owns address → reading → review (or saved / failed / already-followed), the original

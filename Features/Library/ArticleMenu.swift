@@ -171,7 +171,7 @@ extension ArticleActions {
                              accessibilityHint: String(localized: "Already in Listen"))
         return MenuContext(item: ArticleMenu(actions: self, place: place).rows,
                            screen: [],
-                           tiles: MenuContext.tiles(shell, compact: false, last: reader), isOnReadingPage: true)
+                           tiles: MenuContext.tiles(shell, compact: false, last: reader))
     }
 
     /// The reading page on screen, with its ⋯ panel: the playing page on Now Playing, else the

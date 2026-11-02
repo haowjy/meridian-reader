@@ -107,3 +107,14 @@ struct LibraryCreateMenu {
         }
     }
 }
+
+extension ArticleSort {
+    /// Its name in the Sort menu.
+    var title: String {
+        switch self {
+        case .manual: String(localized: "Manual")
+        case .newest: String(localized: "Newest")
+        case .title: String(localized: "Title")
+        }
+    }
+}

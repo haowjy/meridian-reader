@@ -137,12 +137,12 @@ struct PillSymbol: View {
     }
 }
 
-/// A sheet's *Done*, *Cancel* or *Save* in its navigation bar: the neutral compact `PillButton`
-/// the Reader's and Now Playing's close pill is, on every sheet (Prepared audio, History,
-/// Settings, Edit Details, the Move tree, Import Book), without the bar's own glass behind it. So a sheet's buttons look one way, at rest and over a scrolled list, light or dark.
+/// A sheet's *Done*, *Cancel* or *Save* in its navigation bar: a plain `Button` the system styles
+/// (glass on iOS 26), so every sheet's buttons look like the system's. This type owns the
+/// identifier and placement rule.
 ///
-/// With a `systemImage` it is the same neutral face as a circle with the symbol alone, `title` its
-/// VoiceOver label: an input sheet's ✕ (`InputSheet`).
+/// With a `systemImage` it is the system's close button, `title` its VoiceOver label: an input
+/// sheet's ✕ (`InputSheet`).
 ///
 /// ```
 /// ( Cancel )            Edit Details             ( Save )
@@ -151,16 +151,16 @@ struct PillSymbol: View {
 struct SheetBarButton: ToolbarContent {
     let placement: ToolbarItemPlacement
     let title: String
-    /// The symbol alone in a circle, in place of the title (nil: the title).
-    var systemImage: String?
+    /// The close button in place of the title (the symbol is the system's).
+    var isClose = false
     let identifier: String
     var isDisabled = false
     let action: () -> Void
 
-    init(_ title: String, systemImage: String? = nil, placement: ToolbarItemPlacement, identifier: String,
+    init(_ title: String, isClose: Bool = false, placement: ToolbarItemPlacement, identifier: String,
          isDisabled: Bool = false, action: @escaping () -> Void) {
         self.title = title
-        self.systemImage = systemImage
+        self.isClose = isClose
         self.placement = placement
         self.identifier = identifier
         self.isDisabled = isDisabled
@@ -168,21 +168,21 @@ struct SheetBarButton: ToolbarContent {
     }
 
     var body: some ToolbarContent {
-        if #available(iOS 26.0, *) {
-            item.sharedBackgroundVisibility(.hidden)
-        } else {
-            item
+        ToolbarItem(placement: placement) {
+            button
+                .disabled(isDisabled)
+                .accessibilityIdentifier(identifier)
         }
     }
 
-    private var item: some ToolbarContent {
-        ToolbarItem(placement: placement) {
-            PillButton(title, systemImage: systemImage, style: .neutral, size: .compact,
-                       fit: systemImage == nil ? .full : .icon, action: action)
-                // Its own width: the bar's leading slot would squeeze the title.
-                .fixedSize()
-                .disabled(isDisabled)
-                .accessibilityIdentifier(identifier)
+    @ViewBuilder
+    private var button: some View {
+        if !isClose {
+            Button(title, action: action)
+        } else if #available(iOS 26.0, *) {
+            Button(role: .close, action: action).accessibilityLabel(title)
+        } else {
+            Button(action: action) { Image(systemName: Icons.close) }.accessibilityLabel(title)
         }
     }
 }
@@ -245,7 +245,7 @@ struct SheetBarIconGallery: View {
                 .navigationTitle("Add a Link")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    SheetBarButton(Verbs.cancel, systemImage: Icons.close, placement: .cancellationAction,
+                    SheetBarButton(Verbs.cancel, isClose: true, placement: .cancellationAction,
                                    identifier: "previewClose") {}
                 }
         }

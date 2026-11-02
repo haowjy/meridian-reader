@@ -146,7 +146,7 @@ struct ChromeHost: View {
             shown = live
             dip = 1
         }
-        .onChange(of: isSearching || shell.menu != nil, initial: true) { _, locked in scroll.isLocked = locked }
+        .onChange(of: isSearching, initial: true) { _, locked in scroll.isLocked = locked }
         .onChange(of: destination) { _, _ in focused = session?.isFocused == true }
         // Pages mode, VoiceOver, Edit and the start page's page arriving change the rule without a new screen.
         .onChange(of: conditions, initial: true) { _, new in scroll.conditions = new }
