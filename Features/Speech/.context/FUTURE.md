@@ -49,3 +49,11 @@
   (`NLLanguageRecognizer`, no LLM) and play it in that language's chosen voice. This keeps "playback
   never changes the voice on its own": the user picked a voice per language. `ListenLanguage` and
   the providers' `supportedLanguages` are where it starts.
+- An LLM preprocessing pass, a cloud feature: the app has no backend today. The owner's idea is
+  an LLM that reads an article before it is spoken and controls how it is spoken. It would tag
+  each span's language and pick the voice for it, normalise what the engines' own normalisers
+  get wrong (abbreviations, numbers in context, names), and mark what to skip (captions,
+  footnotes, boilerplate). Its output would be the spoken text and per-paragraph voice choices,
+  feeding the same chunker and render queue. It must keep the paragraph map that positions and
+  per-paragraph audio depend on. Offline, the on-device path (`NLLanguageRecognizer`, the
+  engines' normalisers) stays the fallback, and offline playback must never wait on the network.
