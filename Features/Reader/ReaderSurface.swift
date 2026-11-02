@@ -8,8 +8,8 @@ import SwiftUI
 /// the page's saved listening spot, underlined.
 ///
 /// The title, then "site  length", are the first thing in the text and scroll with it. Over its top
-/// floats the reading pages' group (`ReadingTopGroup`): ⋯ (`menu`, the screen's menu), Aa and ▶ Listen,
-/// which plays the page from its saved spot (`QuickListen`) and slides Listen up over this surface (once
+/// floats the reading pages' group (`ReadingTopGroup`): Aa, 🔖 (`save`), ⋯ (`menu`, the screen's menu) and
+/// ▶ Listen, which plays the page from its saved spot (`QuickListen`) and slides Listen up over this surface (once
 /// the page is what you hear it shows the playing bars or ▶ and only slides Listen up), which stays mounted under it: closing Listen shows it again where it
 /// was. The group is the header: the text starts below it, scrolls under it, and it goes with the
 /// chrome in full screen (a deliberate scroll down in Scroll mode, or the middle tap) and comes back
@@ -30,6 +30,8 @@ struct ReaderSurface: View {
     let onEdgeSwipeBack: (() -> Void)?
     /// The screen's menu, the top group's ⋯ (the Browser's field menu, the Library's screen menu).
     let menu: [[MenuRow]]
+    /// The top group's 🔖 (the page's `ArticleActions`, the one save path).
+    let save: ReadingSave
 
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
@@ -63,12 +65,12 @@ struct ReaderSurface: View {
         .task(id: WarmKey(id: article.id, count: article.document.count)) { listen.warmUp() }
     }
 
-    /// Aa, ▶ Listen (its live state once this page is what you hear) and ⋯; the header, gone in full screen.
+    /// Aa, ▶ Listen (its live state once this page is what you hear), 🔖 and ⋯; the header, gone in full screen.
     private func topGroup(_ listen: QuickListen, hearing: Bool) -> ReadingTopGroup {
         let face: ReadingListen.Face = !hearing ? .start
             : speech.nowPlaying.map { speech.playState(of: .article($0.articleKey)) == .playing } == true ? .playing : .paused
         let button = listen.isDisabled && !hearing ? nil : ReadingListen(face: face) { listen.press() }
-        return ReadingTopGroup(menu: menu, menuID: "readerMore", appearanceOpen: $appearanceOpen, listen: button)
+        return ReadingTopGroup(menu: menu, menuID: "readerMore", appearanceOpen: $appearanceOpen, listen: button, save: save)
     }
 
     /// The shell's in-place reading; covered, it leaves the status bar to what shows.

@@ -4,16 +4,18 @@ import SwiftUI
 /// Library Read in place, and Listen at its top, the grabber between them), one layout on all three:
 ///
 /// ```
-/// ( Aa )                          ( ▶ Listen ) ( ⋯ )     in place: ▶, or the playing bars while the page plays
-/// ( Aa )                                         ( ⋯ )     Listen
+/// ( Aa ) ( ▶ Listen )                          ( 🔖 ) ( ⋯ )     in place: ▶, or the playing bars while the page plays
+/// ( Aa )                                         ( 🔖 ) ( ⋯ )     Listen
 /// ```
 ///
-/// ⋯ (trailing, where every other screen has its ⋯) is the screen's menu as a system menu (`menu`, a
-/// section per block); Aa (leading) opens the text appearance panel pointing at it; ▶ Listen, the page's
-/// primary action, is an accent-filled capsule just before ⋯, there while `listen` is set (in place,
-/// whenever the page has text). Once the page is what you hear it stays, in the same place and size,
-/// showing the live state (`ReadingListen.Face`) and only opening Listen. VoiceOver reads them as they
-/// sit: Aa, ▶ Listen, ⋯. `Control.chrome` high, as every piece of the bottom
+/// Aa (leading) opens the text appearance panel pointing at it; ▶ Listen, the page's primary action, is
+/// an accent-filled capsule beside it, there while `listen` is set (in place, whenever the page has
+/// text). Once the page is what you hear it stays, in the same place and size, showing the live state
+/// (`ReadingListen.Face`) and only opening Listen. 🔖 (`save`) is `SaveToggleButton` on the chrome's
+/// circle: a tap saves the page or removes it, a hold picks a folder, filled in the accent while
+/// saved, dimmed where it can't apply. ⋯ (trailing, where every other screen has its ⋯) is the screen's
+/// menu as a system menu (`menu`, a section per block). VoiceOver reads them as they sit: Aa, ▶ Listen,
+/// 🔖, ⋯. `Control.chrome` high, as every piece of the bottom
 /// chrome (⋯ and Aa are Listen's circle), at least `Control.tap` to tap (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, in place `Spacing.topBarMargin` from the screen's edges (a navigation bar's buttons'), the chrome's glyph and glass
 /// (the material skin before iOS 26). In place it sits on the safe area's
 /// top, level with a navigation bar's buttons. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
@@ -28,6 +30,8 @@ struct ReadingTopGroup: View {
     @Binding var appearanceOpen: Bool
     /// ▶ Listen; nil: none (Listen itself, or a page with no text to read).
     var listen: ReadingListen?
+    /// 🔖; nil: none.
+    var save: ReadingSave?
     /// Listen's sheet: the grabber centred between Aa and ⋯, level with their tops.
     var carriesGrabber = false
 
@@ -37,10 +41,16 @@ struct ReadingTopGroup: View {
     var body: some View {
         HStack(spacing: Spacing.xs) {
             appearance
-            Spacer(minLength: 0)
             if let listen {
                 ListenCapsule(listen: listen)
                     .transition(.opacity)
+            }
+            Spacer(minLength: 0)
+            if let save {
+                SaveToggleButton(isSaved: save.isSaved, isBusy: save.isBusy, identifier: save.identifier,
+                                 onToggle: save.toggle, onSaveToFolder: save.saveToFolder, chrome: true)
+                    .frame(width: Control.chrome, height: Control.chrome)
+                    .disabled(!save.isEnabled)
             }
             TitleMenuButton(id: menuID, blocks: menu) {
                 ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
@@ -75,6 +85,17 @@ struct ReadingTopGroup: View {
         .accessibilityLabel(Verbs.textAppearance)
         .accessibilityIdentifier("readerAppearance")
     }
+}
+
+/// The top group's 🔖: the page's saved state and its save path's actions (`ArticleActions`), as plain values.
+struct ReadingSave {
+    var isSaved: Bool
+    var isBusy = false
+    /// It can act: there is text to save, or a saved page to remove.
+    var isEnabled = true
+    var identifier: String
+    var toggle: () -> Void
+    var saveToFolder: (() -> Void)?
 }
 
 /// The top group's ▶ Listen: what it shows and what its tap does.
@@ -139,16 +160,20 @@ struct ReadingTopGroupGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("in place, not what you hear") {
-                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .start) {})
+                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .start) {},
+                                save: ReadingSave(isSaved: false, identifier: "previewSave", toggle: {}))
             }
             PreviewState("in place, playing") {
-                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .playing) {})
+                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .playing) {},
+                                save: ReadingSave(isSaved: true, identifier: "previewSave", toggle: {}))
             }
             PreviewState("in place, paused") {
-                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .paused) {})
+                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .paused) {},
+                                save: ReadingSave(isSaved: false, isEnabled: false, identifier: "previewSave", toggle: {}))
             }
             PreviewState("Listen's sheet top, the grabber between") {
-                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, carriesGrabber: true)
+                ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open,
+                                save: ReadingSave(isSaved: true, identifier: "previewSave", toggle: {}), carriesGrabber: true)
             }
             PreviewState("on a reading theme") {
                 ReadingTopGroup(menu: menu, menuID: "previewMore", appearanceOpen: $open, listen: ReadingListen(face: .start) {})

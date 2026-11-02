@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// 🔖 in a toolbar slot: slot 1 of the Reader and Now Playing, slot 3 of the browser. On the
-/// player it takes the player's ink and accent. Tap saves to the Library
+/// 🔖 in a toolbar slot (slot 1 of the Reader and regular width's Now Playing, slot 3 of the browser), or
+/// on the chrome's round glass face (`chrome`: the compact reading pages' top group, beside ⋯). On a
+/// reading page it takes the page's ink and accent. Tap saves to the Library
 /// (or removes what is saved); long-press picks a folder (*Save to Folder…*), and a tap released
 /// early still saves. A spinner stands in while the save is under way.
 ///
@@ -15,28 +16,21 @@ struct SaveToggleButton: View {
     let onToggle: () -> Void
     /// Long-press → *Save to Folder…* (nil: no long-press).
     var onSaveToFolder: (() -> Void)?
-    /// On the round face, like Voice and Aa (the player card), not a toolbar cell (`iconButtonFace`).
-    var round = false
+    /// On the chrome's glass circle (`ChromeCircleFace`, as ⋯ and Aa beside it), not a toolbar cell
+    /// (`iconButtonFace`). The caller gives it its `Control.chrome` frame.
+    var chrome = false
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.readingPalette) private var reading
 
     var body: some View {
         Button(action: onToggle) {
-            Group {
-                if isBusy {
-                    ProgressView()
-                } else if isSaved {
-                    Image(systemName: Icons.saved)
-                        .foregroundStyle(reading?.accent ?? Palette.accent)
-                } else {
-                    Image(systemName: Icons.save)
-                        .foregroundStyle(reading?.ink ?? Palette.ink)
-                }
+            if chrome {
+                ChromeCircleFace(label: isSaved ? Verbs.removeFromLibrary : Verbs.saveToLibrary,
+                                 symbol: isSaved ? Icons.saved : Icons.save) { glyph }
+            } else {
+                glyph.iconButtonFace(round: false, fill: BottomChrome.fieldFill(reading))
             }
-            // Disabled (no page), it dims like ‹ and ›; the spinner shows in full.
-            .opacity(isEnabled || isBusy ? 1 : Palette.disabledOpacity)
-            .iconButtonFace(round: round, fill: BottomChrome.fieldFill(reading))
         }
         .buttonStyle(GlyphButtonStyle())
         .highPriorityGesture(
@@ -51,6 +45,24 @@ struct SaveToggleButton: View {
                 Button(Verbs.saveToFolder, action: onSaveToFolder)
             }
         }
+    }
+}
+
+private extension SaveToggleButton {
+    var glyph: some View {
+        Group {
+            if isBusy {
+                ProgressView()
+            } else if isSaved {
+                Image(systemName: Icons.saved)
+                    .foregroundStyle(reading?.accent ?? Palette.accent)
+            } else {
+                Image(systemName: Icons.save)
+                    .foregroundStyle(reading?.ink ?? Palette.ink)
+            }
+        }
+        // Disabled (no page), it dims like ‹ and ›; the spinner shows in full.
+        .opacity(isEnabled || isBusy ? 1 : Palette.disabledOpacity)
     }
 }
 
@@ -73,6 +85,9 @@ struct SaveToggleButtonGallery: View {
             PreviewState("disabled") { button(saved: false).disabled(true) }
             PreviewState("on the reading page, not saved") { button(saved: false).onReadingPreview() }
             PreviewState("on the reading page, saved") { button(saved: true).onReadingPreview() }
+            PreviewState("chrome face, not saved") { chromeButton(saved: false) }
+            PreviewState("chrome face, saved, on the reading page") { chromeButton(saved: true).onReadingPreview() }
+            PreviewState("chrome face, disabled") { chromeButton(saved: false).disabled(true) }
         }
     }
 
@@ -80,6 +95,12 @@ struct SaveToggleButtonGallery: View {
         SaveToggleButton(isSaved: saved, isBusy: busy, identifier: "preview", onToggle: {}, onSaveToFolder: {})
             .frame(width: 80)
             .tint(Palette.ink)
+    }
+
+    private func chromeButton(saved: Bool) -> some View {
+        SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {}, onSaveToFolder: {}, chrome: true)
+            .frame(width: Control.chrome, height: Control.chrome)
+            .chromeGlassContainer()
     }
 }
 

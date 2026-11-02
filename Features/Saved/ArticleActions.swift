@@ -105,6 +105,13 @@ struct ArticleActions {
         }
     }
 
+    /// 🔖 in a compact reading page's top group (`ReadingTopGroup`): the saved state and this save path
+    /// (`toggleSaved`, held `saveToFolder`). `isEnabled` false dims it where it can't apply.
+    func readingSave(identifier: String, isBusy: Bool = false, isEnabled: Bool) -> ReadingSave {
+        ReadingSave(isSaved: isSaved, isBusy: isBusy, isEnabled: isEnabled, identifier: identifier,
+                    toggle: toggleSaved, saveToFolder: saveToFolder)
+    }
+
     /// *Remove from Library* / *Remove from Recent* (🔖 on a saved page, menus): the Library's one
     /// remove (`LibraryActions.remove`). Its audio and spot stay; if it is the page you
     /// hear, playback stops, and Now Playing closes.

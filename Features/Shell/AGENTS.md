@@ -11,8 +11,9 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   `LibraryTitleMenu`, drawing `MenuContext.blocks`); the Browser's is `AddressField`'s `holdMenu`. One state (`ChromeState`), one pure layout (`ChromeLayout`, from
   `ChromeMetrics`: `Control.chrome` 44 for every piece, `Control.tabBar` 48 for the pill, the two heights every chrome measure derives from, 104 pt of rows ending on the home indicator's strip) and one scroll controller (`ChromeScroll`: on a
   folding screen a scroll down folds it; a scroll up of `revealDistance`, the bubble's tap or the top of the text expand it); Library Read and Browse reader
-  mode open in place via `ReaderSurface` and feed it; their Aa, ▶ Listen and ⋯ are the reading pages' top group
-  (`ReadingTopGroup`, the page's header, shown unless the page is in full screen), which Listen has too (Aa, ⋯).
+  mode open in place via `ReaderSurface` and feed it; their Aa, ▶ Listen, 🔖 and ⋯ are the reading pages' top group
+  (`ReadingTopGroup`, the page's header, shown unless the page is in full screen), which Listen has too (Aa, 🔖, ⋯;
+  Listen's card has no 🔖).
   ▶ Listen never goes in place: once the page is what you hear it shows the live state (`ReadingListen.Face`) and
   only opens Listen. The host draws translucent glass (`ChromeSkin`; App
   sets `ChromeSkin.forcesMaterial` for `-chromeFallback`) with only a gradient fade behind. Screens reserve

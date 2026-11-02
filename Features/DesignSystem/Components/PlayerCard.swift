@@ -44,21 +44,19 @@ struct CardOrigin {
 /// divides them but space.
 ///
 /// ```
-/// Notes on Tides, and Why the Moon Pul…  (🔖)    title (one line); Save
+/// Notes on Tides, and Why the Moon Pulls Twice…   title (one line, the card's width; Save is the top group's)
 /// example.org                   6 min left    site leading, time left trailing (or one note)
 /// ━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━   scrubber, no times
 /// Voice     ⏮       (  ▶  )       ⏭       1×   `leading` and `trailing` at the margins, the
 ///                                             transport centred between them
 /// ```
-struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View, Trailing: View>: View {
+struct ReaderPlayerCard<Scrub: View, Transport: View, Leading: View, Trailing: View>: View {
     let title: String
     /// Under the title, set apart by space (never a separator character): the site, then the time left
     /// at the trailing end, or one status note. The first part truncates; the others never do.
     var detail: [String] = []
     /// The title's tap: nil leaves it inert. It never seeks.
     var origin: CardOrigin?
-    /// Save, at the title row's trailing end (`SaveToggleButton`'s round face).
-    @ViewBuilder var save: Save
     /// The scrubber (`ReaderScrubRow`).
     @ViewBuilder var scrub: Scrub
     /// Previous paragraph, play / pause, next paragraph (`ListenTransportView`, `card` size).
@@ -95,14 +93,11 @@ struct ReaderPlayerCard<Save: View, Scrub: View, Transport: View, Leading: View,
     }
 
     private var titleRow: some View {
-        HStack(spacing: Spacing.xs) {
-            titleText
-            save.fixedSize()
-        }
-        .frame(minHeight: Control.small)
+        titleText
+            .frame(minHeight: Control.small)
     }
 
-    /// The title, a Button to its origin when it has one (44 pt to tap, the row's width before Save).
+    /// The title, a Button to its origin when it has one (44 pt to tap, the row's full width).
     @ViewBuilder
     private var titleText: some View {
         let text = Text(title)
@@ -169,8 +164,8 @@ struct ReaderPlayerCardGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("Not started") { card(state: .idle, detail: ["example.org", "9 min"]) }
-            PreviewState("Listen, saved") {
-                card(state: .playing, detail: ["example.org", "6 min left"], saved: true)
+            PreviewState("Listen") {
+                card(state: .playing, detail: ["example.org", "6 min left"])
                     .onReadingPreview(.sepia)
             }
             PreviewState("Paused, a status note") {
@@ -180,11 +175,9 @@ struct ReaderPlayerCardGallery: View {
         }
     }
 
-    private func card(state: PlayState, detail: [String], saved: Bool = false) -> some View {
+    private func card(state: PlayState, detail: [String]) -> some View {
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
         return ReaderPlayerCard(title: "Notes on Tides, and Why the Moon Pulls Twice a Day", detail: detail) {
-            SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {}, round: true)
-        } scrub: {
             ReaderScrubRow(map: map, position: 0.3, onScrubPreview: { _ in }, onScrubCommit: { _ in }) {
                 EmptyView()
             }

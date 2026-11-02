@@ -132,6 +132,8 @@ struct NowPlayingScreen: View {
             VStack(spacing: 0) {
                 if !regular {
                     ReadingTopGroup(menu: menuBlocks(now, actions), menuID: "listenMore", appearanceOpen: $appearanceOpen,
+                                    save: actions.readingSave(identifier: "nowPlayingBookmark",
+                                                              isEnabled: actions.readerArticle != nil),
                                     carriesGrabber: true)
                 }
                 if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
@@ -169,10 +171,6 @@ struct NowPlayingScreen: View {
                     : [source, left > 0 ? ListeningTime.leftLabel(minutes: left) : nil].compactMap { $0 }),
                 origin: actions.cardOrigin(title: now.lineOne)
             ) {
-                SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
-                                 onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder, round: true)
-                    .disabled(actions.readerArticle == nil)
-            } scrub: {
                 playerScrub(spot: spot) { EmptyView() }
             } transport: {
                 ListenTransportView(size: .card, speech: speech)

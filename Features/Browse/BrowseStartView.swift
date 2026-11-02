@@ -134,9 +134,13 @@ struct BrowseStartView: View {
                     if let article = shell.pageReader, !isRegular {
                         // Its ⋯ is the menu a press and hold on the field's reader icon opens.
                         pageLookup { page in
+                            let actions = pageActions(page)
                             ReaderSurface(article: article, speech: speech, source: .browserReader, covered: isCovered,
                                           onEdgeSwipeBack: webStore.canGoBack ? goBack : nil,
-                                          menu: holdMenu(pageActions(page)))
+                                          menu: holdMenu(actions),
+                                          // The page's Save, as its menu's: the page extracted and saved.
+                                          save: actions.readingSave(identifier: "readerSave", isBusy: shell.busy == .save,
+                                                                    isEnabled: actions.isSaved || (actions.canSave && !article.document.isEmpty)))
                         }
                         .id(article.id)
                     }
@@ -262,9 +266,15 @@ struct BrowseStartView: View {
                 // Library Read: the page's text in place of the Library, which stays under it as it was.
                 if let article = shell.libraryReader, !isRegular {
                     let chrome = libraryChrome
-                    ReaderSurface(article: article, speech: speech, source: .libraryReader,
-                                  covered: shell.reader != nil || shell.isNowPlayingPresented,
-                                  onEdgeSwipeBack: shell.closeLibraryReader, menu: chrome.compactMenu.blocks)
+                    ArticleLookup(key: article.id, canonicalURL: article.origin.canonicalURL) { page in
+                        let actions = ArticleActions(article: page, readerArticle: article, library: library, shell: shell,
+                                                     speech: speech, preparedAudio: preparedAudio, follow: follow)
+                        ReaderSurface(article: article, speech: speech, source: .libraryReader,
+                                      covered: shell.reader != nil || shell.isNowPlayingPresented,
+                                      onEdgeSwipeBack: shell.closeLibraryReader, menu: chrome.compactMenu.blocks,
+                                      save: actions.readingSave(identifier: "readerSave",
+                                                                isEnabled: actions.isSaved || actions.canSave))
+                    }
                         // *Stop Preparing* from its ⋯ asks here.
                         .turnOffPrepareQuestion(chrome.turningOff)
                         .id(article.id)

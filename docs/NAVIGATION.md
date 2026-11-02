@@ -172,21 +172,28 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
 - **Row 2** is the pill alone, margin to margin; it never moves or resizes across destinations and states. There is no play / pause in the chrome: Listen, the row's tap in
   the Library and the reading pages' ▶ Listen start and control playback.
 - **The reading pages' top group** (`ReadingTopGroup`, the same component on all three): on the Browser's
-  reader mode and Library Read `( Aa ) … ( ▶ Listen ) ( ⋯ )` floating at the top of the page; on Listen
-  `( Aa ) … ( ⋯ )` at the sheet's top corners, the grabber between them. ⋯ (`readerMore`; Listen's `listenMore`) is a glass circle at the trailing
+  reader mode and Library Read `( Aa ) ( ▶ Listen ) … ( 🔖 ) ( ⋯ )` floating at the top of the page; on Listen
+  `( Aa ) … ( 🔖 ) ( ⋯ )` at the sheet's top corners, the grabber between them. VoiceOver reads them as they sit:
+  Aa, ▶ Listen, 🔖, ⋯. ⋯ (`readerMore`; Listen's `listenMore`) is a glass circle at the trailing
   edge, where every other screen has its ⋯ (the Library's and Settings' title line, a folder's toolbar), the screen's menu as a system menu: in the Browser what a press and hold on the field's reader icon opens,
   in Library Read the Library's screen menu (what the Library's title line ⋯ has), in Listen *Play from a
   Paragraph* then the page's rows at `nowPlaying`. Aa (`readerAppearance`, VoiceOver *Text Appearance*) is a glass
   circle at the leading end that opens the text appearance panel, a popover pointing at it, Aa lit while it is open.
-  **▶ Listen** (`inPlaceListen`), the page's primary action, is an accent-filled capsule just before ⋯ (tinted
+  **🔖** (`readerSave`; Listen's `nowPlayingBookmark`) is Save on the same glass circle as Aa and ⋯, just before ⋯
+  (`SaveToggleButton`, chrome face): a tap saves the page or removes it, held it opens *Save to Folder…*, and while
+  the page is saved its filled symbol is in the accent. It is the page's one save (`ArticleActions`, the save path
+  its menu's *Save to Library* takes): the Browser's reader mode extracts and saves the page; Library Read's page is
+  saved, so it shows filled and a tap removes it from the Library (*Remove from Library*: its audio and spot stay; if
+  you hear it, playback stops). It dims where it can't apply: a page with no text to save, Listen with no article
+  text. **▶ Listen** (`inPlaceListen`), the page's primary action, is an accent-filled capsule just after Aa (tinted
   glass; the accent on the material skin), the chrome's glyph and its worded pieces' type (`row`, semibold, at most
   XXXL), `Spacing.m` each side: it plays the page from its saved spot and slides Listen up. It never goes while
   the page has text: once the page is what you hear (bound, playing or paused) the same capsule in the same place
   shows the live state, the playing bars and *Listen* while it plays, ▶ and *Listen* while paused, and its tap only
   slides Listen up, never restarting or moving playback (VoiceOver *Open Listen*). It is not drawn while the page
-  has no text to read, so in place the row is `( Aa ) … ( Listen ) ( ⋯ )`. Sizes: every piece 44 pt (`Control.chrome`, the bottom chrome's pieces: its circles are Listen's), as tall
+  has no text to read, so in place the row is `( Aa ) ( Listen ) … ( 🔖 ) ( ⋯ )`. Sizes: every piece 44 pt (`Control.chrome`, the bottom chrome's pieces: its circles are Listen's), as tall
   as a folder screen's system toolbar buttons, 8 pt between Aa
-  and ▶ Listen, `Spacing.topBarMargin` (16) from the screen's edges in place and `Spacing.bandMargin` (12) from the sheet's in Listen, `Spacing.xs` below the row. It is the
+  and ▶ Listen and between 🔖 and ⋯, `Spacing.topBarMargin` (16) from the screen's edges in place and `Spacing.bandMargin` (12) from the sheet's in Listen, `Spacing.xs` below the row. It is the
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
   sits on the safe area's top and 16 pt in from the screen's edges (`Spacing.topBarMargin`), where a navigation bar's buttons sit (a book's or folder's `‹ … Edit ⋯`), so both rows line up. In Listen it is the sheet's top row, as Voice Memos' is: the grabber
   (36 × 5) 8 pt below the sheet's top edge, centred; Aa and ⋯ with their tops 16 pt below that edge (centres
@@ -249,7 +256,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   untouched. Fixture: `reader-test://pages/popup`, `testAFixedBottomPopupSitsAboveTheChrome`.
 - **Listen slides up over everything** (`NowPlayingScreen`, `ReadingShowing.cover`, a `Sheet` that covers):
   from the bottom, over the chrome, to just under the status bar, the screen behind dimmed above its rounded top, as Apple Music's player. At its
-  top a handle: the top group's row (above), 64 pt tall across the sheet in the page's colour, `( Aa )` and `( ⋯ )` in
+  top a handle: the top group's row (above), 64 pt tall across the sheet in the page's colour, `( Aa )` and `( 🔖 ) ( ⋯ )` in
   its corners and the grabber centred between them, 8 pt below the sheet's top edge; the text starts below it and
   scrolls out of sight under it; there is no close button. The
   article's title is the first thing in its text, right below that row. A pull down anywhere on that row (a tap on
@@ -264,13 +271,13 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   groups are set apart by space alone.
 
   ```
-  Title of the article, one line…              (🔖)
+  Title of the article, one line, the card's width…
   example.com                         6 min left
   ━━━━━━━━━━━━━━━━●──────────────────────────────
   Voice    ⏮        (  ▶  )        ⏭          1×
   ```
 
-  Row 1: the title on one line (cut with …), then Save, a round 36 pt button. The title
+  Row 1: the title alone on one line, the card's full width (cut with …); Save is the top group's 🔖. The title
   opens the article's own place in the Library or its page, and never seeks; only the track does.
   Row 2, one text step smaller: the site at the left (it truncates) and the time left at the right; the
   page's status note (preparing, voice and language notes) or "Finished" alone in its place. Then the
@@ -308,7 +315,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   Appearance setting says, the footer, full screen, *Play from Here* on a
   selection, and it opens at the page's saved listening spot, underlined. The reader's theme runs up
   under the status bar. Under the title the source line reads "site  length" (a long site gives way
-  first, an ellipsis). Over the top of the page floats the top group, `( Aa ) … ( ▶ Listen ) ( ⋯ )` (above):
+  first, an ellipsis). Over the top of the page floats the top group, `( Aa ) ( ▶ Listen ) … ( 🔖 ) ( ⋯ )` (above):
   the title starts below it, and in Pages the card (the overview) is centred between it and the chrome. ▶ Listen
   plays the page from its saved spot and slides Listen up; once this page is what you hear it shows the playing
   bars or ▶ and only slides Listen up. It is not drawn while the page has no text to read. The
