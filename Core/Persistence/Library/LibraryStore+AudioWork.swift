@@ -20,6 +20,7 @@ enum LibraryAudioWorkError: Error {
     case notDeleted(UUID)
     case notEphemeral(UUID)
     case notSaved(UUID)
+    case voiceNotSettled(UUID)
 }
 
 /// What a run of the stored audio work did: how many records it retired, and the audio the
@@ -70,10 +71,11 @@ extension LibraryStore {
     /// go; audio that earlier work still needs (a merge from this page, a layout pass on it) is
     /// never deleted first, and while that work waits the page stays held with it. `.ephemeral`
     /// (the page left the Library: *Remove from Library*) and `.saved` (the page was
-    /// saved): its audio settles as the page is when the work runs (`settleAudio`). Align and
-    /// merge carry paragraphs: `planAlign`, `planMerge`.
+    /// saved): its audio settles as the page is when the work runs (`settleAudio`). `.voice` (its
+    /// voice changed): its audio settles into the voice it has when the work runs
+    /// (`settleVoice`). Align and merge carry paragraphs: `planAlign`, `planMerge`.
     func plan(_ kind: LibraryAudioWorkKind, key: UUID) {
-        assert(kind == .delete || kind == .ephemeral || kind == .saved, "\(kind) carries paragraphs")
+        assert(kind != .align && kind != .merge, "\(kind) carries paragraphs")
         let work = LibraryAudioWork(sequence: nextAudioWorkSequence(), kind: kind, key: key,
                                     paragraphs: [], sourceParagraphs: [])
         context.insert(work)
@@ -136,7 +138,11 @@ extension LibraryStore {
     @discardableResult
     private func performStoredWork(planned: Set<ObjectIdentifier>) -> LibraryAudioWorkOutcome {
         var outcome = LibraryAudioWorkOutcome()
-        defer { audio.audioCache.held = outcome.held }
+        let heldBefore = audio.audioCache.held
+        defer {
+            audio.audioCache.held = outcome.held
+            if outcome.held != heldBefore { audio.heldAudioChanged() }
+        }
         let rows: [LibraryAudioWork]
         do {
             rows = try fetchAudioWork(context)
@@ -193,6 +199,7 @@ extension LibraryStore {
         case .merge: try merge(work, live: live, sourceNamedLater: work.fromKey.map(namedLater) ?? false)
         case .delete: try deleteAudio(work)
         case .ephemeral, .saved: try settle(work)
+        case .voice: try settleVoice(work)
         case nil: log("audio work: unknown kind \(work.kindRaw), dropped")
         }
     }
@@ -264,7 +271,7 @@ extension LibraryStore {
         }
         let cache = audio.audioCache
         guard let keeper = try context.fetch(LibraryQueries.article(key: to)).first else {
-            if cache.hasDirectory(for: from) { cache.markEphemeral(cacheKey: from) }
+            if cache.hasDirectory(for: from) { try cache.markEphemeral(cacheKey: from) }
             audio.removeBakeJob(cacheKey: from)
             log("audio \(Self.short(from)): the page it merged into is gone; left to the age prune")
             ListenTimingLog.log("library_audio_work", ["kind": "merge", "key": ListenTimingLog.shortKey(to),
@@ -278,9 +285,10 @@ extension LibraryStore {
         if work.stampsSource { try cache.stampMissingHashes(articleID: from, paragraphs: work.sourceParagraphs) }
         var rec = ArticleAudioCache.ReconcileResult()
         if paragraphs.isEmpty {
-            try cache.rekeyCache(from: from, to: to)
+            try cache.rekeyCache(from: from, to: to, voice: audio.selectedCacheVoice(of: to))
         } else {
-            rec = try cache.reconcile(articleID: to, paragraphs: paragraphs, adopting: from) {
+            rec = try cache.reconcile(articleID: to, paragraphs: paragraphs, adopting: from,
+                                      voice: audio.selectedCacheVoice(of: to)) {
                 self.audio.chunkPlans.chunks(for: $1, engineID: $0)
             }
         }
@@ -297,7 +305,7 @@ extension LibraryStore {
         log("audio \(Self.short(from)) merged into \(Self.short(to)): adopted \(rec.adopted)")
     }
 
-    /// The deleted page's audio directory, pending render and queued renders go. When a page with
+    /// The deleted page's audio directory, its old voices, pending render and queued renders go. When a page with
     /// its key exists again (a later change brought it back while this waited), the audio is that
     /// page's now: kept, and saved or ephemeral as that page is (`settleAudio`).
     private func deleteAudio(_ work: LibraryAudioWork) throws {
@@ -309,7 +317,10 @@ extension LibraryStore {
             return
         }
         try audio.clearListenAudio(for: key)
-        guard !audio.audioCache.hasDirectory(for: key) else { throw LibraryAudioWorkError.notDeleted(key) }
+        try audio.audioCache.deleteOldVoices(of: key)
+        guard !audio.audioCache.hasDirectory(for: key), audio.audioCache.oldVoices(of: key).isEmpty else {
+            throw LibraryAudioWorkError.notDeleted(key)
+        }
         ListenTimingLog.log("library_audio_work", ["kind": "delete", "key": ListenTimingLog.shortKey(key)])
         log("audio \(Self.short(key)) deleted with its page")
     }
@@ -325,6 +336,32 @@ extension LibraryStore {
         ListenTimingLog.log("library_audio_work", ["kind": work.kindRaw, "key": ListenTimingLog.shortKey(key)])
     }
 
+    /// The page's audio settles into the voice it speaks in when this runs, saved or ephemeral as
+    /// the page is (`ArticleAudioCache.settleVoice`), aligned with the paragraphs it holds then
+    /// (as stored, whatever their layout version: a layout pass after this aligns them as it
+    /// aligns any audio). Skipped when no page holds the key: the work recorded after this, or the
+    /// age prune, decides its audio.
+    private func settleVoice(_ work: LibraryAudioWork) throws {
+        guard let key = work.key else { return }
+        guard let article = try context.fetch(LibraryQueries.article(key: key)).first else {
+            log("audio \(Self.short(key)): no page holds it since its voice changed; skipped")
+            ListenTimingLog.log("library_audio_work", ["kind": "voice", "key": ListenTimingLog.shortKey(key), "skipped": "no page"])
+            return
+        }
+        let cache = audio.audioCache
+        let voice = audio.selectedCacheVoice(of: key)
+        let kind: ArticleAudioCache.CacheMeta.Kind = article.isSavedToLibrary ? .saved : .ephemeral
+        let paragraphs = Article.decodeAnyListenParagraphs(article.listenBlocksData) ?? []
+        try cache.settleVoice(key, in: voice, paragraphs: paragraphs, kind: kind) {
+            self.audio.chunkPlans.chunks(for: $1, engineID: $0)
+        }
+        guard cache.isVoiceSettled(key, in: voice, kind: kind) else { throw LibraryAudioWorkError.voiceNotSettled(key) }
+        ListenTimingLog.log("library_audio_work", ["kind": "voice", "key": ListenTimingLog.shortKey(key),
+                                                   "voice": voice?.voiceID ?? "-",
+                                                   "old_voices": cache.oldVoices(of: key).count])
+        log("audio \(Self.short(key)) in its voice \(voice?.voiceID ?? "-")")
+    }
+
     /// `key`'s audio as the page holding the key is now, not as it was when the work was
     /// planned: a key can belong to a later page by the time the work runs (saved, deleted, then
     /// played again without saving), and its renders are that page's. Saved audio for a page
@@ -333,13 +370,13 @@ extension LibraryStore {
     private func settleAudio(_ key: UUID, article: Article?) throws {
         let cache = audio.audioCache
         if article?.isSavedToLibrary == true {
-            audio.markListenCacheSaved(key)
+            try audio.markListenCacheSaved(key)
             guard !cache.hasDirectory(for: key) || cache.loadMeta(for: key)?.kind == .saved else {
                 throw LibraryAudioWorkError.notSaved(key)
             }
             log("audio \(Self.short(key)) saved with its page")
         } else {
-            audio.markListenCacheEphemeral(key, canonicalURL: article?.canonicalURL)
+            try audio.markListenCacheEphemeral(key, canonicalURL: article?.canonicalURL)
             guard cache.loadMeta(for: key)?.kind == .ephemeral else { throw LibraryAudioWorkError.notEphemeral(key) }
             log("audio \(Self.short(key)) on the ephemeral TTL (\(article == nil ? "no page" : "not saved in the Library"))")
         }
@@ -427,7 +464,7 @@ extension LibraryStore {
             guard !to.isEmpty else { return 0 }
             return ParagraphPositionMap.mapParagraphStart(paragraph, from: ParagraphDocument(parts: from),
                                                           to: ParagraphDocument(parts: to))
-        case .merge, .delete, .ephemeral, .saved, nil:
+        case .merge, .delete, .ephemeral, .saved, .voice, nil:
             guard !to.isEmpty else { return paragraph }
             if from != to, from.indices.contains(paragraph) {
                 let hash = ArticleIdentity.paragraphHash(from[paragraph])

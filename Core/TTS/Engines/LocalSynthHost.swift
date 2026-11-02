@@ -18,27 +18,22 @@ enum LocalSynthError: LocalizedError {
     case inputTooLong(String)
     case emptyText
     case engineUnavailable(String)
-    /// The app is in the background and the active host can't render there (Core ML: GPU
-    /// forbidden, CPU paths hit the libBNNS crash on iOS 26.4+). Callers fall back to Apple TTS or
-    /// defer. Hosts with `rendersInBackground` (ONNX CPU) never see this.
-    case deferredInBackground
 
     var errorDescription: String? {
         switch self {
         case .inputTooLong(let detail): return detail
-        case .emptyText: return "Nothing to synthesize."
+        case .emptyText: return "Nothing to read aloud."
         case .engineUnavailable(let detail): return detail
-        case .deferredInBackground: return "On-device voice paused while Meridian Reader is in the background."
         }
     }
 }
 
-/// How soon a synth call's audio is needed. Hosts that run on the CPU map it onto the QoS of
-/// their compute queue.
-enum RenderPriority: Sendable {
-    /// Someone is listening to the article: they wait on this chunk or will play it shortly.
+/// How soon a synth call's audio is needed (the render policy sets it from the unit's demand).
+/// Hosts map it onto the QoS of their compute queue.
+enum RenderPriority: Sendable, Equatable {
+    /// The player waits on this chunk.
     case listener
-    /// Rendering ahead (e.g. a saved article) — nobody waits; may run slower and cooler.
+    /// Nobody waits on it (rendering ahead, a prepare, a preload): it may run slower and cooler.
     case bakeAhead
 
     var qos: DispatchQoS.QoSClass { self == .listener ? .userInitiated : .utility }
@@ -46,9 +41,10 @@ enum RenderPriority: Sendable {
 }
 
 /// One on-device synth backend behind `LocalSynthService` (built by a
-/// `SpeechEngineProvider`). Hosts are thin: load models, run ONE call, map overflow errors to
-/// `LocalSynthError.inputTooLong`. Chunking, re-split, the render gate, crash guard, timing log
-/// and CAF writing are shared (`LocalChunkRenderer`). Exactly one host is alive at a time.
+/// `SpeechEngineProvider`). Hosts are thin: load models, run ONE call at the thread count it is
+/// handed, map overflow errors to `LocalSynthError.inputTooLong`. They read no app phase. Chunking,
+/// re-split, the render gate, crash guard, timing log and CAF writing are shared
+/// (`LocalChunkRenderer`). One host per lane is alive at a time (`LocalSynthService`).
 protocol LocalSynthHost: AnyObject, Sendable {
     var engineID: SpeechEngineID { get }
     /// Compute routing actually used (for logs / probe), nil if not applicable.
@@ -57,20 +53,21 @@ protocol LocalSynthHost: AnyObject, Sendable {
     var onProgress: (@Sendable (Double) -> Void)? { get set }
     var isPrepared: Bool { get }
     /// Download (if needed) and load models. Single-flight (`SingleFlightLoad`); cancelling the
-    /// caller cancels the load. Implementations must hold `SynthRenderGate.shared` while loading
-    /// Core ML models.
+    /// caller cancels the load. Implementations must hold their lane's gate (`SynthRenderGate.of`)
+    /// while loading Core ML models.
     func prepare() async throws
-    /// ONE model call for already-sized text. The caller holds the render gate.
-    func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM
+    /// ONE model call for already-sized text. The caller holds the render gate. `threads`: how
+    /// many threads the call may use, for a route that takes a count (nil otherwise).
+    func synthesizeOnce(text: String, priority: RenderPriority, threads: Int?) async throws -> SynthesizedPCM
     /// Switch voice (no-op for single-voice engines).
     func setVoice(_ voice: String)
+    /// Make sure `voice`'s own files are on the device before a call in it: download them when
+    /// missing (a voice removed since the host loaded). Called outside the crash guard.
+    func prepareVoice(_ voice: String) async throws
     /// Release the models for good, once a load in flight has stopped (it can't set them again).
     /// An unloaded host isn't used again: `LocalSynthService` builds a new one.
     func unload() async
-    /// May this host start a model call while the app is in the background? Only hosts that
-    /// never touch Core ML/GPU (Kokoro's ONNX CPU route) say yes. Default: no.
-    var rendersInBackground: Bool { get }
-    /// Short route tag for crash markers / logs ("onnx", "coreml"; nil = n/a).
+    /// Short route tag for crash markers / logs (Kokoro's "onnx"; nil = n/a).
     var routeTag: String? { get }
     /// Trim each chunk's leading/trailing silence to boundary-sized pauses (`ChunkEdgeTrim`).
     var trimsEdgeSilence: Bool { get }
@@ -80,9 +77,9 @@ protocol LocalSynthHost: AnyObject, Sendable {
 }
 
 extension LocalSynthHost {
-    var rendersInBackground: Bool { false }
     var routeTag: String? { nil }
     var trimsEdgeSilence: Bool { false }
+    func prepareVoice(_ voice: String) async throws {}
     func spokenText(forChunk text: String) -> String { text }
 }
 

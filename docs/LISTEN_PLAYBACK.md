@@ -1,21 +1,21 @@
 # Listen playback
 
-How Meridian Reader speaks an article: Apple TTS, or Kokoro on the device (engines: `TTS_ENGINES.md`).
+How Meridian Reader speaks an article: Phonon or Kokoro on the device (engines: `TTS_ENGINES.md`).
 One ownership story, so Play continues, Pause matches what you hear, and rendering ahead makes
 starts fast.
 
 ## Model
 
 ```
-UI ──intent──► SpeechController ──command──► bound ListenEngine
-                │ PlaybackSessionState ▲          ├─ AppleListenEngine (AVSpeechSynthesizer)
-                │ (document, position, │          └─ LocalListenEngine → LocalListenPlayer
-                │  phase, resume point)│                                   └─ ListenUnitSource (per play)
-                └──────────────────────┴── engine events                     ├─ ArticleAudioCache (rendered paragraphs)
-                                           (PlaybackEngineEvent)             └─ GlobalSynthQueue → LocalSynthService (model)
+UI ──intent──► SpeechController ──command──► bound LocalListenEngine → LocalListenPlayer
+                │ PlaybackSessionState ▲                                  └─ ListenUnitSource (per play)
+                │ (document, position, │                                      ├─ ArticleAudioCache (rendered paragraphs)
+                │  phase, resume point)│                                      └─ GlobalSynthQueue → LocalSynthService (model)
+                └──────────────────────┴── engine events (PlaybackEngineEvent)
 
 Render queue: GlobalSynthQueue renders chunks ahead of the playhead (and bakes saved articles)
-into ArticleAudioCache, admitted by RenderAdmission.
+into ArticleAudioCache, as the render policy plans: one model call at a time on the CPU
+(SingleCallPolicy), or, in a Debug launch with -renderPolicy lanes, one call per lane (LanePolicy).
 ```
 
 ### Playback session (the one source of truth)
@@ -30,7 +30,7 @@ into ArticleAudioCache, admitted by RenderAdmission.
 | `playhead` + `utf16Offset` | The position: paragraph and document UTF-16 offset of the spot being spoken |
 | `phase` | `idle → prepared → playing ↔ paused → finished` |
 
-The scrubber, the paragraph highlight, Now Playing and crash resume all read the position from
+The scrubber, the paragraph highlight, Listen and crash resume all read the position from
 here, and every change is published synchronously. `resumePoint` (article + paragraph while
 playing, with the text fingerprint; nil otherwise) is what crash resume reopens; the controller
 writes it to `ListenResumePointStore` whenever it changes.
@@ -40,7 +40,8 @@ Phase and position change only through:
 - **intents** from the UI and remote commands: `play`, `pause`, `resume`, `toggle`, `stop`,
   `skip`, `seekOffset`;
 - **engine events**: `becameAudible`, `becamePaused`, `position(paragraph, utf16)`, `finished`
-  (`statusChanged` only tells the controller to re-read the listen-bar status);
+  (`statusChanged` only tells the controller to re-read the listen-bar status; `stalled` follows a
+  pause the engine made itself, and the controller says why: "One voice, never swapped");
 - **advancing** inside a folder (`PlaybackSessionState.advance`, "Books, series and folders"
   below): the next chapter replaces the article in place.
 
@@ -59,8 +60,8 @@ Rules:
   library changing the article under it: removed from the Library (once that is saved), deleted,
   its text revised by a *Replace*, or moved by a merge onto an article holding other text
   (`LibraryStore.stopPlaybackIfPlaying`, `rekeyActiveSession` → `SpeechController.stopIfPlaying`,
-  which ends the session as Stop Listening does but renders nothing more for the article: no gap
-  fill, and its queued render goes).
+  which ends the session as Stop Listening does but renders nothing more for the article: its
+  queued render goes).
 - On a finished article, `resume`, `toggle` and `play` from the playhead play it again from its top
   (paragraph 0, offset 0), whatever spot the voice finished at: the on-screen ▶, headphones, the
   lock screen and CarPlay all replay it, and the lock screen shows it again.
@@ -78,12 +79,12 @@ Rules:
   the title, else the source, else the address; what the bar and the lock screen name it by), byline (the lock screen's subtitle), artwork, where it plays from
   (`PlayingFrom.folder(id:name:)` for an article in a folder, else `.site(host:)`), whether it is a chapter (an article of a
   book or series) and phase. nil only before anything has played and after Stop
-  Listening or the article's removal or delete. `isFinished` (phase `.finished`) is what the bar and Now Playing read for "◉ Finished".
+  Listening or the article's removal or delete. `isFinished` (phase `.finished`) is what the bar and Listen read for "◉ Finished".
 - **Time left** is `ListeningTime`'s: one reading rate (180 words a minute, a word being 6 UTF-16
   units of the listen text; an article not yet played by its stored word count), one way to write it
   ("9 min left", "6 h 10 min left"), and an explicit playback rate at every call. Every surface
   passes the current speed (`SpeechController.rateMultiplier`): rows, folder headers, the resume
-  bar, the Reader's length and Listen, the bar and Now Playing all count at the speed you hear,
+  bar, the Reader's length and Listen, the bar and Listen all count at the speed you hear,
   lengths and time left alike, and follow a speed change at once.
 - **`playState(of:)`** for a `ListenTarget` (`.article(key)`, `.webPage(canonicalURL:)`, compared
   as strings so a saved article with a pre-v2 random id still matches its article, or `.folder(id)`,
@@ -105,28 +106,22 @@ Rules:
   starts it at its top. A library article starts at `Article.listenStart`: its saved spot, or its top
   once it is finished; the Reader's Listen label, its underlined sentence, a row's ▶ and 🎧 all use
   it. Continue on a folder starts at `LibraryStore.continueStart`'s spot.
-- Now Playing's reading content isn't the controller's: Now Playing looks the playing article up by
+- Listen's reading content isn't the controller's: Listen looks the playing article up by
   its key when it changes (`LibraryStore.nowPlayingContent(for:)`). The library has every article
   that has played (an article played without saving, or removed from the Library, is kept while it is in the last 50 of Recent (C134)
   after its last play), so it is there after a relaunch too. When nothing is bound any more
-  (the article you heard removed or deleted) Now Playing closes itself.
+  (the article you heard removed or deleted) Listen closes itself.
 
-### Engine adapters (`ListenEngine`)
+### The engine adapter (`LocalListenEngine`)
 
-`SpeechController.speak` binds one adapter per utterance. An adapter takes
+`SpeechController.speak` binds one `LocalListenEngine` per play, in the article's voice. It takes
 `play(ListenPlayRequest)`, `pause`, `resume`, `stop` and `setRate`, reports `PlaybackEngineEvent`s
 through `onEvent`, and answers `snapshot` (audible / paused). The controller drops events from an
-engine that isn't bound (a cancelled utterance, a cleared player). Speed is a setting every
-adapter keeps, bound or not, and always one of `ListenRate.options` (0.75× to 2×): the setter, the
-lock screen's speed command and a stored value from an older build all snap to the nearest one,
-so the players, the Apple voice and the lock screen agree. Adapters report facts; they own no bake policy and no UI phase.
+engine that isn't bound (a cancelled play, a cleared player). Speed is a setting the engine
+keeps, bound or not, and always one of `ListenRate.options` (0.75× to 2×): the setter, the lock
+screen's speed command and a stored value from an older build all snap to the nearest one, so the
+player and the lock screen agree. The engine reports facts; it owns no bake policy and no UI phase.
 
-- **`AppleListenEngine`**: one `AVSpeechUtterance` holding the rest of the article from the
-  start offset; `pauseSpeaking(at: .word)` / `continueSpeaking`. The delegate reports
-  `becameAudible`, `becamePaused`, `position` (the word about to be spoken) and `finished` (the
-  live utterance's `didFinish`). Callbacks from a stopped or replaced utterance are dropped. A
-  speed change re-speaks from the word being spoken. A paused `play` holds nothing; Resume plays
-  from the playhead.
 - **`LocalListenEngine`** drives `LocalListenPlayer` (file player + producer; plays rendered
   CAF units only). Each play binds one `ListenUnitSource` (`QueueUnitSource`: the article's
   paragraphs in one voice, over the audio cache and the render queue); the player never touches
@@ -145,47 +140,59 @@ so the players, the Apple voice and the lock screen agree. Adapters report facts
   still reports its paragraph, and the player running dry (or a play or resume waiting for audio)
   holds `ReaderListenGap` until a unit starts, it pauses or stops. Back in front the clock starts
   again and catches up. Speed is a pitch-preserving time-stretch on the
-  player (`AVAudioPlayer.enableRate` / `rate`; everything is rendered at 1×). If the host fails
-  to load it calls `LocalSynthService.noteSpeakFailed`, and engine binding re-speaks the spot with
-  Apple.
+  player (`AVAudioPlayer.enableRate` / `rate`; everything is rendered at 1×). If the engine fails
+  to load, the render queue fails the chunk the player waits for, and it pauses at the spot
+  (`stalled`, `.engineStopped`).
 
 ### Engine binding
 
-- `LocalSynthService` (`LocalTTSCoordinator.synth`) holds the on-device model: the one resident
-  host behind `LocalChunkRenderer`, the Apple renderer for text the engine can't produce
-  (`AppleFallbackRenderer`: a synthesizer per render, so the render queue's fallback and the
-  player's never wait on each other and none outlives a media-services reset; a synthesizer that
-  sends nothing for 10 s is stopped and the render fails like any other), and the
-  lifecycle `state` (`LocalEngineState`). A reload, an engine switch, a voice pack's swipe *Remove Download*, Settings'
-  cancel or a failed start lets the host go: its load in flight stops, its models are released and
-  the model call in flight on it finishes, and only then does the next host load, so two hosts'
-  models (two ORT sessions, ≈1 GB) are never resident together. The states: `off` (Apple speaks), `warming(id, progress, task)`
-  (prepare / load in flight; `task` is the single load, cancelling it abandons the load),
-  `ready(id)`, `failed(id, message)` (Apple speaks; Settings shows the message). On every change
-  the coordinator persists `reader.tts.engineID`, calls `onEngineChange` and tells the render
-  queue what renders now (`renderTarget`, Render queue).
-- `speak` picks the engine once from the article's selection (C138a, `ListenRoute`: `.apple(voice)`
-  for an article in an Apple voice, `.local(VoiceSelection)` for one in an on-device voice, and
-  `.appleStandIn`, D9's explicit unsaved exception) and binds it. Pause, resume, the play icon,
-  "Preparing next…" and stop go to the bound engine until stop or the next `speak`. An on-device
-  engine that isn't loaded loads for the article (`loadEngineIfNeeded`; one is loaded at a time);
-  the player waits for it (`awaitEngine`) and fills any gap with temporary Apple audio (C129).
-- Nothing moves a live utterance to another engine or voice: engine state changes don't
-  re-route (`EngineHandover` is gone). Changing an article's voice stops its playback
-  (`ArticleVoiceChange`).
-- Views only call `setDefaultSelection` (Settings), `ArticleVoiceChange.apply` (an article's or a
-  book's picker), `deleteModel` or `synth.cancelDownload`; they never restart playback themselves.
+- `LocalSynthService` (`LocalTTSCoordinator.synth`) holds the on-device models: one resident
+  host per lane behind `LocalChunkRenderer`, each with its lifecycle `state` (`LocalEngineState`;
+  Settings reads an engine's across lanes, `state(of:)`). Only the render queue's worker loads a
+  host (`makeResident`, Render queue → "Loads"); a render never loads one and runs only on the
+  resident host of its own engine on its route's lane. An engine switch on a lane, a dropped host
+  (Retry, a thread setting, a media services reset, removing a voice in Settings › Voice),
+  or a failed load lets that lane's host go: its load in flight stops, its models
+  are released and the model call in flight on it finishes, and every load waits until each host
+  let go has released its models, so a load that replaces one never holds both (two ORT sessions,
+  ≈1 GB). Different lanes keep their hosts together: two models are resident at once only under
+  `LanePolicy`, which checks the memory first ("The render policy"). The states: `off`
+  (nothing loaded), `warming(id, progress, task)` (prepare / load in flight; `task` is the single
+  load, cancelling it abandons the load), `ready(id)`, `failed(id, message)` (Settings shows the
+  message; a play waiting on it pauses). On every change the coordinator calls
+  `onRenderStateChange`.
+- `speak` takes the article's selection once (C138a, `LocalTTSCoordinator.selection(for:)`) and
+  binds a `LocalListenEngine` in it. Pause, resume, the play icon, "Preparing next…" and stop go
+  to the bound engine until stop or the next `speak`. Binding loads nothing: the first chunk the
+  player asks for is the render queue's demand, and its worker loads the article's engine for it
+  first. Audio already rendered in the article's voice plays without the model: the player looks
+  the cache up by the article's selection, loaded or not (`QueueUnitSource`), and starts at once
+  when the start is rendered.
+- Nothing moves a live play to another engine or voice: engine state changes don't re-route.
+  Changing an article's voice stops its playback (`ArticleVoiceChange`).
+- Views only call `chooseDefault` (Settings), `ArticleVoiceChange.apply` (an article's or a
+  book's picker), `SpeechController.voiceRemoval` / `removeVoice` (Settings: the decision a
+  removal's question is made from, then the one command that revalidates it, stops listening when
+  it must and removes the files) and `VoiceDownloads` (a voice's files: download, stop); they never
+  stop or restart playback or load an engine themselves.
 
 ### UI binding
 
 Views bind to `phase` and the position (and the paragraph highlight derived from them), never a
 second "is playing" flag. The live offset is read only in small leaf views (`PlayheadReader`, the
-Now Playing bar's progress, Now Playing's sentence underline), so a tick redraws only those. The
-Reader never scrolls by itself once open (it opens at a saved spot's sentence); Now Playing
+Now Playing bar's progress, Listen's sentence underline), so a tick redraws only those. The
+Reader never scrolls by itself once open (it opens at a saved spot's sentence); Listen
 follows the spoken sentence until you scroll (`NAVIGATION.md`).
 
 While the phase is playing but nothing is audible and more units remain (`isBufferingNext`), the
-listen bar shows a spinner and "Preparing next…". That is not paused.
+listen bar shows a spinner and "Preparing next…". That is not paused. When that wait is the model
+loading for a play with nothing queued yet (`isPreparingVoice`: the article's engine isn't the
+loaded one, `ListenUnitSource.waitsForVoice`), its play buttons show `PlayState.preparingVoice` (a spinner;
+VoiceOver "Preparing the voice") and Listen's status line and the Now Playing bar say "Preparing
+the voice". It starts by itself once the model is loaded. Pause holds it (it starts paused), another
+play replaces it, and a load that fails pauses it with "<voice library> stopped." and Retry
+(the render queue fails the chunk it waits for). Extracting or
+fetching a page stays `.preparing`, and playback of rendered audio never shows it.
 
 The listening position is saved from the session, whatever is on screen, by
 `ListeningProgressRecorder` (built at the composition root, over `LibraryStore`):
@@ -222,7 +229,7 @@ too: a rollback writes it again only on an article holding the text it was made 
 other text on the article starts it over. A session moves to another key only onto an article holding
 its text: a merge whose kept page holds other text when it runs, or a Save landing on an older
 article while the session plays older text, stops it instead (`rekeyActiveSession`, through
-`stopIfPlaying`: no gap fill renders under the key left behind, which no article holds).
+`stopIfPlaying`: nothing renders under the key left behind, which no article holds).
 
 Crash resume runs only after a death the engine caused (`TTS_ENGINES.md` → "Crashes"): a
 terminated process clears its in-flight marker, and a marker the process outlived, or one left by
@@ -232,9 +239,11 @@ session's text fingerprint, and the layout pass and merges that move it map the 
 the text they move it to and give it that text's fingerprint (a point in other text than the article
 they move keeps its paragraph and text). At launch (`AppLaunch.resumeAfterCrash`) the paragraph is
 applied only on an article holding that text: then the article plays again there (a crash under 20
-minutes ago while playing) or opens paused there, as before. On an article holding other text by then
+minutes ago while playing, when the engine's recovery resumes) or opens paused there. A recovery
+that pauses for Retry (Phonon's always, Kokoro's after a second crash) opens it paused and says
+"<voice library> stopped." with *Retry*. On an article holding other text by then
 (refreshed on open while an older session played on, another chapter brought back under its key)
-the article opens in Now Playing paused at its own stored spot, paragraph and offset, and keeps it;
+the article opens in Listen paused at its own stored spot, paragraph and offset, and keeps it;
 nothing plays until ▶. A target that names no text (the crash marker's, used when nothing was
 playing, or a resume file an older build wrote) counts only when it is the article's own stored
 paragraph, which the recorder writes on every paragraph; otherwise it opens the article paused at its
@@ -243,20 +252,21 @@ own spot the same way. The position is then the recorder's to store, from the se
 ### Books, series and folders
 
 An article in a folder carries on through it, article to article, then stops; an article in no folder plays to
-its end and stops. Every folder (a book, a series, Favorites, a folder you made) plays in its
+its end and stops. Every folder (a book, a series, a folder you made) plays in its
 sort, which is the order its screen shows (decisions D15, D19); a book's starts as the book's
 order.
 `SpeechSession.folder` (`PlaybackFolder`: id, name, whether it is a book or series) says which
 folder an article is in: a library article's session fills it (`SpeechSession.article`), and `listen(to:)`
 asks the library for an article started from an article (the Reader's Listen, 🎧). A book's name is
-the bar's source; any other folder's pages keep their site there, and Now Playing's "Playing
+the bar's source; any other folder's pages keep their site there, and Listen's "Playing
 from" names the folder either way. The rule is `ChapterAdvance`, pure, on a snapshot of the
 folder's pages in their full play order (`LibraryStore.chapterSnapshot`, skipped ones included
 and flagged): after an article, the next one that isn't skipped: an article with text plays; a followed
 story's chapter still waiting for its text (a link, `Article.isWaitingChapter`) ends playback there,
 so a story is never heard out of order (Follow fetches the chapter after the article playing ahead
 of the others, `FollowCenter`, and ▶ on a waiting chapter fetches it, then plays it). A link article
-anywhere else (a favorite) is skipped. Continue on a folder (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
+anywhere else (a saved address, *Add a Link…*'s) is skipped in a folder's carry-on; ▶ on it fetches
+its text through the same `FollowCenter.play`, then plays it. Continue on a folder (`ChapterAdvance.start`, `LibraryStore.continueStart`) starts at its
 place (the article that last played, which the recorder keeps), at the saved spot while
 unfinished, else at the next page; with no place yet, at the first page's own saved spot; a
 finished folder starts again from its first article. Catch-up baking at the end of an article, and the
@@ -281,14 +291,10 @@ Headphone and lock-screen skips stay paragraph skips (D4).
 **Rendering across the boundary.** Once the chapter's rendering has reached two paragraphs before
 its end, the next chapter is staged in the render queue (`GlobalSynthQueue.stageNext`, "Render
 queue"), so its opening is on disk when it starts; not when its audio is held for unfinished
-library work (`ArticleAudioCache.held`), which a render would overwrite. On a host that can't render in
-the background, no model call starts there, so a chapter not rendered in full (a paragraph with
-words still needs audio, "Audio cache") plays in Apple's
-voice until the app is in front again, when the on-device engine takes over at the next paragraph
-(D9). Kokoro renders in the background on either route (the Core ML route hands over to ONNX) and
-keeps its voice; there the next chapter's opening
-renders in a background burst, once less than 4 min of the chapter playing is ready ahead
-("Rendering in the background"). The catch-up bake at the end of a
+library work (`ArticleAudioCache.held`), which a render would overwrite. Phonon and Kokoro both
+render on the CPU, in the background too, and keep their voice; there the next chapter's opening
+renders as soon as the chapter playing has rendered to its end ("Rendering in the background").
+The catch-up bake at the end of a
 page runs only for pages outside books and series, and finished chapters more than 2 behind the
 book's place lose their audio, keeping their text (D7), except audio held for unfinished library
 work.
@@ -300,24 +306,167 @@ happen; "Diagnostics").
 
 ## Rendering ahead (on-device engine)
 
+### How audio gets made
+
+Audio is rendered before it is heard, one model call at a time, on the CPU, for both engines. A
+Debug launch can choose a second lane instead: Phonon also on the Neural Engine, a call on each
+lane at once (`-renderPolicy lanes`, "The render policy"). Three layers decide what renders next;
+the sections below have the detail.
+
+```mermaid
+flowchart LR
+    subgraph Feeders
+        Open["Open or Play<br/>openArticle"]
+        Book["Book or series<br/>next chapter staged"]
+        Prep["Prepared Audio<br/>PrepareCenter"]
+        Follow["Follow<br/>folder's Prepare toggle"]
+        Launch["Launch<br/>unfinished jobs"]
+        Voice["Voice change"]
+    end
+    Follow --> Prep
+    Open & Book & Prep & Launch & Voice -->|"enqueue(at:)"| Queue
+    subgraph Queue["GlobalSynthQueue"]
+        Jobs["One job per article<br/>its missing paragraphs"]
+        Candidates["Each job's next chunk,<br/>labelled by demand"]
+        Jobs --> Candidates
+    end
+    Candidates -->|RenderSituation| Policy["RenderPolicy<br/>SingleCallPolicy<br/>(LanePolicy: Debug)"]
+    Policy -->|"RenderPlan:<br/>a start or load per free lane"| Worker["Executor<br/>one call or load per lane"]
+    Worker -->|"load if not resident"| Host["Engine host per lane<br/>built for its route"]
+    Worker -->|chunk| Host
+    Host -->|PCM| Worker
+    Worker -->|"publish the paragraph"| Cache[("ArticleAudioCache")]
+    Cache --> Player["LocalListenPlayer"]
+    Player -.->|"waits on a chunk:<br/>listener demand"| Candidates
+    Cache -.->|"paragraph published"| Jobs
+```
+
+One step of the queue with `SingleCallPolicy`, for a Play of an article whose first paragraph has no audio yet:
+
+```mermaid
+sequenceDiagram
+    participant Engine as LocalListenEngine
+    participant Queue as GlobalSynthQueue
+    participant Policy as SingleCallPolicy
+    participant Host as Engine host
+    participant Cache as ArticleAudioCache
+    Engine->>Queue: expectListener(paragraph 0)
+    Engine->>Queue: openArticle: job to the front
+    Queue->>Policy: situation (candidates, lane, holds)
+    Policy-->>Queue: load the route, .userInitiated
+    Queue->>Host: load (first time only)
+    Queue->>Policy: situation
+    Policy-->>Queue: start chunk 0, .userInitiated
+    Queue->>Host: synthesize chunk 0
+    Host-->>Queue: PCM
+    Queue-->>Engine: chunk 0 plays
+    Queue->>Policy: situation
+    Policy-->>Queue: start chunk 1, .utility
+    Note over Queue,Cache: when all chunks of a paragraph exist, it is stitched and published
+    Queue->>Cache: publish paragraph 0
+```
+
+1. **Feeders put articles in the queue.** Each hands its article to `GlobalSynthQueue` through one
+   entry, `enqueue(at:)`, with a placement (front, back, or behind the playing chapter). Nothing
+   above the queue plans across the library:
+   - Opening an article in the Reader or Listen, or playing it (`LocalTTSCoordinator.openArticle`):
+     it goes to the front and renders from the resume point to its end, then the paragraphs above.
+   - A book or series: once the playing chapter has rendered to two paragraphs before its end, the
+     next chapter is staged behind it. Only its first 3 paragraphs render until it starts playing;
+     then it is the playing article and renders whole ("Render queue", item 4).
+   - Prepared Audio (`PrepareCenter`): every page whose text is already in the library goes in at
+     once, at the back. A link page (an address with no text yet) is fetched first, one at a time
+     and only with the app in front, and goes in when its text arrives.
+   - Follow: a new chapter's text lands in its story's folder and renders nothing on its own. With
+     the folder's Prepare toggle on, it joins the folder's prepare; otherwise it renders when played.
+   - An imported book (EPUB or PDF) becomes a folder of chapters and renders nothing until it is
+     opened, played or prepared.
+   - At launch, the unfinished jobs the last run left go back in by themselves once the launch's
+     maintenance is done. A voice change queues its article again.
+2. **The queue holds one job per article.** `TextChunker` cuts each paragraph into chunks of whole
+   sentences sized per engine ("Chunking"); a chunk is one model call. A paragraph has audio once
+   all its chunks are rendered and stitched into one file in the audio cache (publishing it). A job
+   keeps the list of its paragraphs that don't have audio yet, shortened as each one is published.
+3. **The policy picks one chunk per step.** Before every chunk the queue offers each job's next
+   chunk, labelled by demand, most urgent first: a chunk the player is waiting on (it is about to
+   play it and it isn't rendered), the rest of the playing article from its playhead, the staged
+   chapter, then the rest of the queue. `SingleCallPolicy` takes the most urgent; between equals, the
+   one queued first. It also sets the call's priority (`.userInitiated` only when the player waits,
+   `.utility` otherwise) and thread count. The worker loads that engine if it isn't resident,
+   renders, and asks again ("The render policy"). A seek moves the playing job's start to the new
+   paragraph; if that paragraph has no audio the player waits on it, so it renders next, as soon as
+   the call in flight ends. Audio already in the cache plays at once and renders nothing.
+
+On an iPhone 17 Pro Phonon renders about 22× real time on the CPU (21× on the Neural Engine, which
+sounds the same), and continuous rendering in the background ran at 9–13× without iOS ending the
+app. Running both at once roughly halved each one's speed (about 19× together), so the app uses one
+lane. The second lane is built and chosen by a Debug launch only (`LanePolicy`, "The render
+policy"): each lane has its own resident host and runs one call at a time, and the queue asks the
+policy again whenever any call or load ends ("Routes and lanes").
+
+**Switching article or voice.** Playing another article puts it at the front; the jobs already
+queued stay behind it, and at most the call in flight finishes first. Changing an article's voice
+stops its queued work in the old voice at the next step and discards a call in flight in it at
+publish. Its audio in the old voice is kept for 7 days with other unsaved audio, and audio kept
+from an earlier change back to the new voice is its audio again; the queue renders what the new
+voice still lacks. The two voices never mix in one article ("One voice, never swapped", "Audio
+cache"). Only each article's own voice is ever rendered: no other voice is rendered ahead in case
+you switch.
+
+**Cost.** Audio is 24 kHz 16-bit mono PCM, about 2.9 MB a minute: a 10-hour book is about 1.7 GB
+and takes roughly 30–45 minutes of rendering. Prepared audio is kept until it is removed. At
+launch, unsaved pages' audio and audio in a voice its article no longer uses older than 7 days
+go, and the oldest goes first past 2 GB (`ArticleAudioCache.pruneEphemeral`). Audio rendered while listening is also cleared for articles
+outside the last 50 played (Recent); prepared audio is never cleared by it ("Retention and
+Prepared Audio").
+
 ### Render queue
 
-One **`GlobalSynthQueue`** owns all on-device synthesis, live and ahead. A single worker renders
-one **chunk** per iteration, so the playhead can preempt bake-ahead between chunks; two model
-calls never run at once (`SynthRenderGate.shared`). Actions reorder the queue through one
+One **`GlobalSynthQueue`** owns all on-device synthesis, live and ahead. Each lane renders one
+**chunk** at a time (`GlobalSynthQueue+Render.swift`), so the playhead can preempt bake-ahead
+between chunks; two model calls never run at once on one lane (a lane takes work only while free,
+and its gate, `SynthRenderGate.of(lane)`, one per declared lane, is held around every call and
+load), and a paragraph rendering on one lane isn't offered to another, so it is published once.
+A policy names the lanes it plans for (`RenderPolicy.lanes`), and the queue plans only while one of
+them is free. With `SingleCallPolicy` only the CPU lane works: one call at a time, and no plan
+while it runs. Actions reorder the queue through one
 upsert, `enqueue(at:)` with a placement (`.front`, `.back`, `.behind` the playing chapter), and
 `focusPlayhead`; nothing builds its own render loop. The coordinator's one entry for the Reader
 opening an article and for listening starting or jumping is `LocalTTSCoordinator.openArticle`.
 
-**What it renders for.** The coordinator owns one render target
-(`LocalTTSCoordinator.renderTarget`, `RenderTarget`): the loaded on-device engine in its selected
-voice, as the audio cache's engine and voice keys. Jobs and pending jobs carry no voice; every
-readiness check, chunk file and publish reads the target at that step. While no engine is loaded
-(Apple selected, a model loading or failed, every voice pack removed / model cleared, a cancelled download) there is no
-target and nothing renders: the worker parks before its next chunk (the call in flight finishes
-and files nothing), a listener's chunk plays with Apple, and the queue never loads a model itself.
-Once an engine is ready the coordinator restarts it (`GlobalSynthQueue.renderTargetChanged`) and
-the queued jobs, prepared audio and saves included, render in that engine's voice.
+**What it renders for.** Each article renders in its own selection, whatever is loaded
+(`LocalTTSCoordinator.renderTarget(for:)`, `RenderTarget`: the article's engine and voice, as the
+audio cache's engine and voice keys; an article with none takes the Settings default, locked at
+its first render). Jobs and pending jobs carry no voice; every readiness check, chunk file and
+publish reads the target at that step, so a voice change stops queued work in the old voice at
+the next step, and a call in flight in it is discarded at publish. A voice change, or a new
+default, restarts the worker (`GlobalSynthQueue.renderTargetChanged`).
+
+**Loads.** The queue is the only owner of engine loads, one at a time. When the policy's unit's
+route isn't the resident one on its lane, it loads that route (that lane's other host goes first;
+another lane's stays) and picks again; a listener's
+chunk, a Play's first one included, is demand, so its engine loads first, at `.userInitiated`; every other load,
+the playing article's bake-ahead with no chunk waited on included, runs at `.utility`. A load in flight is awaited, never started twice. Nothing else loads: not the launch,
+not an enqueue, not the player. At the end of the launch's hold, with nothing queued, the worker
+preloads the Settings default's engine (`preload`), so the first Play doesn't wait for the load;
+work picked before it cancels the preload. A route that fails to load (or whose load is
+cancelled in Settings) is marked with its error until a listener asks again, Retry, a voice change
+or a dropped host (`failedLoads`); the queue offers it to the policy as a fact
+(`RenderCandidate.failedRoutes`), never as a route to render on, and the policy decides whether
+the work waits or its listeners are told (`RenderPlan.failed`; the queue fails their chunks with
+the load's error, and the player pauses). `SingleCallPolicy`: the engine's work waits and its
+listeners are told. `LanePolicy`: the other lane renders the work, and listeners are told only
+when no lane it may use now has a route left (the CPU's failing in the background). Retry, the Kokoro thread setting (`reloadEngine`) and a media services reset ask
+the queue to drop the engine's hosts on every lane (`dropHost`): a free lane's goes at once, a busy
+lane's once the call or load in flight on it ends, and the next work for the engine loads a fresh
+one (the drop clears its failed-load mark when it is applied, so a load that fails
+in between doesn't park the rebuild). Each load logs `engine_load` (`op` start / ready / failed, `reason` preload / listener /
+work, `qos`, `ms`).
+
+**What's missing.** Each job keeps its list of paragraphs still missing audio
+(`ArticleJob.missing`), worked out by `ArticleAudioCache.missingParagraphs` when the job is queued
+or its text, voice or article's audio changes (`ArticleAudioCache.indexChanges(of:)`), and
+shortened by the queue's own publish; not rescanned per chunk.
 
 1. Open an article → it becomes #1; render from the resume point to the end, then fill gaps
    above it.
@@ -325,18 +474,17 @@ the queued jobs, prepared audio and saves included, render in that engine's voic
 3. Open another article → new #1; the previous one is demoted (its cache is kept).
 4. The next chapter of a book or series is **staged** (`stageNext`) directly behind the job of
    the chapter playing, or at the front once that job is done (its audio all rendered), and kept
-   there as the queue changes: ahead of demoted save and bake jobs, which in the background may
-   park and would hold it back. It renders at bake-ahead priority (never listener), and only its
+   there as the queue changes: ahead of demoted save and bake jobs. It renders at bake-ahead priority (never listener), and only its
    first 3 paragraphs until it plays and becomes #1; at that cap it steps aside, so jobs behind it
    run. Its opening goes before the playing chapter's paragraphs above the playhead (the plan's
    fill from the top): listening reaches the next chapter before it comes back to them. So the
    playing chapter renders from its playhead to its end, then the next chapter's opening, then
    the playing chapter above its playhead, and only then the jobs behind them (saves,
    prepared audio). A later stage replaces it; another article playing, or the end of the book, unstages
-   it (a job that was queued before stays). It counts as playing for admission (`playingCacheKeys`: the
-   article playing and the staged chapter).
-5. Pending jobs fold in once the engine is ready and the launch's maintenance has finished
-   (`adoptPending`; Audio cache, Pending jobs): the article being listened to stays #1; any
+   it (a job that was queued before stays).
+5. Pending jobs fold in once the launch's maintenance has finished, and when library audio work
+   lets go of held audio (`adoptPending`; Audio cache, Pending jobs): the article being listened
+   to stays #1; any
    other job is #1 only if the queue is empty; the rest keep their plans, demoted.
 
 `BakePriorityPlan(resume:count:)` is the explicit cursor: from its start to the end, then the
@@ -347,36 +495,32 @@ missing paragraphs above it:
 | Article save | from 0: `0…end`, queued at the back |
 | Reader open, listen start / jump | from `p`: `p…end`, then missing `0..<p`, at the front |
 | Playback finished / stopped (outside books and series) | `startBakeIfNeeded` (from 0, at the back): fill leftover gaps |
-| The article you hear removed, deleted or revised, or merged onto an article holding other text | its job leaves the queue (`removeBakeJob`); no gap fill |
+| The article you hear removed, deleted or revised, or merged onto an article holding other text | its job leaves the queue (`removeBakeJob`) |
 
 Saving an article that is already queued, #1 included, keeps its place and plan; the job turns
 saved (`.back` keeps a queued job where it is).
 
-**Prepared Audio** (decision D16, `PrepareCenter`) add no render path of their own. The prepare list
-(`Downloads.json`, `PrepareListStore`) is worked through one page at a time: a link page's text is
-fetched through Follow's one fetch queue (`FollowCenter.fill` → `FetchQueue`, one fetch at a time,
-paced per site) and stored in place, then the article's paragraphs go
-to the queue as an ordinary bake job (`LocalTTSCoordinator.queuePrepare` → `startBakeIfNeeded`, a
-plan from paragraph 0, queued at the back (#1 when nothing else is), kept in the pending jobs while the
-engine loads). When the job leaves the queue (`bakeCompleted`, through
+**Prepared Audio** (decision D16, `PrepareCenter`) add no render path of their own. Every
+waiting page of the prepare list (`Downloads.json`, `PrepareListStore`) whose text is in the
+library goes to the queue at once, in the list's order; a link page's text is fetched first,
+one page at a time and only in front (it needs a window), through Follow's one fetch queue
+(`FollowCenter.fill` → `FetchQueue`, one fetch at a time, paced per site), stored in place, and
+then handed over the same way. Each article's paragraphs go to the queue as an ordinary bake job (`LocalTTSCoordinator.queuePrepare` → `startBakeIfNeeded`, a
+plan from paragraph 0, queued at the back (#1 when nothing else is), and kept in the pending
+jobs until it is done). When the job leaves the queue (`bakeCompleted`, through
 `LocalTTSCoordinator.onRenderStateChange`) the article is done once no paragraph needs audio in the
 prepare voice (the one rule, `ArticleAudioCache.missingParagraphs`); a job that left unfinished goes back once, then
 the article is marked failed. So the article playing and the staged chapter always go first, the
-thermal / Low Power hold applies. In the background a prepare's job parks, except on its turn
-(C94): while audio plays on a route that renders there (Kokoro's ONNX CPU route) and the playing
-article needs nothing now (no burst: at least the low-water mark ahead; or nothing of it left), the
-same one-thread worker renders it, weighed again before every chunk, so a burst of the playing
-article takes the worker back at once (`bg_prepare_turn` / `bg_prepare_yield`). Then the next
-article is handed over in the background too; a link article's fetch waits for the foreground (it needs
-a window). Paused or stopped in the background, nothing goes on. Nothing renders for prepared audio while Apple's voice is
-selected (`wantsLocalBake`). Pause and *Remove* take the article's job out of the queue
-(`removeBakeJob`), and *Remove Prepared Audio* and *Remove Prepared Audio* delete audio (`PrepareCenter.purgeAudio`),
+thermal / Low Power hold applies, and in the background prepares render on after them, chunk
+after chunk, while audio plays. Paused or stopped in the background, nothing renders. Nothing renders for prepared audio while
+the device can run no voice (`wantsLocalBake`). Pause and *Remove* take the article's job out of the queue
+(`removeBakeJob`), and *Remove Prepared Audio* deletes audio (`PrepareCenter.purgeAudio`),
 never for what listening needs (`needsAudio`: the article bound to the session, playing, paused or
-finished, and the chapter staged after it): its job and its audio stay. *Remove Prepared Audio* (an article, in its menu or the Prepared Audio list) or *Remove Prepared Audio* (a folder, the same) takes
+finished, and the chapter staged after it): its job and its audio stay. *Remove Prepared Audio* (an article's or a folder's, in its menu or the Prepared Audio list) takes
 the article out of every prepare (a folder's prepare drops it, never queues it again), the article
 playing too, whose audio stays for the session, saved or ephemeral as the library keeps the article. The voice a prepare is shown in is read
-from its audio (`ArticleAudioCache.renderedVoice`: the voice most of its paragraphs are in), so a
-voice change shows at once; finished prepared audio aren't re-rendered by it (*Prepare Again* does that).
+from its audio (`ArticleAudioCache.renderedVoice`: its live directory's voice), so a
+voice change shows at once. A new default voice in Settings doesn't re-render finished prepared audio; an article's or book's *Voice* change, or *Prepare Again*, does.
 A folder's prepare is its Prepare toggle (the header's Prepare control): while it is on, pages added to the folder later join
 it after each stored library edit (`PrepareCenter.takeInNewArticles`), except pages whose prepared audio
 were deleted (`PrepareRecord.deleted`); turned off, its waiting pages leave it and its done ones
@@ -384,27 +528,79 @@ stay. Turned back on over a folder all prepared (`PrepareCenter.prepare(folder)`
 its done pages and *Keep* stay as they are and only pages it doesn't list join; otherwise
 *Prepare Audio* on a folder queues every article it covers afresh (`PrepareRecord.requeue`).
 
-**Priority and admission.** Chunks of an article someone is listening to (a producer waits on
-one, or its audio is playing) render at `RenderPriority.listener` (`.userInitiated`); bake-ahead
-runs at `.utility`. Bake-ahead is held while the thermal state is `.serious` or worse or Low Power
-Mode is on (`BakeConditions`) and resumes on the change notification. Before every chunk, in
-`ensureChunk`, on every app-phase change and when a render fails, one pure rule decides
-(`RenderAdmission.decide`):
+**The render policy.** Whenever a call or load ends, and on every event that can change the
+answer (work queued or moved, a listener waiting, an app-phase change, a hold's change, a resume;
+the kicks of one turn make one plan; none while every lane the policy plans for is busy), the
+queue asks one policy what to do next
+(`RenderPolicy.plan`, `Core/TTS/RenderPolicy.swift`): it hands over the situation
+(`RenderSituation`: the app phase, whether audio plays, a hold, the routes of the engine to
+preload, the candidates, each lane's work in flight and resident route, the cores, the memory the
+process may still take) and gets back an action for each free lane it uses (`RenderPlan`: start a
+call on a route, or load a route), a hold work waits for, and the listeners to tell their chunk
+won't come (`failed`). The queue checks it before it acts (`RenderPlan.violation`: a route of the
+candidate's own engine, an action only on its route's free lane and one of the policy's lanes,
+none in the background on a lane that doesn't run there, a call only on its route's resident host,
+never two calls on one paragraph, one load at a time, nothing else while a load runs alone, no
+failed candidate started), and a plan that breaks one
+is dropped and logged (`render_plan_refused`; a Debug build stops on it). After it starts
+something it plans once more if one of its lanes is still free, so that lane can take the same
+job's next paragraph.
+The route loaded is the lane's resident one: its host is built for that route
+(`SpeechEngineProvider.makeHost(for:voice:)`), and a different route of the same engine (a new
+thread cap) is a new load. The candidates are every job's next unit per demand, in the queue's
+order: a waited chunk, or the chunk a Play is about to wait for (`listener`: a Play marks it
+before it queues the article, as its producer asks only after the worker has run), the playing
+article from its playhead (`playing`), the staged chapter's opening (`staged`), and each other
+job's next unit (`queued`); they come from each job's kept missing list, not the cache. Which goes
+first is the policy's. The app's policy is `SingleCallPolicy` (`AppComposition.makeRenderPolicy`);
+a Debug launch with `-renderPolicy lanes` picks `LanePolicy`. Another is one type and that line.
 
-| App phase | Kokoro, either route (renders in background) | A host that can't render in the background |
-|---|---|---|
-| active | render | render |
-| inactive | render | listener's chunks only; bake-ahead parks |
-| background | listener's chunks; bake-ahead of the playing article and the staged next chapter during a burst (below); other articles park | no model call: a listener's chunk plays with Apple, bake-ahead parks |
+`SingleCallPolicy`:
 
-With no engine loaded (no render target) no model call starts in any phase: a listener's chunk
-plays with Apple, bake-ahead parks.
+- One model call at a time on the CPU, for every engine, in front and in the background, in
+  demand order, first queued first within a demand.
+- QoS from demand: a listener's chunk (a producer waits on it) at `RenderPriority.listener`
+  (`.userInitiated`), everything else at `.utility`.
+- Holds: while the thermal state is `.serious` or worse or Low Power Mode is on (`BakeConditions`)
+  only `listener` and `playing` work renders; it resumes on the change notification.
+- In the background a call starts only while the player is playing (or waiting to play): iOS
+  suspends the app soon after audio stops, and a call cut there would read as a crash at the next
+  launch. Paused or stopped there, nothing renders until play or the foreground.
+- Threads, for a route that takes a count (Kokoro's ONNX): every core but one in front and
+  inactive, one in the background, never more than the route's own setting. A route that takes no
+  count (Phonon's Core ML) runs as it is.
+- No throttle beyond QoS and the holds (issue #21).
 
-The renderer checks it again right before each model call (`LocalChunkRenderer`,
-`RenderAdmission.modelCallsAllowed`). No Core ML call ever starts in the background (no GPU
-there, and the CPU fallback is the libBNNS crash path): Kokoro's Core ML route
-(`KokoroSplitHost`) renders on ONNX from its first background load or call until the process
-ends.
+`LanePolicy` (Debug launch only), with `SingleCallPolicy`'s demand order, QoS, holds and
+background rule:
+
+- In front the Neural Engine lane takes the most urgent work whose engine has a route there
+  (Phonon), and the CPU lane the most urgent work left: another article, or the same article's
+  next paragraphs. Kokoro has no second route and renders on the CPU lane only.
+- In the background only the CPU lane starts calls. The Neural Engine's host stays loaded, unused.
+  A Neural Engine call planned in front but reaching the model after the app left it is refused
+  there, before its crash marker (`LocalChunkRenderer` throws `LaneUnavailable`, `Lane.runs(in:)`),
+  and one cut short by the app leaving isn't the paragraph's failure either: its listeners keep
+  waiting and the CPU lane renders it (`call_left_front`, `started` false or true).
+- Threads: while a Neural Engine host is loaded in front, the CPU lane's budget leaves one core for
+  its calls (`neuralEngineCallCores`); a CPU call started with the whole budget holds it, and a new
+  Neural Engine call waits until it ends (an uncapped CPU call counts 2 cores).
+- Memory: a second model loads beside another only when the process may still take its footprint
+  (`RenderRoute.footprintMB`: Phonon's CPU host about 120 MiB, its Neural Engine host about 300,
+  Kokoro about 470) plus 400 MB (`os_proc_available_memory`; no limit on the Simulator). Refused
+  once, the policy keeps to the CPU lane until the app relaunches: a CPU load first lets the
+  Neural Engine's host go (`RenderPlan.Load.alone`).
+
+**Routes and lanes.** Each engine declares where its calls run (`SpeechEngineProvider.routes`,
+`RenderRoute`: an id for the log, the engine, a `Lane`, `ThreadControl`, `.honored(cap:)` or
+`.uncapped`, and the memory its loaded host adds); the registry refuses an engine without a CPU
+route. The lanes are `.cpu` and `.neuralEngine` (`Lane.runsInBackground`: the CPU only). Each lane
+has its own resident host (`LocalSynthService`, one per lane, each built for its route) and gate
+(`SynthRenderGate.of(_:)`), and runs one call or load at a time; loading on one lane never
+replaces another lane's host. Kokoro renders on the CPU (ONNX Runtime), Phonon on Core ML's CPU
+path (`phonon.cpu`) or the Neural Engine (`phonon.ane`, `LanePolicy` only); both Phonon routes
+share one cache revision. Settings shows an engine loading or failed on any lane
+(`LocalSynthService.state(of:)`).
 
 **Producer.** The player keeps a short buffer of rendered units and stops producing when it is
 full. Chunk 0 plays as soon as it is rendered; the producer doesn't wait for the paragraph. Seek /
@@ -413,24 +609,15 @@ leave it alone. `ChunkPlaybackQueue` primes the next `AVAudioPlayer` while the c
 so joins between rendered units stay near zero; a gap only appears when rendering can't keep
 ahead of the playhead (counted as a starve event).
 
-**Head-start rule** (`HeadStart`, `RenderPace`): before rendering a chunk for a listener, the
-engine projects whether rendering at the measured speed would starve playback by more than 2 s;
-if so that paragraph plays with Apple ("Kokoro fell behind", `render_behind`), and the render
-queue moves on to the next paragraph at once (`ListenUnitSource.focus`) instead of finishing the
-one Apple speaks and falling behind again there; the skipped paragraph is rendered later, from
-the top. A chunk the engine fails on does the same. Only listener calls feed `RenderPace`.
+**Behind, it waits.** When rendering can't keep ahead of the playhead, playback waits for the
+next chunk ("Preparing next…", a starve event) and plays on once it is rendered, in the same
+voice. Only listener calls feed `RenderPace`.
 
-**Never silent, never skipped.** A chunk the engine can't render is rendered with Apple
-(ahead), or the rest of the paragraph is spoken with Apple (live), both in the Apple voice for the
-article's language: the user's pick when it speaks that language, else the best installed voice
-for it (`SpeechController.appleVoice(forLanguage:)`, handed to the coordinator as
-`appleVoiceForArticle`). Only if Apple also fails is
-the paragraph skipped, logged as `SKIP pN` in the debug overlay and `skip` in the timing log.
-A live Apple unit is a one-off file in `tmp/ReaderTTSLive`, never cached: it is deleted once the
-unit leaves the player (`ChunkPlaybackQueue.onItemDone`: played out, dropped when the engine
-takes over again in front, stopped), or at once when it isn't queued, and the first player of a
-launch empties the folder of an earlier process's files.
-Failed units go into `failedUnits`, so the worker never loops on them; a live request retries
+**Never skipped, never another voice.** A chunk the engine can't render for a listener (after the
+renderer's own retries and re-splits) stops playback there: the player plays out what it has
+queued, then pauses at that spot (`LocalListenPlayer.hold`, `playback_held` in the timing log) and
+reports `stalled(.engineStopped)`; the toast says "<voice library> stopped." with *Retry*.
+Failed bake units go into `failedUnits`, so the worker never loops on them; a live request retries
 once. An overflowing call (`inputTooLong`) is re-split down to 24 units.
 
 ### Chunking
@@ -444,7 +631,7 @@ audio" rule all read it.
 
 | Limits | Target | Hard max | First chunk | Used by |
 |---|---|---|---|---|
-| `kokoroCPU` | 240 | 280 | 80 (a whole first sentence ≤ 104) | Kokoro, either route |
+| `kokoroCPU` | 240 | 280 | 80 (a whole first sentence ≤ 104) | Kokoro |
 
 - **Sentences first.** Whole sentences are packed up to the chunk's budget (abbreviation-,
   initial-, "U.S.A."- and decimal-aware). A sentence that fits the hard max is split only to make
@@ -507,7 +694,8 @@ highlight and the paragraph picker stay fine-grained.
 
 ## Audio cache
 
-`ArticleAudioCache`, `Application Support/TTSCache/<article key>/`:
+`ArticleAudioCache`, `Application Support/TTSCache/<article key>/` (an article's live
+directory), old-voice entries beside them, and `TTSCache/chunks/` for chunk scratch:
 
 - **Not backed up.** The launch flags `TTSCache` to stay out of iCloud and computer backups
   (`BackupExclusion`, before anything renders; the flag on the folder covers every article in
@@ -528,7 +716,9 @@ highlight and the paragraph picker stay fine-grained.
   interrupted change left. An app that dies at any step leaves an index whose every CAF exists
   (a cold load drops nothing), and running the change again finishes it. A key with no directory takes
   another's whole, in one rename.
-- Chunk scratch: `chunks/p-NNNN-<texthash>-<voice>/c-KK.caf`, filed by cache voice: a call in
+- Chunk scratch: `chunks/<article key>/p-NNNN-<texthash>-<voice>/c-KK.caf`, under the cache
+  root, outside the article's directory (only main-actor cache methods write in that), filed by
+  cache voice: a call in
   flight when the voice changes writes into its own voice's folder, never where the new voice
   looks, and a chunk rendered for a target that changed during the call is neither handed to a
   listener nor stitched. Once every chunk of a paragraph exists the
@@ -560,19 +750,16 @@ highlight and the paragraph picker stay fine-grained.
 - **What still needs audio** has one rule, `ArticleAudioCache.missingParagraphs`: a paragraph
   with something to speak (its chunk plan, `ChunkPlans`, has chunks) and no CAF in exactly this
   engine and voice. A paragraph with nothing to speak (a bare "—") never gets audio and is never
-  missing. The render queue's work and job completion, the voice-switch cleanup, Prepared Audio,
-  staging the next chapter and Apple standing in (D9) all ask it; the bake marks show
+  missing. The render queue's work and job completion, Prepared Audio, and staging the next
+  chapter all ask it; the bake marks show
   `readyIndices`.
 - **One voice per article, and per book (C138, C138a).** Each article stores its selection, the
   engine and voice together (`VoiceSelection`, stored in `Article.voiceID` as
-  `local.kokoro/af_heart` or `apple/<voice identifier>`; `apple/` is the best Apple voice for its
-  language). It is the only source of what plays, renders, prepares and is looked up in the cache,
-  resolved once per article (its own, else its book's, else for a brand-new article the Settings
-  default, or Apple when the default's engine can't speak its language) and passed explicitly
+  `local.kokoro/af_heart`). It is the only source of what plays, renders, prepares and is looked
+  up in the cache, resolved once per article (its own, else its book's, else for a brand-new
+  article the Settings default) and passed explicitly
   (`ListenPlayRequest.selection`, `QueueUnitSource.selection`, `RenderTarget`). No global engine or
-  voice is read on those paths; Settings holds only the default for new articles. The render
-  queue never files Apple audio in an article's cache: an engine failure fails the unit and the
-  player fills the gap live with temporary, unsaved Apple audio (C129). A book or series chapter
+  voice is read on those paths; Settings holds only the default for new articles. A book or series chapter
   speaks in its folder's (`Folder.voiceID`), so a book never changes voice between chapters.
   The voice is set when its first audio is about to render (`LocalTTSCoordinator.lockedRenderTarget`,
   from the render queue's step and the listen player's source): the voice selected in Settings
@@ -581,80 +768,123 @@ highlight and the paragraph picker stay fine-grained.
   voice per chunk, `ChunkRenderRequest.voice`), and readiness, bake marks, Prepared Audio and
   the listen player all ask in that voice. Playback plays only CAFs in the article's voice
   (`playableAudioURL` no longer falls back to another voice's file), so voices never mix.
-  The index's top-level `engineID` / `voiceID` is still the voice of its last write; entries of
-  another voice are stamped and never count or play; once nothing is missing in the article's
-  voice, `finalizeVoiceSwitch` deletes them.
+  An article's live directory holds one voice, its index's `engineID` / `voiceID`: publishing a
+  paragraph in another voice first moves the voice there into an old-voice entry
+  (`publishParagraph` → `archiveLive`); an alignment or merge writes its index in the voice of
+  the audio it publishes, never an emptied index's old one, and `prepareMerge` moves a second
+  voice out first. Paragraphs older builds left stamped with another voice than their index's are
+  dropped by the next alignment of that article, and deleted once at launch everywhere else
+  (`dropStaleVoiceParagraphs`).
+- **Old voices.** An article's audio in a voice it no longer uses is an old-voice entry: a
+  directory with a random name whose `meta.json` names its article (`voiceOf`), ephemeral, dated
+  the moment it was left, so the launch prune ages it out with unsaved audio (7 days, then the
+  oldest first past 2 GB, a whole entry at a time). Its voice is read from its index, so the voice
+  key migrations keep it findable; at most one per article and voice. It never counts as prepared
+  or plays: readers look only in the live directory. A hold on an article (unfinished library
+  work) holds its entries too; Save's and dedupe's merges carry the merged article's entries to
+  the kept one (per voice, the more recently left wins), and merged audio in another voice than
+  the kept article's becomes its entry instead of merging. *Remove Prepared Audio*, *Clear Audio
+  from Listening* and deleting the article delete its entries; retention and the finished-chapters
+  trim clear only the live directory, so the 7 days hold. Settings counts entries as audio from
+  listening.
 - **Changing an article's or book's voice** (its menu's *Voice: Heart*, `ArticleVoiceChange`):
   downloads the voice's files if needed, stops playback of it if it is playing (it plays again
-  all in the new voice), stores the voice, then prepared audio renders again (Prepare Again; the
-  old files go once the new audio is whole) and audio from listening is cleared. The picker asks
-  first with the sizes.
+  all in the new voice), then one save stores the voice and a voice record per article
+  (`LibraryAudioWork` `.voice`, every chapter of a book). If the save fails nothing changes and
+  the picker says "Couldn’t change the voice. Nothing was changed." The records run right after
+  the save (`ArticleAudioCache.settleVoice`): the live directory's audio in another voice becomes
+  an old-voice entry, and an entry in the new voice, aligned with the article's paragraphs first
+  (a paragraph whose text changed meanwhile is dropped), is its live audio again: renamed into
+  place, or filling what was published since. So a change back within the 7 days plays at once
+  and Prepared Audio shows it whole; what is missing renders, prepared audio through *Prepare
+  Again*. A record that fails waits with the other audio work, holding its article from the
+  prune, and the next launch finishes it before the prune and before rendering starts; every step
+  is one write, rename or delete, and running it again finishes from any of them. Playing or
+  rendering meanwhile is safe: the voice checks in readiness and publish cover every state. The
+  picker asks first with the sizes.
 - **Migration (C138, once, `AppComposition.adoptArticleVoices`):** an article with audio takes the
   voice most of its paragraphs are in (`ArticleAudioCache.renderedVoice`); a book, the voice most
   of its chapters' audio is in; articles with no audio get none. C138a, once: a voice stored as a
   cache voice key (`kokoro.af_heart`) becomes a selection with its engine (`LibraryStore.convertVoices`).
   The Settings default comes from the engine and voices chosen before (`loadDefaultSelection`).
-- **Language gate.** Only when a brand-new article takes its selection: one in a language the
-  default's engine can't speak takes Apple (`LocalTTSCoordinator.localLanguageGate`). An article
-  with a selection keeps it.
+- **Apple's voices removed** (`AppComposition.removeAppleVoices`, once): an article or book
+  stored in an Apple voice has none again and takes the Settings default at its next first use;
+  audio filed under Apple is deleted (`TTS_ENGINES.md` → "Retired engines").
 
-**Pending jobs.** Articles saved or opened while the engine was cold are kept as pending bake
-jobs in `Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`: the paragraphs and the
-paragraph to start from; they render in the voice selected when they do) and fold into the queue
-once the engine is ready. At launch the queue is held from the first audio-cache step
+**Pending jobs.** Saved and prepared articles' bake jobs are kept until done in
+`Application Support/PendingBakeJobs.json` (`PendingBakeJobStore`: the paragraphs and the
+paragraph to start from; they render in the voice selected when they do), so a relaunch picks
+them up. At launch the queue is held from the first audio-cache step
 (`AppComposition.prepareAudioCache`, before the first frame) until the library's launch
 maintenance has finished (`AppLaunch.maintainLibrary`: left audio work, layout pass, dedupe,
-prune): it adopts no pending job and renders nothing, though the engine loads meanwhile
+prune): it adopts no pending job, renders nothing and loads no engine
 (`LocalTTSCoordinator.holdRenderingForLaunch`). So nothing renders on paragraphs that maintenance
-rebuilds or merges, and the jobs it remaps are adopted as it leaves them.
+rebuilds or merges, and the jobs it remaps are adopted as it leaves them (`endLaunchHold`; the
+worker then loads the first job's engine, or with none preloads the default's). A job whose audio
+is held for unfinished library work waits on disk until a run of that work lets it go
+(`LibraryAudioEffects.heldAudioChanged`), then is adopted in the same session.
 Nothing bakes while the app is suspended: the app registers no
 background task, and full-article rendering in the background is not promised.
 
 **Core ML compile cache.** Core ML adds compiled bundles under
 `Library/Caches/<bundle>/com.apple.e5rt.e5bundlecache/<os build>/` after every install and never
 evicts the stale ones (a development phone reached 16.7 GB). `CoreMLCompileCacheJanitor`, one of
-FluidAudio's launch steps, runs once per install (`reader.coreml.e5janitor.installID` = the install's container UUID; bundle file
+Phonon's launch steps, runs once per install (`reader.coreml.e5janitor.installID` = the install's container UUID; bundle file
 dates read as the epoch on device) and deletes bundle dirs whose newest file predates this launch.
 Logs `coreml_cache_prune`.
 
-## Language
+## One voice, never swapped
 
-- **Detection** (`ListenLanguage`): `NLLanguageRecognizer` over the first 4,000 characters of the
-  listen blocks; needs ≥ 24 letters and confidence ≥ 0.5. Stored in
-  `Article.detectedLanguageCode` (written with the listen blocks, backfilled on open for older
-  pages); articles the library doesn't have use an in-memory memo. Passed through
-  `SpeechSession.detectedLanguage`.
-- **Resolution** (`ListenLanguageResolution.resolve`): "Automatic (match article)" (the default,
-  `reader.languageAutomatic`) or a manual language. If the selected engine doesn't speak it
-  (`EngineDescriptor.supportedLanguages`; Kokoro is English only), that article speaks with the
-  best Apple voice for the language, without changing settings, and the listen bar and the
-  Language footer say so ("Apple voice for French (Kokoro is English-only)").
+Playback never changes the voice on its own. An article plays in its own voice
+(`LocalTTSCoordinator.selection(for:)`) or not at all; only the user changes a voice (Settings ›
+Voice for new articles, an article's or book's *Voice*). When the voice can't go on, playback
+waits or pauses and says why, as the shell's toast (`SpeechController.tell` → `notice`, shown once
+by `RootView`):
+
+| What happens | What you get |
+|---|---|
+| The engine is still loading, or rendering is behind | Playback waits ("Preparing the voice", "Preparing next…") and plays on in the same voice |
+| The engine fails to load, a chunk can't be rendered, or the last process crashed in it | Paused at that spot; "Phonon stopped." with *Retry* (Retry, or any play, loads the engine afresh in the same voice) |
+| In the background, the audio runs out before the next chunk is rendered | Paused at the gap; "Phonon can’t keep up in the background." when the app is opened again; Play goes on in the same voice |
+| The article's language isn't one its voice reads | Listen doesn't start (what plays plays on): "Can’t read French yet." Prepare marks the article failed with the same words |
+| The device can't run the article's voice library | Listen doesn't start: "Kokoro needs …" (the hardware it needs); Settings › Voice says the same on that library |
+
+The notices name the voice library (Phonon, Kokoro), never a voice. A launch migration may
+rewrite a stored voice that no longer exists (Apple's, a retired engine's): that is the one
+change no user makes.
+
+**Language** (`ListenLanguage`): `NLLanguageRecognizer` over the first 4,000 characters of the
+listen blocks; needs ≥ 24 letters and confidence ≥ 0.5, else the text counts as readable. Kept
+in `Article.detectedLanguageCode` with the listen blocks; the check before playing or preparing
+(`LocalTTSCoordinator.cantReadNotice`) detects from the paragraphs, memoized by sample. Both
+engines read English only (`EngineDescriptor.supportedLanguages`). There is no language setting.
 
 ## Settings › Listening
 
 `ListeningSettingsSection` in Settings (⋯ → *Settings*, `NAVIGATION.md` → "Settings"), the first card of Settings, on the
 Library's list style: chrome cards on paper, `SectionHeader`s, notes in secondary ink. Every
-choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed accessory and
-check slots, min height 48), so state changes never move rows.
+choice row but a voice's is one `SettingsChoiceRow` (title, optional one-line subtitle, a fixed
+check slot, min height 48), so state changes never move rows.
 
 1. **Voice ›** (`VoicePage`): the default voice for new articles and books, from the one voice
    switcher (`VoiceSelectionList`, C138a), the same list an article's or a book's *Voice* picker
-   shows. A *Phonon | Kokoro | Apple* chip row chooses which engine's voices are listed, starting
-   on the current selection's engine: Phonon's and Kokoro's curated voices with samples (Zoey and
-   Heart marked "(default)"; Phonon adds a *More voices* list); other packs show the prepared ↓ once
-   downloaded; swipe *Remove Download* on a downloaded Kokoro pack (Heart only when another
-   curated pack is installed); the model's download progress below them, tap to cancel (on
-   cellular or Low Data Mode it asks first); crash and failure notices in the footer. Apple lists
-   "Best for <language>" and the installed voices for the language, Premium, then Enhanced, then
-   the rest. Picking a voice picks its engine. The row's value names it ("Zoey", "Heart", "Ava (Apple)").
-2. **Language ›** (`LanguagePage`), 3. **Speed**, the six speeds in one line.
+   shows. Each voice library is a row in one card that opens its section in place
+   (`DisclosureRow`), the one holding the voice in use open at first: its curated voices (Phonon's
+   others behind a *More Voices* row), each a `VoiceRow` as iOS's own Voice screen draws it
+   (NAVIGATION.md → "Settings"): the sample's ▶, the name over its size (on the device, or what it
+   downloads), and ✓, ⤓ or the download's ring. A closed library's row names the voice in use and
+   rings while one of its voices downloads. A failed engine load's message is the first row of its
+   section, and on a device that can't run the library, opening it says what it needs. Picking a voice picks its engine. The row's
+   value never names the voice: "Default" while the built-in voice is the pick
+   (`builtInDefault(of:)`), else its voice library ("Kokoro").
+2. **Speed**, the six speeds in one line.
 
 The version row at the bottom of Settings toggles developer options (a 2 s long-press); Settings
 › Developer then holds **Listen debug**.
 
 ## Background listening
 
-Leaving the app (Home, lock, app switcher) keeps Listen playing. Closing Now Playing or a Reader
+Leaving the app (Home, lock, app switcher) keeps Listen playing. Closing Listen or a Reader
 keeps it playing too; the Now Playing bar shows it.
 
 **Audio session** (`ListenAudioSession`): `UIBackgroundModes: [audio]` (`project.yml`). Category
@@ -682,7 +912,7 @@ wasn't holding is released, so other apps' audio can resume.
   previousTrack (previous paragraph; off at the first, as ⏮ is) and changePlaybackRate (snapped to
   the listen-bar rates). Skip, seek and position commands are off.
 - Every command goes through `SpeechController.handleRemoteCommand` → `RemoteCommand.intent` →
-  `userPerform` → `PlaybackSessionState.handle`, the same path as the on-screen buttons. Now Playing is
+  `userPerform` → `PlaybackSessionState.handle`, the same path as the on-screen buttons. Listen is
   re-derived from `playback` on every change; identical updates are skipped.
 
 **Interruptions and route changes** (`ListenInterruptionPolicy`, a pure rule; every pause
@@ -696,41 +926,35 @@ and resume goes through session intents):
 | `appWasSuspended` notice | Not a real interruption; never auto-resume |
 | User does anything during an interruption (play, pause, skip, seek, stop, a speed change on the lock screen) | Forget the auto-resume |
 | Route change `oldDeviceUnavailable` (headphones out, Bluetooth lost) | Pause |
-| Media services reset | Reconfigure the category; the engines drop their dead audio objects (Apple builds a new synthesizer), and an article playing or paused is bound again paused at its spot, so Play speaks through new ones |
+| Media services reset | Reconfigure the category; the engine drops its dead audio objects, and an article playing or paused is bound again paused at its spot, so Play speaks through new ones |
 
 **Rendering in the background.** `AppRunState` mirrors `UIApplication` (active / inactive /
-background), thread-safe; admission follows the table in "Render queue". On a host that can't render in the background a
-paragraph that isn't rendered yet plays with Apple (`AVSpeechSynthesizer.write` into a temp CAF,
-played in order, not cached) until the app is back in the foreground; a chunk that failed because
-of backgrounding is never replaced with Apple audio in the cache.
+background), thread-safe. In the background the queue renders on as in front, one call after
+another in demand order, while audio plays (the render policy, "Render queue"): the playing
+article from its playhead, the staged chapter's opening, the article above its playhead, then
+saves and prepared audio. The brakes are `.utility` QoS, the thermal and
+Low Power holds and, on Kokoro, one ONNX thread.
 
-The ONNX route renders in the background, within limits: rendering a whole article back to back
-there got the app killed by iOS about a minute after the phone locked (3 threads, 1.0–1.3 GB).
-So in the background:
+- **One ONNX thread.** Kokoro's session runs the thread count the policy passes per call: 1 in
+  the background, every core but one in front, never more than the configured count (3 to 6: 5
+  on an iPhone 17 Pro; `KokoroRouteSettings.defaultThreads`). ONNX Runtime fixes the count when a
+  session is built, so the first call at a new count rebuilds the session, between chunks
+  (`KokoroONNXSessionSlot`, `kokoro_cpu_threads_switch`); the old session is released first.
+- **A background task per call.** Playing audio keeps the app alive while it renders.
+  `BackgroundGrace` (`beginBackgroundTask`) holds `ReaderSynthDrain` around each call in the
+  background, so the call in flight when audio stops can finish and write its CAF, and
+  `ReaderListenGap` while the player waits for audio in the background; neither permits GPU work.
+- **Can't keep up.** When the background renders slower than the audio plays (a fast listen
+  speed, a slow engine), the player plays what is rendered and pauses at the gap
+  (`stalled(.cantKeepUp)`, `playback_held` with `cant_keep_up`), in the same voice, never another.
+  The toast, "<voice library> can’t keep up in the background.", is kept until the app is in front
+  again (`SpeechController.tell`). Play goes on from the gap. In front, a gap waits ("Preparing
+  next…").
 
-- **One thread.** Kokoro's ONNX session runs 1 intra-op thread in the background and the
-  configured count in front (every core but one, 3 to 6: 5 on an iPhone 17 Pro;
-  `KokoroRouteSettings.defaultThreads`). ONNX Runtime fixes the count when a session is built, so the
-  first call after a phase change rebuilds the session, between chunks (`KokoroONNXSessionSlot`,
-  `kokoro_cpu_threads_switch`); the old session is released first.
-- **Bursts between watermarks** (`BackgroundRenderWatermarks`, `BackgroundRenderBursts`). The
-  measure is the listening time ready ahead: the rest of the unit playing, the units queued in the
-  player and the rendered paragraphs after them up to the first gap, in seconds at the listen
-  speed (`LocalListenPlayer.readyAheadSeconds`). Bake-ahead of the playing article (and of the
-  staged next chapter) starts a burst below 4 min and renders chunk after chunk until 8 min are
-  ready; between the two marks nothing new starts. Between bursts the worker is idle: each unit
-  that starts playing, and a resume, wakes it if less than 4 min is left (no timer, no polling).
-  A chunk the player is waiting for renders whatever is ready ahead. Only paragraphs from the
-  playhead on render in the background: after listening from mid-article, the paragraphs above
-  the playhead wait for the foreground (they add nothing ahead, so a burst rendering them would
-  never reach 8 min). In front (inactive included) the marks don't apply.
-- **No background task per chunk.** Playing audio keeps the app alive while it renders.
-  `BackgroundGrace` (`beginBackgroundTask`) holds `ReaderSynthDrain` only so the chunk in flight
-  when the app leaves the foreground can finish and write its CAF, and `ReaderListenGap` while the
-  player waits for audio in the background; neither permits GPU work.
-
-When rendering can't keep up (one thread, a fast listen speed), the head-start rule and the
-fallbacks above still apply: a paragraph that would starve playback plays with Apple.
+Each stretch of background rendering is logged as `bg_render_window` (`BackgroundRenderWindow`):
+on the first chunk after a minute, and when the app comes back to front, with `reason` (minute /
+front), `wall_s`, `cpu_s`, `cpu_pct` (the process's CPU over wall time, 100 = one core),
+`chunks`, `audio_s`, `rtf`, `mem_mb` and `route`.
 
 ## Diagnostics
 
@@ -743,18 +967,17 @@ Developer options on (`NAVIGATION.md` → "Developer options"):
   app phase, the engine and its host's routing), paragraphs ready ahead, what the last background stretch played, and recent log lines.
 - **Listen debug panel** (Settings › Developer › Listen Debug Panel, or long-press ▶︎): the same plus buffer / starve /
   handoff numbers, the audio-session state, each voice library's own sections
-  (`SpeechEngineProvider.debugSections`; Kokoro's route toggle and ONNX threads), and the last
+  (`SpeechEngineProvider.debugSections`; Kokoro's ONNX threads, live route, render speed and ONNX crash count), and the last
   lines of `ListenDebugLog`; Debug builds add the engine probe and Kokoro's CPU route benchmark.
 
 **Timing log.** `Application Support/ListenTiming/timing.jsonl` (rotates at 2 MB to
-`timing.1.jsonl`): launch, open, play, model load, every `synth` call (chars, wall ms, audio s,
-phonemes, `mem_mb`), chunk / paragraph ready and failed, waits, first audio, buffering, Apple
-fallback, skips, app phase and background events, remote commands, interruptions, migrations,
+`timing.1.jsonl`): launch, open, play, model load (`engine_load`), every `synth` call (chars, wall ms, audio s,
+phonemes, `mem_mb`), chunk / paragraph ready and failed, waits, first audio, buffering, a hold
+before a pause (`playback_held`), a refusal (`listen_refused`), app phase and background events, remote commands, interruptions, migrations,
 cache prunes, chapter boundaries (`chapter_advance`, `chapter_staged`, `chapter_boundary`), a
 session stopped rather than moved onto a key holding other text (`session_rekey`), background
-bursts (`bg_render_burst_start` with `ready_ahead_s`; `bg_render_burst_stop` with `ready_ahead_s`,
-`reason`, `chunks`, `wall_s`, `cpu_s` and `cpu_pct`, the process's CPU over wall time, 100 = one
-core) and ONNX thread switches (`kokoro_cpu_threads_switch`).
+rendering windows (`bg_render_window`, "Rendering in the background") and ONNX thread switches
+(`kokoro_cpu_threads_switch`). Every `synth` line carries its `route`, `qos` and `threads`.
 A few lines (`chapter_advance`, `chapter_boundary`) also go to the unified log, readable live in
 Console.app with the filter `subsystem:com.jimmyyao.Reader category:ListenTiming`. Pull the
 file from a device:
@@ -768,13 +991,15 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
 **Debug-build tools** (launch arguments compile only in Debug; `LaunchOptions` parses them and
 `AppComposition` / `LaunchHooks` hand them on):
 
+- `-renderPolicy lanes`: the two-lane policy (`LanePolicy`) instead of the app's one call at a
+  time on the CPU. Each `synth` line's `route` (`phonon.ane`, `phonon.cpu`), its end `t` and
+  `wall_ms` show which calls overlapped; `engine_load` names the route and lane it loads.
 - `-engineProbe [-probeOnly Kokoro]` or the panel's "Run engine probe": per engine, init,
   first-chunk latency and wall vs audio time for 60 / 150 / 400 characters, into
   `Documents/engine_probe.txt` (written before each step, so a crash shows where it died). Like
   the stress run and the CPU route benchmark it runs with the model to itself
   (`LocalTTSCoordinator.withRenderingQuiet`): the app's load settles, the render worker holds and
-  the app's host goes (a second loaded copy of the same Core ML models fails on device, and a
-  second ORT session doubles the memory), then it builds its own host per engine; the queue's next
+  the app's host goes (a second loaded copy of the same models doubles the memory), then it builds its own host per engine; the queue's next
   render loads the app's engine again.
 - `-bakeArticle <saved id prefix>`: render that saved article top-down in the foreground without
   playing it, then pull ListenTiming and TTSCache.
@@ -785,23 +1010,23 @@ xcrun devicectl device copy from --device <id> --domain-type appDataContainer \
   another article already has. `-chainDemoChapters`: once launched, play it from where
   Continue would, after the on-device engine has loaded, and let it carry on; each boundary logs
   `chapter_boundary`. Together, the locked-screen chapter-boundary check.
-- `-importTestEPUB`: *Import from…* takes a synthetic EPUB built in code (`TestEPUB`: a title
+- `-importTestEPUB`: *Import a File…* takes a synthetic EPUB built in code (`TestEPUB`: a title
   article, then the demo book's three chapters, the first with a line loose in a `<div>` and a
   footnote) instead of opening the Files picker, which a probe can't drive; the import sheet
   and import are the real ones. `-playTestEPUB`: at launch, import it into the Library's top
   level (no sheet; an earlier import of it is deleted first, with its audio), then play it from
   where Continue would (chapter 1, not the title page). The offline test pages' page one links to
   the same book as a `blob:` URL, for the `.epub` link path.
-- `-selectEngine local.kokoro|apple`, `-kokoroUnits <label>` (Core ML route routing).
-- `-KokoroStress coreml|onnx` (`KokoroStressRun`): with the app in front, renders a fixed corpus
+- `-selectEngine local.kokoro|local.phonon`.
+- `-KokoroStress` (`KokoroStressRun`): with the app in front, renders a fixed corpus
   of 320 Kokoro calls (paragraphs of 1 to 10 sentences from the demo book, cut by the ONNX
-  chunker) through one route: `KokoroHost` alone or `KokoroCPUHost` at the front thread count.
-  The app's Kokoro host is unloaded and the queue paused. `Documents/KokoroStress/<route>.jsonl`
+  chunker) on a fresh `KokoroCPUHost` at the front thread count.
+  The app's Kokoro host is unloaded and the queue paused. `Documents/KokoroStress/onnx.jsonl`
   gets a synced `begin` line before each call and an `end` line after it (wall ms, audio s, RTF,
-  ms per audio second, stage or ONNX ms, memory, thermal). Launched again with the same argument
-  after a crash, it counts the crash at the call that began (with the Core ML breadcrumb's stage)
+  ms per audio second, ONNX ms, memory, thermal). Launched again with the same argument
+  after a crash, it counts the crash at the call that began
   and carries on from the next call, stopping at 5 crashes; at the end
-  `Documents/KokoroStress/<route>-summary.json`. `-KokoroStressCalls N`, `-KokoroStressFresh`.
+  `Documents/KokoroStress/onnx-summary.json`. `-KokoroStressCalls N`, `-KokoroStressFresh`.
   Pull with `xcrun devicectl device copy from --device <id> --domain-type appDataContainer
   --domain-identifier com.jimmyyao.Reader --source Documents/KokoroStress --destination <dir>`.
 - **CPU route benchmark** (panel → "CPU route benchmark"): `KokoroONNXSession` at 1–6 threads and
@@ -817,16 +1042,19 @@ To use these tools in an optimized build, build Release with `READER_EXTRA_CONDI
 
 ## Verify
 
-- Apple: while audible the button shows Pause, and a tap always pauses.
-- Kokoro: Play continues past paragraph 1; Pause mid-paragraph and Play resume at the same spot.
+- While audible the button shows Pause, and a tap always pauses.
+- Kokoro and Phonon: Play continues past paragraph 1; Pause mid-paragraph and Play resume at the same spot.
 - A partly rendered article starts from the cache for rendered units.
 - Consecutive paragraphs have near-zero gaps when rendered ahead.
-- A unit Kokoro can't render plays with Apple; playback never goes silent or freezes.
+- A unit the engine can't render pauses playback there with "<voice library> stopped." and
+  *Retry*; Retry plays on in the same voice. Nothing plays in another voice.
+- A French article doesn't start: "Can’t read French yet."
 - Skip / jump re-prioritizes from the new playhead; after listening from mid-article, rendering
   returns to the top (in front) so the whole article ends up on disk.
-- Background: baked audio plays, the playing article renders in bursts on one thread on the ONNX
-  route (`bg_render_burst_*` lines; the app survives a locked listen), nothing
-  renders with Core ML.
+- Background: baked audio plays, the playing article renders on chunk after chunk
+  (`bg_render_window` lines; the app survives a locked listen): Kokoro on one ONNX thread, Phonon
+  on Core ML's CPU path; where it can't keep up, a pause at the gap and "<voice library> can’t
+  keep up in the background." on return.
 
 Playback is verified by probing the running app (the launch arguments above, the debug log,
 `ListenTiming`) and on the phone for timing and background behavior. Unit tests pin only the
@@ -836,6 +1064,6 @@ engine crash guard's marker (`EngineCrashGuardTests`).
 ## Retention and Prepared Audio (C134, C135, C136)
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
-- **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
-- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice (C138). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio From Listening…** (that audio only), each shown only when its section has rows.
+- **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio. Neither touches an article's old voices, which the 7-day prune removes ("Audio cache", Old voices).
+- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice (C138). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
 - **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

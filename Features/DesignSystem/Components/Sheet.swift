@@ -7,16 +7,26 @@ import SwiftUI
 /// any other scroll view through `handsPullToSheet(from:)`. While pulled it looks like a system
 /// sheet (`PullDownLook`): it shrinks a little and the dim behind it lifts. Top corners
 /// `Radius.card`. Used by Follow's chapter preview and, on regular width, the Reader and Now
-/// Playing (compact width shows them in place: `ReadingInPlace`).
+/// Playing. Compact width's Listen (and its *Nothing Playing*) is the same sheet, over the chrome too, as
+/// Apple Music's player: the screen behind shows dimmed above it, and with `largePullTargets` its
+/// top is a handle (full width, opaque in the page's colour, the text starting below it): a band
+/// `Control.bar` tall, the grabber centred, or with `headerHasGrabber` the header itself, which draws
+/// the grabber (Listen: its top group, the grabber between Aa and ⋯) and its band (the player card) pulls it too, whatever the text's scroll
+/// position. The handle takes hold further down than it is drawn: a drag down that starts up to
+/// `grabReach` below it, over the top of the text, pulls too, unseen (a tap or a drag up there is
+/// the text's). A drag down from the dimmed strip just above the sheet pulls as well; one that
+/// starts higher, in the status bar, is the system's (Notification Center) and never reaches the app.
 ///
 /// It is drawn in `palette` (the reading theme's colours for the Reader and Now Playing, the same
 /// for both), which it sets on what it holds (`readingSurface`). A dark theme over a light app
 /// gets a heavier dim behind it, so the strip above reads dark, and light status bar content.
 ///
-/// With a `ReadingChrome` (the Reader and Now Playing on regular width) the text fills the sheet
-/// as `ReadingBars` lays it out; full screen also hides the status bar, dims the home indicator
-/// and paints the strip above the sheet in the page's colour. Without one (Follow's preview) the
-/// header sits above the content and nothing hides.
+/// With a `ReadingChrome` (the Reader and Now Playing on regular width, Listen) the text fills the
+/// sheet as `ReadingBars` lays it out, from the status bar's foot (the gap above the header is
+/// the header's, so the text never moves when the sheet's top does). Full screen is not a sheet:
+/// the page covers the screen edge to edge, square-cornered, with nothing dimmed, the status bar
+/// hidden and the home indicator dimmed; leaving it brings the gap and the rounded top back. Without
+/// a chrome (Follow's preview) the header sits above the content and nothing hides.
 ///
 /// Present it by inserting it (`if … { Sheet(…) }`); it animates its own rise and, once closed,
 /// calls `onDismiss` for the owner to remove it. Under Reduce Motion it fades instead of moving.
@@ -27,18 +37,25 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     let palette: ReadingPalette
     /// The reading sheets' bars and full screen; nil: the header above the content, no band.
     private let chrome: ReadingChrome?
+    /// Compact Listen: the top is a handle that takes hold `grabReach` lower, and the band pulls it too.
+    private let largePullTargets: Bool
+    /// The header draws the grabber itself (Listen's top group, its corner buttons level with it), so
+    /// the sheet draws no grabber band of its own.
+    private let headerHasGrabber: Bool
     private let header: Header
     private let content: Content
     private let band: Band
     private let overText: OverText
 
     /// A reading sheet: the text under the header and `band`, `overText` floating over it.
-    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, chrome: ReadingChrome,
-         @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content, @ViewBuilder band: () -> Band,
+    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, chrome: ReadingChrome, largePullTargets: Bool = false,
+         headerHasGrabber: Bool = false, @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content, @ViewBuilder band: () -> Band,
          @ViewBuilder overText: () -> OverText) {
         self.onDismiss = onDismiss
         self.palette = palette
         self.chrome = chrome
+        self.largePullTargets = largePullTargets
+        self.headerHasGrabber = headerHasGrabber
         self.header = header()
         self.content = content()
         self.band = band()
@@ -50,8 +67,11 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     @State private var risen = false
     @State private var closed = false
     @State private var pull: CGFloat = 0
-    @State private var pullAxis: Axis?
+    /// A pull on the header or the band is under way (the body's handoff then stays out).
+    @State private var panning = false
     @State private var height: CGFloat = 0
+    /// The header's foot in the window: a pull from the top starts above it (and `grabReach`).
+    @State private var headerBottom: CGFloat = 0
     /// The status bar's height (the top safe area), for the player's status bar scrim.
     @State private var statusBarHeight: CGFloat = 0
     /// `onDismiss` has run (it runs once, whichever of the completion and its fallback is first).
@@ -76,17 +96,6 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
-            if chrome != nil, isUp {
-                // Full screen: the page runs up to the screen's top edge.
-                palette.background
-                    .frame(height: statusBarHeight + Self.topGap)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .ignoresSafeArea()
-                    .opacity(fullScreen ? 1 : 0)
-                    .allowsHitTesting(false)
-                    .animation(Motion.standard, value: fullScreen)
-            }
-
             if isUp {
                 Group {
                     if let chrome {
@@ -100,14 +109,15 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
                         }
                     }
                 }
-                .background {
-                    UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,
-                                           style: .continuous)
-                        .fill(palette.background)
-                        .ignoresSafeArea(edges: .bottom)
-                }
+                // On the whole sheet, so it hears a touch that lands on the text too (`grabReach`).
+                .gesture(pullDown(startsAbove: fullScreen ? -.infinity : headerBottom + grabReach))
+                .background { outline(fullScreen: fullScreen) }
+                // The web view is a square, opaque layer: without the clip it hides the rounded top
+                // and runs up into the gap.
+                .mask { outline(fullScreen: fullScreen) }
                 .readingSurface(palette)
-                .padding(.top, Self.topGap)
+                // A reading sheet's text starts at the status bar's foot (its header keeps the gap).
+                .padding(.top, chrome == nil ? gap : 0)
                 .scaleEffect(pullLook.scale, anchor: .top)
                 .offset(y: pull)
                 .transition(.sheet(reduceMotion: reduceMotion))
@@ -123,43 +133,71 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
         }
     }
 
-    /// The grabber and the header: pulled down, they pull the sheet.
+    /// The sheet's page: its rounded top `gap` below the status bar, down to the screen's foot; a
+    /// reading sheet's in full screen the whole screen, square, the change on `Motion.standard`.
+    private func outline(fullScreen: Bool) -> some View {
+        let radius = fullScreen ? 0 : corner
+        // A reading sheet is laid out from the status bar's foot (full screen reaches up over it);
+        // any other below the gap already. Measured from the sheet's own top, never by ignoring the
+        // top safe area: under the pull's offset that safe area is read where the sheet is drawn, so
+        // an outline that ignored it (the mask with it) would run ahead of the finger by up to the
+        // status bar's height and clip the grabber and the top of the text.
+        return UnevenRoundedRectangle(topLeadingRadius: radius, topTrailingRadius: radius, style: .continuous)
+            .fill(palette.background)
+            .padding(.top, chrome == nil ? 0 : fullScreen ? -statusBarHeight : gap)
+            .ignoresSafeArea(edges: .bottom)
+            .animation(Motion.standard, value: fullScreen)
+    }
+
+    /// The grabber and the header: pulled down, they pull the sheet (the pan is the whole sheet's,
+    /// limited to touches that start above the header's foot). With `largePullTargets` the grabber
+    /// is centred in a band `Control.bar` tall, so there is something to take hold of; with
+    /// `headerHasGrabber` the header is that band, its grabber its own. A reading
+    /// sheet's header starts `gap` lower than its text (the text runs up under the gap, out of
+    /// sight until full screen) and is opaque (`ReadingBars`): the text scrolls out of sight under it.
     private var headerBlock: some View {
         VStack(spacing: 0) {
-            SheetGrabber()
+            if headerHasGrabber {
+                // The header draws it.
+            } else if largePullTargets {
+                SheetGrabber()
+                    .frame(maxWidth: .infinity, minHeight: Control.bar)
+            } else {
+                SheetGrabber()
+                    .padding(.top, Spacing.xs)
+                    .padding(.bottom, Spacing.xxs)
+                    .frame(maxWidth: .infinity)
+            }
             header
         }
         .contentShape(Rectangle())
-        .gesture(pullDown)
+        .padding(.top, chrome == nil ? 0 : gap)
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { headerBottom = $0 }
     }
 
     /// The reading sheet's layout: the text to the screen's foot, the header and the band over it.
     private func overlaidBars(_ chrome: ReadingChrome) -> some View {
-        ReadingBars(chrome: chrome,
-                    headerBackground: UnevenRoundedRectangle(topLeadingRadius: Radius.card, topTrailingRadius: Radius.card,
-                                                             style: .continuous).fill(palette.background),
-                    headerSlide: statusBarHeight + Self.topGap, header: headerBlock, content: content, band: band,
+        ReadingBars(chrome: chrome, headerBackground: palette.background,
+                    headerSlide: statusBarHeight, header: headerBlock, content: content,
+                    // Listen's card is its handle too: the grabber alone is too small to find.
+                    band: band.pullHandle(largePullTargets ? pullDown() : nil),
                     overText: overText)
             .environment(\.sheetPullHandoff, pullHandoff)
     }
 
-    /// Follows a vertical pull (down freely, up with rubber-band resistance); released far enough
-    /// or flung, it carries on off the screen at the finger's speed, then closes.
-    private var pullDown: some Gesture {
-        DragGesture(minimumDistance: SwipeGesturePolicy.verticalMinimumDistance, coordinateSpace: .global)
-            .onChanged { value in
-                let axis = pullAxis ?? SwipeGesturePolicy.axis(ofFirstMovement: value.translation)
-                pullAxis = axis
-                guard axis == .vertical else { return }
-                pull = SwipeGesturePolicy.dismissOffset(forVerticalTranslation: value.translation.height)
-            }
-            .onEnded { value in
-                let vertical = pullAxis == .vertical
-                pullAxis = nil
-                guard vertical else { return withAnimation(Motion.settle) { pull = 0 } }
-                release(translation: value.translation.height, predicted: value.predictedEndTranslation.height,
-                        velocity: value.velocity.height)
-            }
+    /// Follows a pull down (`SheetPullPan`, which starts only on a downward drag, on controls too)
+    /// that starts above `startsAbove` in the window; released far enough or flung, it carries on off
+    /// the screen at the finger's speed, then closes.
+    private func pullDown(startsAbove: CGFloat = .infinity) -> SheetPullPan {
+        SheetPullPan(startsAbove: startsAbove) { translation in
+            panning = true
+            pull = SwipeGesturePolicy.dismissOffset(forVerticalTranslation: translation)
+        } ended: { translation, velocity in
+            panning = false
+            release(translation: translation,
+                    predicted: SwipeGesturePolicy.projectedTranslation(translation, velocity: velocity),
+                    velocity: velocity)
+        }
     }
 
     /// The scrolling body's pull, handed over at its top: the same follow and release as the
@@ -167,11 +205,11 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
     /// Rewired on each pass so the release sees this pass's values (Reduce Motion, `onDismiss`).
     private func wire(_ handoff: SheetPullHandoff) {
         handoff.changed = { offset in
-            guard !dismissed, pullAxis == nil else { return }
+            guard !dismissed, !panning else { return }
             pull = offset
         }
         handoff.ended = { offset, velocity in
-            guard !dismissed, pullAxis == nil else { return }
+            guard !dismissed, !panning else { return }
             release(translation: offset,
                     predicted: SwipeGesturePolicy.projectedTranslation(offset, velocity: velocity),
                     velocity: velocity)
@@ -219,12 +257,15 @@ struct Sheet<Header: View, Content: View, Band: View, OverText: View>: View {
 }
 
 extension Sheet where Band == EmptyView, OverText == EmptyView {
-    /// A sheet with its header above its content (Follow's preview): no full screen.
-    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, @ViewBuilder header: () -> Header,
-         @ViewBuilder content: () -> Content) {
+    /// A sheet with its header above its content (Follow's preview, Listen's *Nothing Playing*): no
+    /// full screen. A header that fills it pulls it from anywhere.
+    init(onDismiss: @escaping () -> Void, palette: ReadingPalette = .app, largePullTargets: Bool = false,
+         @ViewBuilder header: () -> Header, @ViewBuilder content: () -> Content) {
         self.onDismiss = onDismiss
         self.palette = palette
         chrome = nil
+        self.largePullTargets = largePullTargets
+        headerHasGrabber = false
         self.header = header()
         self.content = content()
         band = EmptyView()
@@ -250,6 +291,14 @@ extension Sheet {
     }
 
     private var maxDim: Double { Self.maxDim(palette) }
+
+    /// Between the status bar and the top edge.
+    private var gap: CGFloat { Self.topGap }
+    /// How far below the header a pull from the top still takes hold (`largePullTargets`), unseen
+    /// and over the top of the text: a thumb aimed at the grabber needs more than the drawn band.
+    private var grabReach: CGFloat { largePullTargets ? Control.bar : 0 }
+    /// The top corners' radius.
+    private var corner: CGFloat { Radius.card }
 }
 
 /// The bar at the top of a sheet that says it can be pulled down.
@@ -258,10 +307,9 @@ struct SheetGrabber: View {
 
     var body: some View {
         Capsule()
-            .fill((reading?.secondaryInk ?? Palette.secondaryInk).opacity(0.35))
+            // Strong enough to find on a dark page too (at 0.35 it all but vanished there).
+            .fill((reading?.secondaryInk ?? Palette.secondaryInk).opacity(0.6))
             .frame(width: 36, height: 5)
-            .padding(.top, Spacing.xs)
-            .padding(.bottom, Spacing.xxs)
             .accessibilityHidden(true)
     }
 }
@@ -346,6 +394,7 @@ private struct SheetPreviewFrame: View {
             Palette.scrim.opacity(look.dim)
             VStack(spacing: 0) {
                 SheetGrabber()
+                    .padding(.top, Spacing.xs)
                 Text("Notes on Tides")
                     .typeStyle(.title)
                     .foregroundStyle(Palette.ink)

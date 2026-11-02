@@ -43,7 +43,7 @@ enum Palette {
     /// Text and glyphs on an `accent` fill. White can't reach 4.5:1 on a dark-mode accent light
     /// enough to read on dark paper, so it turns dark there.
     static var onAccent: Color { AppAppearance.shared.accent.onAccent }
-    /// A letter tile with no image (a page, folder or book without a cover, a favorite without an
+    /// A letter tile with no image (a page, folder or book without a cover, a site without an
     /// icon): tinted so it reads as artwork on chrome and paper alike; its letter is
     /// `placeholderInk`.
     static var placeholderTile: Color { AppAppearance.shared.accent.placeholderTile }
@@ -59,6 +59,8 @@ enum Palette {
     /// Such an action takes this tint, not the role, which has the list take the row out at once
     /// (`LibraryFolderRow`, `LibraryArticleRow`, the engine rows in Settings).
     static let destructive = Color(uiColor: .systemRed)
+    /// Text on a `destructive` fill (Edit's *Remove* on a voice row).
+    static let onDestructive = Color.white
     /// A warning glyph (the engine notice's ⚠︎): amber, 3:1 on paper and on the bar material.
     static let caution = Color(light: 0x9A5B00, dark: 0xF2A93B)
     /// The empty part of a ring, a scrubber or a progress line (the reading page's is
@@ -91,19 +93,17 @@ enum Palette {
     /// composited on what is under it.
     static let washOpacity = 0.15
     /// The lit part of a chrome control (the pill's current segment, the reader icon while the
-    /// reader view shows): the accent at this strength, behind ink text and an accent glyph.
-    static let litOpacity = 0.2
-    static var lit: Color { accent.opacity(litOpacity) }
+    /// reader view shows), a prominent action tile: the accent wash, behind ink text and an accent glyph.
+    static var lit: Color { accent.opacity(washOpacity) }
 
     /// A control drawn in its own colour that has nothing to do: as faint as the system dims a
     /// disabled toolbar button (‹ / › with no history), so a dimmed 🔖 or ▶ matches them.
     static let disabledOpacity = 0.3
-    /// A glyph button under the finger.
-    static let pressedOpacity = 0.5
+    /// A button under the finger (a pill, a disc, the bookmark, the reading page's Listen pill):
+    /// dimmed a little, like a system button.
+    static let pressedOpacity = 0.7
     /// A Library row drawn lighter: a page skipped in playback, a link whose text isn't in.
     static let lighterRowOpacity = 0.6
-    /// A Library row's thumbnail while its page prepared audio, under the jade ↓.
-    static let preparingOpacity = 0.45
 }
 
 extension Color {

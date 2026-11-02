@@ -31,11 +31,20 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
         case queued
         /// Its audio was rendered in full (the voice is the audio cache's to say).
         case done
-        /// Its language isn't one the on-device voice speaks: it plays with Apple's voice, which
-        /// needs nothing prepared.
-        case speaksLive
-        /// Couldn't be fetched, or some of its audio couldn't be rendered (`failure` says which).
+        /// Couldn't be fetched, can't be read (its language, or its voice can't run here), or
+        /// some of its audio couldn't be rendered (`failure` says which).
         case failed
+
+        /// A list written while Apple's voices spoke pages in other languages stored those as
+        /// "speaksLive": they are queued again, and their turn decides them anew.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            guard let state = raw == "speaksLive" ? .queued : Self(rawValue: raw) else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unknown page state \(raw)")
+            }
+            self = state
+        }
     }
 
     struct Entry: Codable, Equatable {
@@ -64,7 +73,7 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
         get { target.isFolder && folderToggle }
         set { folderToggle = newValue }
     }
-    /// Pages of the folder whose prepared audio were deleted (*Remove Prepare* on one, decision P8):
+    /// Pages of the folder whose prepared audio were deleted (*Remove Prepared Audio* on one, decision P8):
     /// they don't join again while the toggle stays on, until Prepare is asked for again.
     var deleted: [UUID] = []
 
@@ -101,7 +110,7 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
     /// Pages that ended without their audio.
     var failedCount: Int { entries.filter { $0.state == .failed }.count }
 
-    /// Pages whose turn has come and gone (done, speaking live or failed).
+    /// Pages whose turn has come and gone (done or failed).
     var finishedCount: Int { entries.filter { $0.state != .queued }.count }
 
     /// Audio in `voice` (a cache voice key) counts as this download's: it is the voice downloads

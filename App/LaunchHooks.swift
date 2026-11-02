@@ -82,39 +82,128 @@ enum LaunchHooks {
         if let funds = save("Money Market Funds", slug: "funds", in: finance) { try? library.setFinished([funds], true) }
         _ = save("Index Funds", slug: "index", in: finance)
         yield?.lastPlayedAt = .now.addingTimeInterval(-3600)
-        try? library.toggleFavorite(finance)
         library.commit("demo folders seed")
     }
 
-    /// After the migrations, before crash resume: bake, bookmarks, and where the app starts.
+    /// After the migrations, before crash resume: bake, History, and where the app starts.
     static func runAfterMigrations(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
                                    shell: ShellState) {
         if let prefix = options.bakeArticlePrefix { bakeArticle(prefix: prefix, in: library, speech: speech) }
-        if options.seedsBookmarks { seedBookmarks(in: library) }
         if options.seedsHistory { seedHistory(in: library) }
         if options.servesTestPages, !options.restoresSurface, let url = URL(string: "reader-test://pages/one") {
             shell.navigate(to: url)
         }
         if options.opensLibrary { shell.openLibrary() }
-        if options.opensDemoInReader { openNewestInReader(in: library, shell: shell) }
         if options.failsLibrarySaves { library.saveContext = { _ in throw InjectedSaveFailure() } }
+    }
+
+    /// `-tapListenWhen fullScreen`: until an in-place reader is in full screen, polled every 100 ms for
+    /// up to 10 s; logged either way.
+    private static func waitForFullScreen(_ shell: ShellState) async {
+        for _ in 0..<100 where !shell.chromeScroll.fullScreen {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        ListenTimingLog.log("debug_tap_listen_when", ["fullScreen": shell.chromeScroll.fullScreen], console: true)
     }
 
     /// `-failLibrarySaves`' refusal.
     private struct InjectedSaveFailure: Error {}
 
-    /// Last, after crash resume (which wins): `-playTestEPUB`, `-chainDemoChapters`, `-listenDemo`.
+    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-openSettings`, `-downloadVoice`,
+    /// `-openVoicePicker`, `-openLibraryFolder`, `-prepareFolder`, `-openPageMenu`, `-tapListen`
+    /// (`-tapListenWhen`), `-tapLibraryRow`,
+    /// `-pasteText`, `-importBook`, `-listenDemo`, `-playTestEPUB`, `-chainDemoChapters`,
+    /// `-switchDestinationAndBack`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
-                               shell: ShellState) async {
-        if options.listensDemo || options.opensListen {
-            await listenDemo(from: options.listenDemoFrom, launches: options.listensDemo, back: options.listenBackAfter,
+                               shell: ShellState, follow: FollowCenter?, preparedAudio: PrepareCenter?) async {
+        if options.opensDemoInReader { await openNewestInReader(in: library, shell: shell) }
+        if options.opensSettings { await openSettings(options, shell: shell) }
+        if let voice = options.downloadsVoice { downloadVoice(voice, options, tts: speech.localTTS) }
+        if options.opensVoicePicker { await openVoicePicker(in: library, shell: shell, book: options.seedsDemoBook) }
+        if options.readsDemoInLibrary { await readNewestInLibrary(in: library, shell: shell) }
+        if let away = options.switchesDestinationAndBack {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(5))
+                if away == "settings" { shell.showSettings() } else { shell.openLibrary() }
+                try? await Task.sleep(for: .seconds(2))
+                shell.showBrowser()
+            }
+        }
+        if let name = options.opensLibraryFolder {
+            try? await Task.sleep(for: .seconds(1))
+            let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
+            if let folder = folders.first(where: { $0.name == name }) { shell.showLibrary(at: library.path(to: folder)) }
+        }
+        if let name = options.preparesFolder, let preparedAudio {
+            try? await Task.sleep(for: .seconds(1))
+            let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
+            if let folder = folders.first(where: { $0.name == name }) { _ = preparedAudio.prepare(folder) }
+        }
+        if let sheet = options.presentsSheet, let follow { await presentSheet(sheet, options: options, library: library, shell: shell, follow: follow) }
+        if let menu = options.opensMenu, let follow, let preparedAudio {
+            try? await Task.sleep(for: .seconds(2))
+            MenuProbe.open(menu, library: library, speech: speech, shell: shell, follow: follow, preparedAudio: preparedAudio)
+        }
+        if options.opensPageMenu, let follow, let preparedAudio {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                // An in-place reader's ⋯ is a system menu, which nothing opens without a tap: its page
+                // rows (the same `ArticleMenu` at the same place) show in the ⋯ panel instead.
+                let inPlace = shell.isNowPlayingPresented ? nil
+                    : shell.libraryReader.map { ($0, ArticleMenu.Place.open) } ?? shell.pageReader.map { ($0, .browser) }
+                var context = ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
+                                                             preparedAudio: preparedAudio, follow: follow)
+                if let (article, place) = inPlace {
+                    let actions = ArticleActions(article: library.article(key: article.id, canonicalURL: article.origin.canonicalURL),
+                                                 readerArticle: article, library: library, shell: shell, speech: speech,
+                                                 preparedAudio: preparedAudio, follow: follow)
+                    context.item = ArticleMenu(actions: actions, place: place).rows
+                }
+                shell.openMenu(context, from: CGRect(x: 340, y: 760, width: 44, height: 44))
+            }
+        }
+
+        if options.tapsListen || options.tapsListenWhenFullScreen {
+            if options.tapsListenWhenFullScreen {
+                await waitForFullScreen(shell)
+            } else {
+                try? await Task.sleep(for: .seconds(1))
+            }
+            ChromeListenButton.open(speech: speech, shell: shell,
+                                    lastPlayed: (try? library.context.fetch(LibraryQueries.lastPlayed))?.first(where: \.isLive))
+            if let close = options.closesListenAfter {
+                try? await Task.sleep(for: .seconds(close))
+                shell.hideNowPlaying()
+            }
+        }
+        if let title = options.tapsLibraryRow, let follow {
+            try? await Task.sleep(for: .seconds(1))
+            shell.openLibrary()
+            let live = (try? library.context.fetch(FetchDescriptor<Article>()))?.filter(\.isLive) ?? []
+            if let article = live.first(where: { $0.lineOne.hasPrefix(title) }) {
+                LibraryActions(library: library, speech: speech, shell: shell, follow: follow).tap(article)
+            }
+        }
+        if let text = options.pastesText, let follow {
+            try? await Task.sleep(for: .seconds(1))
+            shell.openLibrary()
+            LibraryActions(library: library, speech: speech, shell: shell, follow: follow)
+                .savePastedText(title: "", text: text, in: nil)
+        }
+        if options.importsBook {
+            try? await Task.sleep(for: .seconds(1))
+            shell.openLibrary()
+            BookImportActions(library: library, shell: shell).pickBook(into: nil)
+        }
+        if options.listensDemo {
+            await listenDemo(from: options.listenDemoFrom, closeAfter: options.closesListenAfter,
                              library: library, speech: speech, shell: shell)
         }
         if options.playsTestEPUB {
             await importTestEPUB(in: library)
-            await playTestEPUB(library: library, speech: speech)
+            playTestEPUB(library: library, speech: speech)
         }
-        if options.chainsDemoChapters { await chainDemoChapters(library: library, speech: speech) }
+        if options.chainsDemoChapters { chainDemoChapters(library: library, speech: speech) }
     }
 
     /// `-playTestEPUB`: the synthetic EPUB, written to a temporary file and imported into the top
@@ -138,8 +227,8 @@ enum LaunchHooks {
     }
 
     /// `-playTestEPUB`: the imported test book plays from its place (chapter 1 the first time).
-    static func playTestEPUB(library: LibraryStore, speech: SpeechController) async {
-        guard let book = library.book(key: TestEPUB.bookKey), let start = await play(book, library: library, speech: speech) else {
+    static func playTestEPUB(library: LibraryStore, speech: SpeechController) {
+        guard let book = library.book(key: TestEPUB.bookKey), let start = play(book, library: library, speech: speech) else {
             ListenTimingLog.log("debug_play_test_epub", ["started": false], console: true)
             return
         }
@@ -225,10 +314,10 @@ enum LaunchHooks {
     }
 
     /// `-chainDemoChapters`: plays the demo book from where Continue would (chapter 1 the first
-    /// time), after waiting (≤ 20 s) for the on-device engine so it doesn't start on Apple. Logged
+    /// time). Logged
     /// as `debug_chain_demo_chapters`; each boundary then logs `chapter_boundary`.
-    static func chainDemoChapters(library: LibraryStore, speech: SpeechController) async {
-        guard let book = demoBooks(in: library).first, let start = await play(book, library: library, speech: speech) else {
+    static func chainDemoChapters(library: LibraryStore, speech: SpeechController) {
+        guard let book = demoBooks(in: library).first, let start = play(book, library: library, speech: speech) else {
             ListenTimingLog.log("debug_chain_demo_chapters", ["started": false], console: true)
             return
         }
@@ -238,11 +327,10 @@ enum LaunchHooks {
         ], console: true)
     }
 
-    /// Plays `book` from where Continue would, unless something already plays, after waiting
-    /// (≤ 20 s) for the on-device engine so it doesn't start on Apple. Returns where it started.
-    private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) async -> (article: Article, spot: ListenSpot)? {
+    /// Plays `book` from where Continue would, unless something already plays. Returns where it
+    /// started.
+    private static func play(_ book: Folder, library: LibraryStore, speech: SpeechController) -> (article: Article, spot: ListenSpot)? {
         guard speech.activeSessionID == nil, let start = library.continueStart(of: book) else { return nil }
-        await speech.localTTS.waitForEngineLoad(timeout: .seconds(20))
         speech.start(.article(start.article), at: start.spot)
         return start
     }
@@ -294,29 +382,15 @@ enum LaunchHooks {
         speech.localTTS.startBakeIfNeeded(articleID: article.listenKey, paragraphs: paragraphs)
     }
 
-    /// `-seedBookmarks`: five starred links on `example.com` hosts. They count as this launch's
-    /// icon fetch already tried (`LibraryStore.iconTried`), so their icons stay letter tiles and
-    /// nothing goes to the network for them.
-    static func seedBookmarks(in library: LibraryStore) {
-        let seeds = [
-            ("https://books.example.com/", "Public Domain Books"),
-            ("https://wiki.example.com/Speech_synthesis", "Speech synthesis"),
-            ("https://news.example.com/", "News Front Page"),
-            ("https://tech.example.com/", "Tech Review"),
-            ("https://example.com/", "Example"),
-        ]
-        for (address, title) in seeds {
-            guard let url = URL(string: address), let article = try? library.addFavorite(url: url, title: title, artwork: nil),
-                  let key = article.key else { continue }
-            library.iconTried.insert(key)
-        }
-    }
-
-    /// `-seedHistory`: three visits on `example.com` hosts, newest last, the last one untitled.
+    /// `-seedHistory`: six visits on three `example.com` hosts (three pages on one, two on
+    /// another, one on the third), newest last, the last one untitled.
     static func seedHistory(in library: LibraryStore) {
         let visits: [(String, String?)] = [
             ("https://wiki.example.com/Speech_synthesis", "Speech synthesis"),
+            ("https://news.example.com/2026/10/18/harbour", "Harbour Works Begin"),
+            ("https://wiki.example.com/Phoneme", "Phoneme"),
             ("https://example.com/", "Example"),
+            ("https://wiki.example.com/Prosody", "Prosody"),
             ("https://news.example.com/2026/10/19/tides", nil),
         ]
         for (address, title) in visits {
@@ -324,10 +398,9 @@ enum LaunchHooks {
         }
     }
 
-    /// `-listenDemo` / `-openListen` / `-listenDemoFrom` / `-listenBackAfter`: the newest saved page plays and
-    /// Listen rises, launched from the surface on screen (or the page or folder named), or, with `-openListen`,
-    /// raised first so nothing new is launched; then, optionally, Listen's ‹.
-    static func listenDemo(from place: String?, launches: Bool, back: Double?, library: LibraryStore,
+    /// `-listenDemo` / `-listenDemoFrom` / `-closeListenAfter`: the newest saved page plays and Listen rises
+    /// over the surface on screen (or the page or folder named); then, optionally, Listen closes.
+    static func listenDemo(from place: String?, closeAfter: Double?, library: LibraryStore,
                            speech: SpeechController, shell: ShellState) async {
         try? await Task.sleep(for: .seconds(1))
         if let place {
@@ -344,18 +417,121 @@ enum LaunchHooks {
         var newest = LibraryQueries.savedInLibrary
         newest.fetchLimit = 1
         guard let saved = try? library.context.fetch(newest).first else { return }
-        if !launches { shell.showNowPlaying() }
         speech.listen(to: ReaderArticle(article: saved))
         shell.showNowPlaying()
-        guard let back else { return }
-        try? await Task.sleep(for: .seconds(back))
-        shell.backFromListen(folderExists: { library.folder(id: $0) != nil },
-                             article: { library.article(key: $0).map(ReaderArticle.init(article:)) })
+        guard let closeAfter else { return }
+        try? await Task.sleep(for: .seconds(closeAfter))
+        shell.hideNowPlaying()
     }
 
-    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article in the Reader
-    /// sheet over the browser, without needing the network.
-    static func openNewestInReader(in library: LibraryStore, shell: ShellState) {
+    /// `-readDemoInLibrary`: the newest saved article in Library Read, a second in.
+    static func readNewestInLibrary(in library: LibraryStore, shell: ShellState) async {
+        try? await Task.sleep(for: .seconds(1))
+        var newest = LibraryQueries.savedInLibrary
+        newest.fetchLimit = 1
+        guard let saved = try? library.context.fetch(newest).first else { return }
+        shell.openLibrary()
+        shell.openSaved(saved.listenKey, in: library, inPlace: shell.isCompact)
+    }
+
+    /// `-downloadVoice` (and `-stopVoiceDownloadAfter`): Settings › Voice's tap on that voice's row.
+    static func downloadVoice(_ voice: String, _ options: LaunchOptions, tts: LocalTTSCoordinator) {
+        guard let engine = tts.engines.descriptors.first(where: { $0.allVoices.contains { $0.id == voice } }) else { return }
+        let selection = VoiceSelection(engine: engine.id, voice: voice)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            Task { await tts.chooseDefault(selection) }
+            guard let stop = options.stopsVoiceDownloadAfter else { return }
+            try? await Task.sleep(for: .seconds(stop))
+            tts.voiceDownloads.cancel(selection)
+        }
+    }
+
+    /// `-openVoicePicker`: the newest saved article's *Voice* sheet, a second in.
+    static func openVoicePicker(in library: LibraryStore, shell: ShellState, book: Bool) async {
+        try? await Task.sleep(for: .seconds(1))
+        if book, let folders = try? library.context.fetch(FetchDescriptor<Folder>()),
+           let demo = folders.first(where: { $0.kind.isBookOrSeries }) {
+            shell.sheet = .voice(.folder(demo.id))
+            return
+        }
+        var newest = LibraryQueries.savedInLibrary
+        newest.fetchLimit = 1
+        guard let saved = try? library.context.fetch(newest).first else { return }
+        shell.sheet = .voice(.article(saved.listenKey))
+    }
+
+    /// `-presentSheet`: input, move, and settings sheets; Following seeds the offline story.
+    /// `follow` opens Add a Link. `appearance` is `ReaderSurface`’s.
+    static func presentSheet(_ name: String, options: LaunchOptions, library: LibraryStore, shell: ShellState, follow: FollowCenter) async {
+        try? await Task.sleep(for: .seconds(1))
+        guard let story = URL(string: "reader-test://story/toc") else { return }
+        switch name {
+        case "move":
+            shell.present(.moveTo(MoveRequest(title: Verbs.title(Verbs.saveToFolder), current: nil) { _ in true }))
+        case "preparedAudio":
+            shell.present(.preparedAudio)
+        case "listenDebug":
+            shell.present(.listenDebug)
+        case "addLink", "follow":
+            let parentID: UUID? = shell.libraryPath.last.flatMap {
+                if case .folder(let id) = $0 { return id }
+                return nil
+            }
+            let flow = FollowFlow(url: nil, linkFolderID: parentID, center: follow)
+            flow.address = options.addLinkText ?? ""
+            shell.present(.follow(flow))
+            if options.submitsAddLink, let url = flow.typedURL { flow.read(url) }
+            if let action = options.linkReviewAction {
+                Task { @MainActor in
+                    for _ in 0..<50 {
+                        try? await Task.sleep(for: .milliseconds(200))
+                        guard shell.sheet == .follow(flow) else { return }
+                        if case .alreadyFollowing = flow.step, action == "save" {
+                            flow.savePage()
+                            return
+                        }
+                        if case .review(let contents) = flow.step {
+                            switch action {
+                            case "save": flow.savePage()
+                            case "preview":
+                                if let chapter = contents.chapters.first { flow.showPreview(of: chapter) }
+                            case "cancel": shell.sheet = nil
+                            default: break
+                            }
+                            return
+                        }
+                    }
+                }
+            }
+        case "pasteText":
+            shell.present(.pasteText(nil))
+        case "following":
+            guard let contents = try? await follow.readContents(of: story),
+                  let folder = library.story(contentsURL: contents.url) ?? (try? follow.follow(contents, keeping: contents.chapters, in: nil))
+            else { return }
+            shell.present(.following(folder.id))
+        default: break
+        }
+    }
+
+    /// `-openSettings` and its `-searchSettings` / `-openSettingsPage`: a second in, once the window's
+    /// width is known (compact: the destination; regular: the sheet).
+    static func openSettings(_ options: LaunchOptions, shell: ShellState) async {
+        try? await Task.sleep(for: .seconds(1))
+        shell.select(.settings)
+        if let text = options.settingsSearch {
+            shell.beginSettingsSearch()
+            shell.settingsSearch.text = text
+        }
+        if let page = options.settingsPage { shell.settingsPath = [page] }
+    }
+
+    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article as the Browser's
+    /// reader mode (the Reader sheet on regular width), without needing the network. Once the browser's
+    /// first page (`-browseTestPages`) has loaded, which would otherwise end the reader mode.
+    static func openNewestInReader(in library: LibraryStore, shell: ShellState) async {
+        try? await Task.sleep(for: .seconds(2))
         var newest = LibraryQueries.savedInLibrary
         newest.fetchLimit = 1
         guard let saved = try? library.context.fetch(newest).first else { return }
@@ -366,7 +542,11 @@ enum LaunchHooks {
             article.document = document
             article.trustedParagraphs = document.paragraphs
         }
-        shell.openReader(article)
+        if shell.isCompact {
+            shell.openPageReader(article, requestedAt: shell.pageReaderEpoch)
+        } else {
+            shell.openReader(article)
+        }
     }
 }
 #endif

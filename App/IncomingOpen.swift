@@ -5,8 +5,8 @@ import UniformTypeIdentifiers
 /// Open In / Share entry: document URLs the system hands the app, `meridian-reader://inbox` from
 /// the Share Extension, and a drain of the App Group inbox whenever the app becomes active.
 ///
-/// - http(s) → Browse (`ShellState.navigate`)
-/// - PDF / EPUB file → same path as Library *Import from…* (`BookImportActions.importPicked`)
+/// - http(s) → Browse (`ShellState.navigate`); one the Share Extension sent opens in reader view
+/// - PDF / EPUB file → same path as Library *Import a File…* (`BookImportActions.importPicked`)
 /// - `meridian-reader://inbox` → drain `SharedInbox` (URLs and files the Share Extension wrote)
 @MainActor
 enum IncomingOpen {
@@ -37,7 +37,7 @@ enum IncomingOpen {
             case .webURL:
                 if let string = item.urlString, let url = URL(string: string),
                    let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
-                    shell.navigate(to: url)
+                    shell.navigate(to: url, inReader: true)
                 } else {
                     library.log("inbox: bad web URL \(item.urlString ?? "nil")")
                 }
@@ -56,7 +56,7 @@ enum IncomingOpen {
     private static func openBookFile(_ url: URL, library: LibraryStore, shell: ShellState) {
         guard SharedInbox.isBookFileURL(url) || SharedInbox.isBookFileName(url.lastPathComponent) else {
             library.log("openURL: not a book file \(url.lastPathComponent)")
-            shell.showToast(ShellToast(message: String(localized: "Meridian can open PDF and EPUB files"),
+            shell.showToast(ShellToast(message: String(localized: "Only PDF and EPUB files can be opened"),
                                        systemImage: Icons.warning))
             return
         }

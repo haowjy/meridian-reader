@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// 🔖 in a toolbar slot: slot 1 of the Reader and Now Playing, slot 3 of the browser. On the
-/// player it takes the player's ink and accent. Tap saves to the Library
-/// (or removes what is saved); long-press picks a folder (*Save to Folder…*), and a tap released
-/// early still saves. A spinner stands in while the save is under way.
+/// 🔖 in a toolbar slot (slot 1 of the Reader and regular width's Now Playing, slot 3 of the browser), or
+/// on the chrome's round glass face (`chrome`: the compact reading pages' top group, beside ⋯). On a
+/// reading page it takes the page's ink and accent. Tap saves to the Library; on a saved page it
+/// asks first (*Remove from Library?*), since the button sits beside ⋯ and removing stops the page
+/// if it is playing. Long-press picks a folder (*Save to Folder…*), and a tap released early still
+/// saves. A spinner stands in while the save is under way.
 ///
 /// ```
 /// [🔖]  not saved      [🔖̲]  saved (filled, accent)      [◌]  saving
@@ -15,30 +17,32 @@ struct SaveToggleButton: View {
     let onToggle: () -> Void
     /// Long-press → *Save to Folder…* (nil: no long-press).
     var onSaveToFolder: (() -> Void)?
-    /// On `roundFieldControl`'s face, like Voice and Aa (the player card), not a toolbar cell.
-    var round = false
+    /// On the chrome's glass circle (`ChromeCircleFace`, as ⋯ and Aa beside it), not a toolbar cell
+    /// (`iconButtonFace`). The caller gives it its `Control.chrome` frame.
+    var chrome = false
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.readingPalette) private var reading
+    @State private var confirmingRemove = false
 
     var body: some View {
-        Button(action: onToggle) {
-            Group {
-                if isBusy {
-                    ProgressView()
-                } else if isSaved {
-                    Image(systemName: Icons.saved)
-                        .foregroundStyle(reading?.accent ?? Palette.accent)
-                } else {
-                    Image(systemName: Icons.save)
-                        .foregroundStyle(reading?.ink ?? Palette.ink)
-                }
+        Button {
+            if isSaved { confirmingRemove = true } else { onToggle() }
+        } label: {
+            if chrome {
+                ChromeCircleFace(label: isSaved ? Verbs.removeFromLibrary : Verbs.saveToLibrary,
+                                 symbol: isSaved ? Icons.saved : Icons.save) { glyph }
+            } else {
+                glyph.iconButtonFace(round: false, fill: BottomChrome.fieldFill(reading))
             }
-            // Disabled (no page), it dims like ‹ and ›; the spinner shows in full.
-            .opacity(isEnabled || isBusy ? 1 : Palette.disabledOpacity)
-            .modifier(SaveFace(round: round, fill: BottomChrome.fieldFill(reading)))
         }
         .buttonStyle(GlyphButtonStyle())
+        .confirmationDialog(Verbs.removeFromLibraryQuestion, isPresented: $confirmingRemove,
+                            titleVisibility: .visible) {
+            Button(Verbs.remove, role: .destructive, action: onToggle)
+        } message: {
+            Text("Its audio and place are kept. If it’s playing, it stops.")
+        }
         .highPriorityGesture(
             LongPressGesture().onEnded { _ in onSaveToFolder?() },
             including: onSaveToFolder == nil ? .subviews : .all
@@ -54,17 +58,21 @@ struct SaveToggleButton: View {
     }
 }
 
-private struct SaveFace: ViewModifier {
-    let round: Bool
-    let fill: Color
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if round {
-            content.roundFieldControl(fill: fill)
-        } else {
-            content.toolbarIconFrame()
+private extension SaveToggleButton {
+    var glyph: some View {
+        Group {
+            if isBusy {
+                ProgressView()
+            } else if isSaved {
+                Image(systemName: Icons.saved)
+                    .foregroundStyle(reading?.accent ?? Palette.accent)
+            } else {
+                Image(systemName: Icons.save)
+                    .foregroundStyle(reading?.ink ?? Palette.ink)
+            }
         }
+        // Disabled (no page), it dims like ‹ and ›; the spinner shows in full.
+        .opacity(isEnabled || isBusy ? 1 : Palette.disabledOpacity)
     }
 }
 
@@ -87,6 +95,9 @@ struct SaveToggleButtonGallery: View {
             PreviewState("disabled") { button(saved: false).disabled(true) }
             PreviewState("on the reading page, not saved") { button(saved: false).onReadingPreview() }
             PreviewState("on the reading page, saved") { button(saved: true).onReadingPreview() }
+            PreviewState("chrome face, not saved") { chromeButton(saved: false) }
+            PreviewState("chrome face, saved, on the reading page") { chromeButton(saved: true).onReadingPreview() }
+            PreviewState("chrome face, disabled") { chromeButton(saved: false).disabled(true) }
         }
     }
 
@@ -94,6 +105,12 @@ struct SaveToggleButtonGallery: View {
         SaveToggleButton(isSaved: saved, isBusy: busy, identifier: "preview", onToggle: {}, onSaveToFolder: {})
             .frame(width: 80)
             .tint(Palette.ink)
+    }
+
+    private func chromeButton(saved: Bool) -> some View {
+        SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {}, onSaveToFolder: {}, chrome: true)
+            .frame(width: Control.chrome, height: Control.chrome)
+            .chromeGlassContainer()
     }
 }
 

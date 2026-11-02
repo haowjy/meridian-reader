@@ -3,13 +3,13 @@ import Foundation
 /// The rule for folders (books, followed stories and any other folder, decision D15): when a page
 /// ends, the next page that plays starts; when there is none, playback stops. Pure, so it is
 /// tested without SwiftData: it works on a snapshot of the folder's pages in their full play order
-/// (`LibraryStore.chapterSnapshot`), skipped ones included, so a chapter marked *Skip in Playback*
+/// (`LibraryStore.chapterSnapshot`), skipped ones included, so a chapter marked *Skip When Playing*
 /// while it played is still found.
 ///
 /// A page plays when it isn't skipped: a page with text, or a followed story's chapter still
 /// waiting for its text (`isWaiting`). Playback stops before a waiting chapter rather than skip
 /// it, so a story is never heard out of order; Follow fetches it first, the one after the playing
-/// page ahead of the rest (`FollowCenter`). A link anywhere else (a favorite) is skipped.
+/// page ahead of the rest (`FollowCenter`). A link anywhere else (a saved address) is skipped.
 enum ChapterAdvance {
     struct Chapter: Equatable {
         var key: UUID

@@ -24,7 +24,6 @@ struct LibrarySurface: View {
 
     private var screen: LibraryScreenState { chrome.screen }
     private var screenMenu: LibraryScreenMenu { chrome.screenMenu }
-    private var turningOff: Binding<Folder?> { chrome.turningOff }
     private var searchPrompt: String { chrome.searchPrompt }
 
     private var isRegular: Bool { sizeClass == .regular }
@@ -37,9 +36,9 @@ struct LibrarySurface: View {
                 LibraryHomeView(articleSort: ArticleSort(rawValue: topLevelSort) ?? LibraryTopLevel.defaultSort,
                                 tab: shell.homeTab,
                                 searchText: search.isActive && shell.librarySearchFolder == nil ? search.text : "")
-                    .modifier(CompactChromeScroll(isCompact: !isRegular))
+                    .modifier(CompactChromeScroll(isCompact: !isRegular, source: .library))
                     .navigationDestination(for: LibraryRoute.self) {
-                        LibraryRouteView(route: $0).modifier(CompactChromeScroll(isCompact: !isRegular))
+                        LibraryRouteView(route: $0).modifier(CompactChromeScroll(isCompact: !isRegular, source: .library))
                     }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -71,6 +70,7 @@ struct LibrarySurface: View {
         .libraryDropZone(screen, top: shell.libraryPath.last.map(LibraryScreenKey.route) ?? .home,
                          actions: LibraryActions(library: library, speech: speech, shell: shell, follow: follow))
         .environment(screen)
+        .environment(\.libraryChrome, isRegular ? nil : chrome)
         .libraryDialogs(screen) {
             shell.pruneLibraryPath { library.folder(id: $0) != nil }
         }
@@ -87,21 +87,16 @@ struct LibrarySurface: View {
                 BandToolbarButton(systemImage: Icons.back, label: Verbs.back,
                                   identifier: "libraryBack", action: shell.libraryBack)
                     .disabled(shell.libraryPath.isEmpty)
-                let createRows = screenMenu.createRows
-                if !createRows.isEmpty {
-                    Menu {
-                        MenuRows(createRows)
-                    } label: {
-                        Image(systemName: Icons.add).toolbarIconFrame()
-                    }
-                    .accessibilityLabel("Add")
-                    .accessibilityIdentifier("libraryAdd")
-                    .disabled(shell.libraryPath.isEmpty && shell.homeTab == .favorites)
+                Menu {
+                    MenuRows(screenMenu.createRows)
+                } label: {
+                    Image(systemName: Icons.add).toolbarIconFrame()
                 }
-                BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
+                .accessibilityLabel("Add")
+                .accessibilityIdentifier("libraryAdd")
+                BandToolbarButton(systemImage: Icons.history, label: Verbs.browsingHistory,
                                   identifier: "libraryHistory") { shell.present(.history) }
                 MoreMenuButton(id: "libraryMore") { screenMenu.menu(compact: false) }
-                    .turnOffPrepareQuestion(turningOff)
             }
             .tint(Palette.ink)
         }

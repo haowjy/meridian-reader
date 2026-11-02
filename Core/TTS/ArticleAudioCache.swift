@@ -20,10 +20,11 @@ final class ArticleAudioCache {
             /// Durations of the synth chunks stitched into this CAF (nil = single render).
             /// Lets a player resume mid-paragraph at a chunk boundary (`startTime`).
             var chunkDurations: [Double]? = nil
-            /// Engine / voice of this CAF when it differs from the index's `engineID`/`voiceID`:
-            /// a paragraph not yet re-rendered after a voice or engine switch ("stale"). Stale
-            /// units are playable (`playableAudioURL`) but never count as ready for the current
-            /// voice; re-rendering the paragraph overwrites the file. nil = the index's.
+            /// Engine / voice of this CAF when it differs from the index's `engineID`/`voiceID`
+            /// ("stale"): only caches older builds wrote have them (a voice switch left the old
+            /// voice's paragraphs in place until each was rendered again). Read so they never count
+            /// or play in the index's voice; the launch deletes them once
+            /// (`dropStaleVoiceParagraphs`). nil = the index's.
             var engineID: String? = nil
             var voiceID: String? = nil
         }
@@ -63,9 +64,14 @@ final class ArticleAudioCache {
     /// checked when the index is loaded and when a unit is stored — so reads never touch the
     /// disk; they run on every scrubber redraw and per synth chunk. `.some(nil)`: no index.
     @ObservationIgnored private var indexes: [UUID: IndexFile?] = [:]
-    /// Each article's `meta.json` kind, read once and kept current by every meta write (all of
-    /// them go through this class): asked per chunk request. `.some(nil)`: no meta.
-    @ObservationIgnored private var kinds: [UUID: CacheMeta.Kind?] = [:]
+    /// How many times each article's index changed in this process (every write, delete, rekey,
+    /// and a rewrite on disk that the next read reloads): the render queue keeps a job's missing
+    /// paragraphs until its article's count moves (`indexChanges(of:)`).
+    @ObservationIgnored private var indexChangeCounts: [UUID: UInt64] = [:]
+    /// Each cache directory's `meta.json`, read once and kept current by every meta write and
+    /// every move or delete of a directory (all of them go through this class): its kind is asked
+    /// per chunk request, its owner by every walk of the cache (`entries()`). `.some(nil)`: no meta.
+    @ObservationIgnored var metas: [UUID: CacheMeta?] = [:]
     /// Audio that waits for library work a launch couldn't finish (`LibraryStore.finishAudioWork`).
     /// Until a run of that work replaces it, the engine purges and the prune leave it alone, and
     /// its saved bake jobs aren't adopted: the work still needs what is there.
@@ -111,11 +117,10 @@ final class ArticleAudioCache {
         fileManager.fileExists(atPath: indexURL(for: articleID).path)
     }
 
-    /// Every article with saved audio (an index on disk), by key (C134 retention, the Prepared
-    /// Audio list's From Listening section).
+    /// Every article with audio of its own (an index in its live directory), by key (C134
+    /// retention, the Prepared Audio list's From Listening section). Old voices aren't listed.
     func cachedArticleKeys() -> [UUID] {
-        let dirs = (try? fileManager.contentsOfDirectory(atPath: root.path)) ?? []
-        return dirs.compactMap(UUID.init(uuidString:)).filter(hasCache(for:))
+        entries().filter(\.isLive).map(\.storageID).filter(hasCache(for:))
     }
 
     /// Bytes on disk of `articleID`'s audio.
@@ -138,10 +143,20 @@ final class ArticleAudioCache {
         return loaded
     }
 
+    /// How many times `articleID`'s index changed in this process.
+    func indexChanges(of articleID: UUID) -> UInt64 { indexChangeCounts[articleID, default: 0] }
+
+    /// Every change of an article's index goes through here (a first read from disk doesn't
+    /// change it). nil: the article has no index.
+    private func setIndex(_ index: IndexFile?, for articleID: UUID) {
+        indexes[articleID] = .some(index)
+        indexChangeCounts[articleID, default: 0] &+= 1
+    }
+
     /// Make `index` the article's index: in memory first (it describes the files as they are
     /// now, even if the write below fails), then `index.json`.
     func saveIndex(_ index: IndexFile, for articleID: UUID) throws {
-        indexes[articleID] = .some(index)
+        setIndex(index, for: articleID)
         try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
     }
 
@@ -150,12 +165,13 @@ final class ArticleAudioCache {
     /// matches the disk.
     func publishIndex(_ index: IndexFile, for articleID: UUID) throws {
         try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
-        indexes[articleID] = .some(index)
+        setIndex(index, for: articleID)
     }
 
     /// Forget the in-memory copy (after rewriting the directory on disk); the next read reloads it.
-    private func dropIndex(for articleID: UUID) {
+    func dropIndex(for articleID: UUID) {
         indexes.removeValue(forKey: articleID)
+        indexChangeCounts[articleID, default: 0] &+= 1
     }
 
     func readIndexFile(for articleID: UUID) -> IndexFile? {
@@ -208,8 +224,8 @@ final class ArticleAudioCache {
     /// to speak (a chunk plan with chunks, from `plans`) and no CAF in exactly this engine and
     /// voice (stale units of another voice don't count). A paragraph with nothing to speak (a bare
     /// "—") never gets audio, so it is never missing: an article is rendered once the rest is.
-    /// The render queue, Prepared audio, staging the next chapter, Apple standing in for a chapter and
-    /// the voice-switch cleanup all ask this.
+    /// The render queue, Prepared audio and staging the next chapter all
+    /// ask this.
     func missingParagraphs(articleID: UUID, paragraphs: [String], engineID: String, voiceID: String,
                            plans: ChunkPlans) -> [Int] {
         let ready = readyIndices(articleID: articleID, paragraphCount: paragraphs.count, engineID: engineID, voiceID: voiceID)
@@ -229,14 +245,23 @@ final class ArticleAudioCache {
         contentRevision &+= 1
     }
 
+    /// The directory and its chunk scratch (an article's live audio, or an old-voice entry by its
+    /// storage id).
     func deleteAudio(for articleID: UUID) throws {
         let dir = directory(for: articleID)
-        if fileManager.fileExists(atPath: dir.path) {
-            try fileManager.removeItem(at: dir)
+        do {
+            if fileManager.fileExists(atPath: dir.path) {
+                try fileManager.removeItem(at: dir)
+            }
+        } catch {
+            // A failed removal can have deleted some files: memory reloads what survived.
+            forget([articleID])
+            throw error
         }
-        indexes[articleID] = .some(nil)
-        kinds[articleID] = .some(nil)
+        setIndex(nil, for: articleID)
+        metas[articleID] = .some(nil)
         bumpContentRevision()
+        removeChunkScratch(for: articleID)
     }
 
     /// A paragraph's CAF: `p-NNNN.caf`.
@@ -265,8 +290,10 @@ final class ArticleAudioCache {
 
     /// Index half of baking a paragraph: renames the stitched file over `p-NNNN.caf` and records
     /// it, in one main-actor step, so no alignment (`reconcile`, `rekeyCache`) runs between the
-    /// file and its entry. A rename, never a write into `p-NNNN.caf`: an old-voice CAF there may
-    /// be playing right now, and its player keeps reading the old file.
+    /// file and its entry. A rename, never a write into `p-NNNN.caf`: a CAF there may be playing
+    /// right now, and its player keeps reading the old file. One voice per live directory: when it
+    /// holds another voice's audio, that becomes an old-voice entry first (`archiveLive`), and if
+    /// that fails nothing is published.
     func publishParagraph(
         staged: URL,
         articleID: UUID,
@@ -277,46 +304,21 @@ final class ArticleAudioCache {
         textHash: String,
         chunkDurations: [Double]?
     ) throws {
+        if let held = audioVoice(of: articleID), held != CacheVoice(engineID: engineID, voiceID: voiceID) {
+            try archiveLive(articleID)
+        }
+        try fileManager.createDirectory(at: directory(for: articleID), withIntermediateDirectories: true)
         let dest = paragraphFileURL(articleID: articleID, paragraphIndex: paragraphIndex)
         guard rename(staged.path, dest.path) == 0 else {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
-        try recordParagraph(articleID: articleID, paragraphIndex: paragraphIndex, duration: duration,
-                            engineID: engineID, voiceID: voiceID, textHash: textHash, chunkDurations: chunkDurations)
-    }
-
-    /// Index half of storing a paragraph whose CAF is already at `paragraphFileURL`.
-    func recordParagraph(
-        articleID: UUID,
-        paragraphIndex: Int,
-        duration: TimeInterval,
-        engineID: String,
-        voiceID: String,
-        textHash: String?,
-        chunkDurations: [Double]?
-    ) throws {
-        // One voice per article: units of another engine/voice stay (stamped stale, still
-        // playable) until their paragraph is re-rendered; this paragraph's old file was just
-        // replaced. `finalizeVoiceSwitch` drops any leftovers once the article is complete.
-        var entries = (index(for: articleID)?.retargeted(engineID: engineID, voiceID: voiceID).paragraphs ?? [])
-            .filter { $0.index != paragraphIndex }
-        entries.append(.init(
-            index: paragraphIndex,
-            file: paragraphFileURL(articleID: articleID, paragraphIndex: paragraphIndex).lastPathComponent,
-            duration: duration,
-            textHash: textHash,
-            chunkDurations: chunkDurations
-        ))
+        var entries = (index(for: articleID)?.paragraphs ?? []).filter { $0.index != paragraphIndex }
+        entries.append(.init(index: paragraphIndex, file: dest.lastPathComponent, duration: duration,
+                             textHash: textHash, chunkDurations: chunkDurations))
         entries.sort { $0.index < $1.index }
-
-        let index = IndexFile(
-            engineID: engineID,
-            voiceID: voiceID,
-            createdAt: Date(),
-            paragraphs: entries
-        )
         defer { bumpContentRevision() }
-        try saveIndex(index, for: articleID)
+        try saveIndex(IndexFile(engineID: engineID, voiceID: voiceID, createdAt: Date(), paragraphs: entries),
+                      for: articleID)
     }
 
     private nonisolated static func emptyAudioError(_ unit: Any) -> NSError {
@@ -326,14 +328,20 @@ final class ArticleAudioCache {
 
     // MARK: - Synth chunk scratch (GlobalSynthQueue)
 
-    /// `<article>/chunks/p-NNNN-<texthash>-<voice>/c-KK.caf` — per-chunk renders of a paragraph
-    /// that is still being built, in one cache voice. A call in flight when the voice changes
-    /// writes into its own voice's folder, never where the new voice looks. Stitched into
-    /// `p-NNNN.caf` when every chunk is present.
+    /// `chunks/<article>/p-NNNN-<texthash>-<voice>/c-KK.caf` under the cache root — per-chunk
+    /// renders of a paragraph that is still being built, in one cache voice. A call in flight when
+    /// the voice changes writes into its own voice's folder, never where the new voice looks.
+    /// Stitched into `p-NNNN.caf` when every chunk is present. Outside the article's directory, so
+    /// only main-actor cache methods write there, and moving it (`archiveLive`) races no render.
     func chunkDirectory(articleID: UUID, paragraphIndex: Int, textHash: String, voice: String) -> URL {
-        directory(for: articleID)
-            .appendingPathComponent("chunks", isDirectory: true)
+        chunkScratch(for: articleID)
             .appendingPathComponent(Self.chunkFolderPrefix(paragraphIndex, textHash) + voice, isDirectory: true)
+    }
+
+    private var chunkScratchRoot: URL { root.appendingPathComponent("chunks", isDirectory: true) }
+
+    private func chunkScratch(for articleID: UUID) -> URL {
+        chunkScratchRoot.appendingPathComponent(articleID.uuidString, isDirectory: true)
     }
 
     func chunkURL(articleID: UUID, paragraphIndex: Int, textHash: String, voice: String, chunk: Int) -> URL {
@@ -348,16 +356,15 @@ final class ArticleAudioCache {
 
     /// Drop chunk scratch for one article (never while it is the live playback session).
     func removeChunkScratch(for articleID: UUID) {
-        let dir = directory(for: articleID).appendingPathComponent("chunks", isDirectory: true)
-        try? fileManager.removeItem(at: dir)
+        try? fileManager.removeItem(at: chunkScratch(for: articleID))
     }
 
     /// Drop chunk scratch for one article except the dirs that still match `paragraphs`
     /// (same index + text hash, any voice): those hold finished chunks of a paragraph the queue
     /// is baking right now. Wiping them made the worker synthesize the same chunks again —
-    /// extra Core ML calls, each one more exposure to the Kokoro libBNNS crash (#844).
+    /// extra model calls, each one more exposure to an engine crash.
     func removeChunkScratch(for articleID: UUID, keepingCurrent paragraphs: [String]) {
-        let dir = directory(for: articleID).appendingPathComponent("chunks", isDirectory: true)
+        let dir = chunkScratch(for: articleID)
         guard let subdirs = try? fileManager.contentsOfDirectory(atPath: dir.path) else { return }
         let keep = Set(paragraphs.indices.map { Self.chunkFolderPrefix($0, ArticleIdentity.paragraphHash(paragraphs[$0])) })
         for name in subdirs where !keep.contains(where: name.hasPrefix) {
@@ -365,12 +372,12 @@ final class ArticleAudioCache {
         }
     }
 
-    /// Launch-time cleanup: nothing is playing yet, so all chunk scratch is disposable.
+    /// Launch-time cleanup: nothing is playing yet, so all chunk scratch is disposable, the
+    /// scratch older builds kept inside each article's directory included.
     func removeAllChunkScratch() {
-        guard let dirs = try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
-        else { return }
-        for dir in dirs {
-            try? fileManager.removeItem(at: dir.appendingPathComponent("chunks", isDirectory: true))
+        try? fileManager.removeItem(at: chunkScratchRoot)
+        for entry in entries() {
+            try? fileManager.removeItem(at: directory(for: entry.storageID).appendingPathComponent("chunks", isDirectory: true))
         }
     }
 
@@ -394,119 +401,105 @@ extension ArticleAudioCache {
         var canonicalURL: String?
         var createdAt: Date
         var lastAccessAt: Date
+        /// An old-voice entry's article: the key whose audio this was before its voice changed
+        /// (`archiveLive`). nil in an article's own (live) directory.
+        var voiceOf: UUID? = nil
     }
 
     private func metaURL(for articleID: UUID) -> URL {
         directory(for: articleID).appendingPathComponent("meta.json")
     }
 
+    /// `meta.json` as it is on disk.
     func loadMeta(for articleID: UUID) -> CacheMeta? {
         guard let data = try? Data(contentsOf: metaURL(for: articleID)) else { return nil }
         return try? JSONDecoder().decode(CacheMeta.self, from: data)
     }
 
-    /// The article's audio is on the ephemeral TTL (an unsaved page's). From memory after the
-    /// first read of `meta.json`.
-    func isEphemeral(_ articleID: UUID) -> Bool {
-        if let kind = kinds[articleID] { return kind == .ephemeral }
-        let kind = loadMeta(for: articleID)?.kind
-        kinds[articleID] = .some(kind)
-        return kind == .ephemeral
+    /// `meta.json`, from memory after the first read.
+    func meta(for articleID: UUID) -> CacheMeta? {
+        if let meta = metas[articleID] { return meta }
+        let meta = loadMeta(for: articleID)
+        metas[articleID] = .some(meta)
+        return meta
     }
 
-    private func writeMeta(_ meta: CacheMeta, for articleID: UUID) {
+    /// The article's audio is on the ephemeral TTL (an unsaved page's).
+    func isEphemeral(_ articleID: UUID) -> Bool {
+        meta(for: articleID)?.kind == .ephemeral
+    }
+
+    /// Writes `meta.json`; on failure memory reads the disk again next time.
+    func writeMeta(_ meta: CacheMeta, for articleID: UUID) throws {
         do {
             try JSONEncoder().encode(meta).write(to: metaURL(for: articleID), options: .atomic)
-            kinds[articleID] = .some(meta.kind)
+            metas[articleID] = .some(meta)
         } catch {
-            kinds[articleID] = nil // read from disk next time
+            metas[articleID] = nil
+            throw error
         }
     }
 
-    func markEphemeral(cacheKey: UUID, canonicalURL: String? = nil, lastAccess: Date = Date()) {
-        let dir = directory(for: cacheKey)
-        try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+    /// The article's live directory goes on the ephemeral TTL, created if missing.
+    func markEphemeral(cacheKey: UUID, canonicalURL: String? = nil, lastAccess: Date = Date()) throws {
+        try fileManager.createDirectory(at: directory(for: cacheKey), withIntermediateDirectories: true)
         let existing = loadMeta(for: cacheKey)
-        let meta = CacheMeta(
-            kind: .ephemeral,
-            canonicalURL: canonicalURL ?? existing?.canonicalURL,
-            createdAt: existing?.createdAt ?? Date(),
-            lastAccessAt: lastAccess
-        )
-        writeMeta(meta, for: cacheKey)
+        try writeMeta(CacheMeta(kind: .ephemeral, canonicalURL: canonicalURL ?? existing?.canonicalURL,
+                                createdAt: existing?.createdAt ?? Date(), lastAccessAt: lastAccess),
+                      for: cacheKey)
     }
 
-    func markSaved(cacheKey: UUID) {
-        let dir = directory(for: cacheKey)
-        guard fileManager.fileExists(atPath: dir.path) else { return }
+    /// The article's live directory, if it has one, is a saved page's.
+    func markSaved(cacheKey: UUID) throws {
+        guard fileManager.fileExists(atPath: directory(for: cacheKey).path) else { return }
         let existing = loadMeta(for: cacheKey)
-        let meta = CacheMeta(
-            kind: .saved,
-            canonicalURL: existing?.canonicalURL,
-            createdAt: existing?.createdAt ?? Date(),
-            lastAccessAt: Date()
-        )
-        writeMeta(meta, for: cacheKey)
+        try writeMeta(CacheMeta(kind: .saved, canonicalURL: existing?.canonicalURL,
+                                createdAt: existing?.createdAt ?? Date(), lastAccessAt: Date()),
+                      for: cacheKey)
     }
 
     /// Moves an article's audio under another key (Save of a legacy reader key, adopting a v1
-    /// cache); `newKey` ends saved. When `newKey` has no directory, one rename moves it whole, so
-    /// at every instant the audio is under one key or the other. Otherwise copy-on-write: the
-    /// units `newKey` has none for (by paragraph) are copied in under new names, its index is
-    /// saved, and only then is `oldKey`'s directory deleted.
-    func rekeyCache(from oldKey: UUID, to newKey: UUID) throws {
+    /// cache); `newKey` ends saved. First the old voices of `oldKey` become `newKey`'s, and
+    /// `oldKey`'s audio becomes an old-voice entry of `newKey` when it isn't in `voice` (the voice
+    /// `newKey` renders in; `prepareMerge`). When `newKey` has no directory, one rename moves it
+    /// whole, so at every instant the audio is under one key or the other. Otherwise
+    /// copy-on-write: the units `newKey` has none for (by paragraph) are copied in under new
+    /// names, its index is saved, and only then is `oldKey`'s directory deleted.
+    func rekeyCache(from oldKey: UUID, to newKey: UUID, voice: CacheVoice?) throws {
         guard oldKey != newKey else {
-            markSaved(cacheKey: newKey)
+            try markSaved(cacheKey: newKey)
             return
         }
         let src = directory(for: oldKey)
         let dst = directory(for: newKey)
-        guard fileManager.fileExists(atPath: src.path) else {
-            markSaved(cacheKey: newKey)
+        guard try prepareMerge(from: oldKey, into: newKey, voice: voice),
+              fileManager.fileExists(atPath: src.path) else {
+            try markSaved(cacheKey: newKey)
             return
         }
         if !fileManager.fileExists(atPath: dst.path) {
             try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+            defer { forget([oldKey, newKey]) }
             try fileManager.moveItem(at: src, to: dst)
-            indexes[oldKey] = .some(nil)
-            kinds[oldKey] = .some(nil)
-            kinds[newKey] = nil
-            dropIndex(for: newKey)
-            bumpContentRevision()
-            markSaved(cacheKey: newKey)
+            try? fileManager.moveItem(at: chunkScratch(for: oldKey), to: chunkScratch(for: newKey))
+            try markSaved(cacheKey: newKey)
             return
         }
-        let own = index(for: newKey)
-        if let moving = index(for: oldKey) {
-            var placed: [Int: AlignUnit] = [:]
-            for unit in units(of: own, for: newKey, origin: .own) { placed[unit.entry.index] = unit }
-            for unit in units(of: moving, for: oldKey, origin: .adopted) where placed[unit.entry.index] == nil {
-                placed[unit.entry.index] = unit
-            }
-            if placed.values.contains(where: { $0.origin == .adopted }) {
-                try publish(placed, for: newKey, engineID: moving.engineID, voiceID: moving.voiceID)
-            }
-        }
-        try removeUnlisted(articleID: newKey, previous: own)
-        markSaved(cacheKey: newKey)
+        try fillMissing(newKey, from: oldKey)
+        try markSaved(cacheKey: newKey)
         try deleteAudio(for: oldKey)
     }
 
-    /// Prune ephemeral caches older than `maxAge` or when total ephemeral size exceeds `maxBytes`.
-    /// Saved caches are never pruned here, nor held ones (`held`). Choice: survive leaving
-    /// Reader + app restart; TTL by age/size.
+    /// Prune ephemeral caches older than `maxAge` or when total ephemeral size exceeds `maxBytes`:
+    /// unsaved pages' audio and old-voice entries alike, a whole directory at a time. Saved caches
+    /// are never pruned here, nor held ones (`held`, resolved through the owner: a hold on an
+    /// article holds its old voices too). Choice: survive leaving Reader + app restart; TTL by
+    /// age/size.
     @discardableResult
     func pruneEphemeral(
         maxAge: TimeInterval = 7 * 24 * 60 * 60,
-        maxBytes: Int64 = 500 * 1024 * 1024
+        maxBytes: Int64 = 2 * 1024 * 1024 * 1024
     ) -> (removed: Int, freedBytes: Int64) {
-        let root = self.root
-        guard let dirs = try? fileManager.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey],
-            options: [.skipsHiddenFiles]
-        ) else { return (0, 0) }
-
         struct Entry {
             var id: UUID
             var url: URL
@@ -516,13 +509,10 @@ extension ArticleAudioCache {
 
         var ephemeral: [Entry] = []
         let now = Date()
-        for dir in dirs {
-            var isDir: ObjCBool = false
-            guard fileManager.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else { continue }
-            guard let id = UUID(uuidString: dir.lastPathComponent), !held.contains(id) else { continue }
-            guard let meta = loadMeta(for: id), meta.kind == .ephemeral else { continue }
-            let bytes = directorySize(dir)
-            ephemeral.append(Entry(id: id, url: dir, meta: meta, bytes: bytes))
+        for entry in entries() where entry.kind == .ephemeral && !held.contains(entry.owner) {
+            guard let meta = meta(for: entry.storageID) else { continue }
+            let dir = directory(for: entry.storageID)
+            ephemeral.append(Entry(id: entry.storageID, url: dir, meta: meta, bytes: directorySize(dir)))
         }
 
         var removed = 0
@@ -571,39 +561,12 @@ extension ArticleAudioCache {
     }
 }
 
-// MARK: - One voice per article, retired engines, orphans
+// MARK: - Retired engines, voice key changes, orphans
 
 extension ArticleAudioCache {
     /// Engine id for index files that carry no `engineID`: only Chatterbox Nano (a retired
     /// engine, see `RetiredEngineCleanup`) wrote those.
     nonisolated static let legacyEngineID = "local.chatterbox-nano"
-
-    /// Once no paragraph of `paragraphs` needs audio in `engineID`/`voiceID` any more
-    /// (`missingParagraphs`), delete any remaining units of other voices/engines (e.g. indices
-    /// past the end, or a paragraph that has nothing to speak now). Returns bytes freed.
-    @discardableResult
-    func finalizeVoiceSwitch(articleID: UUID, paragraphs: [String], engineID: String, voiceID: String,
-                             plans: ChunkPlans) -> Int64 {
-        guard !paragraphs.isEmpty, var index = index(for: articleID) else { return 0 }
-        let stale = index.paragraphs.filter { !index.matches($0, engineID: engineID, voiceID: voiceID) }
-        guard !stale.isEmpty,
-              missingParagraphs(articleID: articleID, paragraphs: paragraphs, engineID: engineID, voiceID: voiceID,
-                                plans: plans).isEmpty
-        else { return 0 }
-        let dir = directory(for: articleID)
-        let keptFiles = Set(index.paragraphs.filter { index.matches($0, engineID: engineID, voiceID: voiceID) }.map(\.file))
-        var freed: Int64 = 0
-        for e in stale where !keptFiles.contains(e.file) {
-            let url = dir.appendingPathComponent(e.file)
-            freed += FileSizes.allocatedBytes(at: url, fileManager: fileManager)
-            try? fileManager.removeItem(at: url)
-        }
-        index = index.retargeted(engineID: engineID, voiceID: voiceID)
-        index.paragraphs.removeAll { $0.engineID != nil || $0.voiceID != nil }
-        try? saveIndex(index, for: articleID)
-        bumpContentRevision()
-        return freed
-    }
 
     struct PurgeReport: Equatable {
         var articles = 0
@@ -618,16 +581,15 @@ extension ArticleAudioCache {
     /// Delete every cached unit rendered by `engineID` (all articles), drop those index entries
     /// (so bake marks recompute), and delete CAFs no index references (orphans from older
     /// builds). Undecodable pre-engine-key indexes count as `legacyEngineID`. Held articles
-    /// (`held`) are left alone and counted. Launch-time only: nothing may be playing or baking.
+    /// (`held`) are left alone and counted. Old-voice entries are walked like live directories.
+    /// Launch-time only: nothing may be playing or baking.
     @discardableResult
     func purgeEngine(_ engineID: String) -> PurgeReport {
         var report = PurgeReport()
-        guard let dirs = try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else {
-            return report
-        }
-        for dir in dirs {
-            guard let articleID = UUID(uuidString: dir.lastPathComponent) else { continue }
-            if held.contains(articleID) {
+        for entry in entries() {
+            let articleID = entry.storageID
+            let dir = directory(for: articleID)
+            if held.contains(entry.owner) {
                 report.held += 1
                 continue
             }
@@ -652,9 +614,6 @@ extension ArticleAudioCache {
                         try? JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
                     } else {
                         try? fileManager.removeItem(at: indexURL(for: articleID))
-                        let chunks = dir.appendingPathComponent("chunks", isDirectory: true)
-                        report.bytes += FileSizes.allocatedBytes(at: chunks, fileManager: fileManager)
-                        try? fileManager.removeItem(at: chunks)
                     }
                     index.paragraphs = survivors
                 }
@@ -674,6 +633,40 @@ extension ArticleAudioCache {
         }
         if report.paragraphs > 0 || report.orphanFiles > 0 { bumpContentRevision() }
         return report
+    }
+
+    /// Rewrite cache voice keys in every index, for a voice library whose key format changed
+    /// (`rename`: the new key, nil to keep it). Only the indexes change; the files stay. Old-voice
+    /// entries too: their voice is read from their index, so they stay findable. Launch-time only,
+    /// like `purgeEngine`. `complete`: the cache was listed and every index read, and each one
+    /// that needed it written.
+    func renameVoices(_ rename: (String) -> String?) -> (articles: Int, complete: Bool) {
+        var articles = 0
+        var complete = true
+        guard (try? fileManager.contentsOfDirectory(atPath: root.path)) != nil else {
+            return (0, !fileManager.fileExists(atPath: root.path))
+        }
+        for articleID in entries().map(\.storageID) where hasCache(for: articleID) {
+            // A file that can't be read now (locked before first unlock) is retried next launch;
+            // one that reads but doesn't decode never will, and no read path can use it.
+            guard let data = try? Data(contentsOf: indexURL(for: articleID)) else { complete = false; continue }
+            guard var index = try? JSONDecoder().decode(IndexFile.self, from: data) else { continue }
+            let before = index
+            index.voiceID = rename(index.voiceID) ?? index.voiceID
+            for i in index.paragraphs.indices {
+                if let voice = index.paragraphs[i].voiceID { index.paragraphs[i].voiceID = rename(voice) ?? voice }
+            }
+            guard index != before else { continue }
+            do {
+                try JSONEncoder().encode(index).write(to: indexURL(for: articleID), options: .atomic)
+                articles += 1
+            } catch {
+                complete = false
+            }
+            dropIndex(for: articleID)
+        }
+        if articles > 0 { bumpContentRevision() }
+        return (articles, complete)
     }
 
     /// `index.json` as written (unverified), tolerating pre-engine-key files (no `engineID` →

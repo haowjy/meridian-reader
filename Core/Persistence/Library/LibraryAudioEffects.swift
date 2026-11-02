@@ -9,7 +9,7 @@ protocol LibraryAudioEffects: AnyObject {
     var audioCache: ArticleAudioCache { get }
     /// Chunk plans by engine: what aligning audio with rebuilt paragraphs cuts them by.
     var chunkPlans: ChunkPlans { get }
-    /// Bake jobs waiting for the engine: a rebuilt page's job follows its paragraphs.
+    /// Bake jobs kept across launches: a rebuilt page's job follows its paragraphs.
     var pendingBakes: PendingBakeJobStore { get }
     /// The crash-resume file: library work moves the point it names along with the page.
     var resumePoints: ListenResumePointStore { get }
@@ -17,17 +17,23 @@ protocol LibraryAudioEffects: AnyObject {
     func isPrepared(_ key: UUID) -> Bool
     /// Listening needs `key`'s audio right now (the session playing, the staged next chapter).
     func listeningNeeds(_ key: UUID) -> Bool
-    /// `key`'s audio, queued renders and saved bake job are deleted.
+    /// `key`'s live audio, queued renders and saved bake job are deleted; its old voices stay.
     func clearListenAudio(for key: UUID) throws
     /// `key`'s queued renders and saved bake job go; its audio stays.
     func removeBakeJob(cacheKey key: UUID)
     /// `key`'s audio is a saved page's: kept, and its queued renders no longer ephemeral.
-    func markListenCacheSaved(_ key: UUID)
+    func markListenCacheSaved(_ key: UUID) throws
     /// `key`'s audio and queued renders go on the ephemeral TTL (kept until the cache's age
     /// prune), filed under `canonicalURL`.
-    func markListenCacheEphemeral(_ key: UUID, canonicalURL: String?)
+    func markListenCacheEphemeral(_ key: UUID, canonicalURL: String?) throws
+    /// The voice `key`'s audio renders in now, read from the library (its or its book's stored
+    /// selection, else the Settings default); nil when no registered engine speaks it.
+    func selectedCacheVoice(of key: UUID) -> ArticleAudioCache.CacheVoice?
     /// Audio changed outside the render queue: what shows rendered audio redraws.
     func noteBakeMarksChanged()
+    /// A run of library audio work changed what `audioCache.held` holds: saved bake jobs of the
+    /// audio it let go may render now.
+    func heldAudioChanged()
     /// The library moved the page the crash-resume target names (read at launch, before the
     /// library's maintenance): the target follows, as `move` places it.
     func remapPendingResume(article: UUID, _ move: (ListenResumeTarget) -> ListenResumeTarget)

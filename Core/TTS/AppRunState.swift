@@ -3,24 +3,16 @@ import Foundation
 import UIKit
 #endif
 
-/// Foreground / background state that gates on-device Core ML synthesis.
+/// The app's phase (active / inactive / background), mirrored from `UIApplication`. The render
+/// policy reads it (`RenderSituation.phase`): fewer threads in the background, and calls there
+/// only while audio plays; the crash guard records it in each call's marker.
 ///
-/// iOS forbids GPU work in the background, and on iOS 26.4+ *every* Kokoro compute routing
-/// still runs BNNS CPU ops that can crash (FluidAudio #844 — cpuOnly, cpuAndGPU and
-/// ANE-with-CPU-tail all crashed; ANE-only is not available for all stages). So there is no
-/// background-safe compute setting to switch to: **no local model call starts while the app is
-/// in the background**. Listening continues from baked audio, and paragraphs that aren't
-/// rendered yet are spoken with Apple TTS (see `GlobalSynthQueue`, docs/LISTEN_PLAYBACK.md).
+/// - `active`: on screen.
+/// - `inactive` (Control Center, call banner, app switcher; also on the way to background): as
+///   in front.
+/// - `background`: the app runs only while audio plays (or a short `BackgroundGrace`).
 ///
-/// - `active`: everything runs (live chunks + bake-ahead).
-/// - `inactive` (Control Center, call banner, app switcher; also on the way to background):
-///   only chunks a listener is waiting for; bake-ahead waits.
-/// - `background`: no Core ML at all; live requests are deferred (→ Apple fallback).
-///
-/// Hosts without Core ML (Kokoro's ONNX CPU route) are the exception; `RenderAdmission` holds
-/// the full rule.
-///
-/// Thread-safe: `LocalChunkRenderer` checks it off the main actor right before each call.
+/// Thread-safe: read off the main actor too.
 final class AppRunState: @unchecked Sendable {
     enum Phase: String, Sendable {
         case active, inactive, background
@@ -78,8 +70,7 @@ final class AppRunState: @unchecked Sendable {
 
 #if canImport(UIKit)
 /// `beginBackgroundTask` wrapper: a short grace period so work in flight when the app leaves the
-/// foreground (a Core ML chunk + its CAF write, or an Apple-fallback render while the player is
-/// starved) finishes instead of being suspended mid-way. Does NOT permit GPU work.
+/// foreground (a model call + its CAF write) finishes instead of being suspended mid-way.
 @MainActor
 final class BackgroundGrace {
     let name: String

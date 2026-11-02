@@ -71,7 +71,7 @@ struct BrowserBottomChrome: View {
                              onToggle: onToggleSave, onSaveToFolder: onSaveToFolder)
                 .disabled(!web.hasPage || shell.busy != nil)
                 .toolbarSlot(2)
-            BandToolbarButton(systemImage: Icons.history, label: Verbs.history,
+            BandToolbarButton(systemImage: Icons.history, label: Verbs.browsingHistory,
                               identifier: "browseHistory") { shell.present(.history) }
                 .toolbarSlot(3)
             MoreMenuButton(id: "browseMore", menu: menu)
@@ -108,9 +108,13 @@ private struct AddressAccessories: View {
     let onMic: () -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            if searching && !text.isEmpty { ClearBox(text: $text) }
-            MicBox(shown: searching && text.isEmpty, isDictating: isDictating, isListening: isListening, action: onMic)
+        // Nothing at all while not searching: an empty view here still takes the field's stack gap,
+        // which would push ↻ off the end cap's centre.
+        if searching {
+            HStack(spacing: 0) {
+                if !text.isEmpty { ClearBox(text: $text) }
+                MicBox(shown: text.isEmpty, isDictating: isDictating, isListening: isListening, action: onMic)
+            }
         }
     }
 }
@@ -186,6 +190,8 @@ struct BrowseAddressField: View {
     var onOpenReader: () -> Void
     /// The compact chrome host's field: ↻ / ✕ in place of 🎧.
     var compact = false
+    /// The compact Browser's menu, a press and hold on the leading glyph (nil: none, regular width).
+    var holdMenu: [[MenuRow]]? = nil
     /// 🎧 (regular width): listen to the page now, or pause / resume it when it is what you hear.
     var onListen: () -> Void = {}
     /// ↻ / ✕ (compact width).
@@ -215,12 +221,6 @@ struct BrowseAddressField: View {
         return web.isLoading ? .stop : .reload
     }
 
-    /// Aa while the compact chrome shows the page's reader view and no search is open.
-    private var appearanceBinding: Binding<Bool>? {
-        guard compact, !search.isActive, shell.pageReader != nil else { return nil }
-        return Bindable(shell).readerAppearanceOpen
-    }
-
     private typealias Field = AddressField<TextFieldBox, AddressAccessories>
 
     private var readerButton: Field.ReaderButton {
@@ -232,8 +232,8 @@ struct BrowseAddressField: View {
 
     var body: some View {
         @Bindable var search = search
-        Field(reader: readerButton, listen: listenState, reload: reloadButton, appearance: appearanceBinding, onOpenReader: onOpenReader,
-              onListen: onListen, onReload: onReload) {
+        Field(reader: readerButton, listen: listenState, reload: reloadButton,
+              holdMenu: search.isActive ? nil : holdMenu, onOpenReader: onOpenReader, onListen: onListen, onReload: onReload) {
             TextFieldBox(text: $search.text, isDictating: isDictating, focus: focus, onSubmit: onSubmit)
         } accessory: {
             AddressAccessories(text: $search.text, searching: search.isActive, isDictating: isDictating,
@@ -245,7 +245,5 @@ struct BrowseAddressField: View {
             }
         }
         .animation(Motion.snappy, value: listenState)
-        // Aa goes while a search is open: its panel closes with it, and stays closed when Aa returns.
-        .onChange(of: search.isActive) { _, active in if active { shell.readerAppearanceOpen = false } }
     }
 }

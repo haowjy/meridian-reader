@@ -11,7 +11,7 @@ enum LegacySource: String, Codable {
 
 /// One legacy row or bookmark the library migration copied, in the library store. Inserted in
 /// the same save as the pages it made, so a copy is either recorded or not done: a page deleted,
-/// unsaved or removed from Favorites later never comes back from its frozen source, and an item
+/// unsaved or removed from the Library later never comes back from its frozen source, and an item
 /// an older build made during a rollback (a new id) is copied on the next launch.
 ///
 /// Receipts outlive the pages (deleting a page keeps its receipt). They are device-local and go

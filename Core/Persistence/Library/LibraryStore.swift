@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SwiftData
 
-/// The one entry point for library reads and writes: the folder tree, pages, saving, favorites,
+/// The one entry point for library reads and writes: the folder tree, pages, saving,
 /// the launch maintenance (migration, dedupe, layout, prune). One page per canonical URL,
 /// app-wide; every content delete also removes the page's audio, which is why nothing else
 /// deletes `Folder` or `Article` rows.
@@ -32,8 +32,6 @@ final class LibraryStore {
     /// An edit was stored (`edit`): pages or folders may have left the Library, and what lists
     /// them outside it follows (the Prepared Audio list, `PrepareCenter`).
     @ObservationIgnored var editStored: () -> Void = {}
-    /// Favorites whose icon `backfillFavoriteIcons` already fetched this launch.
-    @ObservationIgnored var iconTried = Set<UUID>()
     /// How `commit` saves; tests make it fail.
     @ObservationIgnored var saveContext: (ModelContext) throws -> Void = { try $0.save() }
     /// How the stored audio work is read, in order; tests make it fail.

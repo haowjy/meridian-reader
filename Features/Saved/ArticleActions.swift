@@ -1,11 +1,11 @@
 import SwiftData
 import SwiftUI
 
-/// "This page", wherever it shows: a Library row, a Favorites tile, a History visit, the Now
-/// Playing bar, the Reader, Now Playing and the browser. What it is (saved, a favorite, its
-/// prepare) and what its menu (`ArticleMenu`), 🔖, ☆ and the Move tree do with it are decided here
-/// once. The places keep only what differs: the browser extracts its page before it saves it and
-/// stars it with the web view's title and icon (`loaded`), and Now Playing adds *Go to*.
+/// "This page", wherever it shows: a Library row, a History visit, the Now Playing bar, the
+/// Reader, Now Playing and the browser. What it is (saved, its prepare) and what its menu
+/// (`ArticleMenu`), 🔖 and the Move tree do with it are decided here once. The places keep only
+/// what differs: the browser extracts its page before it saves it (`loaded`), and Now Playing
+/// adds *Go to*.
 ///
 /// `article` is the page's Library page by the one rule, address first, then key
 /// (`LibraryStore.article(key:canonicalURL:)`; on screen, live, `ArticleLookup`). *Remove from Library*
@@ -27,14 +27,14 @@ struct ArticleActions {
     let preparedAudio: PrepareCenter
     let follow: FollowCenter
 
-    /// The browser's page before it is extracted: Save extracts it first, and ☆ takes the web
-    /// view's title and icon.
+    /// The browser's page before it is extracted: Save extracts it first.
     struct LoadedPage {
         /// It can be extracted now (a page is up and nothing else is extracting it).
         var canSave: Bool
-        /// Extracts the page and saves it into the folder (nil: the top level).
-        var save: (Folder?) -> Void
-        var toggleFavorite: () -> Void
+        /// Extracts the page and saves it where `SavePlacement` says; throws why it couldn't.
+        var save: (SavePlacement) async throws -> Void
+        /// A menu's or 🔖's save failed: the page says why (the browser's alert).
+        var reportFailure: (Error) -> Void
     }
 
     /// `url` nil: the article's address, else the page's.
@@ -60,17 +60,17 @@ struct ArticleActions {
     /// In the Library (saved, or a link there such as a story's chapter): its menu offers
     /// *Remove from Library*, *Move to…* and *Prepare*.
     var isInLibrary: Bool { article?.isInLibrary == true }
-    var isFavorite: Bool { article?.isFavorite == true }
-    /// ☆ as the Library offers it: a web page, or a page in the Library (a chapter too).
-    var canFavorite: Bool { url.map(LibraryStore.canFavorite) == true || article.map(LibraryStore.canFavorite) == true }
     var shareURL: URL? { url.flatMap { $0.isWeb ? $0 : nil } }
+    /// The web address *Follow…* reads the page's story from; nil for a page that can't belong to
+    /// one (pasted text, an imported book's chapter).
+    var storyURL: URL? { url.flatMap { $0.isWebOrTestPage ? $0 : nil } }
     /// The article's own page, for ⋯ → Website (any loadable page URL, not just http(s)).
     var websiteURL: URL? {
         guard let url, url.scheme != nil, url.host?.isEmpty == false else { return nil }
         return url
     }
     /// Where its prepare stands (`PrepareCenter.state(of:)`): preparing or prepared, its
-    /// menu offers *Remove Prepare*.
+    /// menu offers *Remove Prepared Audio*.
     var hasPrepare: Bool { article.map { preparedAudio.state(of: $0) != .notPrepared } == true }
     /// There is text to save: the article's, the page's own (not a link's), or the browser's page
     /// once extracted.
@@ -98,8 +98,8 @@ struct ArticleActions {
         }
     }
 
-    /// 🔖 / *Save to Library* / *Remove from Library*: saves the page into the Library's top
-    /// level, or removes it. Neither touches the screen; Save never touches playback, and Remove
+    /// 🔖 / *Save to Library* / *Remove from Library*: saves the page (a new one into the Library's
+    /// top level; one already in a folder stays there), or removes it. Neither touches the screen; Save never touches playback, and Remove
     /// stops the page only if you hear it. A change that can't be stored leaves it as it was, and
     /// a toast says so.
     func toggleSaved() {
@@ -110,8 +110,15 @@ struct ArticleActions {
         }
     }
 
+    /// 🔖 in a compact reading page's top group (`ReadingTopGroup`): the saved state and this save path
+    /// (`toggleSaved`, held `saveToFolder`). `isEnabled` false dims it where it can't apply.
+    func readingSave(identifier: String, isBusy: Bool = false, isEnabled: Bool) -> ReadingSave {
+        ReadingSave(isSaved: isSaved, isBusy: isBusy, isEnabled: isEnabled, identifier: identifier,
+                    toggle: toggleSaved, saveToFolder: saveToFolder)
+    }
+
     /// *Remove from Library* / *Remove from Recent* (🔖 on a saved page, menus): the Library's one
-    /// remove (`LibraryActions.remove`). Its star, audio and spot stay; if it is the page you
+    /// remove (`LibraryActions.remove`). Its audio and spot stay; if it is the page you
     /// hear, playback stops, and Now Playing closes.
     func remove() {
         guard let article else { return }
@@ -132,22 +139,23 @@ struct ArticleActions {
         }))
     }
 
-    /// ☆: in or out of Favorites (`FavoriteFlow`). A web page by its address, so a new favorite
-    /// keeps the article's icon; a chapter (no address) as the Library row's ☆ does.
-    func toggleFavorite() {
-        if let loaded { return loaded.toggleFavorite() }
-        let flow = FavoriteFlow(library: library, shell: shell)
-        if let url, LibraryStore.canFavorite(url) {
-            flow.toggle(url: url, title: readerArticle?.title ?? article?.givenTitle, artwork: readerArticle?.artwork ?? article?.artworkData) {
-                await FaviconFetcher.best(for: url, webView: nil)
+    /// *Follow…*: the Follow sheet over the page's address, which reads the story the page belongs
+    /// to (a chapter leads to its story) into a new folder at the top level. Its *Save This Page
+    /// Only* saves the page where the Library keeps it (never moving it) and throws why it
+    /// couldn't, for the sheet's error line: an alert or toast under the sheet would go unseen.
+    func followStory() {
+        guard let storyURL else { return }
+        shell.present(.follow(FollowFlow(url: storyURL, center: follow) { [self] in
+            if let loaded {
+                try await loaded.save(.keep)
+            } else {
+                try saveText(.keep)
             }
-        } else if let article {
-            flow.toggle(article)
-        }
+        }))
     }
 
-    /// *Prepare* / *Remove Prepare*: *Remove Prepare* takes the page out of every prepare and
-    /// keeps it out (`PrepareCenter.deletePrepared audio(of:)`, P8).
+    /// *Prepare* / *Remove Prepared Audio*: *Remove Prepared Audio* takes the page out of every prepare and
+    /// keeps it out (`PrepareCenter.deletePreparedAudio(of:)`, P8).
     func togglePrepare() {
         guard let article else { return }
         // Preparing saves it (C104): a page played without saving goes into the Library first.
@@ -172,12 +180,13 @@ struct ArticleActions {
 
     /// Saves the page through the one save path (`.keep`: where the Library has it, else the top
     /// level; `.folder`: picked in the Move tree); false once a toast has said it couldn't. The
-    /// browser's page is extracted first and reports its own failure. A save under an older
-    /// page's key gives the Reader showing the article that key.
+    /// browser's page is extracted first and reports its own failure.
     @discardableResult
     private func save(_ placement: SavePlacement) -> Bool {
         if let loaded {
-            loaded.save(placement.folder)
+            Task {
+                do { try await loaded.save(placement) } catch { loaded.reportFailure(error) }
+            }
             return true
         }
         guard let readerArticle = textToSave else { return false }
@@ -186,11 +195,15 @@ struct ArticleActions {
            let saved = library.savedArticle(key: readerArticle.id, canonicalURL: readerArticle.origin.canonicalURL) {
             return shell.attempt(String(localized: "Couldn’t move")) { try library.move([.article(saved)], to: folder) } != nil
         }
-        guard let key = shell.attempt(String(localized: "Couldn’t save"), {
-            try ArticleSaveCoordinator(library: library, speech: speech).save(readerArticle, placement: placement)
-        }) else { return false }
+        return shell.attempt(String(localized: "Couldn’t save")) { try saveText(placement) } != nil
+    }
+
+    /// The page's text saved through `ArticleSaveCoordinator`; throws when there is none or the
+    /// store refuses. A save under an older page's key gives the Reader showing the article that key.
+    private func saveText(_ placement: SavePlacement) throws {
+        guard let readerArticle = textToSave else { throw ExtractionError.emptyContent }
+        let key = try ArticleSaveCoordinator(library: library, speech: speech).save(readerArticle, placement: placement)
         if key != readerArticle.id { shell.updateReader(id: readerArticle.id) { $0.id = key } }
-        return true
     }
 
     /// The text Save stores: the article on screen, else the page's own (its listen blocks when
@@ -215,7 +228,7 @@ extension LibraryStore {
 
 /// The Library page a screen's page is, live: its address first, then its key, the rule
 /// `LibraryStore.article(key:canonicalURL:)` follows. Two one-row queries, so the screen follows a
-/// save, a remove or a ☆ made anywhere, and reads nothing else.
+/// save or a remove made anywhere, and reads nothing else.
 struct ArticleLookup<Content: View>: View {
     @Query private var byAddress: [Article]
     @Query private var byKey: [Article]

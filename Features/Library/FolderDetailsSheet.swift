@@ -39,7 +39,7 @@ struct FolderDetailsSheet: View {
     @State private var isPreparingCover = false
 
     @ScaledMetric(relativeTo: .title3) private var scaledCoverWidth: CGFloat = 96
-    private var coverWidth: CGFloat { BottomChrome.grown(scaledCoverWidth, from: 96) }
+    private var coverWidth: CGFloat { Control.grown(scaledCoverWidth, from: 96) }
 
     var body: some View {
         NavigationStack {
@@ -50,6 +50,7 @@ struct FolderDetailsSheet: View {
                     coverPreview
                         .listHeader()
                 }
+                .headerOnlySection(followedByHeader: true)
                 field(Verbs.name, text: $name, prompt: Verbs.name, id: "detailsName")
                 field(String(localized: "Author"), text: $byline, prompt: String(localized: "Optional"), id: "detailsAuthor")
                 Section {
@@ -57,7 +58,7 @@ struct FolderDetailsSheet: View {
                         .typeStyle(.row)
                         .foregroundStyle(Palette.ink)
                         .padding(.horizontal, Spacing.m)
-                        .frame(minHeight: BottomChrome.minTapTarget)
+                        .frame(minHeight: Control.tap)
                         .accessibilityIdentifier("detailsBookToggle")
                         .accessibilityHint(String(localized: "Calls pages \u{201C}chapters\u{201D}"))
                 } header: {
@@ -135,7 +136,7 @@ struct FolderDetailsSheet: View {
                 .textInputAutocapitalization(.words)
                 .submitLabel(.done)
                 .padding(.horizontal, Spacing.m)
-                .frame(minHeight: BottomChrome.minTapTarget)
+                .frame(minHeight: Control.tap)
                 .accessibilityLabel(title)
                 .accessibilityIdentifier(id)
         } header: {

@@ -36,10 +36,6 @@ struct ListenPositionMapper {
         let fractionOfFile = duration > 0 ? min(1, time / duration) : 0
         let within: Int
         switch unit.source {
-        case .appleFallback(let fromChunk, _):
-            // The rest of the paragraph from `fromChunk` as one Apple file: proportional by characters.
-            let from = starts[min(fromChunk, starts.count - 1)]
-            within = from + Int(Double(length - from) * fractionOfFile)
         case .baked, .stitched:
             // The stitched paragraph file: locate the chunk from its recorded durations.
             let loc = ChunkOffsets.locate(time: time, fileDuration: duration,

@@ -1,7 +1,7 @@
 # Meridian Reader
 
 A personal iOS app for listening to (and reading) web articles: browse in the app, extract a clean
-copy with Readability, save it, and listen offline with Apple TTS, Kokoro, or Phonon running on the device.
+copy with Readability, save it, and listen offline with Phonon or Kokoro running on the device.
 Single user, no backend. SwiftUI, SwiftData, iOS 18+, iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`).
 
 iPad is a regular-width layout gated on `horizontalSizeClass == .regular`; compact chrome is unchanged. Detail: [`Features/Shell/AGENTS.md`](Features/Shell/AGENTS.md).
@@ -12,7 +12,12 @@ The Xcode project is generated: edit `project.yml`, never `MeridianReader.xcodep
 adding, moving or deleting a Swift file, run `xcodegen generate` and commit the regenerated project
 with the change.
 
+Phonon's model bundle ships in the app but is git-ignored (~170 MB): run
+`tools/fetch-phonon-bundle.sh` once per checkout (it puts it at `Resources/PhononBundle/`); the
+build fails without it (`docs/RELEASE.md`, "The Phonon model bundle").
+
 ```sh
+tools/fetch-phonon-bundle.sh   # once per checkout
 xcodegen generate
 xcodebuild build -project MeridianReader.xcodeproj -scheme MeridianReader -configuration Release \
   -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath <dd>
@@ -39,9 +44,13 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   and the smoke and compact chrome UI flows are gone. What they covered is now checked by hand on
   the running app (Simulator, one device; the phone for anything that needs real hardware): save
   and play a browsed article (open a page, save it, play, pause, stop); the compact chrome (scroll
-  down folds the bottom chrome into its capsule on Browse web, Browse reader, Library Read and
-  Library home; scrolling up never restores it, only a tap on the capsule does; Listen and Pages
-  mode never fold; Library Edit stays expanded; the floating pause pauses in full screen), with a
+  down folds the bottom chrome into its capsule on Browse web and Library home; a scroll up of 24 pt or a
+  tap on the bubble brings both rows back; on Browse reader and Library Read in Scroll mode 60 pt down in one
+  gesture goes full screen, top group, chrome and status bar together, and 24 pt up brings them back; Pages
+  mode never goes full screen by scroll; Library Edit stays expanded; Listen slides up over the chrome and a pull down closes it back to where you were (a pull pushed back
+  up before release keeps it);
+  Listen's floating pause pauses in full screen; an in-place reader's full screen is the text alone, its
+  background to the screen's foot and its last line scrolling just clear of the home indicator's strip), with a
   recorded video and frames for the motion. Launch with the arguments below.
 - **Nothing gates on tests**: no git hooks, CI or merge scripts run them.
 - One scheme, `MeridianReader`, with one test target, `MeridianReaderTests` (unit, `Tests/`).
@@ -50,18 +59,20 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   builds only), on the Simulator as `xcrun simctl launch <device> com.jimmyyao.Reader <args>`, on
   the phone after `--` (`xcrun devicectl device process launch … com.jimmyyao.Reader -- <args>`).
   `-uiTesting` (test markers on, still playing bars, Google suggestions off), `-resetLibrary` (an
-  empty library and the stored settings cleared, as on a fresh install), `-selectEngine apple` (or
-  `test.voice`, `local.kokoro`). The seeds add to that: `-seedDemoArticle` (`-seedDemoPlainText`,
+  empty library and the stored settings cleared, as on a fresh install), `-selectEngine local.kokoro` (or
+  `local.phonon`, `test.voice`). The seeds add to that: `-seedDemoArticle` (`-seedDemoPlainText`,
   `-seedPlayedPages N`), `-seedDemoBook` (a demo book; `-seedDemoBookPlace N` puts it part-way,
-  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedBookmarks`, `-seedHistory` (visits in the browser's History). Other options:
+  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedHistory` (visits on three sites in the browser's History, for the start page's Frequently Visited). Other options:
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
   pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and
-  `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openDemoInBrowseReader`, `-restoreSurface` (a relaunch reopens where
-  the last launch left), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
-  on-device test voice for prepared audio; `-selectEngine test.voice`). Keep probes and tests offline;
+  `-testStoryThrottles` makes its chapter 6 fail once, for Follow's back-off), `-openLibrary`, `-openLibraryFolder NAME` (the Library on that folder's screen), `-prepareFolder NAME` (that folder prepared, as its header's Prepare does; with `-testVoice` it renders offline), `-openPageMenu` (3 s in, the ⋯ panel with the page rows of the reading page showing: Library Read, the Browser's reader mode, Listen; an in-place reader's ⋯ is a system menu nothing opens without a tap), `-openDemoInBrowseReader` (the Browser's reader mode on the demo article), `-tapListen` (what a tap on the chrome's Listen does; `-closeListenAfter N` closes Listen N s later; `-tapListenWhen fullScreen` does it once an in-place reader is in full screen), `-tapLibraryRow TITLE` (what a tap on that Library row does), `-pasteText TEXT` (*Paste Text…*'s Save), `-importBook` (*Import a File…*; with `-importTestEPUB` the test book), `-openSettings` (the pill's Settings; `-searchSettings TEXT` types in Search Settings, `-openSettingsPage voice` pushes a page), `-readDemoInLibrary` (Library Read on the demo article), `-switchDestinationAndBack library|settings` (5 s in, that pill segment, then the Browser's 2 s later), `-restoreSurface` (a relaunch reopens where
+  the last launch left), `-chromeFold P` (the compact chrome held at fold P: 0.5 one row, 1 the bubble), `-readerFullScreen` (the first reading page shown, in place or Listen, goes full screen 3 s after it opens), `-readerScrollToEnd` (that page's text goes to its end as a finger would; Listen stops following, so Jump to Audio shows), `-readerProbe STEPS` (the first reading page shown runs `a` anchor, `dN` / `uN` down / up, `pN` a pull past the top, `rN` a rebound, `c` the centre tap, logging `ReaderProbe step=… fullScreen=…` after each; not with `-readerFullScreen`), `-presentSheet addLink|pasteText|move|preparedAudio|listenDebug|follow|following|appearance` (that sheet a second in; Follow opens Add a Link; Following with `-browseTestPages`, appearance over an open in-place reader), `-addLinkText TEXT` and `-submitAddLink` (fill and submit Add a Link; `reader-test://` accepted only in Debug), `-linkReviewAction save|preview|cancel` (act once its review appears; `save` also on "You already follow this story"), `-openMenu NAME` (`MenuProbe`: production menu rows in the screenshot panel; native system menus still need a tap), `-failLibrarySaves` (every library save fails), `-testVoice` (an offline
+  on-device test voice for prepared audio; `-selectEngine test.voice`), `-renderPolicy lanes` (the
+  two-lane render policy, `LanePolicy`: Phonon on the Neural Engine and the CPU at once in front;
+  the app's default stays one call at a time on the CPU). Keep probes and tests offline;
   use the test pages, not live sites. `LaunchOptions` parses every launch argument, the
-  diagnostics' too (`-engineProbe`, `-KokoroStress`, `-kokoroUnits`; `docs/LISTEN_PLAYBACK.md` →
+  diagnostics' too (`-engineProbe`, `-KokoroStress`; `docs/LISTEN_PLAYBACK.md` →
   "Diagnostics"); Features and the speech stack get the values from App (`AppComposition`,
   `LaunchTestHooks`), never from `LaunchOptions` or the process arguments. The exceptions are stored settings a launch overrides through UserDefaults' argument
   domain (`-reader.developerOptions YES`, `-reader.listenDebugEnabled YES`,
@@ -75,24 +86,32 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
 | Path | What lives there |
 |------|------------------|
 | `App/` | `@main`, the composition root (`AppComposition`), launch work (`AppLaunch`), Debug-only launch hooks and test fixtures (`App/Fixtures/`) |
-| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `PDF` (PDFKit text extract into pages), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import for EPUB/PDF), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `Downloads/`: the download list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
-| `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock; the three-destination chrome is being built here), `Library` (the Library's screens, rows, the Move tree, Favorites), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
+| `Core/` | No UI: `Domain` (article and paragraph values), `EPUB` (reading an `.epub` into chapters, book keys), `PDF` (PDFKit text extract into pages), `Extraction` (Readability, the listen normalizer), `Sources` (`ArticleSource`s, the book import for EPUB/PDF), `Persistence` (SwiftData; `Library/`: `Folder`, `Article`, `LibraryStore`, `LibraryQueries`, the migration; `PreparedAudio/`: the prepare list and what it shows), `TTS` (chunking, render queue, audio cache; no voice-library imports), `Web` (the browser's web view, the out-of-sight fetcher and its paced `FetchQueue`), `Device` |
+| `Features/` | `DesignSystem` (tokens incl. `RegularLayout`, motion, bottom chrome, the ⋯ morph, shared components with previews), `Shell` (navigation state, the ⋯ menu's content, the Now Playing bar, the iPad sidebar and clustered dock, the compact chrome host), `Library` (the Library's screens, rows, the Move tree), `Prepared Audio` (`PrepareCenter`, the Prepared Audio list, the progress line), `Follow` (`FollowCenter`, the Follow and Following sheets, a story's status), `Browse`, `Reader`, `Saved` (the save path), `Settings` (the Settings screen, `DeveloperSettings`), `Speech` (playback, engines: `SpeechEngineProvider`, the registry and one directory per voice library) |
 | `Tests/` | The few unit tests (`Tests/Fakes/LibraryTestSupport.swift` builds a library) |
 | `Vendor/FluidAudio` | Vendored FluidAudio with local patches (`Vendor/FluidAudio/VENDORED.md`); Meridian Reader uses only Kokoro |
-| `ptts` (SPM 0.4.0) | Gradium Phonon 31m English Core ML (`Features/Speech/Engines/Phonon/`); models download at runtime |
+| `ptts` (SPM 0.6.0) | Gradium Phonon 31m English on Core ML's CPU path (`Features/Speech/Engines/Phonon/`); its model bundle ships in the app (`Resources/PhononBundle/`, fetched by `tools/fetch-phonon-bundle.sh`): our own export at a 200-token prefill, released on haowjy/xn-ptts, not upstream's 48-token one (`docs/TTS_ENGINES.md`, "Phonon") |
 | `Resources/` | Readability scripts, voice previews, assets |
 | `docs/` | How the app behaves and why (below) |
 
 ## Rules that cut across directories
 
 - **`ShellState` owns navigation** (what you see): which surface shows (browser or library) and
-  the Library's path and its home's tab (Everything, Favorites or Recent), the Reader sheet and what it
-  sits over, whether Now Playing is up, the one other sheet (and the debug panel over it), the toast. It remembers the surface for the next launch. Views ask it;
+  the Library's path and its home's tab (Library or History), the Reader sheet and what it
+  sits over, whether Listen is up, the one other sheet (and the debug panel over it), the toast. It remembers the surface for the next launch. Views ask it;
   they don't keep their own presentation flags.
 - **`PlaybackSessionState` owns what you hear**: the playing article, its position (paragraph +
   UTF-16 offset) and phase. Engines report events; the session decides. Nothing else stores or
   guesses the playing article or a playhead: every ▶ / ⏸ asks `SpeechController.playState(of:)`, the
-  bar and Now Playing read `nowPlaying`, and `ListeningProgressRecorder` saves the position.
+  bar and Listen read `nowPlaying`, and `ListeningProgressRecorder` saves the position.
+- **Playback never changes the voice on its own.** An article plays in its own voice
+  (`LocalTTSCoordinator.selection(for:)`) or not at all: when that voice's engine is behind, still
+  loading, fails, crashes, can't run on the device, can't run in the background, or can't read
+  the article's language, playback waits or pauses and says why (`SpeechController.tell`, shown as
+  the shell's toast; a stopped engine's carries Retry). No fallback to another engine or voice,
+  for a paragraph or an article; prepared audio renders in that voice too. Only the user changes a
+  voice (Settings › Voice, an article's or book's *Voice*). A launch migration may rewrite a stored
+  voice that no longer exists.
 - **One save path**: `ArticleSaveCoordinator` → `LibraryStore.save`. One article per canonical URL
   (`ArticleIdentity`), app-wide. Save never restarts playback. Saving the article that is playing,
   under its own key, only marks its audio saved. Otherwise Save can move audio: under an older
@@ -103,9 +122,11 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   `bookmarks.json` are frozen (the migration copied them; nothing writes them).
 - **Screens are built from `Features/DesignSystem/`**: no ad-hoc padding, colour, radius or font
   size in feature code. Spacing and margins come from `Spacing`, corners from `Radius`, text from
-  `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), colour from `Palette` (light and dark), SF
-  Symbols from `Icons` (one per concept). Shared pieces (`PlayStateButton`, `PillButton`,
-  `ListRow`, `SymbolRow`, `ArtworkTile`, `NowPlayingBar`, `Sheet`, …) take plain values and
+  `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), control and hit sizes from `Control` (36, the
+  44 tap floor, 48, 62), symbol sizes from `Glyph` (16, 20, 26; `glyphSize(_:)` grows them with the
+  text), colour from `Palette` (light and dark), SF Symbols from `Icons` (one per concept). Shared pieces (`PlayStateButton`, `PillButton` (a sheet's bar
+  buttons are `SheetBarButton`, in `PillButton.swift`; an input sheet's ✕ is its icon form), `IconButton` (every round or toolbar-cell icon control), `ListRow` (its second
+  line a `DetailLine`), `SymbolRow`, `ArtworkTile`, `NowPlayingBar`, `Sheet`, …) take plain values and
   closures, never `SpeechController`, SwiftData or `ShellState`, and carry previews in light, dark
   and the largest text size. A value the scale lacks is a token change, made there.
 - **Swipe actions**: one whose row can stay in the list (it asks first, deletes what the row
@@ -122,17 +143,26 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   (`MenuAvailability`); no bare `if` around a menu row. Labels from `Verbs` (its case and ellipsis
   rules), symbols from `Icons`.
 - **Button rows never wrap** (decision D21): two or more buttons side by side go in an
-  `ActionButtonRow`, which falls back from full labels to short titles, then no details, then
-  symbols alone. Give every button in one a symbol.
+  `ActionButtonRow`, which falls back from full labels to symbols alone. Give every button in one a symbol.
+- **Nothing in the bottom lip**: no control, label or footer sits below the top of the home
+  indicator's strip (the bottom safe area, 34 pt on a phone with one), where the display's rounded
+  corners crowd it; only page text and its background run under it. Lay a bottom piece out in the
+  safe area, or, in a view laid out through it (the in-place readers, the chrome), above the
+  measured strip (`ChromeHome.inset`; on a reading page `ReadingChrome.homeIndicator`), never at a
+  fixed distance from the screen's edge. The compact chrome's folded bubble (18 pt up, Safari's) is
+  the one exception.
 - **Motion tokens**: animations use `Motion` (`standard`, `snappy`, `settle`, `dismiss`) and its
   Reduce Motion transitions, not ad-hoc springs.
 - **Bottom chrome**: compact width draws one floating chrome host
-  (`Features/Shell/Chrome/ChromeHost.swift`) with three destinations (Listen, Library, Browser; Listen is `ChromeDestination.reader` in code), two rows
-  expanded and a small capsule folded, no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; PR2 to PR4 of the
-  redesign are under "Planned"). Regular width keeps `SurfaceBand` and the dock. Every piece is a capsule
-  or circle (radius = height / 2; one 48 pt `barHeight` in `ChromeMetrics`, `Features/DesignSystem/Chrome/`, footprints 116, 40 (the capsule) and 60 (the keyboard), hit areas 44), every control glyph
-  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, scroll down only: scrolling up never gives a row back; the capsule's tap or the top of the text, offset <= 4, expands it), Listen is a destination under the same chrome with a glass player card above row 2 (no sheet, Close pill or pull-down; full screen is a middle tap that removes the chrome), and the compact address pill ends
-  in reload, not 🎧 (iPad keeps 🎧; the Browser's reader mode adds a 🎧 Listen control after the pill). Change the chrome host, never one screen; on regular width change
+  (`Features/Shell/Chrome/ChromeHost.swift`) over three destinations (Library, Browser, Settings): row 1 the
+  screen's field ending in the round Listen button, row 2 the `[Library | Browser | Settings]` pill alone (each segment its glyph over its name, glyphs alone when the names don't fit), margin
+  to margin; no ⋯, no Aa and no ▶ in it (a screen's ⋯ is on its title line, a system menu of its `MenuContext`; the
+  Browser's is a press and hold on the field's leading glyph; the reading pages' are in their top group); two rows expanded, one, then a small glass bubble naming the page folded (the field shrunk; every piece folds straight down);
+  no system tab bar (`docs/NAVIGATION.md`, "Bottom chrome"; later
+  redesign PRs are under "Planned"). Regular width keeps `SurfaceBand`, the dock (with its ⋯) and the Settings sheet. Every piece is a capsule
+  or circle (radius = height / 2; two heights, `Control.chrome` 44 for every piece and the reading pages' top group, `Control.tabBar` 48 for the pill, the only values to change (every size, inset, hit outset, footprint and clearance derives from them in `ChromeMetrics`, `Features/DesignSystem/Chrome/`), one 8 pt gap between rows and between pieces, footprints 138, 82 (one row and the keyboard) and 58 (the bubble), every hit area at least 44; the pill runs margin to margin, as row 1 does), every control glyph
+  `BottomChrome.chromeGlyph`, translucent glass with only a gradient fade behind (no opaque plate), one continuous scroll controller (`ChromeScroll`, its rule the screen's `ChromePolicy`: on pages and lists a scroll down folds it, a scroll up of 24 pt (`revealDistance`) brings both rows back, as do the bubble's tap and the top of the text, offset <= 4; an in-place reader never folds: 60 pt down in one gesture in Scroll mode or the middle tap goes full screen, 24 pt up or the tap comes back; only the screen showing drives it). Listen is not a destination: it slides up over everything, chrome included, as a `Sheet` over the screen with a grabber and no close button, the screen behind dimmed above its rounded top (a pull down on the grabber or the card, still heading down at release closes it, back to what was under it; VoiceOver: escape), the article's title at the top of its text and its player card at its foot, Jump to Audio floating centred above the card while the text is away from the audio; its full screen is not a sheet (no top gap, rounded corners or dim: the page covers the screen; a pull does nothing there, the middle tap leaves it). Every reader's text, in Scroll mode, scrolls its end to just above whatever floats over it (card, the chrome's two rows, Jump to Audio; the home indicator's strip in full screen), and the text on screen never moves as that changes. Every compact reading page (the Browser's reader mode, Library Read, Listen) has one top group (`ReadingTopGroup`, the chrome's glass and sizes): `( Aa ) ( ▶ Listen ) … ( 🔖 ) ( ⋯ )` in place, `( Aa ) … ( 🔖 ) ( ⋯ )` in Listen's top corners, the grabber between them; ⋯ is the screen's menu, 🔖 the page's Save (`SaveToggleButton` on the chrome circle, the one save path; not on Listen's card), ▶ Listen (accent-filled) stays on the in-place readers, showing the playing bars or ▶ once the page is what you hear, its tap then only opening Listen; it is the page's header (the title starts below it), gone in full screen, which in place is the chrome's, so they go and come back together. Library Read's field is `[(lit reader icon) site]`, the icon opening the live page. The in-place readers show no playhead (it is Listen's). The compact address pill ends
+  in reload, not 🎧 (iPad keeps 🎧). Change the chrome host, never one screen; on regular width change
   `SurfaceBand`. Build controls from `BottomChrome` helpers (`bottomChromeField`,
   `fieldControlFrame`, `toolbarIconFrame`, `tapTarget`) and the toolbar layouts
   (`BottomToolbarLayout`) so sizing, Dynamic Type and 44 pt taps stay
@@ -177,7 +207,7 @@ release. The release workflow (`docs/RELEASE.md`) validates the notes file exist
 - `docs/NAVIGATION.md`: screens, gestures, bottom chrome, the reader UI.
 - `docs/LISTEN_PLAYBACK.md`: playback session, engines at runtime, render queue, chunking, audio
   cache, background listening, diagnostics.
-- `docs/TTS_ENGINES.md`: the engine registry, Apple, Kokoro, Phonon, adding an engine.
+- `docs/TTS_ENGINES.md`: the engine registry, Phonon, Kokoro, adding an engine.
 - `docs/ARTICLE_IDENTITY.md`: canonical URLs, article keys, per-paragraph audio reuse.
 - `docs/TECHNICAL_SPEC.md`, `docs/FUNCTIONAL_REQUIREMENTS.md`: how it is built, what it does.
 - `docs/RELEASE.md`: cutting a release, secrets, App Store Connect setup.

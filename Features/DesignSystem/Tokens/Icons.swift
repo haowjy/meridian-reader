@@ -23,6 +23,8 @@ enum Icons {
     static let clearText = "xmark.circle.fill"
     /// A row that opens a screen or a submenu.
     static let disclosure = "chevron.right"
+    /// A row that opens its section in place (`DisclosureRow`): turned down while open.
+    static let expandable = "chevron.right"
     /// ⋯.
     static let more = "ellipsis"
     /// The web: the swap to the browser, Website, search the web.
@@ -35,8 +37,6 @@ enum Icons {
     static let readerShowing = "doc.plaintext.fill"
     /// History (the browser's: pages visited).
     static let history = "clock"
-    /// Recent (the Library's tab: pages listened to without saving).
-    static let recent = "clock.arrow.circlepath"
     static let search = "magnifyingglass"
     /// Puts a suggestion into the field to keep typing.
     static let fillField = "arrow.up.backward"
@@ -60,7 +60,6 @@ enum Icons {
     static let add = "plus"
     static let folder = "folder"
     static let newFolder = "folder.badge.plus"
-    /// A book (a folder with details), Import Book.
     /// Import EPUB… (nothing is a book: an import is a folder, C100).
     static let importFile = "square.and.arrow.down"
     /// Move to… and Save to Folder…: into a folder (a folder itself is `folder`). The arrow-folder
@@ -68,20 +67,18 @@ enum Icons {
     static var move: String {
         if #available(iOS 26.0, *) { "arrow.forward.folder" } else { folder }
     }
-    static let favorite = "star"
-    static let favorited = "star.fill"
-    static let unfavorite = "star.slash"
     static let rename = "pencil"
     static let editDetails = "square.and.pencil"
     static let share = "square.and.arrow.up"
     /// Something goes for good: *Delete Folder…*, Edit's *Remove*, *Remove from History*, *Remove
     /// Cover*. (A page leaving the Library is `unsave`; a prepare going, `removePrepare`.)
     static let delete = "trash"
+    /// Edit's control on a row whose download can go (a voice): ⊖, turned upright while its
+    /// *Remove* shows, as iOS's delete control.
+    static let removeControl = "minus.circle.fill"
     static let sort = "arrow.up.arrow.down"
     /// ≡ Drag handle for reorder in Edit (C148).
     static let reorder = "line.3.horizontal"
-    /// Select (Edit's check circles).
-    static let select = "checkmark.circle"
     /// Checked: the chosen option in a list or menu (where the system draws the same ✓ in its own
     /// pickers). Not Select's circle, nor the filled circle that means prepared, nor a finished
     /// page (that is the listening ring, full).
@@ -102,7 +99,7 @@ enum Icons {
     static let photos = "photo.on.rectangle"
     /// Choose from Files (a file picker; a Library folder is `folder`).
     static let files = "doc"
-    /// A web address standing in for a page with no title.
+    /// A web address: one standing in for a page with no title, and *Add a Link…*.
     static let link = "link"
     static let paste = "doc.on.clipboard"
     /// Follow a story (⋯ → *Follow…*), a followed story's status line; Unfollow.
@@ -113,7 +110,7 @@ enum Icons {
     static let excluded = "square"
     /// Some of a list kept: Review's *Select All* between all and none.
     static let partlyIncluded = "minus.square.fill"
-    /// Waiting on a site that asked to slow down.
+    /// Waiting: on a site that asked to slow down; `DownloadMark`'s spinning arc with Reduce Motion on.
     static let waiting = "hourglass"
 
     // MARK: Listening
@@ -132,41 +129,31 @@ enum Icons {
     /// Jump to Audio: the spoken sentence is above / below the visible text.
     static let jumpToAudioUp = "arrow.up"
     static let jumpToAudioDown = "arrow.down"
-    /// Playing (bars beside a title, the tinted pill).
+    /// Playing (beside a title).
     static let playing = "waveform"
     static let sleepTimer = "moon.fill"
     /// A voice's sample: play, stop.
     static let previewPlay = "play.circle"
     static let previewStop = "stop.circle"
-    /// Developer options' listen debug: its switch and its panel.
-    static let debug = "ladybug"
+    /// Not downloaded yet (`DownloadMark`'s idle glyph): a voice not on the device, tap to download it.
+    static let download = "icloud.and.arrow.down"
 
     // MARK: Prepared audio
 
     /// Prepare (a row's menu, a toast, a folder header's control before it prepared audio).
     static let prepare = "arrow.down.circle"
-    /// The arrow alone, inside a prepare's filling circle (`PrepareMark`).
-    static let prepareArrow = "arrow.down"
-    /// Prepared: the grey badge before a row's second line, a folder header's control, a voice
-    /// model in Settings.
-    /// Waiting to prepare with Reduce Motion on, in place of the spinner (C93).
-    static let prepareQueued = "hourglass"
+    /// Prepared: a row's badge, a folder header's control.
     /// A filled ↓, not a ✓ (C89): ✓ means only selection and a picked option.
     static let prepared = "arrow.down.circle.fill"
     /// The Prepared Audio list.
     static let preparedAudio = "tray.and.arrow.down"
-    /// *Remove Prepare* (a page) and *Remove Prepared audio* (a folder), in their menus and the
+    /// *Remove Prepared Audio* (a page or a folder), in their menus and the
     /// Prepared Audio list: the audio deleted.
     static let removePrepare = "trash.circle"
-    static let removeModelDownload = "trash.circle"
     /// Turning a folder's Prepare off (its audio stays).
     static let turnOffPrepare = "arrow.down.circle.dotted"
     /// *Prepare Again*: down again (not the browser's Reload arrow).
     static let reprepare = "arrow.uturn.down.circle"
-    /// *Resume* a paused prepare (not Prepare's arrow, nor listening's ▶).
-    static let resume = "playpause.fill"
-    /// Keep (a design-system preview's pill).
-    static let keep = "pin"
     /// *Voice: Heart*, an article's or a book's voice (C138).
     static let voice = "person.wave.2"
 
@@ -178,16 +165,6 @@ enum Icons {
     static let textAppearance = "textformat.size"
     static let textSmaller = "textformat.size.smaller"
     static let textLarger = "textformat.size.larger"
-    /// Block Ads (Settings › Browsing).
-    static let blockAds = "hand.raised"
-    /// Prepared audio and storage (Settings).
-    static let storage = "internaldrive"
-    /// Privacy Policy (Settings › About).
-    static let privacy = "doc.text"
-    /// Support (Settings › About).
-    static let support = "questionmark.circle"
-    /// Acknowledgements (Settings › About).
-    static let acknowledgements = "list.bullet.rectangle"
 
     // MARK: Notices
 

@@ -33,10 +33,32 @@ struct LaunchOptions: Equatable {
     /// test launches with it.
     var resetsLibrary = false
     var demoArticle: DemoArticle?
-    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): start in the reader overlay on it.
+    /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): start in the Browser's reader mode on it (compact
+    /// width; the Reader sheet on regular width), over page one with `-browseTestPages`.
     var opensDemoInReader = false
+    /// `-readDemoInLibrary` (with `-seedDemoArticle`): start in Library Read on it (the Reader sheet on regular width).
+    var readsDemoInLibrary = false
+    /// `-switchDestinationAndBack library|settings`: 5 s after launch, what a tap on that pill segment
+    /// does, then 2 s later the Browser's segment, to check the Browser comes back as it was left.
+    var switchesDestinationAndBack: String?
     /// `-openLibrary`: start in the library.
     var opensLibrary = false
+    /// `-openLibraryFolder <name>`: once launched, the Library on the first folder named `<name>`
+    /// (`-seedDemoFolders`' "Demo Finance"), as a tap on its row does.
+    var opensLibraryFolder: String?
+    /// `-prepareFolder <name>`: once launched, the first folder named `<name>` prepared, as its
+    /// header's Prepare does (prepare marks for probes; with `-testVoice` it renders offline).
+    var preparesFolder: String?
+    /// `-openPageMenu`: 3 s in, the ⋯ panel over the reading page showing (Library Read, the
+    /// Browser's reader mode, the Reader, Listen) with that page's own rows (`ArticleMenu` at its
+    /// place), so they can be seen without a tap.
+    var opensPageMenu = false
+    /// `-openSettings`: once launched, what a tap on the pill's Settings does. `-searchSettings <text>`:
+    /// then Search Settings holds the text. `-openSettingsPage <page>` (`voice`, `appearance`, …): then
+    /// that page is pushed.
+    var opensSettings = false
+    var settingsSearch: String?
+    var settingsPage: SettingsRoute?
     /// `-browseTestPages`: serve and open the offline `reader-test://` pages.
     var servesTestPages = false
     /// `-testStoryChapters N`: the offline story's table of contents (`reader-test://story/toc`)
@@ -45,10 +67,8 @@ struct LaunchOptions: Equatable {
     /// `-testStoryThrottles`: the offline story's chapter 6 doesn't load the first time it is
     /// asked for in a launch (a site not answering), for Follow's back-off.
     var testStoryThrottles = false
-    /// `-seedBookmarks`: a few starred `example.com` links whose icons stay letter tiles (no
-    /// fetch).
-    var seedsBookmarks = false
-    /// `-seedHistory`: a few visited `example.com` pages in the browser's History (one untitled).
+    /// `-seedHistory`: visited `example.com` pages in the browser's History (one untitled), three
+    /// sites' worth for the start page's Frequently Visited.
     var seedsHistory = false
     /// `-bakeArticle <id prefix>`: render that saved article's audio top-down without playing.
     var bakeArticlePrefix: String?
@@ -59,6 +79,20 @@ struct LaunchOptions: Equatable {
     /// `-chromeFallback`: draw the compact bottom chrome in its pre-iOS 26 skin (the blur and
     /// glass tint) on a new OS, since no older simulator runtime is installed to look at it.
     var forcesChromeFallback = false
+    /// `-chromeFold P`: hold the compact chrome's fold at P (0.5 one row, 1 the bubble) wherever it may fold,
+    /// to look at a folded form without a finger on the screen.
+    var chromeFold: CGFloat?
+    /// `-readerFullScreen`: the first reading page shown (in place: `-openDemoInBrowseReader`,
+    /// `-readDemoInLibrary`; or Listen: `-listenDemo`) goes full screen once it is up
+    /// (`ReadingChrome.opensInFullScreen`).
+    var readerFullScreen = false
+    /// `-readerScrollToEnd`: the first reading page shown goes to the end of its text, as a finger would
+    /// (`HTMLReadingWebView.Coordinator.scrollsToEndOnOpen`).
+    var readerScrollsToEnd = false
+    /// `-readerProbe STEPS`: the first reading page shown runs these steps once it has loaded and laid
+    /// out, logging `ReaderProbe step=… fullScreen=… offset=…` after each (`ReaderProbeStep.parse`:
+    /// `a` anchor, `dN` / `uN` N pt down / up, `pN` a pull to -N, `rN` a rebound to N, `c` the centre tap).
+    var readerProbe: [ReaderProbeStep]?
     /// `-rerunLibraryMigration`: delete every folder, page and migration receipt, then copy the
     /// saved articles and bookmarks again.
     var rerunsLibraryMigration = false
@@ -88,15 +122,26 @@ struct LaunchOptions: Equatable {
     /// `-playTestEPUB`: at launch, import the synthetic EPUB into the Library's top level (no
     /// sheet), then play it from its place, as a book's Play does.
     var playsTestEPUB = false
-    /// `-listenDemo`: once launched, Listen to the newest saved page from the surface on screen (a
-    /// launch, so Listen's ‹ goes back there) and raise Listen. `-listenDemoFrom <address or folder name>`:
-    /// first open that page (scrolled down 300 pt) or that Library folder. `-openListen`: raise Listen on it
-    /// without a launch (the saved ‹ after a relaunch). `-listenBackAfter N`: N seconds later, ‹.
+    /// `-listenDemo`: once launched, Listen to the newest saved page and raise Listen over the surface
+    /// on screen. `-listenDemoFrom <address or folder name>`: first open that page (scrolled down
+    /// 300 pt) or that Library folder. `-closeListenAfter N`: N seconds later, Listen closes, back
+    /// to that surface.
     var listensDemo = false
+    /// `-tapListen`: once launched, what a tap on the chrome's Listen does (with `-closeListenAfter`, then closes).
+    var tapsListen = false
+    /// `-tapListenWhen fullScreen`: the same once an in-place reader is in full screen (polled every
+    /// 100 ms, up to 10 s), in place of `-tapListen`'s fixed second.
+    var tapsListenWhenFullScreen = false
+    /// `-tapLibraryRow <title>`: once launched, what a tap on the Library row of the first page whose
+    /// title starts with `<title>` does (`LibraryActions.tap`), from the Library.
+    var tapsLibraryRow: String?
+    /// `-pasteText <text>`: once launched, *Paste Text…*'s *Save* of `<text>` into the top level.
+    var pastesText: String?
+    /// `-importBook`: once launched, what *Import a File…* does (with `-importTestEPUB`, the test book).
+    var importsBook = false
     var listenDemoFrom: String?
-    var opensListen = false
-    var listenBackAfter: Double?
-    /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance, bookmarks), every
+    var closesListenAfter: Double?
+    /// `-failLibrarySaves`: once the launch work is done (seeds, maintenance), every
     /// library save fails, so a probe sees the edits that can't be saved.
     var failsLibrarySaves = false
     /// `-testVoice`: register an offline on-device test voice (`TestVoiceProvider`, "Test Voice"
@@ -104,15 +149,54 @@ struct LaunchOptions: Equatable {
     var usesTestVoice = false
     /// `-showWhatsNew`: show the What's New sheet even under `-uiTesting`.
     var showsWhatsNew = false
-    /// `-selectEngine <engine id>` (`local.kokoro`, `apple`, `test.voice`): the engine to load at
-    /// launch, persisted as the selection.
+    /// `-simulateVoiceDownloads`: Kokoro's downloads and removals in the Voice picker run offline
+    /// (`KokoroDownloadSimulation`): `-voiceDownloadSeconds N` (8) to fill, `-failVoiceDownload
+    /// <voice ids, comma separated>` fail half-way, `-kokoroNotDownloaded` starts with its model missing,
+    /// `-transferVoice <voice id>` starts a download of it outside the picker (as playback's load would).
+    var voiceDownloadSimulation: VoiceDownloadSimulationOptions?
+    struct VoiceDownloadSimulationOptions: Equatable {
+        let seconds: Double
+        let failing: Set<String>
+        let modelMissing: Bool
+        let playbackTransfer: String?
+    }
+    /// `-downloadVoice <voice id>` (with `-openSettingsPage voice`): two seconds in, what a tap on
+    /// that voice's row in Settings › Voice does; `-stopVoiceDownloadAfter N` then stops it N s later.
+    var downloadsVoice: String?
+    var stopsVoiceDownloadAfter: Double?
+    /// `-editVoices`: Settings › Voice opens in Edit. `-removeVoice <voice id>`: a second after it
+    /// opens, what that voice's *Remove* does (its question, when it asks).
+    var editsVoices = false
+    var removesVoice: String?
+    /// `-openVoiceSection <engine>` ("kokoro", or its id): the voice pickers open with that
+    /// engine's section open, as well as the ones they open anyway.
+    var opensVoiceSection: String?
+    /// `-revealVoiceRemove <voice id>` (with `-editVoices`): that row's *Remove* shows, as after
+    /// a tap on its ⊖.
+    var revealsVoiceRemove: String?
+    /// `-openVoicePicker`: the newest saved article's *Voice* sheet; with `-seedDemoBook`, the book's.
+    var opensVoicePicker = false
+    /// `-presentSheet addLink|pasteText|move|preparedAudio|listenDebug|follow|following|appearance`: a second in, that sheet over the screen
+    /// (Follow opens Add a Link; Following uses the test story,
+    /// with `-browseTestPages`; appearance: the in-place reader's Aa panel, with a reader open).
+    var presentsSheet: String?
+    /// Offline input-sheet probes; typing and submitting remain separate actions.
+    var addLinkText: String?
+    var submitsAddLink = false
+    /// `-openMenu <name>`: the named production menu in the screenshot panel.
+    var opensMenu: String?
+    /// `-linkReviewAction save|preview|cancel`: an action once the offline review is ready.
+    var linkReviewAction: String?
+    /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
+    /// load at launch; its voice is the default for new articles.
     var selectsEngine: SpeechEngineID?
-    /// `-kokoroUnits <label>`: compute units of Kokoro's Core ML route (`KokoroHost.unitsLabel`).
-    var kokoroUnits: String?
+    /// `-renderPolicy lanes`: render on two lanes in front (`LanePolicy`) instead of the app's
+    /// one call at a time on the CPU (`SingleCallPolicy`).
+    var usesLanePolicy = false
     /// `-engineProbe [-probeOnly Kokoro,…] [-probeStress [-probeStressN n]]`: time every on-device
     /// engine once launched (`EngineLatencyProbe`).
     var engineProbe: EngineLatencyProbe.Request?
-    /// `-KokoroStress coreml|onnx [-KokoroStressCalls n] [-KokoroStressFresh]`: the Kokoro crash
+    /// `-KokoroStress [-KokoroStressCalls n] [-KokoroStressFresh]`: the Kokoro crash
     /// and speed run (`KokoroStressRun`).
     var kokoroStress: KokoroStressRun.Request?
 
@@ -134,16 +218,27 @@ struct LaunchOptions: Equatable {
                                       listenAt: value(after: "-seedDemoListenAt").flatMap(Int.init) ?? 0)
         }
         opensDemoInReader = flags.contains("-openDemoInBrowseReader")
+        readsDemoInLibrary = flags.contains("-readDemoInLibrary")
+        switchesDestinationAndBack = value(after: "-switchDestinationAndBack")
         opensLibrary = flags.contains("-openLibrary")
+        opensLibraryFolder = value(after: "-openLibraryFolder")
+        preparesFolder = value(after: "-prepareFolder")
+        opensPageMenu = flags.contains("-openPageMenu")
+        settingsSearch = value(after: "-searchSettings")
+        settingsPage = value(after: "-openSettingsPage").flatMap(SettingsRoute.init(rawValue:))
+        opensSettings = flags.contains("-openSettings") || settingsSearch != nil || settingsPage != nil
         servesTestPages = flags.contains("-browseTestPages")
         testStoryChapters = value(after: "-testStoryChapters").flatMap(Int.init) ?? testStoryChapters
         testStoryThrottles = flags.contains("-testStoryThrottles")
-        seedsBookmarks = flags.contains("-seedBookmarks")
         seedsHistory = flags.contains("-seedHistory")
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         slowMenuAnimation = flags.contains("-slowMenuAnimation")
         forcesChromeFallback = flags.contains("-chromeFallback")
+        readerFullScreen = flags.contains("-readerFullScreen")
+        readerScrollsToEnd = flags.contains("-readerScrollToEnd")
+        readerProbe = value(after: "-readerProbe").flatMap(ReaderProbeStep.parse)
+        chromeFold = value(after: "-chromeFold").flatMap(Double.init).map { CGFloat($0) }
         rerunsLibraryMigration = flags.contains("-rerunLibraryMigration")
         seedsDemoBook = flags.contains("-seedDemoBook")
         demoBookPlace = value(after: "-seedDemoBookPlace").flatMap(Int.init)
@@ -154,25 +249,45 @@ struct LaunchOptions: Equatable {
         importsTestEPUB = flags.contains("-importTestEPUB")
         playsTestEPUB = flags.contains("-playTestEPUB")
         listensDemo = flags.contains("-listenDemo")
+        tapsListen = flags.contains("-tapListen")
+        tapsListenWhenFullScreen = value(after: "-tapListenWhen") == "fullScreen"
+        tapsLibraryRow = value(after: "-tapLibraryRow")
+        pastesText = value(after: "-pasteText")
+        importsBook = flags.contains("-importBook")
         listenDemoFrom = value(after: "-listenDemoFrom")
-        opensListen = flags.contains("-openListen")
-        listenBackAfter = value(after: "-listenBackAfter").flatMap(Double.init)
+        closesListenAfter = value(after: "-closeListenAfter").flatMap(Double.init)
         failsLibrarySaves = flags.contains("-failLibrarySaves")
         showsWhatsNew = flags.contains("-showWhatsNew")
         usesTestVoice = flags.contains("-testVoice")
         selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
-        kokoroUnits = value(after: "-kokoroUnits")
+        if flags.contains("-simulateVoiceDownloads") {
+            voiceDownloadSimulation = VoiceDownloadSimulationOptions(seconds: value(after: "-voiceDownloadSeconds").flatMap(Double.init) ?? 8,
+                                       failing: Set((value(after: "-failVoiceDownload") ?? "").split(separator: ",").map(String.init)),
+                                       modelMissing: flags.contains("-kokoroNotDownloaded"),
+                                       playbackTransfer: value(after: "-transferVoice"))
+        }
+        downloadsVoice = value(after: "-downloadVoice")
+        stopsVoiceDownloadAfter = value(after: "-stopVoiceDownloadAfter").flatMap(Double.init)
+        editsVoices = flags.contains("-editVoices")
+        removesVoice = value(after: "-removeVoice")
+        opensVoiceSection = value(after: "-openVoiceSection")
+        revealsVoiceRemove = value(after: "-revealVoiceRemove")
+        opensVoicePicker = flags.contains("-openVoicePicker")
+        presentsSheet = value(after: "-presentSheet")
+        addLinkText = value(after: "-addLinkText")
+        submitsAddLink = flags.contains("-submitAddLink")
+        opensMenu = value(after: "-openMenu")
+        linkReviewAction = value(after: "-linkReviewAction")
+        usesLanePolicy = value(after: "-renderPolicy") == "lanes"
         if flags.contains("-engineProbe") {
             engineProbe = EngineLatencyProbe.Request(
                 engines: value(after: "-probeOnly").map { Set($0.split(separator: ",").map { $0.lowercased() }) },
                 stressCalls: flags.contains("-probeStress") ? value(after: "-probeStressN").flatMap(Int.init) ?? 20 : nil)
         }
-        if let route = value(after: "-KokoroStress").flatMap({ KokoroStressRun.Route(rawValue: $0.lowercased()) }) {
+        if flags.contains("-KokoroStress") {
             kokoroStress = KokoroStressRun.Request(
-                route: route,
                 calls: value(after: "-KokoroStressCalls").flatMap(Int.init).map { max(1, $0) } ?? KokoroStressCorpus.calls,
-                fresh: flags.contains("-KokoroStressFresh"),
-                coreMLUnits: kokoroUnits)
+                fresh: flags.contains("-KokoroStressFresh"))
         }
     }
 

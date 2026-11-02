@@ -17,7 +17,7 @@ import SwiftUI
 ///  Chapter 2
 ///  Chapter 3
 ///  58 more
-/// Skipped for listening: Title Page. Still there to read.
+/// Not read aloud: Title Page. You can still read them.
 /// ```
 ///
 /// A book already in the Library asks *Replace* or *Cancel* (decision D13); a refusal, or an
@@ -38,6 +38,7 @@ struct BookImportSheet: View {
                     header
                         .listHeader()
                 }
+                .headerOnlySection(followedByHeader: true)
                 Section {
                     destinationRow
                         .listRowInsets(EdgeInsets())
@@ -129,7 +130,7 @@ struct BookImportSheet: View {
         case .reading:
             return (0, String(localized: "Reading the book…"))
         case .preparing(_, let done, let total):
-            return (total > 0 ? Double(done) / Double(total) : 0, String(localized: "Reading chapters… \(done) / \(total)"))
+            return (total > 0 ? Double(done) / Double(total) : 0, String(localized: "Reading chapters… \(done) of \(total)"))
         case .storing:
             return (1, String(localized: "Saving the folder…"))
         }
@@ -189,14 +190,14 @@ struct BookImportSheet: View {
                     .typeStyle(.row)
                     .foregroundStyle(Palette.secondaryInk)
                     .padding(.horizontal, Spacing.m)
-                    .frame(maxWidth: .infinity, minHeight: BottomChrome.minTapTarget, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: Control.tap, alignment: .leading)
             }
         } header: {
             SectionHeader(title: Verbs.chapters)
                 .listHeader()
         } footer: {
             if !preview.skippedTitles.isEmpty {
-                Text(String(localized: "Skipped for listening: \(Self.list(preview.skippedTitles)). Still there to read."))
+                Text(String(localized: "Not read aloud: \(Self.list(preview.skippedTitles)). You can still read them."))
                     .listFooter()
             }
         }

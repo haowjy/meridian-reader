@@ -3,7 +3,7 @@ import SwiftUI
 import WebKit
 
 /// The page's title and source line, drawn at the top of the text (part of the page, so it
-/// scrolls with it; not a listen block, so it never shifts paragraph indices).
+/// scrolls with it; not a listen block, so it never shifts paragraph indices, and never read aloud).
 struct ReaderHeading: Equatable {
     /// nil: the page has none, and the heading is its source line alone.
     var title: String?
@@ -269,8 +269,10 @@ struct HTMLReadingWebView: UIViewRepresentable {
         c.setLayout(pages: pages, footer: pageFooter)
         c.setTextInsets(textInsets)
         (c.layout as? PagesTextLayout)?.setOverview(!fullScreen)
-        if c.lastHTML != html || c.lastHeading != heading {
+        if c.lastHTML != html {
             c.load(html: html, heading: heading)
+        } else if c.lastHeading != heading {
+            c.setHeading(heading)
         }
         c.setSizes(sizes)
         c.setLook(look)

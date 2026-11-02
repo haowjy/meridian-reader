@@ -24,7 +24,16 @@ enum AppComposition {
                             crashGuard: .shared,
                             pendingBakes: PendingBakeJobStore(storeURL: AppDirectories.pendingBakeJobs, defaults: .standard),
                             resumePoints: ListenResumePointStore(url: AppDirectories.listenResumePoint),
-                            selecting: engine)
+                            renderPolicy: makeRenderPolicy(), selecting: engine)
+    }
+
+    /// What the render queue renders next. A new policy is one type and this line; a Debug launch
+    /// may pick the two-lane one (`-renderPolicy lanes`).
+    static func makeRenderPolicy() -> RenderPolicy {
+        #if DEBUG
+        if LaunchOptions.current.usesLanePolicy { return LanePolicy() }
+        #endif
+        return SingleCallPolicy()
     }
 
     /// What you see. It asks the playback session what you hear, so the Reader of the playing
@@ -63,7 +72,6 @@ enum AppComposition {
     static func attachLibrary(_ library: LibraryStore) {
         guard progressRecorder == nil else { return }
         speechController.nextChapters = library
-        speechController.onLaunch = { [shell] in shell.noteLaunch() }
         progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 
@@ -113,7 +121,7 @@ enum AppComposition {
         let preparedAudio = PrepareCenter(library: library, rendering: tts,
                                        fill: { await follow.fill($0, priority: .background) },
                                        needsAudio: { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 })
-        tts.onRenderStateChange = { [weak preparedAudio] in preparedAudio?.scheduleCheck() }
+        tts.onRenderStateChange = { [weak preparedAudio] in preparedAudio?.scheduleCheck(of: $0) }
         tts.preparedKey = { [weak preparedAudio] key in preparedAudio?.hasRecord(for: key) ?? false }
         tts.listeningNeedsKey = { speech.activeSessionID == $0 || tts.stagedChapterKey == $0 }
         library.editStored = { [weak preparedAudio] in
@@ -133,19 +141,65 @@ enum AppComposition {
     /// (`ArticleAudioCache.held`), for a later launch. Then the
     /// launch steps (`EngineRegistry.launchMigrations`, which can purge an engine's audio and
     /// orphan files, held audio excepted), the chunk scratch (nothing plays at launch) and the
-    /// prune of unsaved audio (7 days, 500 MB; held audio excepted). First of all the cache is kept
+    /// prune of unsaved audio and old voices (7 days, 2 GB; held audio excepted). Voice records
+    /// a launch left are among the audio work, so a voice change is finished before the prune
+    /// and before rendering starts. First of all the cache is kept
     /// out of backups: it is audio the app can render again (`BackupExclusion`).
     static func prepareAudioCache(library: LibraryStore, tts: LocalTTSCoordinator) {
         tts.audioCache.excludeFromBackup()
         tts.holdRenderingForLaunch()
         library.finishAudioWork()
+        dropStaleVoiceParagraphs(tts: tts)
         for migration in tts.engines.launchMigrations { migration.runIfNeeded(tts) }
+        removeAppleVoices(library: library, tts: tts)
         adoptArticleVoices(library: library, tts: tts)
         tts.audioCache.removeAllChunkScratch()
         let pruned = tts.audioCache.pruneEphemeral()
         if pruned.removed > 0 {
             ListenTimingLog.log("audio_cache_prune", ["removed": pruned.removed, "bytes": pruned.freedBytes])
         }
+    }
+
+    /// Once, marked done when nothing was held or failed: older builds' caches can hold
+    /// paragraphs in a voice other than their index's (a voice switch they hadn't rendered again);
+    /// they're deleted (`ArticleAudioCache.dropStaleVoiceParagraphs`).
+    static func dropStaleVoiceParagraphs(tts: LocalTTSCoordinator) {
+        let doneKey = "reader.migration.staleVoiceParagraphsDropped.v1"
+        guard !tts.defaults.bool(forKey: doneKey) else { return }
+        let dropped = tts.audioCache.dropStaleVoiceParagraphs()
+        if dropped.complete { tts.defaults.set(true, forKey: doneKey) }
+        if dropped.articles > 0 {
+            ListenTimingLog.log("stale_voice_paragraphs_dropped", ["articles": dropped.articles, "complete": dropped.complete])
+        }
+    }
+
+    /// Apple's voices are gone (playback never reads in another voice; Phonon and Kokoro are the
+    /// voices). Once, marked done only when every step succeeded: articles and books stored in an
+    /// Apple voice ("apple/…") have none again, so they take the Settings default at their next
+    /// first use; audio filed under the Apple engine is deleted (held audio waits for a later
+    /// launch); the settings only Apple's voices used are removed. A stored default in an Apple
+    /// voice takes the built-in default at every launch it is found
+    /// (`LocalTTSCoordinator.loadDefaultSelection`).
+    static func removeAppleVoices(library: LibraryStore, tts: LocalTTSCoordinator) {
+        let doneKey = "reader.migration.appleVoicesRemoved.v1"
+        guard !tts.defaults.bool(forKey: doneKey) else { return }
+        let purged = tts.audioCache.purgeEngine("apple")
+        let cleared: Int
+        do {
+            cleared = try library.clearVoices { $0.hasPrefix("apple/") }
+        } catch {
+            ListenDebugLog.shared.append("Apple voices: clearing article voices failed, next launch tries again")
+            return
+        }
+        for key in ["reader.selectedVoiceIdentifier", "reader.languageAutomatic", "reader.selectedLanguageCode",
+                    "reader.tts.engineID"] {
+            tts.defaults.removeObject(forKey: key)
+        }
+        if purged.held == 0 { tts.defaults.set(true, forKey: doneKey) }
+        if purged.paragraphs > 0 || purged.orphanFiles > 0 { tts.noteBakeMarksChanged() }
+        tts.forgetArticleVoices()
+        ListenTimingLog.log("apple_voices_removed", ["voices_cleared": cleared, "cache_paragraphs": purged.paragraphs,
+                                                     "held": purged.held])
     }
 
     /// C138 migration, once: articles and books with audio take the voice most of it is in (with its
@@ -172,17 +226,15 @@ enum AppComposition {
 
     static func makeProviders() -> [SpeechEngineProvider] {
         #if DEBUG
-        let options = LaunchOptions.current
-        var providers: [SpeechEngineProvider] = [
-            AppleSpeechProvider(),
-            FluidAudioProvider(coreMLUnits: options.kokoroUnits,
-                               keepsCoreMLStages: options.kokoroStress?.route == .coreml),
-            PhononProvider(),
-        ]
-        if options.usesTestVoice { providers.append(TestVoiceProvider()) }
+        let simulation = LaunchOptions.current.voiceDownloadSimulation.map {
+            KokoroDownloadSimulation(seconds: $0.seconds, failing: $0.failing, modelMissing: $0.modelMissing,
+                                     playbackTransfer: $0.playbackTransfer)
+        }
+        var providers: [SpeechEngineProvider] = [FluidAudioProvider(simulation: simulation), PhononProvider()]
+        if LaunchOptions.current.usesTestVoice { providers.append(TestVoiceProvider()) }
         return providers
         #else
-        return [AppleSpeechProvider(), FluidAudioProvider(), PhononProvider()]
+        return [FluidAudioProvider(), PhononProvider()]
         #endif
     }
 
@@ -195,6 +247,6 @@ enum AppComposition {
         for directory in engineRegistry.regenerableDirectories + [AppDirectories.listenTiming] {
             BackupExclusion.exclude(directory)
         }
-        ListenTimingLog.log("app_launch", ["engine": tts.selectedEngineID.rawValue, "build": LocalTTSCoordinator.buildConfiguration])
+        ListenTimingLog.log("app_launch", ["engine": tts.engineLabel, "build": LocalTTSCoordinator.buildConfiguration])
     }
 }

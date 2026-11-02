@@ -23,12 +23,12 @@ struct FolderContents: Equatable {
     var articles = 0
     var articleKeys: Set<UUID> = []
 
-    /// "2 folders, 27 pages"; nil when empty.
+    /// "2 folders and 27 articles"; nil when empty.
     var summary: String? {
-        let parts = [(folders, "folder"), (articles, "page")]
+        let parts = [(folders, "folder"), (articles, "article")]
             .filter { $0.0 > 0 }
             .map { count, noun in "\(count) \(noun)\(count == 1 ? "" : "s")" }
-        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+        return parts.isEmpty ? nil : parts.joined(separator: " and ")
     }
 }
 

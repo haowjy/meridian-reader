@@ -22,6 +22,8 @@ struct ShellSheetView: View {
     @ViewBuilder
     private func content(_ sheet: ShellSheet) -> some View {
         switch sheet {
+        case .pasteText(let parentID):
+            PasteTextSheet(parentID: parentID)
         case .moveTo(let request):
             MoveTreeSheet(request: request)
         case .importBook(let flow):
@@ -46,7 +48,7 @@ struct ShellSheetView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         case .settings:
-            SettingsView(speech: speech) { shell.sheet = nil }
+            SettingsView(speech: speech, placement: .sheet(onDone: { shell.sheet = nil }))
                 .regularInsetFormSheet(isRegular: isRegular)
         case .share(let url):
             ActivityShareSheet(items: [url])

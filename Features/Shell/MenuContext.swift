@@ -1,18 +1,7 @@
 import SwiftUI
 
-/// What the ⋯ panel shows: the item's own menu (a page's `ArticleMenu` or a folder's `FolderMenu`;
-/// none on a screen with no item), then the screen's own rows ending in *Prepared Audio*, a
-/// divider, then the same tile buttons on every surface (C140):
-///
-///     [Settings]  [Saved]  [History]  [Reader]
-///
-/// History is there on compact width only: regular width has the 🕘 button. Settings opens
-/// Settings. Saved opens the Library (saved articles). History opens the browser's visits. Reader
-/// (rightmost, the panel's focus point) varies by surface:
-///
-/// - browser:  open the current page in the Reader (greyed when not readable)
-/// - Library:  go to Now Playing (greyed when nothing is playing)
-/// - Browse Reader / Now Playing:  disabled (already in the reading view)
+/// The item's menu, then the screen's actions. Compact width draws system-menu sections;
+/// regular width keeps its navigation tiles. Registry groups travel with each `MenuRow`.
 struct MenuContext {
     var item: [MenuRow] = []
     var screen: [MenuRow]
@@ -20,31 +9,35 @@ struct MenuContext {
     /// Opened on a reading page (the Reader, Now Playing or the Browser's reader mode): the panel takes its colours.
     var isOnReadingPage = false
 
-    /// A screen's own block, from `MenuRegistry` (C98): *Text Appearance*, *Sort*, *Follow…*, *Reload* where they
-    /// apply, then *Prepared Audio*.
-    /// `custom` gives the rows only a screen can make (its *Sort*, *Follow…*, *Reload*). Settings
-    /// is a tile (C140), not a list row.
+    /// The same rows in a system menu (`MenuRows`, a title line's ⋯ on compact width): the item's, the
+    /// screen's, then the tiles as rows, a section each.
+    var blocks: [[MenuRow]] { [item, screen, tiles] }
+
+    /// The screen's registry rows: *Browsing History* from here, every other row from `custom`, the
+    /// screen's own actions. The registry says which options a place shows; a place showing one its
+    /// screen has no row for is a programming error, stopped here rather than drawn as another row.
     @MainActor
     static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(),
                            shell: ShellState, custom: (MenuRegistry.Option) -> MenuRow? = { _ in nil }) -> [MenuRow] {
-        return MenuRegistry.rows(.screen, at: place, facts) { option in
-            if let row = custom(option) { return row }
-            return MenuRow(id: "morePreparedAudio", title: Verbs.preparedAudio, icon: Icons.preparedAudio) { shell.present(.preparedAudio) }
+        MenuRegistry.rows(.screen, at: place, facts) { option in
+            if option == .browsingHistory {
+                return MenuRow(id: "moreHistory", title: Verbs.browsingHistory, icon: Icons.history) { shell.present(.history) }
+            }
+            guard let row = custom(option) else { preconditionFailure("No row for \(option) at \(place)") }
+            return row
         }
     }
 
-    /// The tile buttons `[Settings][Saved]([History])[last]`; `last` is the surface's own focus tile. Every ⋯
-    /// panel uses these same tiles in this order (C140). The compact chrome has no 🕘 button, so
-    /// its panels add *History* as a tile before `last` (`compact`).
+    /// The tile buttons `[Settings][Library][last]` on regular width, `[Library][Browsing History][last]`
+    /// on compact (`compact`); `last` is the surface's own focus tile. Every ⋯ panel uses these same tiles
+    /// in this order (C140). Compact width has Settings in the chrome's pill and no 🕘 button, so its
+    /// menus drop *Settings* and add *Browsing History* before `last`.
     @MainActor
     static func tiles(_ shell: ShellState, compact: Bool, last: MenuRow) -> [MenuRow] {
-        var tiles = [
-            MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings) { shell.present(.settings) },
-            MenuRow(id: "moreSaved", title: String(localized: "Saved"), icon: Icons.library) { shell.openLibrary() },
-        ]
-        if compact {
-            tiles.append(MenuRow(id: "moreHistory", title: Verbs.history, icon: Icons.history) { shell.present(.history) })
+        let library = MenuRow(id: "moreLibrary", title: Verbs.library, icon: Icons.library) { shell.openLibrary() }
+        guard compact else {
+            return [MenuRow(id: "moreSettings", title: Verbs.settings, icon: Icons.settings, action: shell.showSettings), library, last]
         }
-        return tiles + [last]
+        return [library, MenuRow(id: "moreHistory", title: Verbs.browsingHistory, icon: Icons.history) { shell.present(.history) }, last]
     }
 }

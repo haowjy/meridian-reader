@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// A labelled capsule button: a sheet's close pill ("‹ Browser", "⌄ Library") and Listen, a book's Continue. 48 pt tall (36 compact) at the default text size, growing with
-/// Dynamic Type up to `BottomChrome.maxTextGrowth` like the rest of the band; radius `Radius.pill`.
+/// A labelled capsule button: a sheet's close pill ("‹ Browser", "⌄ Library") and Listen, a book's Continue. `Control.bar` tall (`Control.small` compact) at the default text size, growing with
+/// Dynamic Type up to `Control.maxTextGrowth` like the rest of the band; a true capsule at every size.
 ///
 /// A `detail` follows the title in regular weight, set apart by space rather than a separator:
 /// *▶ **Listen**  9 min*, *▶ **Continue**  Ch 24*. When the pill is short of room (large text)
-/// the detail is left out; VoiceOver still reads it. In an `ActionButtonRow` it draws for the
-/// row's `fit`: the short title alone, or (`.icon`) its leading symbol alone on a round button.
+/// the detail is left out; VoiceOver still reads it. In an `ActionButtonRow` whose labels don't fit
+/// (`.icon`) it draws its leading symbol alone on a round button.
 struct PillButton<Leading: View>: View {
     enum Style {
         /// Accent fill: the main action on a screen (Listen, Continue).
@@ -14,8 +14,6 @@ struct PillButton<Leading: View>: View {
         /// Chrome fill, ink text: navigation (a sheet's close pill), secondary actions. On the
         /// player: its card fill and ink.
         case neutral
-        /// Playing tint, accent text: the playing state of a filled pill.
-        case tinted
     }
 
     enum Size {
@@ -24,8 +22,8 @@ struct PillButton<Leading: View>: View {
 
         var height: CGFloat {
             switch self {
-            case .regular: 48
-            case .compact: 36
+            case .regular: Control.bar
+            case .compact: Control.small
             }
         }
     }
@@ -37,8 +35,6 @@ struct PillButton<Leading: View>: View {
     var size: Size = .regular
     /// Stretches to the width it is offered (Listen between 🔖 and ⋯).
     var expands = false
-    /// The title when the row is short of room ("Start" for "From Start"); nil: the title.
-    var shortTitle: String?
     /// How much of the label shows (`ActionButtonRow`).
     var fit: ActionLabelFit = .full
     let action: () -> Void
@@ -49,7 +45,7 @@ struct PillButton<Leading: View>: View {
     @Environment(\.readingPalette) private var reading
 
     var body: some View {
-        let height = BottomChrome.grown(size.height * scale, from: size.height)
+        let height = Control.grown(size.height * scale, from: size.height)
         Button(action: action) {
             HStack(spacing: Spacing.xs) {
                 leading
@@ -63,7 +59,7 @@ struct PillButton<Leading: View>: View {
             .padding(.horizontal, fit == .icon ? 0 : Spacing.m)
             // Icon only: a circle the pill's height, or a capsule when it stretches.
             .frame(minWidth: fit == .icon ? height : nil, maxWidth: expands ? .infinity : nil, minHeight: height)
-            .background(background, in: RoundedRectangle(cornerRadius: Radius.pill, style: .continuous))
+            .background(background, in: Capsule(style: .continuous))
             .opacity(isEnabled ? 1 : Palette.disabledOpacity)
             .tapTarget(size.height)
         }
@@ -75,22 +71,19 @@ struct PillButton<Leading: View>: View {
     @ViewBuilder
     private var label: some View {
         switch fit {
-        case .full, .short:
-            let shown = fit == .full ? title : shortTitle ?? title
+        case .full:
             // Without room for both (large text), the title alone.
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                    titleText(shown)
+                    titleText(title)
                     if let detail {
                         Text(detail)
                             .typeStyle(.row)
                             .monospacedDigit()
                     }
                 }
-                titleText(shown)
+                titleText(title)
             }
-        case .titleOnly:
-            titleText(shortTitle ?? title)
         case .icon:
             EmptyView()
         }
@@ -109,7 +102,6 @@ struct PillButton<Leading: View>: View {
         switch style {
         case .filled: reading?.onAccent ?? Palette.onAccent
         case .neutral: reading?.ink ?? Palette.ink
-        case .tinted: reading?.accent ?? Palette.accent
         }
     }
 
@@ -117,18 +109,16 @@ struct PillButton<Leading: View>: View {
         switch style {
         case .filled: reading?.accent ?? Palette.accent
         case .neutral: BottomChrome.fieldFill(reading)
-        case .tinted: reading?.highlight ?? Palette.playingTint
         }
     }
 }
 
 extension PillButton where Leading == PillSymbol {
     /// A pill with an SF Symbol before its title (nil: the title alone).
-    init(_ title: String, detail: String? = nil, shortTitle: String? = nil, systemImage: String? = nil,
+    init(_ title: String, detail: String? = nil, systemImage: String? = nil,
          style: Style = .filled, size: Size = .regular, expands: Bool = false, fit: ActionLabelFit = .full,
          action: @escaping () -> Void) {
-        self.init(title: title, detail: detail, style: style, size: size, expands: expands, shortTitle: shortTitle,
-                  fit: fit, action: action) {
+        self.init(title: title, detail: detail, style: style, size: size, expands: expands, fit: fit, action: action) {
             PillSymbol(name: systemImage)
         }
     }
@@ -141,8 +131,58 @@ struct PillSymbol: View {
     var body: some View {
         if let name {
             Image(systemName: name)
-                .typeStyle(.row, weight: .semibold)
+                .glyphSize(Glyph.small, weight: .semibold)
                 .accessibilityHidden(true)
+        }
+    }
+}
+
+/// A sheet's *Done*, *Cancel* or *Save* in its navigation bar: the neutral compact `PillButton`
+/// the Reader's and Now Playing's close pill is, on every sheet (Prepared audio, History,
+/// Settings, Edit Details, the Move tree, Import Book), without the bar's own glass behind it. So a sheet's buttons look one way, at rest and over a scrolled list, light or dark.
+///
+/// With a `systemImage` it is the same neutral face as a circle with the symbol alone, `title` its
+/// VoiceOver label: an input sheet's ✕ (`InputSheet`).
+///
+/// ```
+/// ( Cancel )            Edit Details             ( Save )
+/// ( ✕ )                  Add a Link
+/// ```
+struct SheetBarButton: ToolbarContent {
+    let placement: ToolbarItemPlacement
+    let title: String
+    /// The symbol alone in a circle, in place of the title (nil: the title).
+    var systemImage: String?
+    let identifier: String
+    var isDisabled = false
+    let action: () -> Void
+
+    init(_ title: String, systemImage: String? = nil, placement: ToolbarItemPlacement, identifier: String,
+         isDisabled: Bool = false, action: @escaping () -> Void) {
+        self.title = title
+        self.systemImage = systemImage
+        self.placement = placement
+        self.identifier = identifier
+        self.isDisabled = isDisabled
+        self.action = action
+    }
+
+    var body: some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            item.sharedBackgroundVisibility(.hidden)
+        } else {
+            item
+        }
+    }
+
+    private var item: some ToolbarContent {
+        ToolbarItem(placement: placement) {
+            PillButton(title, systemImage: systemImage, style: .neutral, size: .compact,
+                       fit: systemImage == nil ? .full : .icon, action: action)
+                // Its own width: the bar's leading slot would squeeze the title.
+                .fixedSize()
+                .disabled(isDisabled)
+                .accessibilityIdentifier(identifier)
         }
     }
 }
@@ -151,7 +191,7 @@ struct PillSymbol: View {
 struct PillPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(configuration.isPressed ? Palette.pressedOpacity : 1)
             .animation(Motion.snappy, value: configuration.isPressed)
     }
 }
@@ -170,9 +210,6 @@ struct PillButtonGallery: View {
                 PillButton("Library", systemImage: Icons.collapse, style: .neutral, size: .compact) {}
                     .onReadingPreview()
             }
-            PreviewState("tinted · playing") {
-                PillButton("Playing", detail: "Ch 24", systemImage: Icons.playing, style: .tinted) {}
-            }
             PreviewState("disabled") {
                 PillButton("Listen", systemImage: Icons.play) {}.disabled(true)
             }
@@ -183,4 +220,42 @@ struct PillButtonGallery: View {
 #Preview("PillButton · light", traits: .sizeThatFitsLayout) { PillButtonGallery().previewVariant(.light) }
 #Preview("PillButton · dark", traits: .sizeThatFitsLayout) { PillButtonGallery().previewVariant(.dark) }
 #Preview("PillButton · AX5", traits: .sizeThatFitsLayout) { PillButtonGallery().previewVariant(.largestText) }
+
+struct SheetBarButtonGallery: View {
+    var body: some View {
+        NavigationStack {
+            List { Text("Rows") }
+                .cardListStyle()
+                .navigationTitle("Edit Details")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "previewCancel") {}
+                    SheetBarButton("Save", placement: .confirmationAction, identifier: "previewSave") {}
+                }
+        }
+    }
+}
+
+/// The icon form, as an input sheet's ✕.
+struct SheetBarIconGallery: View {
+    var body: some View {
+        NavigationStack {
+            List { Text("Rows") }
+                .cardListStyle()
+                .navigationTitle("Add a Link")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    SheetBarButton(Verbs.cancel, systemImage: Icons.close, placement: .cancellationAction,
+                                   identifier: "previewClose") {}
+                }
+        }
+    }
+}
+
+#Preview("SheetBarButton · light") { SheetBarButtonGallery().previewVariant(.light) }
+#Preview("SheetBarButton · dark") { SheetBarButtonGallery().previewVariant(.dark) }
+#Preview("SheetBarButton · AX5") { SheetBarButtonGallery().previewVariant(.largestText) }
+#Preview("SheetBarButton icon · light") { SheetBarIconGallery().previewVariant(.light) }
+#Preview("SheetBarButton icon · dark") { SheetBarIconGallery().previewVariant(.dark) }
+#Preview("SheetBarButton icon · AX5") { SheetBarIconGallery().previewVariant(.largestText) }
 #endif

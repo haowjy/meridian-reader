@@ -2,7 +2,7 @@
 import SwiftUI
 
 /// The tokens on one page: colours (the app's accents and the reading themes too), the type scale,
-/// spacing and radii.
+/// spacing, radii, control sizes and glyph sizes.
 struct TokensGallery: View {
     private var colours: [(String, Color)] {
         [
@@ -13,10 +13,13 @@ struct TokensGallery: View {
         ]
     }
     private let spacing: [(String, CGFloat)] = [
-        ("xxs", Spacing.xxs), ("xs", Spacing.xs), ("s", Spacing.s), ("m", Spacing.m), ("l", Spacing.l),
-        ("xl", Spacing.xl),
+        ("xxs", Spacing.xxs), ("xs", Spacing.xs), ("s", Spacing.s), ("m", Spacing.m), ("xl", Spacing.xl),
     ]
-    private let radii: [(String, CGFloat)] = [("card", Radius.card), ("pill", Radius.pill)]
+    private let radii: [(String, CGFloat)] = [("card", Radius.card), ("surface", Radius.surface)]
+    private let controls: [(String, CGFloat)] = [
+        ("small", Control.small), ("chrome", Control.chrome), ("tap", Control.tap), ("bar", Control.bar), ("prominent", Control.prominent),
+    ]
+    private let glyphs: [(String, CGFloat)] = [("small", Glyph.small), ("regular", Glyph.regular), ("large", Glyph.large)]
 
     var body: some View {
         PreviewGallery {
@@ -72,6 +75,26 @@ struct TokensGallery: View {
                             RoundedRectangle(cornerRadius: value, style: .continuous)
                                 .fill(Palette.chrome)
                                 .frame(width: value * 3, height: value * 2)
+                            Text("\(name) \(Int(value))").typeStyle(.caption).foregroundStyle(Palette.secondaryInk)
+                        }
+                    }
+                }
+            }
+            PreviewState("control") {
+                HStack(alignment: .bottom, spacing: Spacing.s) {
+                    ForEach(controls, id: \.0) { name, value in
+                        VStack(spacing: Spacing.xxs) {
+                            Circle().fill(Palette.chrome).frame(width: value, height: value)
+                            Text("\(name) \(Int(value))").typeStyle(.caption).foregroundStyle(Palette.secondaryInk)
+                        }
+                    }
+                }
+            }
+            PreviewState("glyph") {
+                HStack(alignment: .lastTextBaseline, spacing: Spacing.m) {
+                    ForEach(glyphs, id: \.0) { name, value in
+                        VStack(spacing: Spacing.xxs) {
+                            Image(systemName: Icons.play).font(.system(size: value)).foregroundStyle(Palette.ink)
                             Text("\(name) \(Int(value))").typeStyle(.caption).foregroundStyle(Palette.secondaryInk)
                         }
                     }

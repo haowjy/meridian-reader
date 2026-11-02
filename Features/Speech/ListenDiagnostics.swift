@@ -7,7 +7,6 @@ final class ListenDiagnostics {
     private unowned let speech: SpeechController
     /// What the last stretch in the background played (debug panel).
     private(set) var lastBackgroundSummary = "—"
-    private var deferralsAtBackground = 0
 
     init(speech: SpeechController) {
         self.speech = speech
@@ -20,7 +19,6 @@ final class ListenDiagnostics {
     /// background stretch played.
     func appPhaseChanged(_ phase: AppRunState.Phase) {
         let player = speech.localEngine.player
-        let deferrals = localTTS.synthQueue.backgroundDeferrals
         var fields: [String: Any] = [
             "phase": phase.rawValue, "listen": String(describing: playback.phase),
             "engine": speech.activeEngine?.name ?? "—", "p": playback.playhead,
@@ -28,11 +26,10 @@ final class ListenDiagnostics {
         switch phase {
         case .background:
             player.backgroundStats = .init()
-            deferralsAtBackground = deferrals
             fields["rendered_paragraphs_ahead"] = speech.activeEngine?.debug.renderedParagraphsAhead ?? 0
         case .active:
-            if player.backgroundStats != .init() || deferrals > deferralsAtBackground {
-                lastBackgroundSummary = player.backgroundStats.label + ", deferred \(deferrals - deferralsAtBackground)"
+            if player.backgroundStats != .init() {
+                lastBackgroundSummary = player.backgroundStats.label
                 fields["bg_summary"] = lastBackgroundSummary
             }
         case .inactive:
@@ -62,11 +59,11 @@ final class ListenDiagnostics {
         let identityKey = articleID ?? queue.primaryCacheKey
         // The session's paragraphs; with no session, queue #1's paragraphs still to render.
         let total = paragraphs.isEmpty ? pending : paragraphs.count
-        // Rendered in the active engine's voice (the bake marks' count).
+        // Rendered in the article's own voice (`renderTarget(for:)`), whatever is loaded.
         let ready = identityKey.flatMap { key in
-            localTTS.activeCacheVoice.map {
-                localTTS.audioCache.readyIndices(articleID: key, paragraphCount: total, engineID: localTTS.cacheEngineID,
-                                                 voiceID: $0).count
+            localTTS.renderTarget(for: key).map {
+                localTTS.audioCache.readyIndices(articleID: key, paragraphCount: total, engineID: $0.engineID,
+                                                 voiceID: $0.cacheVoice).count
             }
         } ?? 0
 
@@ -87,8 +84,9 @@ final class ListenDiagnostics {
             return "\(kind):\(key.uuidString.prefix(8))"
         }()
         let activeBake: String = {
-            guard let key = queue.activeBakeCacheKey, let idx = queue.activeBakeIndex else { return "—" }
-            return "\(key.uuidString.prefix(8)) p\(idx)"
+            let units = queue.rendering
+            guard !units.isEmpty else { return "—" }
+            return units.map { "\($0.cacheKey.uuidString.prefix(8)) p\($0.index)" }.joined(separator: ", ")
         }()
         let nextMissing: String = {
             if let idx = queue.nextMissingIndex() { return "p\(idx)" }
@@ -104,7 +102,7 @@ final class ListenDiagnostics {
             case .idle: return "idle"
             }
         }()
-        let warmingLocal = localTTS.synth.state.warmingEngineID != nil
+        let warmingLocal = localTTS.synth.isWarming
         let snap = speech.engineSnapshot()
         return ListenDebugSnapshot(
             phase: String(describing: playback.phase),
@@ -146,12 +144,8 @@ final class ListenDiagnostics {
         )
     }
 
-    /// Debug overlay line: language code + source → engine.
+    /// Debug overlay line: the language detected in what plays ("fr", "undetected").
     var languageLabel: String {
-        let r = speech.languageResolution
-        let source = r.source == .detected ? "auto" : (r.source == .manual ? "manual" : "auto: undetected")
-        let engine = r.unsupportedEngineID != nil ? "Apple (\(speech.languageEngineDescriptor?.languageLimitNote ?? "unsupported"))"
-            : localTTS.engines.shortName(r.engineID)
-        return "\(r.languageCode) (\(source)) → \(engine)"
+        ListenLanguage.detectCached(paragraphs: speech.document.paragraphs) ?? "undetected"
     }
 }

@@ -9,11 +9,13 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 - iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`), iOS 18+, portrait. The iPad has a regular-width
   layout (below); compact width keeps the phone's chrome. Native Swift and SwiftUI only.
 - No backend, accounts or sync. Article text and audio stay on the device.
-- Offline first: saved articles read and play with no network (Apple voices, or Phonon or Kokoro
-  once their models are downloaded).
+- Offline first: saved articles read and play with no network (Phonon, whose model is built into
+  the app, or Kokoro once its model is downloaded).
 - On-device Phonon (voice Zoey) is the default voice on a supported device and Kokoro (Heart) the
-  second default; Apple TTS is the fallback when neither can speak. Phonon and Kokoro models are
-  large downloads, so on cellular or Low Data Mode the app asks first (`LargeModelDownloadConsent`).
+  second default. Playback never changes the voice on its own: when the article's voice can't go
+  on, it waits or pauses and says why (`LISTEN_PLAYBACK.md` → "One voice, never swapped"). Phonon's model ships in the app
+  (~170 MB); Kokoro's is a large download, so on cellular or Low Data Mode the app asks first
+  (`LargeModelDownloadConsent`).
 - Extraction sits behind a protocol, so the engine can be swapped.
 
 ## Stack
@@ -24,7 +26,7 @@ How Meridian Reader is built. What it does: `FUNCTIONAL_REQUIREMENTS.md`; screen
 | Browser | `WKWebView` |
 | Extraction | Mozilla Readability.js, bundled (`Resources/Readability/`) |
 | Persistence | SwiftData, two store files: the library (`Folder`, `Article`) and the local store (`RecentVisit`; `SavedArticle`, frozen); small JSON files and UserDefaults for the rest |
-| Speech | `AVSpeechSynthesizer`; Phonon 31m via Gradium `ptts` (Core ML); Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
+| Speech | `AVSpeechSynthesizer`; Phonon 31m via Gradium `ptts` (Core ML's CPU path); Kokoro via vendored FluidAudio (`Vendor/FluidAudio`) and ONNX Runtime (SPM `onnxruntime` 1.24.2) |
 | Language | `NaturalLanguage` (article language), `Speech` (address-bar dictation) |
 | Project | XcodeGen (`project.yml` → `MeridianReader.xcodeproj`) |
 
@@ -45,10 +47,10 @@ Core/
 Features/
   Shell/    ShellState, the compact bottom chrome (`Chrome/`: `ChromeState`, `ChromeLayout`, `ChromeScroll`, `ChromeHost`, `ChromePieces`; its `ChromeMetrics` are in `DesignSystem/Chrome/`), ⋯ morph menu, search session, motion tokens; the iPad sidebar (`RegularShellSidebar`) and `ClusteredPlayerDock`
   DesignSystem/  tokens (incl. `RegularLayout`: the iPad sidebar, readable-measure and sheet widths)
-  Browse/   start page, browser chrome, page actions (PageArticleService), dictation
-  Reader/   the Reader, Now Playing (text that follows the audio, scrub row, controls)
-  Library/  the Library surface and screens (home, folder), rows, the Move tree, Favorites' sheet and ☆, the import sheet
-  Saved/    save coordinator, Now Playing's content and progress store
+  Browse/   start page (Frequently Visited), browser chrome, page actions (PageArticleService), dictation
+  Reader/   the Reader, Listen (text that follows the audio, scrub row, controls)
+  Library/  the Library surface and screens (home, folder), rows, the Move tree, the import sheet
+  Saved/    save coordinator, Listen's content and progress store
   Speech/   SpeechController, playback session and engines, settings, voice libraries (Engines/)
 Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a library over its own files
 ```
@@ -60,7 +62,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   extractor, `DeveloperSettings`, Block Ads, Follow and Prepared Audio, which `ReaderApp` injects through
   the environment; it wires Prepared Audio to the render queue's changes and the library's edits
   (`makePreparedAudio`) and connects the speech stack to the library
-  (`attachLibrary`: the library resolves Now Playing's text, and the `ListeningProgressRecorder`
+  (`attachLibrary`: the library resolves Listen's text, and the `ListeningProgressRecorder`
   writes listening progress to it).
   `AppLaunch.run` does the launch work once: the library's launch maintenance
   (`maintainLibrary`, which then lets the render queue adopt and render), with the Debug launch
@@ -73,16 +75,17 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   `regularInsetFormSheet` for Voice and Settings). State, data and playback are shared; compact
   chrome is untouched. Sizes live in `RegularLayout`. See NAVIGATION.md → "iPad and regular width".
 - **Compact bottom chrome** (`Features/Shell/Chrome/` with its tokens in `Features/DesignSystem/Chrome/`;
-  one rule set, no screen-specific cases). `ChromeState` is a pure value: destination, collapse
-  `progress` (continuous, 0 to 1), the Reader's `fullScreen`, played, back / forward, keyboard,
-  reader mode, editing, the capsule's width. `ChromeLayout` is the one pure layout function from (width, state) to every
-  piece's rect and opacity (the mockups' `rectsFor`: each piece shrinks about the
-  capsule's centre as `progress` goes to 1 while the capsule grows from there; the keyboard's form is one row
-  with Cancel); it is sized by `ChromeMetrics`
-  (every size a multiple of a base unit of 4, one `barHeight` 48, names and values those of the
-  mockups' `SZ`, checked by `tools/check-tokens.js`). `ChromeScroll` (`ShellState.chromeScroll`) owns
+  one rule set, no screen-specific cases). `ChromeState` is a pure value: destination, `progress` (continuous,
+  0 to 1; `fold` is what is drawn, 0 under the keyboard), the Reader's `fullScreen`, back / forward, keyboard,
+  reader mode, editing, the bubble's width, the measured home strip. `ChromeLayout` is the one pure layout function from (width, state) to every
+  piece's rect and opacity: from 0 to 0.5 row 2 drops off the screen's edge while row 1 drops into its place,
+  from 0.5 to 1 ‹ › and Listen drop off while the field's glass shrinks into the bubble, every piece going
+  straight down (the keyboard's form is one row with Cancel); it is sized by `ChromeMetrics`
+  and the shared scales (every piece `Control.chrome` 44, the reading pages' top group too, but the pill, `Control.tabBar` 48: the two values every chrome measure derives from, one 8 pt
+  gap `Spacing.xs` between rows and between pieces, the rows ending on the home indicator's strip (`rowLift` above it where it is shallow), every hit area at least 44 pt, `hitOutset` past the glass only when the chrome is below that). `ChromeScroll` (`ShellState.chromeScroll`) owns
   the progress and `fullScreen` and is the one scroll controller the Library, the Browser and the
-  Reader feed (`progress += dy / 90`, snap 150 ms after the finger stops; Reader offsets that no
+  Reader feed (`progress += dy / 120` for a scroll down, snap 150 ms after the finger stops; a scroll up
+  of `revealDistance` (24 pt) with no scroll down between expands it; Reader offsets that no
   finger moved only re-anchor it, `anchor(at:)`; locked while the keyboard or ⋯ is up). `ChromeScroll.displayed`
   chases the progress with a per-frame exponential filter (`ChromeScroll.smoothing`, the prototype's
   55 ms time constant, stepped by a display link) and `ChromePieces`, animatable in it, draws every
@@ -90,18 +93,29 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
   binary and every change of form (fold, keyboard, full screen) is a cross-fade of the whole host. The
   reading page in place reads and toggles full screen through `ReadingInPlace`, so
   `ReadingChrome.hidden` has no copy. `ShellState` owns the chrome's destination and the pill's
-  selection (`chromeDestination`, `select`). `ChromeHost` only wires those to the app: `ChromePlayback`
-  (the play button and the resume query), `ChromeFade` (the translucent gradient under the pieces),
-  `ChromeControls` (pill, navigation, play button), `ChromeSkin` (glass, or blur and tint before iOS
-  26). The Reader's and Now Playing's player card (`ReaderPlayerCard`, a design-system view of plain
-  values) is built by the screens and handed up as a preference (`ChromeCard`); the host draws it on
-  the field piece's glass; Listen never folds.
-- **Reading pages.** The Reader and Now Playing are one `ReadingPage` (`ReaderSheet` and
-  `NowPlayingSheet` supply their bands): `ReadingBars` lays out the text between the top bar and
-  the band; compact width draws it in place under the chrome, regular width inside a `Sheet`
-  (`ReadingShowing`). `Sheet` and `SheetPullHandoff` remain for regular width and Follow's chapter preview.
+  selection (`chromeDestination`, `select`). `ChromeHost` only wires those to the app: `ChromeListenButton`
+  (Listen, which opens what plays or the page played last), `ChromeFade` (the translucent gradient under
+  the pieces), `ChromeControls` (pill, navigation), `ChromeSkin` (glass, or blur and tint before iOS
+  26, and the round face Listen and the reading pages' ⋯ and Aa share, `ChromeCircleFace`). The reading pages' top group
+  (`ReadingTopGroup`: ⋯, Aa, ▶ Listen in place) is their header (`ReadingPage`'s `banner`), drawn on the chrome's glass with its
+  sizes: the text's top inset is its height, so the title starts below it; in place the header is clear and follows the
+  fold (`ChromeScroll.drawnStep == 0`). Listen is not under the chrome: it is a `Sheet` that
+  covers the screen (`ReadingShowing.cover`), with no close button (a pull down on its grabber or card (`SheetPullPan`), or VoiceOver's escape,
+  closes it), the top group in its top corners, the grabber between them (`ReadingTopGroup.carriesGrabber`), the article's title at the top of its text and its player card (`ReaderPlayerCard`) at its foot.
+- **Reading pages.** The Reader and Listen are one `ReadingPage` (`ReaderSheet` and
+  `NowPlayingSheet` supply their bands): `ReadingBars` lays the text out to the screen's foot with the
+  top bar and the band drawn over it, the text's scroll insets keeping its first and last lines clear of
+  them (`ReadingShowing`): regular width inside a `Sheet`, compact Listen inside a `Sheet` that covers
+  the screen (its full screen its own), compact in-place readers under the chrome (their scroll and full
+  screen the chrome's). `Sheet` and `SheetPullHandoff` also serve Follow's chapter preview. Every
+  pull-to-dismiss (the sheets, Listen, the ⋯ panel, the regular band's pull that lowers the keyboard)
+  commits through `SwipeGesturePolicy.shouldCommitDownwardDismiss`: far enough or flung, and still heading
+  down at the release (the predicted end past the commit distance), so a pull pushed back up stays.
+  A new heading over the same text (the length line changing as it is listened to) is swapped into the
+  page by `HTMLReadingWebView.Coordinator.setHeading`, keeping the reading place; Pages mode, which lays
+  its pages out from the heading's height, and a page not yet loaded load again.
 - **Navigation.** `ShellState` owns what you see: the surface (browser or library), the Reader
-  and what it sits over (`ReaderOrigin`), whether Now Playing is up, the one other sheet.
+  and what it sits over (`ReaderOrigin`), whether Listen is up, the one other sheet.
   It asks the playback session what you hear (`isHearing`) and stores nothing about it. A reading
   page's full screen is its own view state (`ReadingChrome`, held by `ReaderSheet` and
   `NowPlayingSheet`, fed by the reading web view's taps and pulls), not the shell's, except for the
@@ -134,7 +148,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
 
 ## Extraction
 
-1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and Save take a snapshot of
+1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and the web page's Save take a snapshot of
    the article's visible DOM (`PageSnapshot`: `ReaderVisibleSnapshot.js` drops short invisible text
    such as anti-copy lines).
    When WebKit ends the view's content process (a crash, or memory taken), the view's delegate
@@ -150,7 +164,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
    `ReaderNormalize.js` on the result in the same web view, so every piece of readable text sits
    in a listen block (loose text in a `<div>`, lines between `<br><br>`, the lead-in of a list
    item or quote holding blocks). The browser's page reaches the Reader, 🎧 and Save as a
-   `SingleWebPageSource`: one page in no folder, its content normalized like every source's.
+   `SingleWebPageSource` (Save in an open reader stores the text it shows, without extracting again): one page in no folder, its content normalized like every source's.
 3. The address bar's reader icon and the ⋯ Reader toggle use the same
    `isProbablyReaderable` check, run after each load and same-document URL change.
 
@@ -255,7 +269,7 @@ optional with `.nullify`; one article per canonical URL is kept by `LibraryStore
 dedupe pass. Every library read and write goes through `LibraryStore`; lists use
 `LibraryQueries`. An edit someone asks for (a save, including one into a folder; a move; a
 folder made, renamed, sorted or reordered; a mark; a remove of one or several pages or a
-delete; a favorite added, renamed or removed; a book imported or replaced) is one save, made at
+delete; a book imported or replaced) is one save, made at
 once (`LibraryStore.edit`): a save SwiftData refuses is rolled back (`rollBack`, which fetches the
 models it touched again, so the screens' models read the stored values, relationships included)
 and throws `LibraryStoreError.saveFailed`. So a failed edit never shows as done, and never waits
@@ -269,8 +283,7 @@ saved while an edit is being staged: deleting the playing article stops it, and 
 stopping records waits for the delete's save instead of storing the delete half made. The screens
 run these through `ShellState.attempt`, which shows the failure as a toast (the import sheet
 shows a failed import or *Replace* as its one-line failure); what follows success (Edit's
-selection cleared, a moved folder's screen following it, the Move tree closed, "Added to
-Favorites", a saved article's audio moved under the article's key when that is an older key, and
+selection cleared, a moved folder's screen following it, the Move tree closed, a saved article's audio moved under the article's key when that is an older key, and
 baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only after it.
 
 **`Article`** (library):
@@ -279,8 +292,8 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 |-------|---------|
 | `key` | Audio cache / listen key (`ARTICLE_IDENTITY.md`); copied verbatim from `SavedArticle.id` at migration, never recomputed |
 | `urlString`, `canonicalURL` | The article; one article per canonical URL |
-| `title`, `byline`, `excerpt`, `artworkData` | Rows, Now Playing (`byline` = site domain for web pages; `title` "" = the page has none, read as `givenTitle`, and a row names it by `lineOne`) |
-| `contentStateRaw` | `link` (a favorite, a followed story's chapter waiting for its text; any text is a cache) or `saved` |
+| `title`, `byline`, `excerpt`, `artworkData` | Rows, Listen (`byline` = site domain for web pages; `title` "" = the page has none, read as `givenTitle`, and a row names it by `lineOne`) |
+| `contentStateRaw` | `link` (an address saved from a website or pasted, a followed story's chapter waiting for its text; any text is a cache) or `saved` |
 | `addedAt` | When it joined the Library; nil = played without saving or removed (kept while it is in the last 50 of Recent (C134); a removed article never played, until the next launch) |
 | `removedAt` | When *Remove from Library* took it out, cleared when you listen to it again from its article (`recordPlayback`). Out of the Library with it set, an article is in no list, not even Recent, nor the bar's resume; read only while `addedAt` is nil |
 | `folder`, `folderID`, `sortKey` | Its folder (none = the pages in no folder) and order there; `folderID` mirrors the relationship for predicates |
@@ -290,7 +303,7 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 | `lastPlayedAt`, `finishedAt` | Recent's order, the prune and the bar's resume, and a row's "◉ Finished" |
 | `listenBlocksData`, `listenBlocksVersion` | Cached listen paragraphs and the layout version they were built with |
 | `detectedLanguageCode` | Article language (`NLLanguageRecognizer`) |
-| `skipsInPlayback` | Pages in folders (book front matter, *Skip in Playback*): what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
+| `skipsInPlayback` | Pages in folders (book front matter, *Skip When Playing*): what playback carries on to (`ChapterAdvance`, `LISTEN_PLAYBACK.md`) |
 | `fetchStateRaw` | Kept as older builds stored it; nothing writes or reads it |
 | `locator` | Book chapters: where the chapter starts in the book, `href#fragment` |
 
@@ -298,10 +311,9 @@ baked ahead in `ArticleSaveCoordinator`, an imported book's screen) runs only af
 the star: in the Library (`addedAt` set: its folder or the home's top level, search, address
 suggestions); played without saving (out of the Library, played, `removedAt` nil: the home's Recent
 tab and its search); removed (out of the Library, `removedAt` set: none of
-those). A starred article is in Favorites whatever its standing, and the prune keeps it. *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
-row, Edit, 🔖 and the ⋯ of the browser, the Reader and Now Playing, the Now Playing bar) takes a
-article out of its folder and every Library list it was in at once, keeps its star (and with it its
-place in Favorites) and deletes nothing (the launch prune does). Once that is saved, the article you
+those). *Remove from Library* (`LibraryStore.remove`, the one remove for every path: a
+row, Edit, 🔖 and the ⋯ of the browser, the Reader and Listen, the Now Playing bar) takes a
+article out of its folder and every Library list it was in at once and deletes nothing (the launch prune does). Once that is saved, the article you
 hear stops, and so does a session a waiting merge would move onto it (`keysWaitingToMerge`),
 through the hook a delete stops them by (`LibraryStore.stopPlaybackIfPlaying` →
 `SpeechController.stopIfPlaying`: no gap-fill render, and its queued render goes). A save puts it
@@ -328,22 +340,18 @@ series take pages and subfolders, their chapters move out and reorder, their sor
 its link chapters fetched by Follow, and playback stops before one still waiting for its text, a
 book's or story's pages show as chapters and name it as their source in the Now
 Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their audio (D7), and
-  launch dedupe merges two copies of one source. Favorites are independent flags on pages and
-  folders, independent of the Library too: Favorites lists every starred article
-  (`LibraryQueries.favoriteArticles`), starring never files an article, *Remove from Library* keeps the
-  flag (only unstarring clears it), and the prune keeps a starred article. A legacy Favorites folder an older build left in the store is migrated on launch
-  (`migrateFavoritesFolder`): its direct children are starred (its pages return to the root, its
-  subfolders move to the top level with their contents as they were, nothing deeper starred), and
-  the container is removed.
+  launch dedupe merges two copies of one source. There are no favorites: `Article.isFavorite` and
+  `Folder.isFavorite` are older builds' stars, kept in the schema and never read or written, and a
+  `favorites` folder an older build left is an ordinary folder.
 
 **Open In / Share** (`IncomingOpen`, `SharedInbox`, `MeridianReaderShare`): the host declares
 `CFBundleDocumentTypes` for PDF and EPUB and the `meridian-reader` URL scheme. A file Open In
-calls `onOpenURL` with a file URL → `BookImportActions.importPicked` (same path as *Import from…*).
+calls `onOpenURL` with a file URL → `BookImportActions.importPicked` (same path as *Import a File…*).
 The Share Extension writes a web URL or a copied book file into the App Group inbox
 (`group.com.jimmyyao.MeridianReader` from `APP_GROUP` in project.yml, or `group.com.jimmyyao.MeridianReader.probe` when `BUNDLE_ID_SUFFIX` is set;
 both app and extension declare the groups in their entitlements) and opens
 `meridian-reader://inbox`; the host drains on that URL and whenever it becomes active
-(`IncomingOpenModifier`). http(s) shares call `ShellState.navigate` (Browse).
+(`IncomingOpenModifier`). http(s) shares call `ShellState.navigate(to:inReader: true)` (Browse; `readerOnLoad` opens the reader view once the page has loaded, following a redirect while it loads). Any navigation replaces the page a launch would reopen, so a share at a cold start is not overwritten by the restored surface.
 
 **Book import** (`BookImporter`, run for the import sheet by `BookImportFlow`):
 0. The file is the import's own copy in `Application Support/Imports/<uuid>/<name>.epub` or
@@ -405,8 +413,8 @@ stops right after reading, and the sheet asks, then runs again with `.replace` o
 **Migration (copy-once).** At launch `LibraryStore.migrateLegacy` copies every `SavedArticle`
 row and every bookmark in `bookmarks.json` without a receipt (`LibraryMigrationReceipt`, in the
 library store): saved rows become saved pages in no folder (same key, text, position, icon; the
-listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks become starred link pages in no
-folder in file order, and a bookmark for an article the library has stars that article where it is (one
+listen history becomes `lastPlayedAt` / `finishedAt`), bookmarks become link pages in the Library in no
+folder in file order, and a bookmark for an article the library has leaves that article where it is (one
 in a folder stays there; one out of the Library joins it as a link). The paragraph layout pass then moves copied pages on older listen blocks to today's
 layout, and only then does dedupe merge duplicates, so positions and audio are compared on the
 same paragraphs. The pages and a receipt for every item copied are saved together: a failed save
@@ -431,14 +439,17 @@ its queued render non-ephemeral), the layout pass (audio aligned to the new
 paragraphs, the crash-resume point and pending renders remapped), dedupe (the merged article's audio filling the
 kept article's paragraphs it has none for, by text, then its directory and pending render dropped;
 the resume point, the crash target read at launch and the live session moved onto the kept article,
-at the paragraph with the same text) and a book's *Replace* (edited chapters aligned, chapters
+at the paragraph with the same text), a voice change (each article's audio settled into its new
+voice, the old voice kept as an old-voice entry and one kept from before restored,
+`ArticleAudioCache.settleVoice`) and a book's *Replace* (edited chapters aligned, chapters
 found by their text merged, and a dropped chapter's audio, pending render and queued renders
 deleted) change nothing outside the store until the library change is saved. They record `LibraryAudioWork` in the same save; `LibraryStore.commit` does it right
 after the save. A failed save is rolled back with its work, leaving the audio cache, pending
 renders and the resume point as they were. A record is retired only once its postconditions hold
 on disk: the destination's saved audio index aligned with its paragraphs, every file it lists
-there, the merged article's directory gone, a deleted article's audio gone, and otherwise the audio
-saved or ephemeral as its article is. Delete, remove and Save records act on the article holding the key
+there, the merged article's directory gone, a deleted article's audio and old voices gone, after a
+voice change one voice in the live directory and none of its old-voice entries in it, and otherwise
+the audio saved or ephemeral as its article is. Delete, remove and Save records act on the article holding the key
 when they run, not as it was planned: by then the key can belong to a later article (saved, deleted,
 then played again without saving), whose audio stays, saved only if that article is saved in the
 Library. A record that fails is kept, with everything after it,
@@ -488,7 +499,7 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 
 | What | Where |
 |------|-------|
-| Bookmarks before the library (frozen; copied into Favorites) | `Application Support/Bookmarks/bookmarks.json` (`LegacyBookmarks`) |
+| Bookmarks before the library (frozen; copied into the Library as links) | `Application Support/Bookmarks/bookmarks.json` (`LegacyBookmarks`) |
 | Recent searches | UserDefaults `browse.recentSearches` |
 | Last listened / finished before the library (frozen; folded into `Article`) | UserDefaults `reader.listenHistory.v1` (`ListenHistory`) |
 | Crash-resume point (key, paragraph, text fingerprint, time) | `Application Support/ListenTiming/listen_resume.json` (`ListenResumePointStore`) |
@@ -503,7 +514,7 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 |---------|---------|
 | Library, search, delete | Yes |
 | Reading a saved article | Yes (`cleanedHTML`) |
-| Listening | Yes: Apple voices; Phonon or Kokoro once its model is downloaded |
+| Listening | Yes: Phonon; Kokoro once its model is downloaded |
 | Loading pages, Save of a new page | No |
 | Search suggestions, favicons | No (they quietly don't show) |
 
@@ -511,8 +522,8 @@ Elsewhere (`AppDirectories` names every file under Application Support):
 
 All of it is user-initiated or for the article in view: article loads, Google search and the unofficial
 Google suggest endpoint (`suggestqueries.google.com`, while typing in the address field and only while Settings › Browsing › Search Suggestions is on: an ephemeral `URLSession`, no cookies, cache, credentials or referrer, nothing logged, one request per typing pause, in-flight request cancelled), favicons
-of visited and bookmarked sites, and the one-time voice model downloads: Phonon's zip (GitHub release of `gradium-ai/xn-ptts`) and Kokoro's model and voice packs (Hugging
-Face), asked first on cellular or Low Data Mode. No analytics.
+of visited and bookmarked sites, and Kokoro's one-time model and voice pack downloads (Hugging
+Face), asked first on cellular or Low Data Mode. Phonon's model is built into the app. No analytics.
 
 Extracted HTML is shown as Readability returns it; there is no separate sanitizer. Readability
 drops `<script>` elements but keeps inline handlers (`onerror`, `onclick`) and `javascript:`
@@ -531,44 +542,72 @@ The library's item model is `Article` (it was `Page`), alongside `Folder`. Its s
 
 ## New Folder everywhere and the header disc (C122, C124)
 
-`MenuRegistry` has `.folderNewFolder` at `.header` and `.newFolder` at `.add` and the new `.edit` place, all hidden when `Facts.isFixedOrder` (an imported EPUB or followed story). `LibraryEditBar` shows `.newFolder` in slot 3 when the registry offers it; `LibraryScreenState.makeFolder(in:with:)` keeps the selection in `NewFolder.items`, and the alert's OK files them into the made folder with `library.move(_:to:)`, then clears the selection. `Verbs.newFolderInside` is gone. `FolderHeader` plays with `PlayStateButton.Look.headerDisc` (`BottomChrome.headerDiscSize` 56, glyph 23); `CentredSidesLayout` puts each side control's 44 pt glyph middle on the disc's middle, with its caption hanging below.
+`MenuRegistry` offers New Folder in the create group at `.add` and `.edit`. `LibraryEditBar`
+uses the group at `.edit`; `LibraryScreenState.makeFolder(in:with:)` holds the selection in
+`NewFolder.items`, and the alert files it into the new folder before clearing the selection.
+`FolderHeader` plays with `PlayStateButton`'s `.disc(size: Control.prominent, glyph: Glyph.large)` (62, glyph 26); `CentredSidesLayout` puts each side control's 44 pt glyph middle on the disc's middle, with its caption hanging below.
 
 ## The create group (C126)
 
-`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds the one create group from `MenuRegistry` (`.newFolder`, `.importFile`, `.pasteText` at `.add` and `.edit`, each hidden when `isFixedOrder`). ＋ uses it as `createRows`, `FolderMenu` at `.header` appends it as a second block (`.folderNewFolder` is gone), and `LibraryEditBar` slot 3 is a ＋ `Menu` with it at `.edit`, `filing` the selection. Follow… and Save from Website… left the group (C142): they are done from the browser.
+`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds Add a Link, Import a File, Paste Text,
+then New Folder from `MenuRegistry` at `.add` and `.edit`. The compact title-line menu is the
+registry's `.libraryHome` / `.folderScreen` place, which holds these rows before Sort; regular
+width's ⋯ panel is `.libraryPanel` (Sort only, beside its ＋). Edit passes its selection for New
+Folder. `MenuContext.screenRows` builds *Browsing History* and takes every other screen row from
+its caller; a place showing an option its screen has no row for stops with a precondition failure
+rather than drawing a wrong row.
+The folder header's More does not append creation actions. `MenuRow.group` carries the registry's
+dividers through callers that flatten blocks, and `MenuRows` renders those groups as sections.
 
 ## One row height in Edit and out (C123)
 
-Library rows are one component, `ListRow`, in Edit and out; Edit only drops the ⋯ (`menu: nil`). Its vertical padding is `ListRow.verticalPadding`, (56 − 44) / 2 = 6 pt, so the ⋯'s 44 pt square fills the 56 pt `RowHeight.content` exactly and a row is 56 pt either way (it was 60 with ⋯, 56 in Edit). `ListRowHeightTests` checks both heights.
+Library rows are one component, `ListRow`, in Edit and out; Edit only drops the ⋯ (`menu: nil`). Its height is a two-line row's (`RowMetrics`: the title's and the detail's line heights plus `Spacing.xs` above and below, 50.6 pt at the default text size), with or without the ⋯, whose 44 pt square reaches into that inset; every two-line row (a voice, an acknowledgement, a Follow chapter) is the same height, and one-line card rows are `RowMetrics.oneLineHeight` (`Control.bar`, 48 pt), the card list's row minimum.
+
+## Input sheets
+
+`InputSheet` in DesignSystem owns the ✕ (`SheetBarButton`'s icon form), inline title, content slot and
+bottom actions. `FollowSheet` and `PasteTextSheet` supply only feature content and actions. Both
+are presented by `ShellState.sheet`; no second presentation flag lives on the Library screen.
+`FollowFlow` owns address → reading → review (or saved / failed / already-followed), the original
+URL and chapter selection. Add a Link reads through `FollowCenter.readContents`; a failed read
+saves the original URL through `LibraryStore.saveLink` into its starting folder, unless the
+Library has the page already: it stays in its folder and a toast says *Already in your Library*
+(`saveLink` never moves a page in the Library either). Cancellation never triggers fallback.
+Review changes the selected detent to large without changing identity; while a chapter preview
+is up the sheet's only detent is large, so the preview's own pull is the only pull. A known-page
+Follow passes a throwing async save from `ArticleActions`, at `SavePlacement.keep` (a page the
+Library has stays where it is); its error's own description shows in the sheet's error line.
+Browser extraction checks the expected page URL and stores nothing once its task is cancelled.
+Save This Page Only never toggles saved state off. ✕ stays usable while a save runs and cancels
+it (`FollowFlow.cancel`).
 
 ## Paste Text (C127)
 
-*Paste Text…* opens `PasteTextSheet` (`LibraryScreenState.pasteText(into:)`, prefilled from `UIPasteboard.general.string` when `hasStrings`). *Save* calls `LibraryStore.saveText(title:text:in:)`: a new `.saved` article with no web address (`ArticleOrigin.book`, locator `text:<key>`, byline "Pasted text"), one `<p>` per line, its listen paragraphs built as any article's, at the end of the folder. A blank title becomes `LibraryStore.defaultTitle(for:)`: the first line up to its first sentence end, at most 80 characters.
+*Paste Text…* opens `PasteTextSheet` (`ShellSheet.pasteText`, prefilled from `UIPasteboard.general.string` when `hasStrings`). *Save* calls `LibraryStore.saveText(title:text:in:)`: a new `.saved` article with no web address (`ArticleOrigin.book`, locator `text:<key>`, byline "Pasted text"), one `<p>` per line, its listen paragraphs built as any article's, at the end of the folder. A blank title becomes `LibraryStore.defaultTitle(for:)`: the first line up to its first sentence end, at most 80 characters. A first line that is the whole title (an untitled paste's first line with no sentence end inside it, or a line matching the typed title) is a heading and is left out of the text and paragraphs, as a web page's heading matching its title is; a one-line paste keeps its line.
 
 ## Jump to Audio and full screen (C128)
 
-`ReadingChrome.showsJumpToAudio(awayFromAudio:)` is the one rule for both layouts: `awayFromAudio && !hidden`. `NowPlayingSheet` shows the pill through it, so in full screen (Scroll or Pages) only `FloatingPlayButton` floats over the text, with its look, place and `floatingDuration` fade unchanged. `JumpToAudioRuleTests` checks it.
+One rule, both widths: `NowPlayingScreen` passes `showsJumpToAudio: !following && !now.isFinished`, and `NowPlayingSheet` draws an `OverTextPill(shows:)` in `ReadingBars`' overText slot. The player card has no Jump. The slot sits above the band (or above the home indicator's strip in Scroll's full screen), placed from the measured strip (`bottomInset`), not the safe area, since a page in place may be laid out through it; in Pages mode's full screen `ReadingBars` draws no overText, so nothing floats over the text there. The in-place readers draw nothing in that slot: their ▶ Listen (id `inPlaceListen`) is in the top group at the top of the page (`ReaderSurface` → `ReadingTopGroup`, shown while the page has text and isn't what you hear), which goes in full screen and fades out once the chrome folds.
 
-The button is a round 44 pt glass circle at the right edge, 12 pt above the player card (Round 9f; it was a pill at the top, 9e, and above the band before): `NowPlayingSheet`'s overText puts `JumpToAudioButton` bottom-aligned and trailing, with the same `Spacing.s` trailing inset as the card's margin, in `ReadingBars`' overText slot, so the 12 pt gap is the slot's `overTextClearance + Spacing.s`, the same as the floating ▶'s: it follows the card (or the folded row) through a fold and never shifts on its own. Its face is `chromeSurface(Circle(), fill: BottomChrome.fieldFill(reading))`, the glass of the Listen ‹ and the other round controls (the reading card's fill before iOS 26), with `BottomChrome.chromeGlyph` in the theme's ink. The arrow is `arrow.up` / `arrow.down` (`Icons.jumpToAudioUp` / `Down`): `HTMLReadingWebView.Coordinator.updateSpotSide()` reports a `JumpDirection` through `onSpotSide` while the text is not following – Scroll: the spoken sentence's middle (`__readerSpokenRect`, cached per sentence and dropped on a reflow, so a drag costs no calls) against the middle of the visible text between the adjusted insets, checked on every `contentOffset` change; Pages: `PagesTextLayout.side(of:)`, the spoken spot against the page's first and next-page spots – and `NowPlayingScreen` keeps it in `spotSide`. Label "Jump to Audio" (`Verbs.jumpToAudio`), a hint that names the direction, id `nowPlayingJumpToAudio`; the circle is 44 pt, so it is its own tap target; `.transition(.opacity)` with `Motion.fadeOut` leaving (and `fadeIn`, not the spring, under Reduce Motion). It stays its own view (it reads `chrome.hidden` itself), so full screen removes it at once. Tapping it sets `following`, and `HTMLReadingWebView.Coordinator.goToSpoken(.animate)` scrolls through `ScrollTextLayout.centre(top:height:)` – the same helper that opens Now Playing on the spoken sentence, follows each new paragraph and shows a scrub – so the sentence lands in the middle of the visible text (`contentInset.top` to `bottom`), not at its top; at a document end it stops at the limit. `testJumpToAudioCentresTheSpotInTheVisibleText` (with `-seedDemoParagraphs` / `-seedDemoListenAt`) pins the middle within 40 pt, and `testJumpToAudioSitsAboveTheCardAtTheRightEdge` the place (44 pt round, card's right edge, 12 pt above the card; run on a 17 Pro and an SE). The text's bottom inset must be the card's footprint: `ReadingPage` passes a zero-height band (`Color.clear.frame(height: 0)`), because an `EmptyView` band was measured by `ReadingBars` at the whole proposed height (570 pt on a 17 Pro), which made the bottom inset 812 pt (the web view's height), put the visible-text middle off-screen and landed the sentence at the very top.
+The button is a thin accent pill (`OverTextPill`: its label in `TypeStyle.row` semibold, `Spacing.xxs` above and below, `Spacing.s` at the sides, `Capsule` in the theme's accent with its ink on the accent), centred, 12 pt above the player card or band: `NowPlayingSheet`'s overText puts it bottom-aligned and centred, on the same line as the floating ▶ at the right edge, so the 12 pt gap is the slot's `Spacing.s` above the band, and it moves with the card. The arrow is `arrow.up` / `arrow.down` (`Icons.jumpToAudioUp` / `Down`): `HTMLReadingWebView.Coordinator.updateSpotSide()` reports a `JumpDirection` through `onSpotSide` while the text is not following – Scroll: the spoken sentence's middle (`__readerSpokenRect`, cached per sentence and dropped on a reflow, so a drag costs no calls) against the middle of the visible text between the adjusted insets, checked on every `contentOffset` change; Pages: `PagesTextLayout.side(of:)`, the spoken spot against the page's first and next-page spots – and `NowPlayingScreen` keeps it in `spotSide`. Label "Jump to Audio" (`Verbs.jumpToAudio`), a hint that names the direction, id `nowPlayingJumpToAudio`; its hit shape reaches `Spacing.s` past the pill (`contentShape`), so the thin pill is a full tap target; `.transition(.opacity)` with `Motion.fadeOut` leaving (and `fadeIn`, not the spring, under Reduce Motion). Tapping it sets `following`, and `HTMLReadingWebView.Coordinator.goToSpoken(.animate)` scrolls through `ScrollTextLayout.centre(top:height:)` – the same helper that opens Listen on the spoken sentence, follows each new paragraph and shows a scrub – so the sentence lands in the middle of the visible text (`contentInset.top` to `bottom`), not at its top; at a document end it stops at the limit. The text's bottom inset is what floats at its foot (`ReadingBars.floatingBottom`): the band, the room under it (`bottomClearance`, the compact chrome at its drawn fold step for the in-place readers) and the home indicator's strip; in Scroll's full screen the strip alone; in Scroll mode, while the pill shows, its line too (`ReadingChrome.overTextClearance`, the pill's height and `Spacing.s`, reported by the pill), so the last line ends above it. Pages keeps its insets, and Jump to Audio takes nothing off the overview card's room (C117: it may float over the card's foot, and the card doesn't move as it comes and goes). A change at the foot alone leaves the text on screen where it is, and a text at its end stays at its end, on the `Motion.standard` spring (`ScrollTextLayout.setInsets`); Pages mode keeps its insets in full screen, as its pages are cut to them. The in-place readers' band must have no height: `ReadingPage` passes a zero-height band (`Color.clear.frame(height: 0)`), because an `EmptyView` band was measured by `ReadingBars` at the whole proposed height (570 pt on a 17 Pro), which made the bottom inset 812 pt (the web view's height), put the visible-text middle off-screen and landed the sentence at the very top.
 
 ## Engine stop recovery (C129)
 
 - `EngineCrashGuard.beginCall` stamps the in-flight marker with `buildStamp` (executable size and
   mtime). A leftover marker from another build is verdict `reinstalled` and dismissed: an install
   replacing the app mid-call (the 2026-10-20 21:06 EDT Napoleon banner) is not a crash.
-- `KokoroCrashRecovery`: Core ML crash or ONNX crash #1 gives `.stay(notice: nil)` (same voice,
-  ONNX CPU, no banner); ONNX crash #2 in a row gives `.pauseForRetry` (amended): the coordinator sets
-  `isPausedForRetry` and `GlobalSynthQueue.isPausedForRetry` stops the render worker (prepared audio,
-  render-ahead); playback goes on through rendered audio. `LocalListenPlayer`'s producer stops at
-  the first chunk not ready (`held_for_retry`), lets the buffer drain, then the engine pauses and
-  `playbackReachedUnrendered` shows the banner with *Retry* (`retryAfterEngineStop`: fresh host
-  via `reloadEngine`, then the queue resumes; pressing play or dismissing also retries). Each ONNX crash steps `cpuThreads` down one (minimum 2). There is no
-  path from a Kokoro crash to Apple any more.
-- Live-gap Apple units stay temp files (`UnitSource.appleFallback`, deleted when played); bake
-  cache keys are `kokoro.<voice>`, so mismatched audio can't be cached.
-- `VoiceCatalog.bestVoice(forLanguage:gender:)` ranks Premium > Enhanced > default, then the
-  Kokoro voice's gender (`gender(ofKokoroVoice:)`), then region. Launch logs `apple_voices`
-  (English voices, quality, and a Siri count) to the timing log.
+- `CrashRecovery`: a provider without a hook (Phonon) gives `.pauseForRetry`; Kokoro's
+  `KokoroCrashRecovery` gives `.stay` (same voice, ONNX CPU, silent) for a marker an older build's Core ML route left or ONNX
+  crash #1 and `.pauseForRetry` for ONNX crash #2 in a row. On `.pauseForRetry` the coordinator
+  sets `isPausedForRetry` and `GlobalSynthQueue.isPausedForRetry` stops the render worker
+  (prepared audio, render-ahead); a crash found at launch reopens the article paused and the toast
+  says "<voice library> stopped." with *Retry*. In a live play `LocalListenPlayer`'s producer stops
+  at the first chunk not ready (`playback_held`), lets the buffer drain, then the engine pauses and
+  reports `stalled(.engineStopped)`, which shows the same toast. Retry, or any play
+  (`SpeechController.userPerform`), runs `retryAfterEngineStop`: the render queue drops the
+  engine's host (`GlobalSynthQueue.dropHost`) and resumes, and its next work loads a fresh one.
+  Each Kokoro ONNX crash steps `cpuThreads` down one (minimum 2). No crash changes the engine or
+  voice.
 
 ## Tests (C133)
 
@@ -582,5 +621,5 @@ table is in the decision log (C133).
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
 - **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
-- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice (C138). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio From Listening…** (that audio only), each shown only when its section has rows.
+- **Prepared Audio list** (Settings › Prepared Audio & Storage): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row says its voice as Settings › Voice does (*Default*, else its voice library; never the voice's name). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
 - **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

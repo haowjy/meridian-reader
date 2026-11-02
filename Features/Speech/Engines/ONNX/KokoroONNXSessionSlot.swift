@@ -2,9 +2,8 @@ import Foundation
 
 /// The CPU host's ONNX session, built at the thread count a call asks for. ONNX Runtime fixes a
 /// session's intra-op thread count when the session is created (no per-run setting), so a call
-/// asking for another count rebuilds the session first: `KokoroCPUHost` asks per call, from the
-/// app phase (`KokoroRouteSettings.onnxThreads`), so the switch happens between chunks, under the
-/// render gate. The old session is released before the new one is built: the model is never
+/// asking for another count rebuilds the session first: `KokoroCPUHost` asks per call, at the
+/// count the render policy hands it, so the switch happens between chunks, under the render gate. The old session is released before the new one is built: the model is never
 /// resident twice. A memory warning lets go of the session (`release`), and the next call builds
 /// it again. Generic over the session so the switching is unit-tested without the model.
 final class KokoroONNXSessionSlot<Session: AnyObject>: @unchecked Sendable {

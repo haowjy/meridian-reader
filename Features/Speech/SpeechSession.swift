@@ -6,9 +6,6 @@ struct SpeechSession: Equatable, Sendable, Identifiable {
     let id: UUID
     /// Built once at session creation — speech and reading surfaces must not re-split.
     let document: ParagraphDocument
-    /// Article language detected from the listen blocks (`ListenLanguage`), nil if unknown.
-    /// Used when Settings → Language is Automatic.
-    let detectedLanguage: String?
     /// Lock screen / Control Center (Now Playing): the title (nil: the page has none), the site's
     /// name or the book's author, and the favicon or cover.
     var title: String?
@@ -26,12 +23,11 @@ struct SpeechSession: Equatable, Sendable, Identifiable {
     var folderID: UUID? { folder?.id }
     var plainText: String { document.joinedText }
 
-    init(id: UUID, document: ParagraphDocument, detectedLanguage: String? = nil,
+    init(id: UUID, document: ParagraphDocument,
          title: String? = nil, site: String? = nil, artwork: Data? = nil,
          canonicalURL: String? = nil, sourceLabel: String? = nil, folder: PlaybackFolder? = nil) {
         self.id = id
         self.document = document
-        self.detectedLanguage = detectedLanguage
         self.title = title
         self.site = site
         self.artwork = artwork
@@ -42,7 +38,7 @@ struct SpeechSession: Equatable, Sendable, Identifiable {
 
     /// A page shown in the Reader or extracted for 🎧.
     init(article: ReaderArticle) {
-        self.init(id: article.id, document: article.document, detectedLanguage: article.detectedLanguage,
+        self.init(id: article.id, document: article.document,
                   title: article.title, site: article.siteName ?? article.sourceLabel, artwork: article.artwork,
                   canonicalURL: article.origin.canonicalURL, sourceLabel: article.sourceLabel)
     }
@@ -58,7 +54,6 @@ extension SpeechSession {
     static func article(_ article: Article) -> SpeechSession {
         let book = article.isChapter ? article.folder : nil
         return SpeechSession(id: article.listenKey, document: article.listenDocument(),
-                             detectedLanguage: article.detectedLanguageBackfilling(),
                              title: article.givenTitle, site: book?.byline ?? article.byline,
                              artwork: article.artworkData ?? book?.coverData,
                              canonicalURL: article.origin.canonicalURL,

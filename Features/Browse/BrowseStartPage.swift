@@ -1,49 +1,31 @@
 import SwiftUI
 
-/// The browser's start page (no page loaded), Safari-style: starred pages that have their own
-/// http(s) address (Show All opens the Library's Favorites tab), then Recent Searches. Folders
-/// are not shown here — only in Library › Favorites.
+/// The browser's start page (no page loaded), Safari-style: Frequently Visited (the sites with the
+/// most pages in History, starter sites until visits fill a row; Show All opens History), then
+/// Recent Searches.
 struct BrowseStartPage: View {
-    let favorites: [Article]
+    let sites: [FrequentSite]
     let recentSearches: [String]
-    var onOpenFavorite: (Article) -> Void
-    var onShowFavorites: () -> Void
-    /// A page tile's long press: the page's menu (`ArticleMenu`).
-    var pageMenu: (Article) -> AnyView
+    var onOpenSite: (FrequentSite) -> Void
+    var onShowHistory: () -> Void
     var onSearch: (String) -> Void
     var onClearSearches: () -> Void
-
-    /// Two rows of four tiles; Show All opens Library › Favorites.
-    static let favoriteLimit = 8
-
-    private var hasFavorites: Bool { !favorites.isEmpty }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                if hasFavorites {
-                    VStack(alignment: .leading, spacing: Spacing.s) {
-                        SectionHeader(title: Verbs.favorites, size: .page,
-                                      actionTitle: Verbs.showAll,
-                                      actionNavigates: true, actionIdentifier: "startFavoritesShowAll",
-                                      action: onShowFavorites)
-                        FavoritesGrid(articles: Array(favorites.prefix(Self.favoriteLimit)),
-                                      onOpen: onOpenFavorite, articleMenu: pageMenu)
-                    }
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("startFavorites")
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    SectionHeader(title: Verbs.frequentlyVisited, size: .page,
+                                  actionTitle: Verbs.showAll,
+                                  actionNavigates: true, actionIdentifier: "startFrequentShowAll",
+                                  action: onShowHistory)
+                    FrequentlyVisitedGrid(sites: sites, onOpen: onOpenSite)
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("startFrequentlyVisited")
 
                 if !recentSearches.isEmpty {
                     recentSearchesSection
-                }
-
-                if !hasFavorites && recentSearches.isEmpty {
-                    Text("Search or enter an address below. Pages you add to Favorites show up here.")
-                        .typeStyle(.row)
-                        .foregroundStyle(Palette.secondaryInk)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, Spacing.xl)
                 }
             }
             .padding(.horizontal, Spacing.pageMargin)

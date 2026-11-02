@@ -1,7 +1,7 @@
 import Foundation
 
-/// Where the playing page lives, shown as "Playing from …": the folder it is in (a book, a series,
-/// Favorites or a folder you made), which playback carries on through; a page in no folder plays
+/// Where the playing page lives, shown as "Playing from …": the folder it is in (a book, a series
+/// or a folder you made), which playback carries on through; a page in no folder plays
 /// from its site.
 enum PlayingFrom: Equatable {
     case folder(id: UUID, name: String)
@@ -53,7 +53,7 @@ enum ListenTarget: Equatable {
     /// A web page by its canonical URL. Canonical strings are compared directly, so a saved
     /// article with a pre-v2 random id still matches the page it came from.
     case webPage(canonicalURL: String)
-    /// A folder (a book, a series, Favorites, a folder you made): what you hear while any of its
+    /// A folder (a book, a series, a folder you made): what you hear while any of its
     /// pages plays.
     case folder(UUID)
 }

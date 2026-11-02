@@ -108,7 +108,7 @@ extension LibraryStore {
     /// Pages sharing a key or a canonical URL become one, the keeper chosen by: saved over link;
     /// the furthest position; the latest play; the older. The keeper takes in the other
     /// (`Article.absorb`: what it lacks, the earliest `addedAt` so a save is never lost, the latest
-    /// play, the star) and its audio, and its folder when it has none; any place or crash-resume
+    /// play) and its audio, and its folder when it has none; any place or crash-resume
     /// point on the other's key follows it.
     private func dedupeArticles(_ articles: [Article], _ report: inout DedupeReport) {
         // Union by key and by canonical URL.

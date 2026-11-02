@@ -13,7 +13,8 @@ enum FolderKind: String, Codable, CaseIterable {
     /// A followed story (Follow): one page per chapter of its table of contents, in the story's
     /// order; its state is `FollowState`.
     case series
-    /// Legacy Favorites folder, migrated to independent star flags at launch.
+    /// The Favorites folder of older builds, which earlier launches converted to stars: nothing
+    /// makes one, and one still stored is an ordinary folder.
     case favorites
 
     /// Made from a book or a followed story: its pages are chapters.
@@ -41,7 +42,8 @@ final class Folder {
     var createdAt: Date = Date.now
     /// A book's or series' is *Manual* until changed: its pages start in the source's order.
     @Attribute(originalName: "pageSortRaw") var articleSortRaw: String = ArticleSort.manual.rawValue
-    /// An item can be favorited without changing where it lives in the tree.
+    /// Not written or read: the star of older builds' Favorites (kept as stored; persisted fields
+    /// don't change).
     var isFavorite: Bool = false
 
     // Details. A book or series starts with its source's; any folder's are edited in *Edit

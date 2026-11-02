@@ -409,7 +409,7 @@ private struct MorphMenuButtonFade: ViewModifier {
 /// The morph at rest (the ⋯ button), half way, and open, over a stand-in panel.
 struct MorphMenuGallery: View {
     private let panel = CGSize(width: 300, height: 236)
-    private let button = CGSize(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+    private let button = CGSize(width: Control.tap, height: Control.tap)
 
     var body: some View {
         PreviewGallery {
@@ -436,14 +436,14 @@ private struct MorphMenuSamplePanel: View {
                 Label(title, systemImage: icon)
                     .typeStyle(.row)
                     .foregroundStyle(Palette.ink)
-                    .padding(.horizontal, Spacing.l)
+                    .padding(.horizontal, Spacing.m)
                     .padding(.vertical, Spacing.s)
             }
             Divider().padding(.horizontal, Spacing.m)
             HStack {
-                ForEach([("Settings", Icons.settings), ("Saved", Icons.library), ("Listen", Icons.listen)], id: \.0) { t, i in
+                ForEach([("Settings", Icons.settings), ("Library", Icons.library), ("Listen", Icons.listen)], id: \.0) { t, i in
                     VStack(spacing: Spacing.xs) {
-                        Image(systemName: i).tileSymbol()
+                        Image(systemName: i).glyphSize(Glyph.regular)
                         Text(t).typeStyle(.caption)
                     }
                     .foregroundStyle(Palette.ink)

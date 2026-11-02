@@ -32,7 +32,7 @@ extension LibraryStore {
         }
         // Being read and out of Recent (beyond the last 50, or taken out of it): text and audio go.
         let unsaved = (try? context.fetch(FetchDescriptor<Article>(predicate: #Predicate {
-            $0.addedAt == nil && !$0.isFavorite && $0.folderID == nil
+            $0.addedAt == nil && $0.folderID == nil
         }))) ?? []
         for article in unsaved {
             guard let key = article.key, !untouchable(key), article.lastPlayedAt != nil else { continue }
@@ -43,9 +43,9 @@ extension LibraryStore {
             rollBack()
             report.deletedArticles = 0
         }
-        // Saved (or starred) and out of Recent: only the audio from listening goes.
+        // Saved and out of Recent: only the audio from listening goes.
         for key in audio.audioCache.cachedArticleKeys() where !untouchable(key) {
-            guard let article = article(key: key), article.isInLibrary || article.isFavorite else { continue }
+            guard let article = article(key: key), article.isInLibrary else { continue }
             try? audio.clearListenAudio(for: key)
             report.clearedAudio += 1
         }

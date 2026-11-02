@@ -73,7 +73,6 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
     let model: ReadingPages
     /// The room under the pages: the footer and the home indicator's inset.
     private var footer: CGFloat
-    private var insets = ReaderTextInsets()
     /// The column layout is on the page.
     private var paged = false
     /// A measurement in flight, and another asked for meanwhile.
@@ -284,7 +283,6 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
     }
 
     func setInsets(_ insets: ReaderTextInsets) {
-        self.insets = insets
         guard let sv = scrollView else { return }
         sv.verticalScrollIndicatorInsets = .zero
         if paged { applyColumns() } else { sv.contentInset = .zero }
@@ -325,12 +323,14 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         paged = false
         guard host.loaded else { return }
         let locate = start.map { "window.__readerSpokenRect(\($0.paragraph), \($0.offset), \($0.offset + 1))" } ?? "null"
-        webView.evaluateJavaScript("window.__readerPaged(false, 0, 0); \(locate)") { [weak sv] result, _ in
-            guard let sv else { return }
+        webView.evaluateJavaScript("window.__readerPaged(false, 0, 0); \(locate)") { [weak self, weak sv] result, _ in
+            guard let self, let sv else { return }
             sv.contentInset.right = 0
-            sv.contentOffset.x = 0
-            if let rect = result as? [Double], let top = rect.first {
-                sv.contentOffset.y = sv.readingLayout.clamped(CGFloat(top) - sv.contentInset.top)
+            host.movingByCode {
+                sv.contentOffset.x = 0
+                if let rect = result as? [Double], let top = rect.first {
+                    sv.contentOffset.y = sv.readingLayout.clamped(CGFloat(top) - sv.contentInset.top)
+                }
             }
         }
     }
@@ -439,14 +439,14 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         guard let sv = scrollView, let shown = model.shown, pageWidth > 0 else { return }
         let i = min(max(index, 0), shown.count - 1)
         let offset = CGPoint(x: CGFloat(i) * pageWidth, y: 0)
-        if sv.contentOffset != offset { sv.setContentOffset(offset, animated: animated) }
+        if sv.contentOffset != offset { host.movingByCode { sv.setContentOffset(offset, animated: animated) } }
         pageShown(i)
     }
 
     /// The scroll view moved (a swipe, a slide): the page under it once it rests on one.
     private func offsetChanged(_ sv: UIScrollView) {
         guard paged, pageWidth > 0, let shown = model.shown else { return }
-        if abs(sv.contentOffset.y) > 0.5 { sv.contentOffset.y = 0 }
+        if abs(sv.contentOffset.y) > 0.5 { host.movingByCode { sv.contentOffset.y = 0 } }
         let exact = sv.contentOffset.x / pageWidth
         let index = Int(exact.rounded())
         // A slide interrupted part-way (seen in the overview while playing, C117) settles on the
@@ -463,7 +463,6 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         if sv.isTracking || sv.isDecelerating {
             host.userTookOver()
             host.stopFollowing()
-            host.chrome?.revealFloatingControl()
         }
         pageShown(index)
     }
@@ -524,10 +523,12 @@ struct ReadingPageFrame: View {
                 Text(shown.map { "\(Int((Double($0.index + 1) / Double(max($0.count, 1)) * 100).rounded()))%" } ?? "")
             }
                 .typeStyle(.caption)
-                .padding(.horizontal, Spacing.l)
+                .padding(.horizontal, Spacing.pageMargin)
                 .frame(maxWidth: .infinity)
                 .padding(.top, Spacing.xs)
-                .padding(.bottom, Spacing.xxs)
+                // Above the home indicator's strip and clear of the display's rounded corners, which
+                // crowd text 4 pt above it.
+                .padding(.bottom, Spacing.s)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { chrome?.pageFooter = $0 }
                 .onDisappear { chrome?.pageFooter = 0 }
                 .padding(.bottom, chrome?.homeIndicator ?? 0)
@@ -567,12 +568,12 @@ struct ReadingPagesCard: ViewModifier {
                 .scaleEffect(scale)
                 .offset(y: scale < 1 ? centre - h / 2 - (card / 2 - h / 2) * scale : 0)
                 .opacity(fade)
-                .animation(reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.12), value: scale)
+                .animation(reduceMotion ? nil : Motion.standard, value: scale)
         }
         .onChange(of: active && overview) {
             guard reduceMotion else { return }
             fade = 0.2
-            withAnimation(.easeOut(duration: 0.25)) { fade = 1 }
+            withAnimation(Motion.fadeIn) { fade = 1 }
         }
     }
 }

@@ -21,16 +21,26 @@ extension LocalTTSCoordinator: LibraryAudioEffects {
         pendingBakes.removePending(articleID: cacheKey)
     }
 
-    func markListenCacheSaved(_ key: UUID) {
-        audioCache.markSaved(cacheKey: key)
+    func markListenCacheSaved(_ key: UUID) throws {
         synthQueue.setEphemeral(cacheKey: key, false)
+        try audioCache.markSaved(cacheKey: key)
     }
 
     /// The audio (and the page's playhead) stays.
-    func markListenCacheEphemeral(_ key: UUID, canonicalURL: String?) {
-        audioCache.markEphemeral(cacheKey: key, canonicalURL: canonicalURL, lastAccess: Date())
+    func markListenCacheEphemeral(_ key: UUID, canonicalURL: String?) throws {
         synthQueue.setEphemeral(cacheKey: key, true)
+        try audioCache.markEphemeral(cacheKey: key, canonicalURL: canonicalURL, lastAccess: Date())
     }
+
+    /// Not memoized (`storedSelection`): a voice record runs inside the save that changed the
+    /// voice, before the memo is cleared.
+    func selectedCacheVoice(of key: UUID) -> ArticleAudioCache.CacheVoice? {
+        let selection = articleSelection(key).flatMap(VoiceSelection.init(stored:)) ?? defaultSelection
+        return cacheVoice(of: selection).map { ArticleAudioCache.CacheVoice(engineID: selection.engine.rawValue, voiceID: $0) }
+    }
+
+    /// The saved bake jobs of audio the work let go are adopted now, not at the next launch.
+    func heldAudioChanged() { drainPendingIntoQueue() }
 
     /// The target was read at init, before the launch maintenance rebuilt the page's paragraphs
     /// or merged it into another page.

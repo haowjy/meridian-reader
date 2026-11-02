@@ -78,7 +78,7 @@ final class FollowCenter {
     private(set) var checking: Set<UUID> = []
     /// Stories whose last check this launch failed.
     private(set) var checkFailures: [UUID: CheckFailure] = [:]
-    /// ▶ on a waiting chapter: being fetched first, then played (unless something else started
+    /// ▶ on a link page: being fetched first, then played (unless something else started
     /// since). Its row shows ▶ preparing.
     private(set) var playWhenFetched: UUID?
 
@@ -187,8 +187,9 @@ final class FollowCenter {
 
     // MARK: - Fetching chapters
 
-    /// ▶ on a chapter waiting for its text: it is fetched now, ahead of background work (a failure
-    /// this launch is forgotten), then plays, unless something else has started by then.
+    /// ▶ on a link page (*Add a Link…*'s, a chapter waiting for its text): it is fetched now, ahead of
+    /// background work (a failure this launch is forgotten), then plays, unless something else has
+    /// started by then.
     func play(_ article: Article) {
         let key = article.listenKey
         let playingWhenAsked = playingKey()
@@ -217,7 +218,7 @@ final class FollowCenter {
             do { try library.keepCachedText(article) } catch { return String(localized: "Couldn’t save it") }
             return nil
         }
-        guard let url = article.url else { return String(localized: "It has no address") }
+        guard let url = article.url else { return String(localized: "It has no web address") }
         let task = Task { await self.fetchText(key: key, url: url, priority: priority) }
         inFlight[key] = task
         let failure = await task.value
@@ -292,10 +293,11 @@ final class FollowCenter {
         article.isWaitingChapter && article.isInLibrary && !article.skipsInPlayback && failures[article.listenKey] == nil
     }
 
-    /// Where `article` stands when it is a followed story's chapter waiting for its text, not skipped;
-    /// nil for any other page. The one rule rows, headers and the Following sheet read.
+    /// Where `article` stands when it is a link page still to fetch, not skipped: a followed story's
+    /// chapter always, any other link only while ▶ fetches it or once that failed; nil for any other
+    /// page. The one rule rows, headers and the Following sheet read.
     func status(of article: Article) -> ChapterStatus? {
-        guard article.isWaitingChapter, !article.skipsInPlayback else { return nil }
+        guard article.isLink, !article.skipsInPlayback else { return nil }
         let key = article.listenKey
         if fetching.contains(key) {
             if retrying.contains(key), let url = article.url, let backOff = queue.backOff(of: FetchQueue.site(of: url)) {
@@ -304,7 +306,7 @@ final class FollowCenter {
             return .fetching
         }
         if let failure = failures[key] { return .failed(failure) }
-        return .waiting
+        return article.isWaitingChapter ? .waiting : nil
     }
 
     /// `articles` (a story's, in its order) counted: skipped chapters left out.
@@ -352,10 +354,10 @@ final class FollowCenter {
         case URLPageFetcher.FetchError.status(let code, _):
             return code == 429 ? String(localized: "The site asked to slow down")
                 : code == 404 || code == 410 ? String(localized: "The page isn’t there")
-                : code == 401 || code == 403 ? String(localized: "The site refused (sign in in the browser?)")
-                : String(localized: "The site answered with an error (\(code))")
+                : code == 401 || code == 403 ? String(localized: "The site refused. Try signing in to it in the Browser.")
+                : String(localized: "The site returned error \(code)")
         case URLPageFetcher.FetchError.noWindow:
-            return String(localized: "The app wasn’t in front")
+            return String(localized: "The app was in the background")
         case is NavigationWait.Failure, URLPageFetcher.FetchError.timedOut:
             return String(localized: "The site didn’t answer")
         default:

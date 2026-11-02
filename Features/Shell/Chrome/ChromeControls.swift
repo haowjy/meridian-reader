@@ -3,43 +3,48 @@ import SwiftUI
 extension ChromeDestination {
     var symbol: String {
         switch self {
-        case .reader: Icons.listen
         case .library: Icons.library
         case .browse: Icons.browser
+        case .settings: Icons.settings
         }
     }
 
     var label: String {
         switch self {
-        case .reader: Verbs.listen
         case .library: Verbs.library
         case .browse: Verbs.browser
+        case .settings: Verbs.settings
         }
     }
 
     var identifier: String {
         switch self {
-        case .reader: "chromeListen"
         case .library: "chromeLibrary"
         case .browse: "chromeBrowser"
+        case .settings: "chromeSettings"
         }
     }
 
     var segment: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
-/// `[ 🎧 | 📚 | 🧭 ]`: one capsule, each segment a button showing its glyph only (Listen, Library and
-/// Browser are their names for VoiceOver and the large content viewer). Every segment has the same
-/// glyph size and weight; lit differs by the glyph's tint and the wash only. Each segment is tapped
-/// `hitOutset` above and below the glass, `minTapTarget` tall. The Listen segment (`.reader`, the
-/// destination's internal name) is the headphones whether or not anything plays (▶ and the lit
-/// segment say what plays); it is dimmed when there is nothing to open and it is not lit.
+/// `[ 📚 Library | 🧭 Browser | ⚙︎ Settings ]`: one capsule of equal segments, each a button showing its
+/// glyph over its name, centred, as a tab bar does (the glyph `Glyph.small`, the name in
+/// `TypeStyle.caption` semibold). The names show only while all three fit whole, across their segments and
+/// within the lit wash's height (`pillLitHeight`) (`EqualSegmentsLayout` under `ViewThatFits`); otherwise
+/// every segment is its glyph alone at the chrome's glyph size, so the pill never wraps, clips or grows
+/// (large text sizes, a small `Control.tabBar`), and VoiceOver and the large content viewer keep the
+/// names. Every segment has the same glyph size and weight; lit differs by the tint and the wash only.
+/// The pill is `Control.tabBar` tall; each segment is tapped `pillHitOutset` above and below the glass,
+/// at least `Control.tap` tall.
+///
+/// ```
+/// [ (  📚   ) |   🧭    |    ⚙︎     ]     the names fit
+/// [ (Library) | Browser | Settings ]
+/// [   (📚)    |   🧭    |    ⚙︎     ]     they don't: glyphs alone
+/// ```
 struct ChromePill: View {
     let lit: ChromeDestination
-    /// Something is playing or was played: the Reader segment has a page to open.
-    let hasReader: Bool
-    /// The pill's width while expanded: the segments are laid out in it.
-    let expandedWidth: CGFloat
     let onSelect: (ChromeDestination) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -49,20 +54,20 @@ struct ChromePill: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let slot = expandedWidth / CGFloat(ChromeDestination.allCases.count)
+            let slot = size.width / CGFloat(ChromeDestination.allCases.count)
             ZStack(alignment: .topLeading) {
                 // The wash is inset equally on all four sides; its radius is the pill's minus the inset.
                 Capsule()
                     .fill(Palette.lit)
-                    .frame(width: slot - 2 * K.litInset, height: size.height - 2 * K.litInset)
-                    .offset(x: slot * CGFloat(lit.segment) + K.litInset, y: K.litInset)
+                    .frame(width: slot - 2 * Spacing.xxs, height: size.height - 2 * Spacing.xxs)
+                    .offset(x: slot * CGFloat(lit.segment) + Spacing.xxs, y: Spacing.xxs)
                     .animation(reduceMotion ? nil : Motion.snappy, value: lit)
-                ForEach(ChromeDestination.allCases, id: \.self) { destination in
-                    let isLit = destination == lit
-                    let center = (CGFloat(destination.segment) + 0.5) * slot
-                    segment(destination, lit: isLit)
-                        .position(x: center, y: size.height / 2)
+                ViewThatFits(in: [.horizontal, .vertical]) {
+                    segments(worded: true)
+                    segments(worded: false)
                 }
+                .frame(width: size.width, height: K.pillLitHeight)
+                .frame(width: size.width, height: size.height)
             }
             .frame(width: size.width, height: size.height, alignment: .topLeading)
             .clipShape(Capsule())
@@ -72,24 +77,39 @@ struct ChromePill: View {
         .chromeSurface(Capsule())
     }
 
-    private func segment(_ destination: ChromeDestination, lit isLit: Bool) -> some View {
-        Image(systemName: destination.symbol)
-            .font(BottomChrome.chromeGlyph)
-            .foregroundStyle(isLit ? Palette.accent : Palette.ink)
-            .frame(height: K.segmentGlyphHeight)
-            .opacity(dimmed(destination) ? K.segmentDimmedOpacity : 1)
-            .accessibilityHidden(true)
+    /// The three segments' faces, equal thirds; `worded` with their names.
+    private func segments(worded: Bool) -> some View {
+        EqualSegmentsLayout(spacing: 0) {
+            ForEach(ChromeDestination.allCases, id: \.self) { destination in
+                segment(destination, lit: destination == lit, worded: worded)
+            }
+        }
     }
 
-    private func dimmed(_ destination: ChromeDestination) -> Bool {
-        destination == .reader && !hasReader && destination != lit
+    /// A segment's face, centred in its third: the glyph over the name, or the glyph alone. Its
+    /// horizontal padding keeps the name clear of the lit wash's ends (inset `Spacing.xxs`) by `Spacing.xs`.
+    private func segment(_ destination: ChromeDestination, lit isLit: Bool, worded: Bool) -> some View {
+        VStack(spacing: 0) {
+            Image(systemName: destination.symbol)
+                .font(worded ? .system(size: Glyph.small, weight: .medium) : BottomChrome.chromeGlyph)
+            if worded {
+                Text(destination.label)
+                    .typeStyle(.caption, weight: .semibold)
+                    .lineLimit(1)
+            }
+        }
+        .fixedSize()
+        .foregroundStyle(isLit ? Palette.accent : Palette.ink)
+        .padding(.horizontal, Spacing.s)
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
     }
 
-    /// The touch layer: one button per segment, `hitOutset` past the glass above and below.
+    /// The touch layer: one button per segment, `pillHitOutset` past the glass above and below.
     private func controls(slot: CGFloat, size: CGSize) -> some View {
         ForEach(ChromeDestination.allCases, id: \.self) { destination in
             Button { onSelect(destination) } label: {
-                Color.clear.contentShape(ChromeHitShape(sides: false))
+                Color.clear.contentShape(ChromeHitShape.segment)
             }
                 .buttonStyle(.plain)
                 .frame(width: slot, height: size.height)
@@ -104,7 +124,9 @@ struct ChromePill: View {
 
 /// ‹ and ›: one capsule of one circle per button, in the frame the host gives it. The frame
 /// animates between one and two circles' width, so › fades as it narrows. A button that can't act
-/// stays, dimmed and out of the taps' way; one that isn't `shown` has no circle.
+/// stays, dimmed and out of the taps' way; one that isn't `shown` has no circle. Each arrow is tapped
+/// `Control.tap` square: alone `hitOutset` round its circle, in the pair outward from the centre
+/// (`ChromeMetrics.arrowHitSides`).
 struct ChromeNavigation: View {
     let showsBack: Bool
     let showsForward: Bool
@@ -123,11 +145,11 @@ struct ChromeNavigation: View {
             let side = ChromeMetrics.navSingleWidth
             HStack(spacing: 0) {
                 if showsBack {
-                    button(Icons.back, label: Verbs.back, id: backID, enabled: canGoBack, action: onBack)
+                    button(Icons.back, label: Verbs.back, id: backID, enabled: canGoBack, isBack: true, action: onBack)
                         .frame(width: side)
                 }
                 if showsForward {
-                    button(Icons.forward, label: Verbs.forward, id: forwardID, enabled: canGoForward, action: onForward)
+                    button(Icons.forward, label: Verbs.forward, id: forwardID, enabled: canGoForward, isBack: false, action: onForward)
                         .frame(width: side)
                         .opacity(showsBack ? min(1, max(0, (proxy.size.width - side) / side)) : 1)
                 }
@@ -137,118 +159,21 @@ struct ChromeNavigation: View {
         .chromeSurface(Capsule())
     }
 
-    private func button(_ symbol: String, label: String, id: String, enabled: Bool,
+    private func button(_ symbol: String, label: String, id: String, enabled: Bool, isBack: Bool,
                         action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        let sides = ChromeMetrics.arrowHitSides(paired: showsBack && showsForward, isBack: isBack)
+        return Button(action: action) {
             Image(systemName: symbol)
                 .font(BottomChrome.chromeGlyph)
                 .foregroundStyle(Palette.ink)
                 .opacity(enabled ? 1 : Self.disabledOpacity)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(ChromeHitShape(sides: false))
+                .contentShape(ChromeHitShape(leading: sides.leading, trailing: sides.trailing))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
         .chromeLargeContent(label, symbol: symbol)
-    }
-}
-
-/// ⋯'s button face in the chrome: the glyph on a round surface, tapped `hitOutset` past it.
-struct ChromeRoundLabel: View {
-    let symbol: String
-    /// What the glyph is called, for the large content viewer.
-    let label: String
-
-    var body: some View {
-        Image(systemName: symbol)
-            .font(BottomChrome.chromeGlyph)
-            .foregroundStyle(Palette.ink)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(ChromeHitShape())
-            .chromeSurface(Circle())
-            .chromeLargeContent(label, symbol: symbol)
-    }
-}
-
-/// Listen's ‹: a glass capsule floating at the top left, ‹ and the place it goes back to ("‹ reddit.com"),
-/// a bar high (36 pt), tapped in `minTapTarget`. The name truncates so it never reaches the middle of the screen.
-struct ListenBackButton: View {
-    let place: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: ChromeMetrics.unit) {
-                // ‹ in the end glyph slot, `fieldEndInset` from the end: concentric with the capsule's end cap.
-                Image(systemName: Icons.back).font(BottomChrome.chromeGlyph)
-                    .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
-                Text(place).font(BottomChrome.originLabel).lineLimit(1).truncationMode(.tail)
-            }
-            .foregroundStyle(Palette.ink)
-            .padding(.leading, BottomChrome.fieldEndInset)
-            .padding(.trailing, Spacing.s + ChromeMetrics.unit)
-            .frame(height: ChromeMetrics.barHeight)
-            .frame(maxWidth: ChromeMetrics.listenBackMaxWidth, alignment: .leading)
-            .fixedSize(horizontal: true, vertical: false)
-            .contentShape(ChromeHitShape())
-            .chromeSurface(Capsule())
-            .chromeLargeContent(Verbs.back, symbol: Icons.back)
-        }
-        .buttonStyle(.plain)
-        .padding(.leading, ChromeMetrics.margin)
-        .padding(.top, ChromeMetrics.unit)
-        .accessibilityLabel(Verbs.back)
-        .accessibilityValue(place)
-        .accessibilityIdentifier("listenBack")
-    }
-}
-
-/// The play / pause button beside the pill: a ring that fills as the page plays around ▶ or ⏸.
-/// Its own view because the ring reads the live offset, which moves several times a second.
-struct ChromePlayButton: View {
-    let state: PlayState
-    /// 0 to 1; read here, in this view's body, so only the button redraws as it moves.
-    let progress: () -> Double
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Circle().stroke(Palette.track, lineWidth: ChromeMetrics.ringWidth)
-                Circle()
-                    .trim(from: 0, to: max(0, min(1, progress())))
-                    .stroke(Palette.accent, style: StrokeStyle(lineWidth: ChromeMetrics.ringWidth, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                if state == .preparing {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: state == .playing ? Icons.pause : Icons.play)
-                        .font(BottomChrome.chromeGlyph)
-                        .foregroundStyle(state.isCurrent ? Palette.accent : Palette.ink)
-                        .contentTransition(.symbolEffect(.replace))
-                }
-            }
-            .padding(ChromeMetrics.ringInset)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(ChromeHitShape())
-        }
-        .buttonStyle(.plain)
-        .chromeSurface(Circle())
-        .accessibilityLabel(state.accessibilityLabel)
-        .accessibilityIdentifier("chromePlayPause")
-        .chromeLargeContent(state.accessibilityLabel, symbol: state == .playing ? Icons.pause : Icons.play)
-    }
-}
-
-/// A chrome control's hit area: `hitOutset` past its glass above and below, and at the sides only
-/// where no neighbour shares the glass (segments of one capsule meet edge to edge, so theirs stop there).
-struct ChromeHitShape: Shape {
-    var sides = true
-
-    func path(in rect: CGRect) -> Path {
-        let o = ChromeMetrics.hitOutset
-        return Path(rect.insetBy(dx: sides ? -o : 0, dy: -o))
     }
 }

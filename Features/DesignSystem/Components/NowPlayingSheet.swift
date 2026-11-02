@@ -1,30 +1,30 @@
 import SwiftUI
 
 /// What you hear, opened up (`ReadingPage`): on regular width a `Sheet` over everything that
-/// shrinks back into the Now Playing bar, on compact width in place under the bottom chrome. In the
-/// Reader's colours and type (the reading theme, `palette`): the spoken paragraph highlighted in
-/// full ink, the others dimmed.
+/// shrinks back into the Now Playing bar, on compact width a cover over everything, chrome too. In the
+/// Reader's colours and type (the reading theme, `palette`): the spoken paragraph on the theme's
+/// highlight, every paragraph in full ink. Regular width's sheet:
 ///
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ <- grabber (the sheet's)
-/// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- `SheetTopBar`, as in the Reader: the pill (the sheet's)
+/// │ ( v Pride and Prejudice ) (Aa) (^)  │ <- the top bar, as in the Reader: the pill (the sheet's)
 /// │ `banner` (the ^ hint, while on)      │   names where it plays from and shrinks it; Aa, `accessory`
-/// │ `text`: dimmed, SPOKEN in full ink   │   The text fills the page, under the header and the
-/// │         dimmed                  (↑)  │   band; it follows the audio. (↑) is Jump to Audio, right
-/// │                                      │   edge, 12 pt above the card; after you scroll away, bars up only (C128)
-/// │ ─────────────────────────────────────│ <- hairline divider
-/// │ [art] Title          time left (Voice)│ <- title; Voice trailing (aligned right)
-/// │ [━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━] │ <- scrub row
-/// │ [🔖]  [⏮]    (⏸)    [⏭]   [⋯]      │ <- transport
+/// │ `text`: SPOKEN on the highlight      │   The text fills the page, under the header and the
+/// │                                      │   band; it follows the audio. (↑) is Jump to Audio,
+/// │          ( ↑ Jump to Audio )         │   centred, 12 pt above the band, once you scroll away
+/// │ `band`: title, scrub row, transport  │ <- the bottom band
 /// └──────────────────────────────────────┘
 /// ```
 ///
+/// Compact Listen has no top bar (the grabber's band alone) and its band is the player card on glass
+/// (`ReaderPlayerCard`), its tools beside the transport.
+///
 /// It goes full screen as the Reader does (`ReadingChrome`): the floating play / pause is
-/// `playState` / `onPlayPause`, the only control over the text then; Jump to Audio shows only with
-/// the bars up (C128), a round 44 pt glass button at the right edge, 12 pt above the card (the folded row, once
-/// the chrome folds), in the thumb's reach and off the middle of the screen; its arrow points to the sentence
-/// (`direction`). On regular width the pill, the grabber and a pull down shrink it
+/// `playState` / `onPlayPause`, at the bottom right. Jump to Audio (an `OverTextPill`, "↑ Jump to Audio") floats
+/// centred over the text while it is away from the audio, 12 pt above the card, or above the home
+/// indicator's strip in full screen; its arrow points to the sentence (`direction`). On regular
+/// width the pill, the grabber and a pull down shrink it
 /// (the showing's `onClose`, after it has gone). `floating` floats just above the bottom band's hairline (a
 /// toast), as in the Reader.
 struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessory: View, Banner: View,
@@ -40,9 +40,9 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
     var onJumpToAudio: () -> Void = {}
     /// The reading theme's colours, as the Reader's.
     var palette: ReadingPalette = .app
-    /// Aa (`TextAppearanceButton` and its panel), just before `accessory`, as in the Reader.
+    /// Aa (`TextAppearanceControl`: its `IconButton` and panel), just before `accessory`, as in the Reader.
     @ViewBuilder var textAppearance: TextAppearance
-    /// The control at the trailing end of the top bar (☝︎, `JumpModeButton`).
+    /// The control at the trailing end of the top bar (☝︎, an `IconButton`).
     @ViewBuilder var accessory: Accessory
     /// Under the top bar, in the header (the ☝︎ hint), as in the Reader.
     @ViewBuilder var banner: Banner
@@ -67,85 +67,36 @@ struct NowPlayingSheet<Band: View, Reading: View, TextAppearance: View, Accessor
         } floating: {
             floating
         } overText: {
+            // Both sit on the same line above the card (above the strip in full screen): Jump to
+            // Audio in the middle, the floating play / pause at the right edge.
             ZStack {
-                // Both sit above the card, at the right edge, and never show together: Jump to Audio
-                // with the bars up, the floating play / pause in full screen.
-                // The clearance is measured from the top of the chrome's box; the card starts
-                // `topPadding` below it, so the button comes down that much to sit 12 above the card.
-                jumpToAudio
-                    .offset(y: ChromeMetrics.topPadding)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
+                OverTextPill(label: Verbs.jumpToAudio,
+                             symbol: jumpDirection == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown,
+                             shows: showsJumpToAudio,
+                             hint: jumpDirection == .up
+                                 ? String(localized: "Scrolls up to the sentence being read.")
+                                 : String(localized: "Scrolls down to the sentence being read."),
+                             identifier: "nowPlayingJumpToAudio", action: onJumpToAudio)
                 FloatingPlayButton(state: playState, action: onPlayPause)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
             }
+            .frame(maxHeight: .infinity, alignment: .bottom)
         }
-    }
-
-    /// Floats over the text at its right edge, just above the card, so the text keeps running under it.
-    private var jumpToAudio: some View {
-        JumpToAudioButton(chrome: chrome, awayFromAudio: showsJumpToAudio, direction: jumpDirection,
-                          action: onJumpToAudio)
     }
 }
 
-/// Jump to Audio: a round glass button a bar high (36 pt, tapped in 44), the app's round-button face (`chromeSurface`, the
-/// reading card's fill before iOS 26), an arrow that points to the spoken sentence. Its own view so
-/// it reads `chrome.hidden` in its own body: this page builds its overText before the compact chrome
-/// attaches (`ReadingChrome.attach`), so a read made by the page's body would only watch the
-/// sheet's own copy of full screen and miss the compact chrome's. It leaves with a fast fade the
-/// moment full screen begins and returns only on exit (C128). It sits at the right edge, level with
-/// the card's edge (`Spacing.s`); how far above the card is `ReadingBars`'s over-text clearance (the
-/// same as the floating play / pause's, which never shows at the same time), so it keeps its 12 pt
-/// from the card, or the folded row, as the chrome folds.
-struct JumpToAudioButton: View {
-    let chrome: ReadingChrome
-    let awayFromAudio: Bool
-    let direction: JumpDirection
-    let action: () -> Void
-
-    @Environment(\.readingPalette) private var reading
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    /// The circle: a bar's height. Its tap area is `minTapTarget`.
-    static let size = ChromeMetrics.barHeight
-
-    var body: some View {
-        let shows = chrome.showsJumpToAudio(awayFromAudio: awayFromAudio)
-        ZStack {
-            if shows {
-                Button(action: action) {
-                    Image(systemName: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown)
-                        .font(BottomChrome.chromeGlyph)
-                        .foregroundStyle(reading?.ink ?? Palette.ink)
-                        .frame(width: Self.size, height: Self.size)
-                        .tapTarget(Self.size)
-                        .chromeSurface(Circle(), fill: BottomChrome.fieldFill(reading))
-                        .environment(\.chromeSkin, ChromeSkin.current)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Verbs.jumpToAudio)
-                .accessibilityHint(direction == .up
-                    ? String(localized: "Scrolls up to the sentence being read.")
-                    : String(localized: "Scrolls down to the sentence being read."))
-                .accessibilityIdentifier("nowPlayingJumpToAudio")
-                .chromeLargeContent(Verbs.jumpToAudio, symbol: direction == .up ? Icons.jumpToAudioUp : Icons.jumpToAudioDown)
-                .transition(.opacity)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.trailing, Spacing.s)
-        // Reduce Motion: a cross-fade, no spring.
-        .animation(shows ? (reduceMotion ? Motion.fadeIn : Motion.snappy) : Motion.fadeOut, value: shows)
-    }
-}
-
-/// Transport row in the five-slot grid: `[leading] [⏮] (⏸) [⏭] [more]`. Now Playing puts 🔖
-/// first and ⋯ last; the Reader puts speed (`1×`) first and ⋯ last. The play button is the big round disc
-/// and reads "Play" / "Pause" like any player's. The row keeps the grid's 44 pt height, so every slot (and ⋯) sits where it does on the other surfaces; the
-/// disc reaches past it by half the difference. The row keeps that room above it, and below it
-/// too where the home indicator's inset doesn't already give it (a phone with a Home button).
+/// The transport: ⏮ (▶) ⏭, in one of two arrangements (`TransportSize`).
+///
+/// - `row`: the five-slot grid, `[leading] [⏮] (⏸) [⏭] [more]`. Regular width's Now Playing puts 🔖
+///   first and ⋯ last; the Reader puts speed (`1×`) first and ⋯ last. The disc is as tall as the
+///   grid's 44 pt row, so every slot (and ⋯) sits where it does on the other surfaces.
+/// - `card`: the three alone, centred, larger (the `Control.prominent` disc, `Glyph.large` skips): compact
+///   Listen's player card, which sets its tools on either side (`ReaderPlayerCard`); `leading` and
+///   `more` are not drawn.
+///
+/// The play button reads "Play" / "Pause" like any player's.
 struct NowPlayingTransport<Leading: View, More: View>: View {
     let state: PlayState
+    var size = TransportSize.row
     var canSkipBack = true
     var canSkipForward = true
     let onSkipBack: () -> Void
@@ -159,38 +110,74 @@ struct NowPlayingTransport<Leading: View, More: View>: View {
     @ViewBuilder var more: More
 
     @Environment(\.readingPalette) private var reading
-    @State private var bottomInset: CGFloat = 0
-
-    private static var discOverhang: CGFloat {
-        (BottomChrome.transportDiscSize - BottomChrome.rowHeight) / 2
-    }
 
     var body: some View {
-        BottomToolbarLayout {
-            leading
-                .toolbarSlot(0)
-            Button(action: onSkipBack) { Image(systemName: Icons.previous).toolbarIconFrame() }
-                .disabled(!canSkipBack)
-                .accessibilityLabel("Previous paragraph")
-                .toolbarSlot(1)
-            PlayStateButton(state: state, look: .disc, action: onPlayPause)
-                .accessibilityLabel(state == .playing ? Verbs.pause : Verbs.play)
-                .accessibilityIdentifier("listenPlayPause")
-                .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in onPlayLongPress?() },
-                                     including: onPlayLongPress == nil ? .subviews : .all)
-                .frame(height: BottomChrome.rowHeight)
-                .toolbarSlot(2)
-            Button(action: onSkipForward) { Image(systemName: Icons.next).toolbarIconFrame() }
-                .disabled(!canSkipForward)
-                .accessibilityLabel("Next paragraph")
-                .toolbarSlot(3)
-            more
-                .toolbarSlot(BottomToolbarLayout.moreSlot)
+        Group {
+            switch size {
+            case .row:
+                BottomToolbarLayout {
+                    leading
+                        .toolbarSlot(0)
+                    skip(back: true)
+                        .toolbarSlot(1)
+                    playPause
+                        .frame(height: Control.tap)
+                        .toolbarSlot(2)
+                    skip(back: false)
+                        .toolbarSlot(3)
+                    more
+                        .toolbarSlot(BottomToolbarLayout.moreSlot)
+                }
+            case .card:
+                HStack(spacing: Spacing.m) {
+                    skip(back: true)
+                    playPause
+                    skip(back: false)
+                }
+            }
         }
-        .padding(.top, Self.discOverhang)
-        .padding(.bottom, max(0, Self.discOverhang - bottomInset))
-        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
         .tint(reading?.ink ?? Palette.ink)
+    }
+
+    private var playPause: some View {
+        PlayStateButton(state: state, look: size == .card ? .disc(size: Control.prominent, glyph: Glyph.large) : .disc(), action: onPlayPause)
+            .accessibilityLabel(state == .playing ? Verbs.pause : Verbs.play)
+            .accessibilityIdentifier("listenPlayPause")
+            .simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in onPlayLongPress?() },
+                                 including: onPlayLongPress == nil ? .subviews : .all)
+    }
+
+    @ViewBuilder
+    private func skip(back: Bool) -> some View {
+        Button(action: back ? onSkipBack : onSkipForward) {
+            let image = Image(systemName: back ? Icons.previous : Icons.next)
+            switch size {
+            case .row:
+                image.toolbarIconFrame()
+            case .card:
+                image
+                    .font(.system(size: Glyph.large))
+                    .frame(width: Control.tap, height: Control.tap)
+                    .contentShape(Rectangle())
+                    .accessibilityShowsLargeContentViewer()
+            }
+        }
+        .disabled(back ? !canSkipBack : !canSkipForward)
+        .accessibilityLabel(back ? "Previous paragraph" : "Next paragraph")
+    }
+}
+
+/// `NowPlayingTransport`'s arrangement: the five-slot `row`, or the player `card`'s larger three.
+enum TransportSize { case row, card }
+
+extension NowPlayingTransport where Leading == EmptyView, More == EmptyView {
+    /// The transport with no slots of its own: the player card's.
+    init(state: PlayState, size: TransportSize, canSkipBack: Bool = true, canSkipForward: Bool = true,
+         onSkipBack: @escaping () -> Void, onSkipForward: @escaping () -> Void, onPlayPause: @escaping () -> Void,
+         onPlayLongPress: (() -> Void)? = nil) {
+        self.init(state: state, size: size, canSkipBack: canSkipBack, canSkipForward: canSkipForward,
+                  onSkipBack: onSkipBack, onSkipForward: onSkipForward, onPlayPause: onPlayPause,
+                  onPlayLongPress: onPlayLongPress, leading: { EmptyView() }, more: { EmptyView() })
     }
 }
 
@@ -212,9 +199,9 @@ struct NowPlayingSheetGallery: View {
         let map = ReaderScrubMap(paragraphs: (1...20).map { "Paragraph \($0)." })
         return NowPlayingSheet(showing: .sheet(close: .collapse("Pride and Prejudice"), onClose: {}), playState: state,
                                showsJumpToAudio: back, onPlayPause: {}, palette: palette) {
-            TextAppearanceButton(isOpen: false) {}
+            IconButton(symbol: Icons.textAppearance, label: Verbs.textAppearance, identifier: "previewAa") {}
         } accessory: {
-            JumpModeButton(isOn: false) {}
+            IconButton(symbol: Icons.jump, label: Verbs.playFromParagraph, identifier: "previewJump") {}
         } banner: {
             EmptyView()
         } text: {
@@ -228,10 +215,10 @@ struct NowPlayingSheetGallery: View {
                         Text("9 min left").typeStyle(.caption).foregroundStyle(palette.secondaryInk).lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    VoiceChromeButton(identifier: "previewVoice") {}
+                    IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "previewVoice") {}
                 }
                 ReaderScrubRow(map: map, position: 0.42, buffered: [0.42...0.6],
-                               onScrubPreview: { _ in }, onScrubCommit: { _ in }, isCapsule: false) {
+                               onScrubPreview: { _ in }, onScrubCommit: { _ in }) {
                     Text("1×").typeStyle(.caption).foregroundStyle(palette.ink).fieldTextFrame()
                 }
                 if let note {

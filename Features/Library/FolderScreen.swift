@@ -60,7 +60,7 @@ struct FolderScreen: View {
 
     private func commitEdit() {
         screen.commitEditing()
-        shell.attempt(String(localized: "Couldn't save")) { try library.commitEditSession() }
+        shell.attempt(String(localized: "Couldn’t save")) { try library.commitEditSession() }
     }
 
     var body: some View {
@@ -119,6 +119,8 @@ struct FolderScreen: View {
                         .disabled(searching)
                         .accessibilityIdentifier("folderEdit")
                     }
+                    // Compact width: the screen's ⋯, which the bottom chrome doesn't have, its own bubble after Edit.
+                    ScreenMenuToolbarItem { LibraryTitleMenu { TitleMenuToolbarGlyph() } }
                 }
             }
             .navigationBarBackButtonHidden(screen.isEditing(folderID: folder.id))
@@ -154,7 +156,7 @@ private struct FolderContentsList: View {
     @Query private var queriedArticles: [Article]
 
     @Binding var headerTitleHidden: Bool
-    /// *Turn Off Prepare* asked from the header's Prepare control, or from *More*: the question
+    /// *Stop Preparing* asked from the header's Prepare control, or from *More*: the question
     /// shows by the control that asked.
     @State private var turningOffFromControl: Folder?
     @State private var turningOffFromMore: Folder?
@@ -189,6 +191,7 @@ private struct FolderContentsList: View {
                     }
                     .listHeader()
             }
+            .headerOnlySection()
             if isEditing {
                 Section {
                     NewFolderEditRow { screen.makeFolder(in: folder) }
@@ -216,9 +219,11 @@ private struct FolderContentsList: View {
             if subfolders.isEmpty && articles.isEmpty {
                 // Every empty list says so the same way (`EmptyState`), under the folder's header.
                 Section {
-                    EmptyState(String(localized: "This Folder Is Empty"), symbol: Icons.folder,
-                               description: Text("Move articles here, or save them here from the Reader’s \(Text.symbol(Icons.save))."))
-                        .accessibilityIdentifier("folderEmpty")
+                    EmptyState(String(localized: "This Folder Is Empty"),
+                               description: Text("Articles you add show up here.")) {
+                        AddToLibraryTiles(folder: folder)
+                    }
+                    .accessibilityIdentifier("folderEmpty")
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
@@ -328,6 +333,7 @@ private struct FolderSearchResults: View {
                     .lineLimit(2)
                     .listHeader()
             }
+            .headerOnlySection()
             if folders.isEmpty && articles.isEmpty {
                 ContentUnavailableView.search(text: text)
                     .listRowBackground(Color.clear)

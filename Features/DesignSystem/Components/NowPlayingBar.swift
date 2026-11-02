@@ -74,7 +74,7 @@ struct NowPlayingBar: View {
     /// wide: the bar's ⏸, list rows' trailing column.
     static func trailingPadding(rowWidth: CGFloat) -> CGFloat {
         guard rowWidth > 0 else { return 0 }
-        return max(0, BottomToolbarLayout.slotWidth(rowWidth: rowWidth) / 2 - BottomChrome.minTapTarget / 2)
+        return max(0, BottomToolbarLayout.slotWidth(rowWidth: rowWidth) / 2 - Control.tap / 2)
     }
 
     var body: some View {
@@ -107,7 +107,7 @@ struct NowPlayingBar: View {
                 .allowsHitTesting(!isPlaceholder)
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(isPlaceholder ? [] : .isButton)
-                .accessibilityHint(isPlaceholder ? "" : "Opens Now Playing")
+                .accessibilityHint(isPlaceholder ? "" : String(localized: "Opens Listen"))
                 .accessibilityAction(.default, onOpen)
                 .accessibilityIdentifier(identifier + "Open")
 

@@ -11,6 +11,10 @@ import Foundation
 /// footers, empty-state descriptions, toasts, a row's status, a setting's or fact's value
 /// ("today 8:02 AM").
 ///
+/// **Swipes.** A list row's swipe is one word, no noun and no ellipsis, as iOS's are: *Delete*,
+/// *Remove* (`MenuRow.swipeTitle`), even when it asks first; the swipe is on the thing, and the
+/// question names it. Its menu row keeps the full label (*Delete Folder…*).
+///
 /// **Ellipsis.** A label ends in "…" only when more input follows before anything happens: a
 /// picker, a question or a name to type (*Move to…*, *Rename…*, *Delete Folder…*). A sheet's title
 /// is its label without it ("Save to Folder").
@@ -21,21 +25,19 @@ import Foundation
 /// | Continue | `Icons.play` |
 /// | Play from Here, Play from Start | `Icons.play`, `Icons.previous` |
 /// | Prepare / Remove Prepare (a page, its menu and its prepare in the list) | `Icons.prepare` / `Icons.removePrepare` |
-/// | Prepare / Turn Off Prepare (a folder) | `Icons.prepare` / `Icons.turnOffPrepare` |
-/// | Remove Prepared audio (a folder, its menu and its prepare in the list) | `Icons.removePrepare` |
-/// | Add to Favorites / Remove from Favorites | `Icons.favorite` / `Icons.unfavorite` |
+/// | Prepare / Stop Preparing (a folder) | `Icons.prepare` / `Icons.turnOffPrepare` |
+/// | Remove Prepared Audio (a folder, its menu and its prepare in the list) | `Icons.removePrepare` |
 /// | Move to… / Save to Folder… | `Icons.move` |
 /// | Mark as Finished / Mark as Unfinished | `Icons.markFinished` / `Icons.markUnfinished` |
 /// | Mark All Above as Finished | `Icons.markAllAboveFinished` |
 /// | Share | `Icons.share` |
-/// | Select | `Icons.select` |
 /// | Save to Library / Remove from Library | `Icons.save` / `Icons.unsave` |
 /// | Remove from Recent | `Icons.removeFromRecent` |
 /// | Rename…, Edit Details… | `Icons.rename`, `Icons.editDetails` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
-/// | Pause / Resume (a prepare), Prepare Again, Keep | `Icons.pause` / `Icons.resume`, `Icons.reprepare`, `Icons.keep` |
-/// | New Folder…, Import from…, Paste Text…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.paste`, `Icons.follow` |
-/// | Prepared audio, Settings | `Icons.prepared audio`, `Icons.settings` |
+/// | Pause (a prepare), Prepare Again | `Icons.pause`, `Icons.reprepare` |
+/// | New Folder…, Import a File…, Paste Text…, Add a Link…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.paste`, `Icons.link`, `Icons.follow` |
+/// | Prepared Audio, Settings | `Icons.preparedAudio`, `Icons.settings` |
 enum Verbs {
     // MARK: A page
 
@@ -48,6 +50,8 @@ enum Verbs {
     static let playFromStart = String(localized: "Play from Start")
     /// The Reader's and Now Playing's ⋯ on compact width: the next tap on a paragraph plays from it.
     static let playFromParagraph = String(localized: "Play from a Paragraph")
+    /// ☝︎ while on: the next tap on a paragraph no longer plays from it.
+    static let cancelPlayFromParagraph = String(localized: "Cancel Play from a Paragraph")
     static let prepare = String(localized: "Prepare Audio")
     /// A page's, in its menu and in the Prepared Audio list: its audio deleted, and it stays out of
     /// every download (P8).
@@ -58,33 +62,31 @@ enum Verbs {
     /// The Prepared Audio list's row action (C135): the audio only, never the article.
     static let deleteAudio = String(localized: "Delete Audio")
     static let deleteAllPrepared = String(localized: "Delete All…")
-    static let clearListeningAudio = String(localized: "Clear Audio From Listening…")
+    static let clearListeningAudio = String(localized: "Clear Audio from Listening…")
     /// A folder's, in its menu and in the Prepared Audio list: its prepare off and gone, and
-    /// *Remove Prepare* for each of its pages.
+    /// *Remove Prepared Audio* for each of its pages.
     static let removePreparedAudio = String(localized: "Remove Prepared Audio")
     /// A prepare done: the Prepared Audio list's section, a folder header's control, the ↓ VoiceOver
     /// reads before a prepared row's line two.
     static let prepared = String(localized: "Prepared")
-    static let turnOffPrepare = String(localized: "Turn Off Prepare Audio")
-    static let addToFavorites = String(localized: "Add to Favorites")
-    static let removeFromFavorites = String(localized: "Remove from Favorites")
+    static let turnOffPrepare = String(localized: "Stop Preparing Audio")
     static let moveTo = String(localized: "Move to…")
     /// The Move tree when it saves a page into the folder picked (🔖 held, a menu's row).
     static let saveToFolder = String(localized: "Save to Folder…")
     static let markFinished = String(localized: "Mark as Finished")
     static let markUnfinished = String(localized: "Mark as Unfinished")
     static let markAllAboveFinished = String(localized: "Mark All Above as Finished")
-    static let skipInPlayback = String(localized: "Skip in Playback")
+    static let skipInPlayback = String(localized: "Skip When Playing")
     /// The submenu holding a chapter's rare playback rows (C98).
     static let playback = String(localized: "Playback")
-    static let playInPlayback = String(localized: "Play in Playback")
+    static let playInPlayback = String(localized: "Don’t Skip")
     static let share = String(localized: "Share")
     static let select = String(localized: "Select")
     static let saveToLibrary = String(localized: "Save to Library")
     static let removeFromLibrary = String(localized: "Remove from Library")
-    /// A page out of the Library: the same remove as *Remove from Library* (in no list after,
-    /// the star kept).
-    static let removeFromRecent = String(localized: "Remove from Recent")
+    static let removeFromLibraryQuestion = String(localized: "Remove from Library?")
+    /// A page out of the Library: the same remove as *Remove from Library* (in no list after).
+    static let removeFromRecent = String(localized: "Remove from History")
     static let stopListening = String(localized: "Stop Listening")
     /// Edit's bar: the selected pages removed from the Library, the selected folders deleted
     /// after asking.
@@ -97,7 +99,7 @@ enum Verbs {
 
     /// *Delete Folder…* / *Delete Book…*: a book is named as one.
     static func deleteFolder(isBook: Bool) -> String {
-        String(localized: "Delete Folder…")
+        isBook ? String(localized: "Delete Book…") : String(localized: "Delete Folder…")
     }
 
     // MARK: Playing
@@ -110,17 +112,18 @@ enum Verbs {
     // MARK: A prepare
 
     static let resume = String(localized: "Resume")
+    /// The toast after the voice stopped (`ListenNotice.offersRetry`): play on from there.
+    static let retry = String(localized: "Retry")
     static let pauseAll = String(localized: "Pause All")
     static let resumeAll = String(localized: "Resume All")
     static let reprepare = String(localized: "Prepare Again")
-    /// Keep a prepare made in another voice.
-    static let keep = String(localized: "Keep")
 
     // MARK: Screens
 
     static let newFolder = String(localized: "New Folder…")
-    static let importBook = String(localized: "Import from…")
+    static let importBook = String(localized: "Import a File…")
     static let pasteText = String(localized: "Paste Text…")
+    static let addLink = String(localized: "Add a Link…")
     static let create = String(localized: "Add")
     /// A story's table of contents, read into a folder of chapters.
     static let follow = String(localized: "Follow…")
@@ -137,13 +140,16 @@ enum Verbs {
     /// The ⋯ panel's last rows and the screens they open.
     static let preparedAudio = String(localized: "Prepared Audio")
     static let settings = String(localized: "Settings")
-    static let favorites = String(localized: "Favorites")
-    /// The browser's: pages visited.
-    /// The visits sheet's button and title: *Recent*, as the Library's tab (C100).
+    /// The Library's tab of pages played or opened and not kept (C100).
     static let history = String(localized: "History")
-    static let removeFromHistory = String(localized: "Remove from History")
+    /// The browser's pages visited: its sheet's title and the buttons and menu rows that open it.
+    static let browsingHistory = String(localized: "Browsing History")
+    /// A Browsing History visit's remove: the visit goes, the page (and the Library's copy) stays.
+    static let removeVisit = String(localized: "Remove from History")
     /// The start page's and the search layer's section of searches made, and its action.
     static let recentSearches = String(localized: "Recent Searches")
+    /// The start page's sites with the most pages in History.
+    static let frequentlyVisited = String(localized: "Frequently Visited")
     static let clearAll = String(localized: "Clear All")
     /// The two surfaces, as the swap, the back pill and the ⋯'s big button name them; *Library*
     /// is also the home's title and Now Playing's *Go to*.
@@ -177,15 +183,17 @@ enum Verbs {
     /// Settings rows and the pages or panels they open.
     static let speed = String(localized: "Speed")
     static let voice = String(localized: "Voice")
-    /// An article's or a book's menu row (C138): "Voice: Heart".
+    /// An article's or a book's menu row (C138), with what the screen calls its voice
+    /// (`LocalTTSCoordinator.voiceSummary`): "Voice: Default", "Voice: Kokoro".
     static func voiceRow(_ name: String) -> String { String(localized: "Voice: \(name)") }
     static let changeVoice = String(localized: "Change Voice")
-    /// Cellular prompt before Phonon / Kokoro model downloads.
+    /// The prompt before a large voice download on cellular or in Low Data Mode.
     static let downloadAnyway = String(localized: "Download")
-    static let waitForWiFi = String(localized: "Wait for Wi‑Fi")
-    static let language = String(localized: "Language")
+    static let notNow = String(localized: "Not Now")
     static let textSize = String(localized: "Text Size")
     static let listenDebug = String(localized: "Listen Debug")
+    /// The reading pages' ▶ Listen once the page is what you hear: it only opens Listen.
+    static let openListen = String(localized: "Open Listen")
 
     // MARK: Sheets
 

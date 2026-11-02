@@ -46,7 +46,7 @@ extension EnvironmentValues {
         set { self[ChromeSkinKey.self] = newValue }
     }
 
-    /// The field is in the compact chrome: `ChromeMetrics.barHeight` high, whatever the text size
+    /// The field is in the compact chrome: `Control.chrome` high, whatever the text size
     /// (elsewhere its own, 44 pt at the default text size).
     var isChromeField: Bool {
         get { self[IsChromeFieldKey.self] }
@@ -64,9 +64,11 @@ extension EnvironmentValues {
 extension View {
     /// A chrome piece's surface in `shape`: glass, the material look, or `fill` on the old band.
     /// Every chrome piece is tappable, so its glass answers a press (`interactive`; not a card
-    /// whose controls are its own).
-    func chromeSurface<S: InsettableShape>(_ shape: S, fill: Color = Palette.chrome, interactive: Bool = true) -> some View {
-        modifier(ChromeSurface(shape: shape, fill: fill, interactive: interactive))
+    /// whose controls are its own). `tint`: a primary action's colour (the reading pages' ▶ Listen),
+    /// the glass tinted with it, the material filled with it.
+    func chromeSurface<S: InsettableShape>(_ shape: S, fill: Color = Palette.chrome, tint: Color? = nil,
+                                           interactive: Bool = true) -> some View {
+        modifier(ChromeSurface(shape: shape, fill: tint ?? fill, tint: tint, interactive: interactive))
     }
 
     /// The chrome's fixed-size glyphs don't grow with text; a long press shows this one large.
@@ -83,6 +85,7 @@ extension View {
 private struct ChromeSurface<S: InsettableShape>: ViewModifier {
     let shape: S
     let fill: Color
+    let tint: Color?
     let interactive: Bool
     @Environment(\.chromeSkin) private var skin
 
@@ -90,8 +93,9 @@ private struct ChromeSurface<S: InsettableShape>: ViewModifier {
         switch skin {
         case .glass:
             if #available(iOS 26.0, *) {
+                let glass = Glass.regular.tint(tint)
                 content
-                    .glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+                    .glassEffect(interactive ? glass.interactive() : glass, in: shape)
                     .glassEffectTransition(.materialize)
             } else {
                 content.background(fill, in: shape)
@@ -101,7 +105,7 @@ private struct ChromeSurface<S: InsettableShape>: ViewModifier {
             content
                 .background {
                     shape.fill(.ultraThinMaterial)
-                        .overlay { shape.fill(Palette.glass) }
+                        .overlay { shape.fill(tint ?? Palette.glass) }
                         .shadow(color: Palette.glassShadow, radius: 11, y: 6)
                 }
                 .overlay { shape.strokeBorder(Palette.glassEdge, lineWidth: 0.5) }
@@ -120,5 +124,54 @@ private struct ChromeGlassContainer: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+/// The chrome's round button face: `content` (a glyph, the playing bars) in the chrome glyph's size and
+/// ink, centred on a glass circle that fills the frame it is given, tapped `hitOutset` past it. The
+/// chrome's Listen and the reading pages' ⋯ and Aa (`ReadingTopGroup`) are this; each button keeps
+/// its own action and accessibility.
+struct ChromeCircleFace<Content: View>: View {
+    /// What the glyph is called, and its symbol, for the large content viewer.
+    let label: String
+    let symbol: String
+    @ViewBuilder var content: Content
+
+    @Environment(\.readingPalette) private var reading
+
+    var body: some View {
+        content
+            .font(BottomChrome.chromeGlyph)
+            .foregroundStyle(reading?.ink ?? Palette.ink)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(ChromeHitShape())
+            .chromeSurface(Circle(), fill: BottomChrome.fieldFill(reading))
+            .chromeLargeContent(label, symbol: symbol)
+    }
+}
+
+extension ChromeCircleFace where Content == Image {
+    init(symbol: String, label: String) {
+        self.init(label: label, symbol: symbol) { Image(systemName: symbol) }
+    }
+}
+
+/// A chrome control's hit area: `vertical` past its glass above and below (`hitOutset`; the pill's segments
+/// `pillHitOutset`), and at each side `leading` /
+/// `trailing` past it: `hitOutset` by default, none where a neighbour shares the glass (the pill's segments
+/// meet edge to edge), more where one must make up the width (‹ ›, `ChromeMetrics.arrowHitSides`).
+struct ChromeHitShape: Shape {
+    var leading = ChromeMetrics.hitOutset
+    var trailing = ChromeMetrics.hitOutset
+    /// Above and below the glass.
+    var vertical = ChromeMetrics.hitOutset
+
+    /// One of the pill's segments: only above and below, by the pill's own outset.
+    static let segment = ChromeHitShape(leading: 0, trailing: 0, vertical: ChromeMetrics.pillHitOutset)
+
+    func path(in rect: CGRect) -> Path {
+        let o = vertical
+        return Path(CGRect(x: rect.minX - leading, y: rect.minY - o,
+                           width: rect.width + leading + trailing, height: rect.height + 2 * o))
     }
 }

@@ -75,8 +75,7 @@ enum ScrubTick: Equatable {
     }
 }
 
-/// Now Playing's row above the listen controls: [scrubber][trailing] in one field capsule, the
-/// trailing control the speed (`SpeedButton`). The scrubber fills with progress and shows rendered audio as a lighter "buffered" fill
+/// The player card's row: [scrubber][trailing], bare (the card is its frame). The scrubber fills with progress and shows rendered audio as a lighter "buffered" fill
 /// ahead of it. Dragging:
 /// - grabbing the thumb moves it relative to the finger (no jump); touching elsewhere jumps there;
 /// - sliding the finger up away from the track scrubs slower (½, ¼, fine) for small precise moves;
@@ -87,7 +86,7 @@ enum ScrubTick: Equatable {
 /// - a bubble rides above the finger showing the speed, paragraph / sentence and the sentence's
 ///   first words. The band around the row draws it across its full width
 ///   (`readerScrubBubble()`), so it never truncates and the thumb never covers it.
-/// The touch area covers the whole capsule height and its rounded leading end.
+/// The touch area is the row less `cardTouchInset` at its top and bottom, so the card's rows keep their taps.
 struct ReaderScrubRow<Trailing: View>: View {
     let map: ReaderScrubMap
     /// 0…1 current position.
@@ -98,10 +97,8 @@ struct ReaderScrubRow<Trailing: View>: View {
     var onScrubPreview: (Int?) -> Void
     /// Release: the sentence to play from.
     var onScrubCommit: (ReaderScrubMap.Target) -> Void
-    /// At the capsule's trailing end, like the mic in the browser's address field.
+    /// At the row's trailing end.
     @ViewBuilder var trailing: Trailing
-    /// When false the row renders without the field capsule wrapper, for use inside a player card.
-    var isCapsule: Bool = true
 
     @State private var dragFraction: Double?
     @State private var anchor: (fraction: Double, x: CGFloat) = (0, 0)
@@ -129,39 +126,19 @@ struct ReaderScrubRow<Trailing: View>: View {
 
     /// Grab radius around the thumb (points): a touch this close drags the thumb, no jump.
     static var grabRadius: CGFloat { 26 }
-    /// Room before the track inside the capsule (its rounded end); the drag area reaches into it.
-    /// Fixed geometry, not spacing: tap-to-seek positions depend on where the track starts.
-    private static var fieldLeading: CGFloat { 14 }
-    /// How far the drag area reaches above and below the track: the capsule's padding plus 2 pt.
-    private static var dragOvershoot: CGFloat { BottomChrome.fieldVerticalPadding + 2 }
-    /// On the player card: how far the touch area stops short of the row's top and bottom edges.
+    /// How far the touch area stops short of the row's top and bottom edges.
     private static var cardTouchInset: CGFloat { 2 }
     private static var space: String { "readerScrubTrack" }
 
     var body: some View {
-        if isCapsule {
-            // Styled like the browser's address field: same field capsule, trailing control in a
-            // field control's frame like the mic.
-            rowContent
-                .bottomChromeField(leading: Self.fieldLeading, trailing: Spacing.xxs)
-                #if DEBUG
-                .onAppear(perform: showDemoBubbleIfRequested)
-                #endif
-        } else {
-            // Bare row for use inside a floating card (no capsule wrapper).
-            rowContent
-                #if DEBUG
-                .onAppear(perform: showDemoBubbleIfRequested)
-                #endif
-        }
-    }
-
-    private var rowContent: some View {
         HStack(spacing: Spacing.xxs) {
             scrubber
                 .padding(.trailing, Spacing.xxs)
             trailing
         }
+        #if DEBUG
+        .onAppear(perform: showDemoBubbleIfRequested)
+        #endif
     }
 
     #if DEBUG
@@ -184,16 +161,12 @@ struct ReaderScrubRow<Trailing: View>: View {
             let w = max(1, g.size.width)
             ScrubTrack(value: dragFraction ?? position, buffered: buffered, isDragging: dragging)
             .frame(width: w, height: g.size.height)
-            // Bigger touch target: the whole capsule height and (for capsule mode) its rounded end.
             .overlay {
                 Color.clear
                     .contentShape(Rectangle())
-                    // A capsule's row reaches past the track; on the card the row's top and bottom
-                    // edges are given back, so the title row above and the transport below keep
-                    // their taps (a tap there is never a seek).
-                    .padding(.top, isCapsule ? -Self.dragOvershoot : Self.cardTouchInset)
-                    .padding(.bottom, isCapsule ? -Self.dragOvershoot : Self.cardTouchInset)
-                    .padding(.leading, isCapsule ? -Self.fieldLeading : 0)
+                    // The row's top and bottom edges are given back, so the title row above and the
+                    // transport below keep their taps (a tap there is never a seek).
+                    .padding(.vertical, Self.cardTouchInset)
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))
                             .updating($touching) { _, state, _ in state = true }
@@ -203,7 +176,7 @@ struct ReaderScrubRow<Trailing: View>: View {
             }
             .coordinateSpace(name: Self.space)
         }
-        .frame(height: BottomChrome.fieldControlSize)
+        .frame(height: Control.small)
         .anchorPreference(key: ReaderScrubBubble.Key.self, value: .bounds) { track in
             dragFraction.map { ReaderScrubBubble(map: map, target: map.target(at: $0), speed: speed,
                                                  track: track, fingerY: fingerY) }
@@ -232,11 +205,11 @@ struct ReaderScrubRow<Trailing: View>: View {
         }
     }
 
-    /// A touch beginning on the track. On the card the system hands this area more slop than its frame
+    /// A touch beginning on the track. The system hands this area more slop than its frame
     /// (a tap 8 pt above the row still arrives, as iOS widens small touch targets), so the start is
     /// checked against the row itself.
     private func startsOnTrack(_ y: CGFloat) -> Bool {
-        isCapsule || (y >= Self.cardTouchInset && y <= BottomChrome.fieldControlSize - Self.cardTouchInset)
+        y >= Self.cardTouchInset && y <= Control.small - Self.cardTouchInset
     }
 
     private func scrub(_ v: DragGesture.Value, width w: CGFloat) {

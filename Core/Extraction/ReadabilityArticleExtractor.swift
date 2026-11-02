@@ -18,5 +18,5 @@ struct ReadabilityArticleExtractor: ArticleExtracting {
     }
 
     /// Readability reads web pages; book chapters go to the normalizer alone.
-    private static let webOnly = "Reader mode reads web pages."
+    private static let webOnly = "Only web pages open in the Reader."
 }

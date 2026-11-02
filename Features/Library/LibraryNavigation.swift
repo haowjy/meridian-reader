@@ -26,8 +26,17 @@ struct LibraryRouteView: View {
 /// A folder's screen once the folder is gone (deleted, or a remembered path to one that isn't
 /// there any more).
 struct FolderGoneView: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     var body: some View {
-        EmptyState(String(localized: "This Folder Is Gone"), symbol: Icons.folder)
+        EmptyState(String(localized: "This Folder Is Gone"),
+                   description: String(localized: "It was deleted.")) {
+            AddToLibraryTiles(folder: nil)
+        }
+        .padding(.horizontal, Spacing.pageMargin)
+        // Not a list: on compact width it keeps clear of the chrome itself, which floats over the
+        // screen's foot (the Library runs through the bottom safe area, `CompactChromeInsets`).
+        .padding(.bottom, sizeClass == .regular ? 0 : ChromeHome.footprint(step: 0))
     }
 }
 
@@ -66,7 +75,7 @@ struct LibraryEditBar: View {
             }
             .disabled(actions.selected(in: screen).articles.allSatisfy { !$0.isSaved })
             .toolbarSlot(2)
-            if let folder = editedFolder, !createRows(in: folder).isEmpty {
+            if let folder = editedFolder {
                 Menu { MenuRows(createRows(in: folder)) } label: {
                     Image(systemName: Icons.add).toolbarIconFrame()
                 }
@@ -89,7 +98,7 @@ extension LibraryEditBar {
 
     /// Slot 3's ＋ (C122, C126): the create group at `.edit`, its New Folder filing the selection.
     func createRows(in folder: Folder) -> [MenuRow] {
-        LibraryCreateMenu(library: library, shell: shell, screen: screen, folder: folder, place: .edit) {
+        LibraryCreateMenu(library: library, shell: shell, follow: follow, screen: screen, folder: folder, place: .edit) {
             let selected = actions.selected(in: screen)
             return selected.folders.map(LibraryItem.folder) + selected.articles.map(LibraryItem.article)
         }.rows

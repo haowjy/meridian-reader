@@ -12,46 +12,38 @@ import SwiftUI
 ///     example.org
 /// ```
 ///
-/// The column is `Glyph.rowLeading` wide and the row at least `RowHeight.compact` tall
-/// (`RowHeight.menu` in the ⋯ panel); both grow with the text up to `BottomChrome.maxTextGrowth`. Without a leading view (`symbol` nil)
-/// the text starts at the row's edge: a card's rows either all lead with a symbol or none does.
-/// The row adds no horizontal padding (its list or panel has its own) and no tap: the caller
-/// wraps it in a `Button`, `NavigationLink` or `Toggle`. On the reading page it takes the
-/// theme's ink.
+/// Its geometry is `RowMetrics`: the leading column (`RowColumns`), a one- or two-line height
+/// (`rowHeight(lines:)`; `reservesDetail` keeps line two's room while it has nothing to say, so the
+/// row never changes height), the title's lines. `rowMinimum` is a one-line row's height:
+/// `Control.bar` on a card list (`cardListStyle`), `Control.tap` elsewhere (the ⋯ panel, the search
+/// suggestions). Without a leading view (`symbol` nil) the text starts at the row's edge: a card's
+/// rows either all lead with a symbol or none does. The row adds no horizontal padding (its list or
+/// panel has its own) and no tap: the caller wraps it in a `Button`, `NavigationLink` or `Toggle`.
+/// On the reading page it takes the theme's ink.
 struct SymbolRow<Leading: View, Trailing: View>: View {
     let title: String
-    /// Line two (a `DetailLine` part, so a downloaded model's starts with the accent filled ↓).
-    var subtitle: DetailPart?
+    /// Line two: its parts, set apart by space (`DetailLine`), never joined with a separator.
+    var details: [DetailPart] = []
+    /// Line two's room is kept while `details` is empty (a row whose second line comes and goes).
+    var reservesDetail = false
     /// The title's and the symbol's colour (nil: ink): the accent for *New Folder*, red for
     /// *Unfollow*.
     var ink: Color?
     let leading: Leading?
     @ViewBuilder let trailing: Trailing
-    /// The row's height at the default text size: `RowHeight.compact`, or `.menu` in the ⋯ panel.
-    var height: CGFloat = RowHeight.compact
 
     @Environment(\.readingPalette) private var reading
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.rowLeading
-    /// How much the row type has grown (1 at the default size).
-    @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var growth: CGFloat = 1
 
     var body: some View {
-        HStack(spacing: Spacing.s) {
-            if let leading {
-                leading
-                    .rowSymbol()
-                    .frame(width: BottomChrome.grown(scaledColumn, from: Glyph.rowLeading))
-                    .accessibilityHidden(true)
-            }
-            HStack(spacing: Spacing.s) {
+        RowColumns(leading: leading) {
+            HStack(spacing: RowMetrics.columnGap) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title)
                         .typeStyle(.row)
-                        // Whole labels at Accessibility sizes (C130): two lines there, one otherwise.
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                    if let subtitle {
-                        DetailLine(parts: [subtitle])
+                        .lineLimit(RowMetrics.titleLines(dynamicTypeSize))
+                    if !details.isEmpty {
+                        DetailLine(parts: details)
                             .typeStyle(.caption)
                     }
                 }
@@ -59,37 +51,32 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
                 Spacer(minLength: 0)
                 trailing
             }
-            .padding(.vertical, Spacing.xxs)
-            // The separator under the row starts at the title, as in every list.
-            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         }
         .foregroundStyle(ink ?? reading?.ink ?? Palette.ink)
-        .frame(minHeight: BottomChrome.grown(height * growth, from: height))
+        .rowHeight(lines: details.isEmpty && !reservesDetail ? 1 : 2)
         .contentShape(Rectangle())
-    }
-}
-
-extension SymbolRow {
-    /// The row `height` tall at the default text size (`RowHeight.menu` in the ⋯ panel).
-    func rowHeight(_ height: CGFloat) -> Self {
-        var row = self
-        row.height = height
-        return row
     }
 }
 
 extension SymbolRow where Leading == Image {
     /// A row led by an SF Symbol (nil: no leading column).
-    init(_ title: String, subtitle: DetailPart? = nil, symbol: String?, ink: Color? = nil,
+    init(_ title: String, subtitle: DetailPart? = nil, reservesDetail: Bool = false, symbol: String?, ink: Color? = nil,
          @ViewBuilder trailing: () -> Trailing) {
-        self.init(title: title, subtitle: subtitle, ink: ink, leading: symbol.map { Image(systemName: $0) },
+        self.init(title, details: subtitle.map { [$0] } ?? [], reservesDetail: reservesDetail, symbol: symbol, ink: ink,
+                  trailing: trailing)
+    }
+
+    /// A row whose second line has several parts ("Apache-2.0   Runs Kokoro’s voices").
+    init(_ title: String, details: [DetailPart], reservesDetail: Bool = false, symbol: String?, ink: Color? = nil,
+         @ViewBuilder trailing: () -> Trailing) {
+        self.init(title: title, details: details, reservesDetail: reservesDetail, ink: ink, leading: symbol.map { Image(systemName: $0) },
                   trailing: trailing)
     }
 }
 
 extension SymbolRow where Leading == Image, Trailing == EmptyView {
-    init(_ title: String, subtitle: DetailPart? = nil, symbol: String?, ink: Color? = nil) {
-        self.init(title, subtitle: subtitle, symbol: symbol, ink: ink) { EmptyView() }
+    init(_ title: String, subtitle: DetailPart? = nil, reservesDetail: Bool = false, symbol: String?, ink: Color? = nil) {
+        self.init(title, subtitle: subtitle, reservesDetail: reservesDetail, symbol: symbol, ink: ink) { EmptyView() }
     }
 }
 
@@ -97,7 +84,7 @@ extension SymbolRow {
     /// A row led by any view of the column's size (a site tile).
     init(_ title: String, subtitle: DetailPart? = nil, ink: Color? = nil, @ViewBuilder leading: () -> Leading,
          @ViewBuilder trailing: () -> Trailing) {
-        self.init(title: title, subtitle: subtitle, ink: ink, leading: leading(), trailing: trailing)
+        self.init(title: title, details: subtitle.map { [$0] } ?? [], ink: ink, leading: leading(), trailing: trailing)
     }
 }
 
@@ -106,11 +93,11 @@ extension SymbolRow {
 struct SymbolRowSeparator: View {
     var leadingInset: CGFloat = 0
 
-    @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.rowLeading
+    @ScaledMetric(relativeTo: .body) private var scaledColumn = RowMetrics.symbolColumn
 
     var body: some View {
         Divider()
-            .padding(.leading, leadingInset + BottomChrome.grown(scaledColumn, from: Glyph.rowLeading) + Spacing.s)
+            .padding(.leading, leadingInset + Control.grown(scaledColumn, from: RowMetrics.symbolColumn) + RowMetrics.columnGap)
     }
 }
 
@@ -120,20 +107,20 @@ struct SymbolRowGallery: View {
         PreviewGallery {
             PreviewState("a setting, a link, a switch") {
                 VStack(spacing: 0) {
-                    SymbolRow("Listening Audio", symbol: Icons.storage) { Text("12 MB").typeStyle(.row) }
+                    SymbolRow("Prepared Audio", symbol: Icons.preparedAudio) { Text("12").typeStyle(.row) }
                     SymbolRow("Language", symbol: Icons.browser) {
                         Text("Automatic").typeStyle(.row).foregroundStyle(Palette.secondaryInk)
                         Image(systemName: Icons.disclosure).disclosureSymbol().foregroundStyle(Palette.secondaryInk)
                     }
-                    Toggle(isOn: .constant(true)) { SymbolRow("Block Ads", symbol: Icons.blockAds) }
+                    Toggle(isOn: .constant(true)) { SymbolRow("Search Suggestions", symbol: Icons.search) }
                 }
             }
             PreviewState("with a subtitle, no symbol") {
-                SymbolRow("Kokoro (on-device)", subtitle: "Recommended, ~175 MB download", symbol: nil)
+                SymbolRow("Kokoro", subtitle: "About 175 MB to download", symbol: nil)
             }
             PreviewState("a site tile, an accent action") {
                 SymbolRow("Notes on Tides", subtitle: "example.org") {
-                    ArtworkTile(letter: "example.org", size: Glyph.rowLeading)
+                    ArtworkTile(letter: "example.org", size: Glyph.slot)
                 } trailing: { EmptyView() }
                 SymbolRow("New Folder", symbol: Icons.newFolder, ink: Palette.accent)
             }

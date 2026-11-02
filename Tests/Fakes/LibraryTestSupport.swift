@@ -3,8 +3,8 @@ import SwiftData
 @testable import MeridianReader
 
 /// A library over an in-memory container, with a clock the test sets. Its audio effects go to a
-/// real coordinator (Apple's engine only) whose files sit in a temp directory and whose settings
-/// sit in a defaults suite of its own. `cleanUp()` removes them.
+/// real coordinator (the test voice, which can't run here, so nothing renders) whose files sit in
+/// a temp directory and whose settings sit in a defaults suite of its own. `cleanUp()` removes them.
 @MainActor
 final class LibraryTestEnvironment {
     let dir: URL
@@ -19,11 +19,12 @@ final class LibraryTestEnvironment {
         container = try LibraryStoreConfiguration.makeInMemoryContainer()
         let defaults = UserDefaults(suiteName: suite)!
         let tts = LocalTTSCoordinator(
-            engines: EngineRegistry(providers: [AppleSpeechProvider()], gate: { _ in true }), defaults: defaults,
+            engines: EngineRegistry(providers: [TestVoiceProvider()], gate: { _ in false }), defaults: defaults,
             audioCache: ArticleAudioCache(root: dir.appending(path: "TTSCache")),
             crashGuard: EngineCrashGuard(directory: dir.appending(path: "guard")),
             pendingBakes: PendingBakeJobStore(storeURL: dir.appending(path: "PendingBakeJobs.json"), defaults: defaults),
-            resumePoints: ListenResumePointStore(url: dir.appending(path: "listen_resume.json")))
+            resumePoints: ListenResumePointStore(url: dir.appending(path: "listen_resume.json")),
+            renderPolicy: SingleCallPolicy())
         let legacy = LegacyLibrarySources(bookmarksURL: dir.appending(path: "bookmarks.json"), defaults: defaults)
         library = LibraryStore(context: container.mainContext, audio: tts, legacy: legacy, now: { [unowned self] in now })
     }

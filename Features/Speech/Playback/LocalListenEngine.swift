@@ -1,14 +1,16 @@
 import Foundation
 
 /// Listen through the on-device engine: a `LocalListenPlayer` fed, per play, by a
-/// `QueueUnitSource` over the coordinator's render queue and audio cache. Player time has no
+/// `QueueUnitSource` over the coordinator's render queue and audio cache. `SpeechController`
+/// sends it every command; it reports what happened through `onEvent` (audible, paused, the spot
+/// being spoken, stalled, finished) and never changes the session itself. Player time has no
 /// callbacks, so while audio is wanted and the app is on screen the engine samples it 5×/s
 /// (`clock`) and reports the spot being spoken and listen-bar status changes itself. In the
 /// background (the phone locked) nothing is on screen and the clock stops; the player's own
 /// events (a unit starting, the player running dry) report the paragraph and hold the app alive
 /// while it waits for audio.
 @MainActor
-final class LocalListenEngine: ListenEngine {
+final class LocalListenEngine {
     var onEvent: ((PlaybackEngineEvent) -> Void)?
 
     private let coordinator: LocalTTSCoordinator
@@ -23,23 +25,20 @@ final class LocalListenEngine: ListenEngine {
     /// sub-paragraph start begins a hair early in the audio, see `LocalListenPlayer.subChunkLeadIn`).
     private var playStart = (paragraph: 0, utf16: 0)
     private var reported: (paragraph: Int, utf16: Int)?
-    private var playGeneration = 0
-    /// A paused play, or Pause while the model loads: hold the audio once the play starts.
-    private var holdsAtStart = false
     /// Playing or about to (not paused, not stopped): the clock runs while the app is in front.
     private var audioWanted = false
     private var clock: Task<Void, Never>?
     private var lastStatus: Status?
     private var runStateObserver: NSObjectProtocol?
     #if canImport(UIKit)
-    /// Keeps the app alive while the player waits for audio in the background (e.g. an Apple
-    /// fallback paragraph rendering): with nothing audible iOS may suspend the app.
+    /// Keeps the app alive while the player waits for its first audio in the background (a
+    /// chapter's opening rendering): with nothing audible iOS may suspend the app.
     private lazy var gapGrace = BackgroundGrace(name: "ReaderListenGap")
     #endif
 
     private struct Status: Equatable {
         var waiting: Bool
-        var note: String?
+        var waitingForVoice: Bool
         var snapshot: PlaybackEngineSnapshot
     }
 
@@ -54,16 +53,10 @@ final class LocalListenEngine: ListenEngine {
             self.reportPosition(force: true)
             self.onEvent?(.becameAudible)
             self.updateGapGrace()
-            // In the background the render queue idles between bursts; playing on may wake it.
-            self.coordinator.synthQueue.playbackAdvanced()
         }
         player.onStarved = { [weak self] in self?.updateGapGrace() }
         player.rendersPausedForRetry = { [weak coordinator] in coordinator?.isPausedForRetry ?? false }
-        player.onNeedsRetry = { [weak self] in
-            guard let self else { return }
-            self.pause()
-            self.coordinator.playbackReachedUnrendered()
-        }
+        player.onStalled = { [weak self] stall in self?.stall(stall) }
         player.onFinished = { [weak self] in
             self?.stopClock()
             self?.onEvent?(.finished)
@@ -84,16 +77,15 @@ final class LocalListenEngine: ListenEngine {
 
     private var runState: AppRunState { coordinator.synthQueue.runState }
 
-    var name: String { coordinator.synth.engineShortName }
+    /// Diagnostics / timing-log name of the playing article's engine ("Kokoro"; "—": none).
+    var name: String { source.map { coordinator.engines.shortName($0.selection.engine) } ?? "—" }
 
+    /// Start at `request.utf16Offset`. Paused: take the spot without sounding; `resume` or a new
+    /// `play` sounds it.
     func play(_ request: ListenPlayRequest) {
-        playGeneration += 1
-        let generation = playGeneration
         document = request.document
         let source = QueueUnitSource(coordinator: coordinator, articleID: request.articleID,
-                                     paragraphs: document.paragraphs,
-                                     selection: request.selection
-                                        ?? coordinator.selection(for: request.articleID, paragraphs: document.paragraphs))
+                                     paragraphs: document.paragraphs, selection: request.selection)
         self.source = source
         let queue = coordinator.synthQueue
         let engineID = source.selection.engine.rawValue
@@ -104,14 +96,18 @@ final class LocalListenEngine: ListenEngine {
         playStart = (start.paragraph, request.utf16Offset)
         reported = nil
         lastStatus = nil
-        holdsAtStart = request.startPaused
         ListenTimingLog.log("play", [
             "key": ListenTimingLog.shortKey(request.articleID), "p": start.paragraph, "paused": request.startPaused,
             "baked": source.isRenderedInThisVoice(paragraph: start.paragraph),
-            "worker_busy": queue.activeBakeCacheKey != nil,
-            "worker_key": ListenTimingLog.shortKey(queue.activeBakeCacheKey),
-            "worker_p": queue.activeBakeIndex ?? -1,
+            "worker_busy": !queue.rendering.isEmpty,
+            "worker_key": ListenTimingLog.shortKey(queue.rendering.first?.cacheKey),
+            "worker_p": queue.rendering.first?.index ?? -1,
         ])
+        // The producer asks for its first chunk only once its task runs, after the worker this
+        // Play wakes: the worker's first pick (and the load it may start) is the listener's now.
+        if !request.startPaused, !source.isChunkReady(paragraph: start.paragraph, chunk: start.chunk) {
+            queue.expectListener(cacheKey: request.articleID, paragraph: start.paragraph)
+        }
         // Reshuffle the global queue: this article #1, cursor at the playhead.
         coordinator.openArticle(
             cacheKey: request.articleID,
@@ -120,44 +116,38 @@ final class LocalListenEngine: ListenEngine {
             isEphemeral: coordinator.audioCache.isEphemeral(request.articleID)
         )
         if !request.startPaused { startClock() }
-        Task { @MainActor in
-            guard generation == self.playGeneration else { return }
-            do {
-                try await self.player.play(source, from: start.paragraph, chunk: start.chunk,
-                                           fractionInChunk: start.fraction)
-                guard generation == self.playGeneration else { return }
-                // The producer hasn't run yet: pausing now holds the first unit unstarted.
-                if self.holdsAtStart { self.pause() }
-            } catch {
-                guard generation == self.playGeneration else { return }
-                // The host failed to load: the engine is marked failed, and the controller's
-                // engine-change handling re-speaks this spot with Apple.
-                self.coordinator.synth.noteSpeakFailed(error)
-            }
-        }
+        player.play(source, from: start.paragraph, chunk: start.chunk, fractionInChunk: start.fraction)
+        // The producer hasn't run yet: pausing now holds the first unit unstarted.
+        if request.startPaused { pause() }
     }
 
+    /// Playback reached audio the engine can't give now: it pauses there, and the controller says
+    /// why (`PlaybackEngineEvent.stalled`).
+    private func stall(_ stall: ListenStall) {
+        pause()
+        onEvent?(.stalled(stall))
+    }
+
+    /// Confirmed with `becamePaused` once the audio holds.
     func pause() {
-        holdsAtStart = true
         player.pause()
         stopClock()
         reportPosition(force: false)
         onEvent?(.becamePaused)
     }
 
+    /// Continue what `pause` held (no-op when nothing is held).
     func resume() {
-        holdsAtStart = false
         guard player.state == .paused else { return }
         player.resume()
         startClock()
         if player.isAudible { onEvent?(.becameAudible) }
-        coordinator.synthQueue.playbackAdvanced()
+        // In the background the render queue starts calls only while audio plays.
+        coordinator.synthQueue.playbackResumed()
     }
 
     func stop() {
-        playGeneration += 1
         source = nil
-        holdsAtStart = false
         stopClock()
         player.stop()
     }
@@ -180,16 +170,18 @@ final class LocalListenEngine: ListenEngine {
         return player.awaitingMore || player.isProducing || player.bufferedUnitCount == 0
     }
 
-    var sourceNote: String? {
-        player.currentAppleFallbackReason?.localizedNote(engine: name)
+    /// Playing (not held), and the first audio waits for the model to load: nothing at the start
+    /// is rendered (`LocalListenPlayer.isWaitingForVoice`).
+    var isWaitingForVoice: Bool { player.isWaitingForVoice }
+
+    /// iOS restarted its media services: stop, and build new audio objects for the next `play`
+    /// (the old ones are dead and fail silently). Each unit gets its own `AVAudioPlayer`, so
+    /// stopping drops every dead one. The render queue drops the engine's host too (after the
+    /// call in flight); the next work loads a fresh one.
+    func mediaServicesWereReset() {
+        stop()
+        coordinator.dropAllHosts()
     }
-
-    /// Apple units queued only because the engine couldn't render in the background are dropped
-    /// and re-rendered; the queue cursor moves to the restart paragraph first.
-    func appDidBecomeActive() { player.reclaimBackgroundFallbacks() }
-
-    /// Each unit gets its own `AVAudioPlayer`, so stopping drops every dead one.
-    func mediaServicesWereReset() { stop() }
 
     var debug: ListenEngineDebug {
         ListenEngineDebug(
@@ -202,18 +194,13 @@ final class LocalListenEngine: ListenEngine {
             renderedParagraphsAhead: renderedParagraphsAhead)
     }
 
-    /// How audio is produced right now: the app phase, then the engine and its host's routing.
+    /// How audio is produced right now: the app phase, the render policy, then the engine and its
+    /// host's routing.
     private var renderMode: String {
         let phase = coordinator.synthQueue.runState.phase
-        let synth = coordinator.synth
-        let route = "\(name) (\(synth.hostRoutingLabel ?? "default"))"
+        let route = "\(name) (\(coordinator.synth.routingLabels ?? "default"))"
         let pace = RenderPace.shared.snapshot.speed.map { String(format: ", %.1f× real time", $0) } ?? ""
-        switch (phase, synth.rendersInBackground) {
-        case (.active, _), (.inactive, true): return "\(phase.rawValue), \(route)\(pace)"
-        case (.inactive, false): return "inactive, \(name) for playhead only, bake-ahead held"
-        case (.background, true): return "background, \(route), playing article in bursts\(pace)"
-        case (.background, false): return "background, no model calls — baked audio + Apple fallback"
-        }
+        return "\(phase.rawValue), \(coordinator.renderPolicy.name), \(route)\(pace)"
     }
 
     /// Consecutive paragraphs after the playing one already rendered in the current voice.
@@ -271,7 +258,7 @@ final class LocalListenEngine: ListenEngine {
 
     private func tick() {
         reportPosition(force: false)
-        let status = Status(waiting: isWaitingForAudio, note: sourceNote, snapshot: snapshot)
+        let status = Status(waiting: isWaitingForAudio, waitingForVoice: isWaitingForVoice, snapshot: snapshot)
         if status != lastStatus {
             lastStatus = status
             onEvent?(.statusChanged)

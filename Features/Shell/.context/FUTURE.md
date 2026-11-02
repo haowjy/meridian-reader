@@ -12,9 +12,6 @@
   and two stacked modal sheets would conflict).
 - `Features/DesignSystem/Chrome/SystemBars.swift`: the home indicator's auto-hide in full screen
   can't be seen on the Simulator: check it on a device.
-- `ScrollPullHandoff`: a pan that begins with no movement counts as horizontal and can't pull the
-  sheet. Synthesized probe touches can begin that way; check a slow pull from the text's top on a
-  device.
 - `Features/Reader/HTMLReadingView+Pages.swift`: in Pages, a book chapter opened from its folder
   (a probe's tap on the Library row) also gets a tap in the middle of its text (`tapX` 196 of 402,
   logged in `textTapped`), so the Reader opens in full screen; in Scroll it doesn't. Check whether
@@ -31,7 +28,3 @@
   portrait orientation key is set and the layout was only checked in portrait. Decide whether to
   allow landscape, then check the sidebar, dock (`playerClusterWidth`) and reading measure there.
 
-- Bottom chrome redesign (approved 2026-10-25, in progress): the four-PR plan and the screen audit live in
-  the project context (`work/bottom-chrome/build-plan.md`, `audit.md`). Open choices, each with a default
-  taken from the mockups: Reader far left, idle Reader dimmed with an empty state, Reader returning to the
-  screen you came from, the collapsed width fallback order, no Reader item in the iPad sidebar.

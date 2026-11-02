@@ -2,8 +2,8 @@ import SwiftUI
 import UIKit
 
 /// The home indicator's strip on this phone (the window's bottom safe area, the keyboard's left
-/// out; 0 with a Home button): the chrome's footprints are measured from the screen's edge, and
-/// what is laid out above the safe area keeps clear of `ChromeMetrics.aboveSafeArea(_:home:)`.
+/// out; 0 with a Home button): the chrome's rows end on it, and what the chrome covers is measured
+/// from it (`clearance(step:)`), or from the screen's edge with it added (`footprint(step:)`).
 /// The root view reports it (`reportsChromeHome()`); reading the window's insets in a view's body
 /// instead makes SwiftUI's graph loop and remount the page's web view.
 @MainActor
@@ -14,8 +14,10 @@ final class ChromeHome {
 
     static var inset: CGFloat { shared.value }
 
-    /// `footprint` (from the screen's edge) above this phone's safe area.
-    static func above(_ footprint: CGFloat) -> CGFloat { ChromeMetrics.aboveSafeArea(footprint, home: inset) }
+    /// What the chrome covers above this phone's safe area at a fold step (`ChromeMetrics.clearance`).
+    static func clearance(step: Int) -> CGFloat { ChromeMetrics.clearance(step: step, home: inset) }
+    /// The same from the screen's edge, for a view laid out through the strip.
+    static func footprint(step: Int) -> CGFloat { clearance(step: step) + inset }
 
     fileprivate func report(_ bottom: CGFloat) { if value != bottom { value = bottom } }
 }
@@ -33,16 +35,16 @@ extension View {
 }
 
 /// Where a screen's scroll position goes: the chrome folds a step at a time as it scrolls down (a tap on
-/// the strip opens it).
+/// the bubble opens it).
 extension View {
-    /// Reports this view's scroll views' offset to `chrome`, past the rubber band at both ends.
-    func chromeScrollSource(_ chrome: ChromeScroll) -> some View {
+    /// Reports this view's scroll views' offset to `chrome` as `source`, past the rubber band at both ends.
+    func chromeScrollSource(_ chrome: ChromeScroll, as source: ChromeSource) -> some View {
         onScrollGeometryChange(for: CGFloat.self) { geometry in
             let top = geometry.contentInsets.top
             let farthest = geometry.contentSize.height + geometry.contentInsets.bottom + top - geometry.containerSize.height
             return min(geometry.contentOffset.y + top, max(farthest, 0))
         } action: { _, offset in
-            chrome.scrolled(to: offset)
+            chrome.scrolled(to: offset, from: source)
         }
     }
 }
@@ -55,9 +57,11 @@ struct CompactChromeInsets: ViewModifier {
     func body(content: Content) -> some View {
         if isCompact {
             content
-                .contentMargins(.bottom, ChromeHome.above(ChromeMetrics.footprint), for: .scrollContent)
-                .contentMargins(.bottom, ChromeHome.above(ChromeMetrics.footprint), for: .scrollIndicators)
+                .contentMargins(.bottom, ChromeHome.clearance(step: 0), for: .scrollContent)
+                .contentMargins(.bottom, ChromeHome.clearance(step: 0), for: .scrollIndicators)
                 .ignoresSafeArea(.container, edges: .bottom)
+                // Laid out to the screen's edge: the chrome covers its footprint from there.
+                .environment(\.scrollFootClearance, ChromeHome.footprint(step: 0))
         } else {
             content
         }
@@ -65,16 +69,17 @@ struct CompactChromeInsets: ViewModifier {
 }
 
 /// Reports a screen's own scroll views to the chrome: a pushed screen has to do it itself, since
-/// a modifier above the navigation stack doesn't reach inside it.
+/// a modifier above the navigation stack doesn't reach inside it. The shell hands the chrome to the
+/// new screen as its path changes (`ShellState.chromeOwner`).
 struct CompactChromeScroll: ViewModifier {
     let isCompact: Bool
+    let source: ChromeSource
     @Environment(ShellState.self) private var shell
 
     func body(content: Content) -> some View {
         if isCompact {
             content
-                .chromeScrollSource(shell.chromeScroll)
-                .onAppear { shell.chromeScroll.reset() }
+                .chromeScrollSource(shell.chromeScroll, as: source)
         } else {
             content
         }

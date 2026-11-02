@@ -107,7 +107,7 @@ final class AddressDictation {
             state = .listening
             armSilenceTimer(noSpeechTimeout, gen: gen)
         } catch {
-            finish(error: "Dictation couldn’t start: \(error.localizedDescription)")
+            finish(error: (error as? SystemDictationRecognizer.DictationError)?.errorDescription ?? "Dictation couldn’t start. Try again.")
         }
     }
 
@@ -281,7 +281,7 @@ final class SystemDictationRecognizer: DictationRecognizing {
         var errorDescription: String? {
             switch self {
             case .unavailable: return "Speech recognition isn’t available."
-            case .noMicrophone: return "No microphone input."
+            case .noMicrophone: return "No microphone is available."
             }
         }
     }

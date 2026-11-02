@@ -1,6 +1,9 @@
 [dependencies.meridian-dev-workflow]
 url = "https://github.com/haowjy/meridian-dev-workflow"
 
+[dependencies.dashboard-design-skill]
+url = "https://github.com/abdiraimov-otabek/dashboard-design-skill"
+
 [settings]
 targets = [
     ".claude",

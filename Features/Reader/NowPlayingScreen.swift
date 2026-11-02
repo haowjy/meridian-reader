@@ -1,34 +1,35 @@
 import SwiftUI
 
-/// Now Playing: what you hear, opened up from the bar (`NowPlayingSheet`). The Reader's page in
-/// the same reading theme and type: the spoken paragraph highlighted in full
-/// ink like the rest, on the highlight. Presented over everything by the shell (in place under the
-/// bottom chrome on compact width, a sheet on regular width); it holds no article of its
-/// own: it shows `speech.nowPlaying` and the playing page's content, looked up in the library by
-/// its key. On compact width the chrome draws its player card (`ChromeCard`), the same card as the
-/// Reader's.
+/// Now Playing, Listen: what you hear, opened up (`NowPlayingSheet`). The Reader's page in the
+/// same reading theme and type: the spoken paragraph highlighted in full ink like the rest, on the
+/// highlight. Presented over everything by the shell: on compact width a cover that slides up over
+/// the chrome too, the reading pages' top group at its top, the grabber between Aa and ⋯ (`ReadingTopGroup`), and the
+/// player card at its foot (`ReaderPlayerCard`: Save, speed, Voice); on regular width a sheet. It holds no article of its own: it shows `speech.nowPlaying` and the
+/// playing page's content, looked up in the library by its key.
 ///
 /// - The text follows the audio: it opens with the spoken sentence near the middle and keeps it
 ///   there (each new paragraph, a long paragraph's sentence leaving the screen); the spoken
 ///   paragraph is highlighted (every paragraph in full ink), its sentence underlined. A drag stops
-///   following; Jump to Audio resumes it, back to the sentence. Scrubbing scrolls to the
-///   paragraph under the thumb.
+///   following; Jump to Audio, floating in the middle above the card while the text is away,
+///   resumes it, back to the sentence. Scrubbing scrolls to the paragraph under the thumb.
 /// - On regular width the close pill names where the page plays from: a page in a folder plays from that folder (a
-///   book, a series, Favorites, a folder you made), a saved page in no folder from the Library,
+///   book, a series, a folder you made), a saved page in no folder from the Library,
 ///   a page you haven't saved from its site. ⋯ → *Go to <name>* opens the Library at the folder
 ///   or the Library; for a site, ⋯ → Website opens the page in the browser.
 /// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎
 ///   then a tap on a paragraph plays from there; 🔖 saves / removes (tap) or files the page
-///   (long-press, *Save to Folder…*); ⋯ is the Reader's menu. Both act through `ArticleActions`, as
-///   in the Reader. Voice (`VoiceChromeButton`) sits to the right of the title in the bottom band
-///   and opens the same Voice picker as ⋯ › Voice.
+///   (long-press, *Save to Folder…*); ⋯ is the page's menu at `.nowPlaying` (on compact width a
+///   system menu, the top group's). Both act through `ArticleActions`, as in the Reader. Voice (an
+///   `IconButton`) opens the Voice picker: beside the title in regular width's band, at the compact
+///   card's trailing edge.
 /// - At the end it stays: the text stays, all in full ink, the player card says "● Finished" (the ring, full)
 ///   (the one place it shows, where the Reader shows the page's length), ▶ plays it again.
 /// - A tap in the middle of the text reads full screen, as in the Reader (`ReadingPage`,
 ///   `ReadingChrome`): the text still follows the audio, a page turn by a tap stops following as a drag does, and a link
 ///   in the text opens in the browser.
-/// - On compact width Library or Browser in the pill leaves it; on regular width the pill or a pull
-///   down shrinks it back into the bar.
+/// - A pull down closes it, back to exactly what was under it (on regular width the pill or a
+///   pull down shrinks it back into the bar). Its full screen is its own: the chrome under it keeps
+///   its fold and full screen.
 struct NowPlayingScreen: View {
     @Bindable var speech: SpeechController
 
@@ -36,7 +37,6 @@ struct NowPlayingScreen: View {
     @Environment(ShellState.self) private var shell
     @Environment(FollowCenter.self) private var follow
     @Environment(PrepareCenter.self) private var preparedAudio
-    @Environment(DeveloperSettings.self) private var developer
     @Environment(\.readingAppearance) private var appearance
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -49,8 +49,22 @@ struct NowPlayingScreen: View {
     @State private var scrubMap: ReaderScrubMap?
     @State private var scrubPreview: Int?
     @State private var scrollRequest: ReaderScrollRequest?
+    /// Compact width: the top group's Aa panel is open.
+    @State private var appearanceOpen = false
+
+    /// This showing has had something bound: losing it closes Listen, where opening with nothing
+    /// shows *Nothing Playing*.
+    @State private var hadSomethingBound = false
 
     var body: some View {
+        Group { screen }
+            .onChange(of: speech.nowPlaying != nil, initial: true) { _, bound in
+                if bound { hadSomethingBound = true }
+            }
+    }
+
+    @ViewBuilder
+    private var screen: some View {
         if let now = speech.nowPlaying {
             // Only the playing page's content: never the page before's, for a frame, on advance.
             let readerArticle = content?.key == now.articleKey ? content?.readerArticle : nil
@@ -62,23 +76,44 @@ struct NowPlayingScreen: View {
             .environment(\.sheetRisesOnAppear, shell.nowPlayingOpensAt == nil)
             .onChange(of: now.articleKey, initial: true) { _, key in load(key) }
             .task(id: ScrubMapKey(key: now.articleKey, count: speech.document.count)) { await buildScrubMap() }
-        } else {
-            // Nothing is bound (the page you heard was removed from the Library or deleted, or
-            // crash resume found nothing to play): nothing to show.
+        } else if hadSomethingBound {
+            // The page you heard was removed from the Library or deleted: nothing to show.
             Color.clear.onAppear(perform: shell.hideNowPlaying)
+        } else {
+            nothingPlaying
+        }
+    }
+
+    /// Listen opened with nothing bound and nothing played before: a cover like the player's,
+    /// pulled down the same way, from anywhere on it. *Open Library* closes it on the Library's home.
+    private var nothingPlaying: some View {
+        let palette = appearance.palette(accent: AppAppearance.shared.accent)
+        let onClose = { [shell, presentation = shell.nowPlayingPresentation] in
+            if let presentation { shell.nowPlayingDidClose(presentation) }
+        }
+        return Sheet(onDismiss: onClose, palette: palette, largePullTargets: sizeClass != .regular) {
+            EmptyState(String(localized: "Nothing Playing"),
+                       description: Text("Choose an article or book to listen to.")) {
+                AddToLibraryTiles(folder: nil)
+            }
+            .padding(.horizontal, Spacing.pageMargin)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("listenEmpty")
+        } content: {
+            EmptyView()
         }
     }
 
     private func player(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
         let palette = appearance.palette(accent: AppAppearance.shared.accent)
         let artwork = now.artwork.flatMap(UIImage.init(data:)).map(Image.init(uiImage:))
-        let compactCard = sizeClass == .regular ? nil : card(now, actions, artwork: artwork)
+        let regular = sizeClass == .regular
+        let onClose = { [shell, presentation = shell.nowPlayingPresentation] in
+            if let presentation { shell.nowPlayingDidClose(presentation) }
+        }
         return NowPlayingSheet(
-            showing: shell.readingShowing(
-                regular: sizeClass == .regular, close: .collapse(playingFromName(now, saved: actions.isSaved)),
-                onClose: { [shell, presentation = shell.nowPlayingPresentation] in
-                    if let presentation { shell.nowPlayingDidClose(presentation) }
-                }),
+            showing: regular ? .sheet(close: .collapse(playingFromName(now, saved: actions.isSaved)), onClose: onClose)
+                : .cover(onClose: onClose),
             playState: speech.playState(of: .article(now.articleKey)),
             showsJumpToAudio: !following && !now.isFinished,
             jumpDirection: spotSide,
@@ -86,17 +121,32 @@ struct NowPlayingScreen: View {
             onJumpToAudio: { following = true },
             palette: palette
         ) {
+            // The top bar is regular width's; compact Listen's header is the top group (⋯ holds ☝︎).
             TextAppearanceControl()
         } accessory: {
-            JumpModeButton(isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
+            IconButton(symbol: jumpMode ? Icons.jumpOn : Icons.jump,
+                       label: jumpMode ? Verbs.cancelPlayFromParagraph : Verbs.playFromParagraph,
+                       identifier: "listenJump", isOn: jumpMode) { withAnimation(Motion.snappy) { jumpMode.toggle() } }
                 .disabled(speech.document.isEmpty)
         } banner: {
-            if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
+            VStack(spacing: 0) {
+                if !regular {
+                    ReadingTopGroup(menu: menuBlocks(now, actions), menuID: "listenMore", appearanceOpen: $appearanceOpen,
+                                    save: actions.readingSave(identifier: "nowPlayingBookmark",
+                                                              isEnabled: actions.readerArticle != nil),
+                                    carriesGrabber: true)
+                }
+                if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
+            }
         } text: {
             text(now, readerArticle: actions.readerArticle)
         } band: {
-            PlayheadReader(speech: speech) { spot in
-                bandContent(now: now, actions: actions, palette: palette, artwork: artwork, spot: spot)
+            if regular {
+                PlayheadReader(speech: speech) { spot in
+                    bandContent(now: now, actions: actions, palette: palette, artwork: artwork, spot: spot)
+                }
+            } else {
+                card(now, actions)
             }
         } floating: {
             // The toast floats above the hairline.
@@ -105,46 +155,50 @@ struct NowPlayingScreen: View {
                 ShellToastLayer()
             }
         }
-        .chromeCard(compactCard)
     }
 
-    /// Compact width: the card the chrome draws above row 2, and ⋯'s row for ☝︎.
-    private func card(_ now: NowPlaying, _ actions: ArticleActions, artwork: Image?) -> ChromeCard {
-        let view = PlayheadReader(speech: speech) { spot in
+    /// Compact width: the player card at Listen's foot.
+    private func card(_ now: NowPlaying, _ actions: ArticleActions) -> some View {
+        PlayheadReader(speech: speech) { spot in
             let doc = speech.document
             let rate = speech.rateMultiplier
             let left = ListeningTime.minutesLeft(in: doc, fromUTF16Offset: spot.utf16Offset, rate: rate)
             let source = ArticleRowTitle.lineTwoSource(title: now.title, source: now.source)
-            let note = NowPlayingControls.note(of: speech, detectedLanguage: speech.sessionDetectedLanguage)
+            let note = NowPlayingControls.note(of: speech)
             ReaderPlayerCard(
                 title: now.lineOne,
                 detail: note.map { [$0] } ?? (now.isFinished ? [String(localized: "Finished")]
                     : [source, left > 0 ? ListeningTime.leftLabel(minutes: left) : nil].compactMap { $0 }),
-                artwork: artwork, artworkLetter: now.artworkLetter, playState: speech.playState(of: .article(now.articleKey)),
-                canSkip: speech.canSkipToPreviousParagraph || speech.canSkipToNextParagraph,
-                onSkipBack: speech.skipToPreviousParagraph, onSkipForward: speech.skipToNextParagraph,
-                onPlayPause: speech.pressNowPlaying,
-                onPlayLongPress: developer.isEnabled ? { shell.present(.listenDebug) } : nil,
                 origin: actions.cardOrigin(title: now.lineOne)
             ) {
-                VoiceChromeButton(identifier: "nowPlayingVoice") { shell.present(.voice(.article(now.articleKey))) }
-            } save: {
-                SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
-                                 onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder, round: true)
-                    .disabled(actions.readerArticle == nil)
-            } scrub: {
                 playerScrub(spot: spot) { EmptyView() }
-            } appearance: {
-                TextAppearanceControl(arrowEdge: .bottom)
-            } speed: {
-                SpeedButton(speech: speech, round: true)
+            } transport: {
+                ListenTransportView(size: .card, speech: speech)
+            } leading: {
+                IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "nowPlayingVoice", round: false) {
+                    shell.present(.voice(.article(now.articleKey)))
+                }
+                .playerCardTool()
+            } trailing: {
+                SpeedButton(speech: speech)
+                    .playerCardTool()
             }
         }
-        let jump = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
-                           availability: MenuAvailability(when: !speech.document.isEmpty)) {
-            withAnimation(Motion.snappy) { jumpMode.toggle() }
+    }
+
+    /// Compact width's ⋯ (the top group's): the page's rows at `.nowPlaying` (`ArticleMenu`, its save
+    /// group first), each block a section, then Listen's own *Play from a Paragraph* (compact Listen
+    /// has no top bar for ☝︎).
+    private func menuBlocks(_ now: NowPlaying, _ actions: ArticleActions) -> [[MenuRow]] {
+        var facts = MenuRegistry.Facts()
+        facts.canJumpToParagraph = !speech.document.isEmpty
+        let screen = MenuContext.screenRows(at: .nowPlaying, facts: facts, shell: shell) { option in
+            guard option == .playFromParagraph else { return nil }
+            return MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump) {
+                withAnimation(Motion.snappy) { jumpMode.toggle() }
+            }
         }
-        return ChromeCard(content: AnyView(view), menuRows: [jump])
+        return ArticleMenu(actions: actions, place: .nowPlaying(actions.goTo(now))).blocks + [screen]
     }
 
     /// The integrated bottom band: title + Voice (trailing), scrub, notes, transport — all flat on
@@ -180,7 +234,7 @@ struct NowPlayingScreen: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 // Voice, aligned right of the title (⋯ › Voice / Settings › Voice's same picker).
-                VoiceChromeButton(identifier: "nowPlayingVoice") {
+                IconButton(symbol: Icons.voice, label: Verbs.voice, identifier: "nowPlayingVoice") {
                     shell.present(.voice(.article(now.articleKey)))
                 }
             }
@@ -189,15 +243,14 @@ struct NowPlayingScreen: View {
             playerScrub(spot: spot) { SpeedButton(speech: speech) }
 
             // Notes (buffering, language, etc.)
-            NowPlayingControls(speech: speech, detectedLanguage: speech.sessionDetectedLanguage)
+            NowPlayingControls(speech: speech)
 
             // Transport: [🔖] [⏮] (⏸) [⏭] [⋯]
             ListenTransportView(
                 leading: AnyView(SaveToggleButton(isSaved: actions.isSaved, identifier: "nowPlayingBookmark",
                                                    onToggle: actions.toggleSaved, onSaveToFolder: actions.saveToFolder)
                     .disabled(actions.readerArticle == nil)),
-                // Compact width: the chrome's ⋯ (`ReadingPageMoreButton`) is the page's menu.
-                trailing: sizeClass == .regular ? AnyView(ReadingPageMoreButton(id: "nowPlayingMore")) : nil,
+                trailing: AnyView(ReadingPageMoreButton(id: "nowPlayingMore")),
                 speech: speech
             )
         }
@@ -218,13 +271,12 @@ struct NowPlayingScreen: View {
                     if let p { scrollRequest = ReaderScrollRequest(index: p, token: (scrollRequest?.token ?? 0) + 1) }
                 },
                 onScrubCommit: seek(to:),
-                trailing: trailing,
-                isCapsule: false
+                trailing: trailing
             )
         } else {
             // Placeholder: keeps height stable until scrub map builds.
             HStack(spacing: 0) {
-                Color.clear.frame(height: BottomChrome.fieldControlSize)
+                Color.clear.frame(height: Control.small)
                     .frame(maxWidth: .infinity)
                 trailing()
             }
@@ -243,8 +295,7 @@ struct NowPlayingScreen: View {
     /// Lighter "buffered" fill: stretches of rendered audio, as scrubber fractions.
     private func bufferedSpans(_ map: ReaderScrubMap) -> [ClosedRange<Double>] {
         guard let id = speech.activeSessionID,
-              let ready = speech.bakeReadyParagraphIndices(articleID: id, paragraphCount: speech.document.count,
-                                                           detectedLanguage: speech.sessionDetectedLanguage),
+              let ready = speech.bakeReadyParagraphIndices(articleID: id, paragraphCount: speech.document.count),
               !ready.isEmpty else { return [] }
         return map.spans(covering: ready)
     }
@@ -262,13 +313,12 @@ struct NowPlayingScreen: View {
     private func text(_ now: NowPlaying, readerArticle: ReaderArticle?) -> some View {
         if let html = readingHTML(now, readerArticle: readerArticle) {
             SpokenText(speech: speech, html: html,
-                       heading: ReaderHeading(title: readerArticle?.title ?? now.title, detail: [], titleHidden: true),
-                       spoken: true, document: speech.document,
+                       heading: ReaderHeading(title: readerArticle?.title ?? now.title, detail: [], titleHidden: false),
                        finished: now.isFinished, isChapter: now.isChapter, scrubMap: scrubMap,
                        scrubPreview: scrubPreview,
                        jumpMode: jumpMode, scrollRequest: scrollRequest, follows: following,
                        opensAt: shell.nowPlayingOpensAt,
-                       onUserScroll: { following = false }, onSpotSide: { spotSide = $0 }, onTap: jump(to:), onOpenLink: shell.navigate(to:),
+                       onUserScroll: { following = false }, onSpotSide: { spotSide = $0 }, onTap: jump(to:), onOpenLink: { shell.navigate(to: $0) },
                        onPlaySelection: playFromSelection)
         } else {
             appearance.palette(accent: AppAppearance.shared.accent).background

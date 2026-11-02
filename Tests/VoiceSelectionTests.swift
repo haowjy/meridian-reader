@@ -7,10 +7,10 @@ final class VoiceSelectionTests: XCTestCase {
         let kokoro = VoiceSelection(engine: .kokoro, voice: "af_heart")
         XCTAssertEqual(kokoro.stored, "local.kokoro/af_heart")
         XCTAssertEqual(VoiceSelection(stored: kokoro.stored), kokoro)
-        let apple = VoiceSelection(stored: "apple/com.apple.voice.premium.en-US.Ava")
-        XCTAssertEqual(apple?.engine, .apple)
-        XCTAssertEqual(apple?.voice, "com.apple.voice.premium.en-US.Ava")
-        XCTAssertEqual(VoiceSelection(stored: "apple/")?.voice, "")
+        let phonon = VoiceSelection(stored: "local.phonon/Zoey")
+        XCTAssertEqual(phonon?.engine, .phonon)
+        XCTAssertEqual(phonon?.voice, "Zoey")
+        XCTAssertEqual(VoiceSelection(stored: "local.phonon/")?.voice, "")
         // A C138 cache voice key has no engine: not a selection (the C138a migration converts it).
         XCTAssertNil(VoiceSelection(stored: "kokoro.af_heart"))
     }

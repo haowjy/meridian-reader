@@ -8,8 +8,6 @@ enum RegularLayout {
     static let sidebarWidth: CGFloat = 280
     /// Serif body column in the Reader (~34–40 em at body size).
     static let readableMeasure: CGFloat = 700
-    /// Voice / Settings inset form sheet width (~540–640 pt).
-    static let formSheetWidth: CGFloat = 600
     /// Clustered player dock max width inside the main pane (not edge-stretched).
     static let playerClusterWidth: CGFloat = 520
 }

@@ -9,7 +9,7 @@ import Foundation
 extension LibraryStore {
     /// The folder's pages in play order, skipped ones included. A link page in a followed story
     /// (`FolderKind.series`) is a chapter waiting for its text, which playback stops before; a link
-    /// anywhere else is skipped (a favorite is an address, and nothing fetches it for playback).
+    /// anywhere else is skipped (a saved address, which nothing fetches for playback).
     func chapterSnapshot(of folder: Folder) -> [ChapterAdvance.Chapter] {
         chapterSnapshot(articles(in: folder))
     }

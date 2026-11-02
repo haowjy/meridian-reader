@@ -7,33 +7,37 @@ import SwiftUI
 ///    2 folders   3 articles
 /// ▣  Pride and Prejudice                         ⋯   book: its place and time left
 ///    Ch 24   6 h 10 min left                ◐  ⋯   (the listening column: ◐ part-way)
-/// ▣ Coupon Basics                             ●  ⋯   page, prepared: the accent filled ↓ badge;
-/// ▣ ↓ example.com   Finished                          ● the same ring, full
+/// ▣ Coupon Basics                             ●  ⋯   page, prepared: ●↓ before line two;
+/// ▣ ●↓ example.com   Finished                          ● the same ring, full
 /// ▣̲ Seven-Day Yield                          ▂▅▇ ⋯   page, playing and preparing: tinted,
-/// ▣ Playing                                           bars; the prepare mark before line two (C102)
+/// ▣ ◔ Playing                                         bars; the prepare's ring before line two (C102)
+/// 🔗 Chapter 26                                    ⋯   a chapter waiting for its text: the arc
+///    ◜ Waiting
 /// 🔗 serials.example.com                              link: lighter
 /// ```
 ///
 /// The row draws; tapping it is the caller's (a `NavigationLink` behind it, `opensOnTap`). A
 /// page's row is exactly two lines: its title on one line (truncated), then one line of what it
-/// is and where it stands; its thumbnail is as tall as the two lines. The second line's parts are
+/// is and where it stands; its thumbnail is as tall as the two lines. At the accessibility sizes
+/// the title runs the row's width on up to three lines, over the thumbnail, line two and the ⋯. The second line's parts are
 /// spaced apart, never joined by a separator: the first in secondary ink, the rest in tertiary,
 /// the status in the accent while it is what you hear ("Playing", "Paused"). The leading parts
 /// give way first, and at accessibility sizes the status shows alone.
 ///
 /// Its listening mark stands in a fixed-width column at the trailing edge, just before the
-/// accessory and the ⋯ (`Glyph.listeningColumn`), so every row's ring lines up: a ring part-way,
+/// accessory and the ⋯ (`Glyph.regular`), so every row's ring lines up: a ring part-way,
 /// the same ring full once finished, the bars while it is what you hear, and nothing (the column
 /// kept, so nothing shifts) before it starts. Line two keeps the words ("18 min", "6 min left",
 /// "Finished", "Playing"). Rows with no listening (a folder with its count, a book preview's
 /// chapter, `showsListening` false: browser visits, prepared audio) have no column.
 ///
-/// Its prepare (`prepare`) shows on the row itself, never as a button: preparing dims the
-/// small ↓ filling before line two (grey while paused; C102), prepared puts a accent filled ↓ before the second
-/// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is centred on the
-/// toolbar's ⋯ slot like the Now Playing bar's ⏸; a row with a control of its own (a prepare's
-/// pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
-/// whatever leads it.
+/// Its prepare (`prepare`) or a link page's fetch (`download`) shows on the row itself, never as a
+/// button: a `DownloadMark` as tall as the text before line two, the app's one download look (the
+/// spinning arc while it waits, the ring filling while it renders, grey while paused, ●↓ once
+/// prepared; C102). The trailing ⋯ (`menu`, the same menu as the row's long press) is in the row's accessory slot
+/// (`RowMetrics`: its glyph ends where every card's text does); a row with a control of its own (a
+/// prepare's pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
+/// whatever leads it. Its height is a two-line row's (`RowMetrics`), in Edit and out (C123).
 ///
 /// A folder row under a dragged row that it takes (`isDropTarget`) is washed and outlined in the
 /// accent, with a selection tick as it lights up.
@@ -47,7 +51,7 @@ struct ListRow: View {
         case article(artwork: Image? = nil, letter: String)
         /// A chapter in a book's preview: its title alone, after an empty mark's width.
         case chapter
-        /// A page that is only an address so far (a link ☆ made, a chapter not fetched).
+        /// A page that is only an address so far (a saved address, a chapter not fetched).
         case link
     }
 
@@ -75,9 +79,11 @@ struct ListRow: View {
     var isDropTarget = false
     /// A dragged row would be placed beside this one, on this side: a line marks the place.
     var insertionEdge: VerticalEdge?
-    /// Where its prepare stands: the dimmed thumbnail while preparing, the ↓ badge once done.
+    /// Where its prepare stands: its `DownloadMark` before line two.
     var prepare: PrepareState = .notPrepared
-    var isFavorite = false
+    /// Where a link page's text stands while it is fetched or waits to be (a followed story's
+    /// chapter): its `DownloadMark` before line two, in the prepare's place.
+    var download: DownloadMark.State?
     var folderHasDetails = false
     /// The rows of its ⋯ menu, the same as its long press (nil: no ⋯, as in Edit).
     var menu: AnyView?
@@ -92,80 +98,41 @@ struct ListRow: View {
     /// browser visits, the Prepared Audio list).
     var showsListening = true
 
-    /// `RowHeight.content` at the default text size; larger text grows the row through its
-    /// content, and the minimum only up to `BottomChrome.maxTextGrowth`.
-    @ScaledMetric(relativeTo: .callout) private var scaledMinHeight = RowHeight.content
     /// Space between the second line's parts: `Spacing.s`, growing with the caption.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var partSpacing = Spacing.s
     /// The two text lines' heights, scaled like their text: a page's thumbnail matches them.
     @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var titleLineHeight = TypeStyle.row.lineHeight
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var captionLineHeight = TypeStyle.caption.lineHeight
-    /// The ⋯, scaled like a toolbar glyph (`moreGlyphSize`).
-    @ScaledMetric(relativeTo: .title3) private var scaledGlyph: CGFloat = ListRow.moreGlyphSize
     @Environment(\.dynamicTypeSize) private var typeSize
-    /// The row's width, for the trailing column's place (`trailingColumnPadding`).
-    @State private var width: CGFloat = 0
 
     var body: some View {
-        HStack(spacing: Spacing.s) {
-            // The title is the row's one VoiceOver element, its status the value (the rest is
-            // hidden); the ⋯ stays its own.
-            HStack(spacing: Spacing.s) {
-                prepareLeading
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: Spacing.xs) {
-                        Text(title)
-                            .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
-                            .foregroundStyle(titleColor)
-                            .lineLimit(1)
-                            .accessibilityValue(accessibilityStatus)
-                        if isFavorite {
-                            Image(systemName: Icons.favorited)
-                                .font(.caption)
-                                .foregroundStyle(Palette.accent)
+        Group {
+            if typeSize.isAccessibilitySize {
+                accessibilityLayout
+            } else {
+                HStack(spacing: Spacing.s) {
+                    HStack(spacing: RowMetrics.columnGap) {
+                        leading
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 0) {
+                            titleText
+                                .lineLimit(1)
+                            secondLine
                                 .accessibilityHidden(true)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // The separator under the row starts at the title, for every kind of row.
+                        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
                     }
-                    secondLine
-                        .accessibilityHidden(true)
+                    trailingControls
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                // The separator under the row starts at the title, for every kind of row.
-                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
-            }
-            if hasListeningColumn {
-                listeningMark
-                    .frame(width: Glyph.listeningColumn)
-                    .accessibilityHidden(true)
-            }
-            if let accessory {
-                accessory
-                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
-            }
-            if let menu {
-                Menu { menu } label: {
-                    Image(systemName: Icons.more)
-                        .font(.system(size: BottomChrome.grown(scaledGlyph, from: Self.moreGlyphSize), weight: .semibold))
-                        .foregroundStyle(Palette.secondaryInk)
-                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(Verbs.more)
-                .accessibilityIdentifier("rowMore")
-                .background { menuAnchor }
-            } else if let editHandle {
-                editHandle
             }
         }
         .background { if menu == nil { menuAnchor } }
-        .padding(.leading, Spacing.m)
-        .padding(.trailing, (menu != nil || editHandle != nil) ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
-        // One height in Edit and out (C123): the ⋯'s 44 pt square plus this padding is the 56 pt
-        // minimum, so a row doesn't shrink when Edit takes its ⋯ away.
-        .padding(.vertical, Self.verticalPadding)
-        .frame(minHeight: BottomChrome.grown(scaledMinHeight, from: RowHeight.content))
+        .padding(.leading, RowMetrics.edgeInset)
+        .padding(.trailing, (menu != nil || editHandle != nil) ? RowMetrics.accessoryTrailing : RowMetrics.edgeInset)
+        // A page's row is two lines in Edit and out (C123).
+        .rowHeight(lines: 2)
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
         .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
@@ -175,23 +142,67 @@ struct ListRow: View {
         .animation(Motion.standard, value: prepare)
         .sensoryFeedback(.selection, trigger: isDropTarget) { _, isTarget in isTarget }
         .sensoryFeedback(.selection, trigger: insertionEdge) { _, edge in edge != nil }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .accessibilityElement(children: .contain)
     }
 
-    /// The ⋯'s size at the default text size; it grows like a toolbar glyph.
-    static let moreGlyphSize: CGFloat = 20
+    /// At the accessibility sizes the title takes the row's whole width, up to three lines, and
+    /// the thumbnail, the second line and the trailing controls go on a line under it: beside them
+    /// a title would have room for a word or two.
+    private var accessibilityLayout: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            titleText
+                .lineLimit(RowMetrics.stackedTitleLines)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+            HStack(spacing: Spacing.s) {
+                leading
+                    .accessibilityHidden(true)
+                secondLine
+                    .accessibilityHidden(true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                trailingControls
+            }
+        }
+    }
 
-    /// Above and below the content: what the 44 pt ⋯ leaves of the 56 pt row (6 pt).
-    static let verticalPadding = (RowHeight.content - BottomChrome.minTapTarget) / 2
+    /// The title is the row's one VoiceOver element, its status the value (the rest is hidden); the
+    /// ⋯ stays its own.
+    private var titleText: some View {
+        Text(title)
+            .typeStyle(.row, weight: playState.isCurrent ? .semibold : .regular)
+            .foregroundStyle(titleColor)
+            .accessibilityValue(accessibilityStatus)
+    }
 
-    /// Trailing padding that centres the 44 pt trailing column on the toolbar's ⋯ slot, for a
-    /// row `rowWidth` wide in a list at the page margin: the toolbar row is wider by the
-    /// difference between the page and band margins on each side.
-    static func trailingColumnPadding(rowWidth: CGFloat) -> CGFloat {
-        guard rowWidth > 0 else { return Spacing.xxs }
-        let inset = Spacing.pageMargin - Spacing.bandMargin
-        return max(0, NowPlayingBar.trailingPadding(rowWidth: rowWidth + 2 * inset) - inset)
+    /// The listening column, the row's own control and the ⋯ (or Edit's handle).
+    @ViewBuilder
+    private var trailingControls: some View {
+        if hasListeningColumn {
+            listeningMark
+                .frame(width: Glyph.regular)
+                .accessibilityHidden(true)
+        }
+        if let accessory {
+            accessory
+                .rowAccessorySlot()
+        }
+        if let menu {
+            Menu { menu } label: {
+                Image(systemName: Icons.more)
+                    .glyphSize(Glyph.regular, weight: .semibold)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .frame(width: RowMetrics.accessorySlot, height: RowMetrics.accessorySlot)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .padding(.vertical, -RowMetrics.verticalInset)
+            .accessibilityLabel(Verbs.more)
+            .accessibilityIdentifier("rowMore")
+            .background { menuAnchor }
+        } else if let editHandle {
+            editHandle
+                .padding(.vertical, -RowMetrics.verticalInset)
+        }
     }
 
     /// The accent wash and outline of a drop target, inset so the outline clears the card's
@@ -220,8 +231,8 @@ struct ListRow: View {
                     .frame(height: Glyph.stroke)
             }
             // The ring just before the title, the line from the title's leading edge on.
-            .padding(.leading, Spacing.m + thumbnailSide + Spacing.s - Spacing.xs)
-            .padding(.trailing, Spacing.m)
+            .padding(.leading, RowMetrics.edgeInset - Spacing.xs + (typeSize.isAccessibilitySize ? 0 : thumbnailSide + RowMetrics.columnGap))
+            .padding(.trailing, RowMetrics.edgeInset)
             // Centred on the edge, half in this row and half in its neighbour's gap.
             .offset(y: (insertionEdge == .bottom ? 1 : -1) * Spacing.xs / 2)
             .allowsHitTesting(false)
@@ -239,8 +250,8 @@ struct ListRow: View {
 
     // MARK: - Second line
 
-    /// The ✓ badge once prepared, the subtitle, the note, then the status, spaced apart on one
-    /// line: "↓ example.org   4 min left" (the ring is the trailing column's). The subtitle and note give way first; at
+    /// The download mark, the subtitle, the note, then the status, spaced apart on one
+    /// line: "●↓ example.org   4 min left" (the listening ring is the trailing column's). The subtitle and note give way first; at
     /// accessibility sizes they are left out and the status truncates if it must, so the line
     /// never wraps or widens the row.
     @ViewBuilder
@@ -249,49 +260,32 @@ struct ListRow: View {
         // At accessibility sizes there is no room for both: the status alone (VoiceOver reads all).
         let leads = typeSize.isAccessibilitySize && status != nil ? []
             : [subtitle, note].compactMap { $0 } + details + (folderCount ?? [])
-        // A skipped chapter never plays, so it shows no prepared mark (C89).
-        let badged = prepare == .prepared && !isSkipped
-        let queued = prepare.isQueued
-        // Rendering now or paused: the small ↓ filling in the same slot (C102), never on the tile.
-        let filling = prepare.isPreparing && !queued
-        if !leads.isEmpty || status != nil || badged || queued || filling {
-            HStack(spacing: partSpacing) {
-                if filling {
-                    PrepareMark(state: prepare, size: statusMarkSize)
-                        .padding(.trailing, -partSpacing / 2)
-                        .transition(.opacity)
-                } else if queued {
-                    // Waiting its turn: a small spinner in the badge slot (C93).
-                    QueuedIndicator()
-                        .padding(.trailing, -partSpacing / 2)
-                        .transition(.opacity)
-                } else if badged {
-                    // Prepared: the accent filled ↓ before the line, as tall as its text (C97).
-                    Image(systemName: Icons.prepared)
-                        .foregroundStyle(Palette.accent)
-                        .padding(.trailing, -partSpacing / 2)
+        let mark = slotMark
+        if !leads.isEmpty || status != nil || mark != nil {
+            HStack(spacing: partSpacing / 2) {
+                if let mark {
+                    DownloadMark(state: mark.state, act: mark.act, size: statusMarkSize)
                         .transition(.opacity)
                 }
-                ForEach(Array(leads.enumerated()), id: \.offset) { index, text in
-                    Text(text)
-                        .foregroundStyle(index == 0 ? Palette.secondaryInk : Palette.tertiaryInk)
-                        .layoutPriority(index == 0 ? 0 : 1)
-                }
-                if let status {
-                    statusView(status, isLead: leads.isEmpty)
-                        .layoutPriority(2)
-                }
+                DetailLine(parts: leads.map { DetailPart($0) }
+                           + [status.map { DetailPart($0, isLit: playState.isCurrent) }].compactMap { $0 },
+                           wraps: false)
+                    .monospacedDigit()
             }
-            .lineLimit(1)
             .typeStyle(.caption)
         }
     }
 
-    private func statusView(_ status: String, isLead: Bool) -> some View {
-        Text(status)
-            .foregroundStyle(playState.isCurrent ? Palette.accent
-                             : isLead ? Palette.secondaryInk : Palette.tertiaryInk)
-            .monospacedDigit()
+    /// The `DownloadMark` before line two, as tall as its text: a link page's fetch (`download`),
+    /// else its prepare while it waits, renders or is paused, and ●↓ once prepared (a skipped
+    /// chapter never plays, so it shows none, C89). Nil before either starts.
+    private var slotMark: (state: DownloadMark.State, act: DownloadMark.Act)? {
+        if let download { return (download, .download) }
+        switch prepare {
+        case .notPrepared: return nil
+        case .prepared: return isSkipped ? nil : (prepare.mark, .prepare)
+        default: return (prepare.mark, .prepare)
+        }
     }
 
     /// The trailing listening column: a page's, a chapter's, a book's whose pages play. Not a
@@ -322,8 +316,8 @@ struct ListRow: View {
         case ring(Double)
     }
 
-    /// Bars while it is what you hear, a ring part-way and the same ring full once finished (rings
-    /// mean listening, nothing else; ✓ is selection's only).
+    /// Bars while it is what you hear, a ring part-way and the same ring full once finished (a ring
+    /// in this column is listening; a download's is before line two; ✓ is selection's only).
     private var statusMark: StatusMark? {
         if playState.isCurrent { return .bars }
         if case .partWay(let fraction, _) = progress { return .ring(fraction) }
@@ -383,16 +377,8 @@ struct ListRow: View {
         return Palette.ink
     }
 
-    /// The thumbnail, dimmed under the prepare's `PrepareMark` while it prepared audio (C90): the ↓
-    /// filling with its real progress while it renders now, grey while paused. Waiting its turn
-    /// leaves the tile alone: the spinner is in the badge slot (C93).
-    private var prepareLeading: some View {
-        // The tile is never covered or dimmed by a prepare (C102): its state is the line-two mark.
-        leading
-    }
-
     /// The line-two prepare mark's side: as tall as the caption text.
-    @ScaledMetric(relativeTo: .caption) private var statusMarkSize: CGFloat = 13
+    @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var statusMarkSize = Glyph.inline
 
     private var isSkipped: Bool {
         if case .skipped = progress { return true }
@@ -414,14 +400,14 @@ struct ListRow: View {
                             isCover: true, fill: Palette.chrome)
                     .frame(width: thumbnailSide, height: thumbnailSide)
             } else {
-                Image(systemName: symbol).tileSymbol().foregroundStyle(Palette.accent)
+                Image(systemName: symbol).glyphSize(Glyph.regular).foregroundStyle(Palette.accent)
                     .frame(width: thumbnailSide, height: thumbnailSide)
             }
         case .article(let artwork, let letter):
             ArtworkTile(image: artwork, letter: letter, size: thumbnailSide, fill: Palette.paper)
         case .chapter:
             Color.clear
-                .frame(width: Glyph.mark, height: Glyph.mark)
+                .frame(width: Glyph.regular, height: Glyph.regular)
         case .link:
             Image(systemName: Icons.link)
                 .foregroundStyle(Palette.secondaryInk)
@@ -430,32 +416,10 @@ struct ListRow: View {
     }
 
     /// A page's thumbnail: as tall as its two lines of text, growing with them only up to
-    /// `BottomChrome.maxTextGrowth` so the title keeps room at the largest sizes.
+    /// `Control.maxTextGrowth` so the title keeps room at the largest sizes.
     private var thumbnailSide: CGFloat {
         let base = TypeStyle.row.lineHeight + TypeStyle.caption.lineHeight
-        return BottomChrome.grown(titleLineHeight + captionLineHeight, from: base)
-    }
-}
-
-/// A small progress ring: how far through a part-way page or chapter.
-struct ProgressRing: View {
-    let fraction: Double
-    var size: CGFloat = Glyph.ring
-
-    @Environment(\.readingPalette) private var reading
-
-    var body: some View {
-        ZStack {
-            Circle().stroke(reading?.track ?? Palette.track, lineWidth: Glyph.stroke)
-            Circle()
-                // Never a sliver: a few percent in reads as a spinner's arc (C102); the arc starts at
-                // a solid dot-sized wedge, and the full track always shows round it.
-                .trim(from: 0, to: fraction > 0 ? min(max(0.1, fraction), 1) : 0)
-                .stroke(reading?.accent ?? Palette.accent, style: StrokeStyle(lineWidth: Glyph.stroke, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-        }
-        .frame(width: size, height: size)
-        .accessibilityHidden(true)
+        return Control.grown(titleLineHeight + captionLineHeight, from: base)
     }
 }
 
@@ -467,7 +431,7 @@ struct ListRowGallery: View {
         PreviewGallery {
             PreviewState("folder") {
                 ListRow(kind: .folder(count: ["4 pages"]), title: "Bonds", menu: menu)
-                ListRow(kind: .folder(symbol: Icons.favorited, count: ["12 pages"]), title: "Favorites", menu: menu)
+                ListRow(kind: .folder(symbol: Icons.folder, count: ["12 pages"]), title: "Reading list", menu: menu)
                 ListRow(kind: .folder(count: ["Empty"], cover: Image(systemName: Icons.photo)), title: "A book with a cover",
                         menu: menu)
             }
@@ -521,7 +485,8 @@ struct ListRowGallery: View {
             }
             PreviewState("link, and a link chapter waiting for its text") {
                 ListRow(kind: .link, title: "investing.example.com", menu: menu)
-                ListRow(kind: .link, title: "Chapter 26", subtitle: "not fetched yet", note: "Waiting", menu: menu)
+                ListRow(kind: .link, title: "Chapter 26", note: "Waiting", download: .waiting, menu: menu)
+                ListRow(kind: .link, title: "Chapter 27", note: "Trying again in 1:52", download: .waiting, menu: menu)
             }
         }
     }

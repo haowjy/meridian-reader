@@ -1,46 +1,49 @@
 import SwiftUI
 
-/// A prepare's menu: the one definition the Prepared Audio list's rows show from their ⋯ and their
-/// long press, the same rows in every section. Which options show and greyed or not is
-/// `MenuRegistry`'s (C98): *Prepare Again* (grey while queued), *Keep* (grey unless its audio is in
-/// another voice than prepared audio now use), *Remove Prepare(s)* (red). No *Pause* / *Resume*: the
-/// row's ↓ mark does that.
-///
-/// Every row is a page (C110): *Prepare Again* renders that page again, *Keep* keeps the voice of the
-/// prepare it came from, and *Remove Prepare* (the row's swipe too) is the page's own, as in its
-/// menu (`PrepareCenter.deletePrepared audio(of:)`). A folder's prepare is turned off on its screen.
+/// A prepared article's menu: Prepare Again, then Delete Audio. Audio made only by listening
+/// has Delete Audio alone, disabled while playback needs it. Both actions come from the registry.
 struct PrepareMenu: View {
     let item: PrepareArticles.Item
     let preparedAudio: PrepareCenter
     let library: LibraryStore
     /// A From Listening row: only *Delete Audio* (C135).
     var isListeningAudio = false
-    /// Listening needs this audio now (the playing article): *Delete Audio* leaves it.
+    /// Listening needs this audio now (the playing article): *Delete Audio* is dimmed.
     var needsAudio: (UUID) -> Bool = { _ in false }
 
     var body: some View {
         MenuRows(rows)
     }
 
-    var rows: [MenuRow] {
-        let key = item.key
+    private var facts: MenuRegistry.Facts {
         var facts = MenuRegistry.Facts()
         facts.isQueued = item.status.fraction != nil
         facts.isListeningAudio = isListeningAudio
+        facts.audioInUse = isListeningAudio && needsAudio(item.key)
+        return facts
+    }
+
+    var rows: [MenuRow] {
+        let key = item.key
         return MenuRegistry.rows(.prepare, at: .preparedAudio, facts) { option in
             switch option {
             case .reprepare:
                 return MenuRow(id: "menuReprepare", title: Verbs.reprepare, icon: Icons.reprepare) { preparedAudio.reprepare(article: key) }
-            default:
+            case .removePrepare:
                 return removeRow
+            default:
+                preconditionFailure("No prepare row for \(option)")
             }
         }
     }
 
-    /// *Remove Prepare* for a page, *Remove Prepared audio* for a folder, as their own menus say; the
-    /// row's swipe too.
+    /// *Delete Audio*, the row's swipe too (*Delete* there), dimmed while playback needs the audio
+    /// (the registry's availability, so the menu and the swipe agree).
     var removeRow: MenuRow {
-        MenuRow(id: "menuDeleteAudio", title: Verbs.deleteAudio, icon: Icons.delete, isDestructive: true) {
+        let availability = MenuRegistry.entries(.prepare, at: .preparedAudio, facts)
+            .first { $0.option == .removePrepare }?.availability ?? .enabled
+        var row = MenuRow(id: "menuDeleteAudio", title: Verbs.deleteAudio, icon: Icons.delete, isDestructive: true,
+                          availability: availability) {
             if isListeningAudio {
                 // Only the audio; the article stays (C135).
                 if !needsAudio(item.key), let article = library.article(key: item.key) { library.deletePreparedAudio(article) }
@@ -50,5 +53,7 @@ struct PrepareMenu: View {
                 preparedAudio.remove(item.recordID)
             }
         }
+        row.swipeTitle = Verbs.delete
+        return row
     }
 }

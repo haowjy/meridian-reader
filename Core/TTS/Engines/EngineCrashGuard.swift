@@ -3,18 +3,20 @@ import Foundation
 import UIKit
 #endif
 
-/// Containment for engines that can die *uncatchably* inside a model call (Kokoro: libBNNS
-/// SIGSEGV on iOS 26.4+, FluidAudio #844/#817; reproduced on an iPhone 17 Pro).
+/// Containment for engines that can die *uncatchably* inside a model call (a Core ML call can
+/// SIGSEGV in libBNNS on iOS 26.4+, FluidAudio #844/#817, reproduced on an iPhone 17 Pro; an ONNX
+/// Runtime call can crash too).
 ///
-/// Before every guarded call we durably write an "in flight" marker (`Data.write(.atomic)`, not
-/// UserDefaults, which may never reach disk before the process dies), with the engine, route,
-/// article, paragraph, app phase and memory footprint. It is removed when the call returns
-/// (success or Swift error), so it exists only while a call is in flight. A process that is
-/// terminated (`willTerminateNotification`: a swipe-kill of the running app) clears it and writes
-/// no other. At launch a marker left behind means the previous process died during a call, and
-/// `consumeCrashInfo` says whether the engine killed it (`MarkerVerdict`); only then does the
-/// coordinator switch away and tell the user. Which engines are guarded comes from
-/// `OnDeviceTraits.crashNotice`.
+/// Before every guarded call we durably write an "in flight" marker of its own
+/// (`engine_inflight/<call id>.json`, `Data.write(.atomic)`, not UserDefaults, which may never
+/// reach disk before the process dies), with the engine, route, article, paragraph, app phase and
+/// memory footprint. It is removed when that call returns (success or Swift error), so it exists
+/// only while the call is in flight. A process that is terminated (`willTerminateNotification`: a
+/// swipe-kill of the running app) clears them all and writes no other. At launch a marker left
+/// behind means the previous process died during a call, and `consumeCrashInfo` says whether the
+/// engine killed it (`MarkerVerdict`); only then does the coordinator recover (`CrashRecovery`)
+/// and tell the user. Two or more engine-crash markers can't say which call it was
+/// (`ambiguous`). Which engines are guarded comes from `OnDeviceTraits.isCrashGuarded`.
 final class EngineCrashGuard: @unchecked Sendable {
     let directory: URL
     private let lock = NSLock()
@@ -43,7 +45,10 @@ final class EngineCrashGuard: @unchecked Sendable {
         if let terminateObserver { NotificationCenter.default.removeObserver(terminateObserver) }
     }
 
-    private var inflightURL: URL { directory.appendingPathComponent("engine_inflight.json") }
+    /// One marker per call in flight.
+    private var inflightDirectory: URL { directory.appendingPathComponent("engine_inflight", isDirectory: true) }
+    /// The single marker an earlier build wrote; read at launch as one more.
+    private var legacyInflightURL: URL { directory.appendingPathComponent("engine_inflight.json") }
     private var crashesURL: URL { directory.appendingPathComponent("engine_crashes.json") }
 
     /// What the previous process was doing when it died.
@@ -61,6 +66,9 @@ final class EngineCrashGuard: @unchecked Sendable {
         var footprintMB: Int? = nil
         /// `EngineCrashGuard.buildStamp` of the process that wrote the marker; nil in older ones.
         var build: String? = nil
+        /// Several calls were in flight when it died, each an engine crash by its own marker: it
+        /// can't say which one did it (this is the latest). No provider recovers from it.
+        var isAmbiguous = false
 
         /// Whether the engine killed the process. `lastActivity`: the latest time the previous
         /// process is known to have been playing (`ListenResumePointStore`).
@@ -84,10 +92,16 @@ final class EngineCrashGuard: @unchecked Sendable {
         case stale
         /// Another build wrote it: an install replaced the app mid-call (C129).
         case reinstalled
+        /// Several markers each read as an engine crash: which call killed it is unknown, so it
+        /// pauses for Retry.
+        case ambiguous
     }
 
+    /// Writes the call's marker; `endCall` with the returned id removes it.
+    @discardableResult
     func beginCall(engine: SpeechEngineID, chars: Int, route: String? = nil, article: UUID? = nil,
-                   paragraph: Int? = nil, phase: AppRunState.Phase = .active) {
+                   paragraph: Int? = nil, phase: AppRunState.Phase = .active) -> UUID {
+        let call = UUID()
         var obj: [String: Any] = [
             "t": Date().timeIntervalSince1970, "engine": engine.rawValue, "chars": chars, "phase": phase.rawValue,
             "mem_mb": ProcessMemory.footprintMB,
@@ -96,57 +110,79 @@ final class EngineCrashGuard: @unchecked Sendable {
         if let route { obj["route"] = route }
         if let article { obj["article"] = article.uuidString }
         if let paragraph { obj["p"] = paragraph }
-        guard let data = try? JSONSerialization.data(withJSONObject: obj) else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: obj) else { return call }
         lock.withLock {
             guard !terminating else { return }
-            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try? data.write(to: inflightURL, options: .atomic)
+            try? FileManager.default.createDirectory(at: inflightDirectory, withIntermediateDirectories: true)
+            try? data.write(to: markerURL(call), options: .atomic)
         }
+        return call
     }
 
-    func endCall() {
-        lock.withLock { try? FileManager.default.removeItem(at: inflightURL) }
+    func endCall(_ call: UUID) {
+        lock.withLock { try? FileManager.default.removeItem(at: markerURL(call)) }
+    }
+
+    private func markerURL(_ call: UUID) -> URL {
+        inflightDirectory.appendingPathComponent("\(call.uuidString).json")
     }
 
     /// The process is being terminated (a swipe-kill while it runs): a call it ends isn't a
-    /// crash, so the marker goes, and no call writes another.
+    /// crash, so the markers go, and no call writes another.
     func processWillTerminate() {
         lock.withLock {
             terminating = true
-            try? FileManager.default.removeItem(at: inflightURL)
+            for url in markerURLs() { try? FileManager.default.removeItem(at: url) }
         }
+    }
+
+    /// Every marker on disk: one per call in flight, and an earlier build's single one.
+    private func markerURLs() -> [URL] {
+        let fm = FileManager.default
+        let calls = (try? fm.contentsOfDirectory(at: inflightDirectory, includingPropertiesForKeys: nil)) ?? []
+        return calls.filter { $0.pathExtension == "json" } + (fm.fileExists(atPath: legacyInflightURL.path) ? [legacyInflightURL] : [])
     }
 
     /// Call once at launch: what the previous process was doing when the engine killed it
     /// inside a call (the engine, route, article and paragraph, for auto-recover), or nil. A
-    /// marker the engine didn't cause (`MarkerVerdict`) is logged and dropped.
+    /// marker the engine didn't cause (`MarkerVerdict`) is logged and dropped; two or more it did
+    /// are one ambiguous crash (the latest marker's, `isAmbiguous`).
     func consumeCrashInfo(lastActivity: Date? = nil) -> CrashInfo? {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: inflightURL.path) else { return nil }
-        let info = (try? Data(contentsOf: inflightURL)).flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any]
-        try? fm.removeItem(at: inflightURL)
-        let engine = (info?["engine"] as? String).map(SpeechEngineID.init(rawValue:))
-        let result = Self.crashInfo(from: info ?? [:], engine: engine)
-        var fields: [String: Any] = [
-            "engine": engine?.rawValue ?? "?", "last_chars": info?["chars"] ?? -1,
-            "route": info?["route"] ?? "legacy", "key": result.articleKey.map { String($0.prefix(8)) } ?? "",
-            "p": result.paragraph ?? -1, "phase": result.phase ?? "?", "mem_mb": result.footprintMB ?? -1,
-        ]
-        let verdict = result.verdict(lastActivity: lastActivity)
-        fields["verdict"] = verdict.rawValue
-        if let lastActivity { fields["activity_after_s"] = Int(lastActivity.timeIntervalSince(result.at)) }
-        guard verdict == .engineCrash else {
-            ListenTimingLog.log("engine_marker_dismissed", fields)
-            return nil
+        let urls = lock.withLock { markerURLs() }
+        var crashes: [(info: [String: Any], crash: CrashInfo, fields: [String: Any])] = []
+        for url in urls {
+            let info = (try? Data(contentsOf: url)).flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any] ?? [:]
+            try? FileManager.default.removeItem(at: url)
+            let engine = (info["engine"] as? String).map(SpeechEngineID.init(rawValue:))
+            let result = Self.crashInfo(from: info, engine: engine)
+            var fields: [String: Any] = [
+                "engine": engine?.rawValue ?? "?", "last_chars": info["chars"] ?? -1,
+                "route": info["route"] ?? "legacy", "key": result.articleKey.map { String($0.prefix(8)) } ?? "",
+                "p": result.paragraph ?? -1, "phase": result.phase ?? "?", "mem_mb": result.footprintMB ?? -1,
+            ]
+            let verdict = result.verdict(lastActivity: lastActivity)
+            fields["verdict"] = verdict.rawValue
+            if let lastActivity { fields["activity_after_s"] = Int(lastActivity.timeIntervalSince(result.at)) }
+            guard verdict == .engineCrash else {
+                ListenTimingLog.log("engine_marker_dismissed", fields)
+                continue
+            }
+            crashes.append((info, result, fields))
+        }
+        guard var latest = crashes.max(by: { $0.crash.at < $1.crash.at }) else { return nil }
+        if crashes.count > 1 {
+            latest.crash.isAmbiguous = true
+            latest.fields["verdict"] = MarkerVerdict.ambiguous.rawValue
+            latest.fields["markers"] = crashes.count
         }
         let count = crashCount + 1
-        fields["count"] = count
-        let record: [String: Any] = ["count": count, "last": info ?? [:], "at": Date().timeIntervalSince1970]
+        latest.fields["count"] = count
+        let record: [String: Any] = ["count": count, "last": latest.info, "at": Date().timeIntervalSince1970]
         if let data = try? JSONSerialization.data(withJSONObject: record) {
             try? data.write(to: crashesURL, options: .atomic)
         }
-        ListenTimingLog.log("engine_crash_detected", fields)
-        return result
+        ListenTimingLog.log("engine_crash_detected", latest.fields)
+        return latest.crash
     }
 
     /// A marker's fields; an older marker names the article and paragraph in its `ctx`.
@@ -176,16 +212,6 @@ final class EngineCrashGuard: @unchecked Sendable {
         return "\(size.intValue)-\(Int(date.timeIntervalSince1970))"
     }()
 
-    /// Last recorded crash (from `engine_crashes.json`), e.g. for a provider's launch step.
-    var lastCrash: CrashInfo? {
-        guard let data = try? Data(contentsOf: crashesURL),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let last = obj["last"] as? [String: Any], !last.isEmpty
-        else { return nil }
-        let engine = (last["engine"] as? String).map(SpeechEngineID.init(rawValue:))
-        return Self.crashInfo(from: last, engine: engine)
-    }
-
     var crashCount: Int {
         guard let data = try? Data(contentsOf: crashesURL),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -196,30 +222,19 @@ final class EngineCrashGuard: @unchecked Sendable {
 
 /// What to do after the previous process died inside an engine's call (a provider's answer to
 /// `SpeechEngineProvider.recover(from:playing:)`).
+/// The engine and voice always stay (C129: never another engine or voice).
 enum CrashRecovery: Equatable {
-    /// Keep the engine selected, show `notice` (nil: a silent same-voice recovery, C129), and
-    /// reopen `resume` when there is one.
-    case stay(notice: String?, resume: ListenResumeTarget?)
-    /// Keep the engine and voice selected; the render queue (downloads, render-ahead) waits for
-    /// Retry, playback goes on through rendered audio and pauses where there is none, showing
-    /// `notice` then (C129: never fall to another engine or voice).
-    case pauseForRetry(notice: String, resume: ListenResumeTarget?)
-    /// Switch to `EngineRegistry.crashFallback` and show `notice`; picking the crashed engine
-    /// again is a fresh try.
-    case switchAway(notice: String)
-
-    var notice: String? {
-        switch self {
-        case .stay(let notice, _): return notice
-        case .pauseForRetry: return nil // shown only once playback reaches unrendered audio
-        case .switchAway(let notice): return notice
-        }
-    }
+    /// Go on as before, silently (the same voice and its cached audio, so nothing the user hears
+    /// changes), and reopen `resume` when there is one.
+    case stay(resume: ListenResumeTarget?)
+    /// The render queue (downloads, render-ahead) waits for Retry; playback goes on through
+    /// rendered audio and pauses where there is none, and the user is told then ("Kokoro
+    /// stopped.", with Retry).
+    case pauseForRetry(resume: ListenResumeTarget?)
 
     var resume: ListenResumeTarget? {
         switch self {
-        case .stay(_, let resume), .pauseForRetry(_, let resume): return resume
-        case .switchAway: return nil
+        case .stay(let resume), .pauseForRetry(let resume): return resume
         }
     }
 }

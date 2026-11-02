@@ -1,17 +1,5 @@
 import SwiftUI
 
-/// Aa: opens the text appearance panel. A round field control (36 pt, 44 pt to tap) in both
-/// sheets' top bars, just left of ☝︎, on the card fill, the highlight while its panel is open.
-struct TextAppearanceButton: View {
-    let isOpen: Bool
-    let action: () -> Void
-
-    var body: some View {
-        RoundIconButton(symbol: Icons.textAppearance, label: "Text Appearance",
-                        identifier: "textAppearanceButton", isOn: isOpen, action: action)
-    }
-}
-
 /// How the page reads, changed live under it: the reading theme, the typeface, the text size, the
 /// line spacing and Scroll or Pages. Shown by Aa on the Reader and Now Playing, and by
 /// Settings › Reading, via the shared `ReadingAppearancePanel` wrapper (same store, same controls).
@@ -175,8 +163,9 @@ struct SwatchPicker<Option: Identifiable & Hashable, Face: View>: View {
 
 /// A choice among a few options: equal segments on a card capsule, the chosen one on the page
 /// colour with its label in ink, the others in secondary ink. One line while every label fits
-/// whole; otherwise the segments go in rows (half as many to a row, then a third, … one), so a
-/// label never shrinks or truncates while a narrower arrangement would show it whole.
+/// whole; otherwise the segments go in full rows (6 → 3 + 3, 2 + 2 + 2, then one to a row; 3 → one
+/// to a row, never 2 + 1), so a label never shrinks or truncates while a narrower arrangement would
+/// show it whole.
 struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
     let options: [Option]
     @Binding var selection: Option
@@ -187,14 +176,9 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
     @Environment(\.readingPalette) private var reading
     @ScaledMetric(relativeTo: .callout) private var height: CGFloat = 40
 
-    /// How many segments to a row, widest arrangement first: 6 → 6, 3, 2, 1.
+    /// How many segments to a row, widest arrangement first, every row full: 6 → 6, 3, 2, 1.
     private var perRow: [Int] {
-        var counts: [Int] = []
-        for parts in 1...max(1, options.count) {
-            let count = (options.count + parts - 1) / parts
-            if counts.last != count { counts.append(count) }
-        }
-        return counts
+        (1...max(1, options.count)).reversed().filter { options.count % $0 == 0 }
     }
 
     var body: some View {
@@ -211,14 +195,12 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
             ForEach(rows.indices, id: \.self) { index in
                 EqualSegmentsLayout(spacing: Spacing.xxs) {
                     ForEach(rows[index]) { segment($0) }
-                    // A short last row keeps the others' segment width.
-                    ForEach(rows[index].count..<count, id: \.self) { _ in Color.clear.frame(height: 0) }
                 }
             }
         }
         .padding(Spacing.xxs)
         .background(ChoicePickerTrack.fill(reading),
-                    in: rows.count == 1 ? AnyShape(Capsule()) : AnyShape(RoundedRectangle(cornerRadius: Radius.pill,
+                    in: rows.count == 1 ? AnyShape(Capsule()) : AnyShape(RoundedRectangle(cornerRadius: Radius.surface,
                                                                                            style: .continuous)))
     }
 
@@ -232,7 +214,7 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
                 // The least room a label needs beside it, so Serif, Sans Serif and Rounded stand
                 // on one line in the Aa panel; the label is centred, so a roomier row keeps more.
                 .padding(.horizontal, Spacing.xxs)
-                .frame(maxWidth: .infinity, minHeight: min(height, RowHeight.content))
+                .frame(maxWidth: .infinity, minHeight: Control.grown(height, from: 40))
                 .background {
                     if chosen {
                         Capsule().fill(reading?.background ?? Palette.paper)
@@ -244,32 +226,6 @@ struct ChoicePicker<Option: Identifiable & Hashable, Label: View>: View {
         .buttonStyle(.plain)
         .accessibilityAddTraits(chosen ? .isSelected : [])
         .accessibilityIdentifier("\(identifier)-\(String(describing: option.id))")
-    }
-}
-
-/// Segments side by side, all as wide as the widest needs: asked for its ideal width (as a
-/// `ViewThatFits` asks) it answers that many of the widest label, so a row only "fits" when
-/// every label shows whole; given a width it splits it evenly.
-private struct EqualSegmentsLayout: Layout {
-    let spacing: CGFloat
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        guard !subviews.isEmpty else { return .zero }
-        let gaps = spacing * CGFloat(subviews.count - 1)
-        let width = proposal.width
-            ?? subviews.map { $0.sizeThatFits(.unspecified).width }.max()! * CGFloat(subviews.count) + gaps
-        let segment = max(0, (width - gaps) / CGFloat(subviews.count))
-        let height = subviews.map { $0.sizeThatFits(ProposedViewSize(width: segment, height: nil)).height }.max()!
-        return CGSize(width: width, height: height)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let gaps = spacing * CGFloat(subviews.count - 1)
-        let segment = max(0, (bounds.width - gaps) / CGFloat(subviews.count))
-        for (index, subview) in subviews.enumerated() {
-            subview.place(at: CGPoint(x: bounds.minX + CGFloat(index) * (segment + spacing), y: bounds.midY),
-                          anchor: .leading, proposal: ProposedViewSize(width: segment, height: bounds.height))
-        }
     }
 }
 
@@ -307,7 +263,7 @@ struct TextSizeStepper: View {
             step(Icons.textLarger, "Larger Text", enabled: model.canGrow, id: "readingTextLarger", action: model.grow)
         }
         .padding(Spacing.xxs)
-        .frame(minHeight: min(height, RowHeight.content) + Spacing.xs)
+        .frame(minHeight: Control.grown(height, from: 40) + Spacing.xs)
         .background(ChoicePickerTrack.fill(reading), in: Capsule())
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Verbs.textSize)
@@ -317,17 +273,40 @@ struct TextSizeStepper: View {
                       action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .rowSymbol()
+                .glyphSize(Glyph.regular)
                 .fontWeight(.medium)
                 .foregroundStyle(reading?.ink ?? Palette.ink)
                 .opacity(enabled ? 1 : Palette.disabledOpacity)
-                .frame(width: BottomChrome.minTapTarget * 1.5, height: BottomChrome.minTapTarget)
+                .frame(width: Control.tap * 1.5, height: Control.tap)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
+    }
+}
+
+extension View {
+    /// The text appearance panel as a popover pointing at this view (Aa), its arrow on its top edge.
+    func textAppearancePopover(isPresented: Binding<Bool>) -> some View {
+        modifier(TextAppearancePopover(isPresented: isPresented))
+    }
+}
+
+private struct TextAppearancePopover: ViewModifier {
+    @Binding var isPresented: Bool
+
+    @Environment(\.readingAppearance) private var appearance
+    @Environment(\.readingPalette) private var reading
+
+    func body(content: Content) -> some View {
+        content.popover(isPresented: $isPresented, arrowEdge: .top) {
+            ReadingAppearancePanel(appearance: appearance)
+                .frame(width: Panel.width)
+                .presentationCompactAdaptation(.popover)
+                .presentationBackground((reading ?? .app).card)
+        }
     }
 }
 

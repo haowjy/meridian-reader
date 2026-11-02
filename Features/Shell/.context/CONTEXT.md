@@ -3,10 +3,12 @@
 What the user sees is in `../../../docs/NAVIGATION.md`. This file holds what to keep in mind while
 changing the shell code.
 
-- **`ShellState` is the navigation model** (what you see). Surface (browser or library) and the
+- **`ShellState` is the navigation model** (what you see). Surface (browser, library, or Settings on
+  compact width, with its pushed pages `settingsPath` and Search Settings `settingsSearch`) and the
   Library's path (`libraryPath`, bound to the Library's `NavigationStack`), the home's tab
-  (`homeTab`: `showFavorites` selects Favorites, `showLibrary(at:)` Everything, `openLibrary`
-  keeps it; stored under `library.homeTab`, the two-tab Bool key read once and removed), the Reader sheet and
+  (`homeTab`: `showLibrary(at:)` selects Everything, `openLibrary` keeps it; stored under
+  `library.homeTab`, where an older build's `"favorites"` reads as Everything; `showLibrary(at:)`
+  closes a page open in Library Read, since a place asked for by name must show), the Reader sheet and
   its `ReaderOrigin` (derived from the surface), Now Playing, the one other sheet and the toast.
   Add a screen by adding a case here, not a presentation flag in a view. The surface,
   path and tab are written to `SurfaceMemoryStore` on every change and restored at launch (D10); a UI-test
@@ -16,8 +18,8 @@ changing the shell code.
   presents it, so nothing else hosts a sheet of its own. It never stores what
   you hear: `isHearing` (injected) asks the playback session, so `openReader` of the playing article
   opens Now Playing.
-- **Layers** (`BrowseStartView.layers`): surface → Reader sheet → Now Playing → ⋯ menu → system
-  sheets. The toast (`ShellToastLayer`) floats over whichever bottom chrome
+- **Layers** (`BrowseStartView.layers`): surface (and its in-place reader) → Reader sheet (regular) →
+  compact chrome → Now Playing (Listen) → ⋯ menu → system sheets. The toast (`ShellToastLayer`) floats over whichever bottom chrome
   is up (the browser's, the Library's, the Reader's `floating` slot, Now
   Playing's controls; the Move tree and the import sheet have no chrome, so it floats a toolbar
   row above the sheet's bottom, `sheetToastLayer()`: what shows of a medium-detent sheet ends
@@ -46,10 +48,17 @@ changing the shell code.
   removed: no switch of style mid-gesture, so nothing flickers. The ⋯ panel opened from either
   sheet takes the theme too (`MenuContext.isOnReadingPage`).
 - **Full screen is the reading sheet's own state** (`ReadingChrome`, in
-  `DesignSystem/Components/`), not the shell's: `ReaderSheet` and `NowPlayingSheet` each hold one
+  `DesignSystem/Components/`), not the shell's (an in-place reader's is the shell's: `ChromeScroll.fullScreen`
+  through `ReadingInPlace.fullScreen`, set by the centre tap or the reading rule, so the page's top group and the
+  chrome read one value; under Reduce Motion `ChromeHost` fades itself on that live value rather than through its
+  delayed dip, so both fade together): `ReaderSheet` and `NowPlayingSheet` each hold one
   and hand it to `Sheet(chrome:)`, which draws the header and the band over the text, measures
-  them into the web view's insets (unchanged when they hide, so the text never moves) and puts the
-  chrome in its content's environment. The reading web view feeds it finger drags and taps
+  them into the web view's insets and puts the chrome in its content's environment. The bottom
+  inset is what floats at the foot (in Scroll's full screen the home indicator's strip alone); a
+  change there never moves the text on screen, except that a text at its end stays at its end. In
+  full screen the sheet stops being one: its text is laid out from the status bar's foot either
+  way (the gap above the header is the header's), and only its outline changes, to the whole
+  screen with square corners, covering the dim; so the text never moves in or out. The reading web view feeds it finger drags and taps
   (`HTMLReadingView+Taps.swift`); programmatic scrolls never reach it. While hidden, the web view
   hands no pull to the sheet (`pullHandoff.handoff = nil`); a drag's `canPull` and hand-off are
   fixed when it begins, so the pull that brings the bars back never closes the sheet and a pull
@@ -65,22 +74,50 @@ changing the shell code.
   down.
 - **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
-  `ShellState`, the ⋯ panel (`MenuContext`, drawn by `MoreMenuPanel`: the item's rows from its
-  one menu definition, `PageMenu` / `FolderMenu`, then the screen's rows ending in `tail`, then
-  the big buttons; the panel draws `MenuRow`s and knows no surface), the Now Playing bar on a
+  `ShellState`, the ⋯ panel (`MenuContext`, drawn by `MoreMenuPanel` where a ⋯ grows a panel, and as a
+  system menu by `MenuRows(blocks: context.blocks)` on compact title lines: the item's rows from its
+  one menu definition, `ArticleMenu` / `FolderMenu`, then the screen's rows; regular width keeps
+  the navigation tiles; the panel draws `MenuRow`s and knows no surface), the Now Playing bar on a
   surface (`NowPlayingBarView`, whose long press is the article's menu then *Stop Listening*).
 - **The ⋯ morph menu measures its focus point** through a preference and places the panel from it.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
   nudges the measurement each pass, and without the threshold the panel re-places itself forever
   (a layout loop at 100% CPU). The glass grows by frame and corner radius, never by scale.
 - **Compact width: one chrome host** (`Chrome/ChromeHost.swift`; `docs/NAVIGATION.md` "Bottom
-  chrome"). Three destinations (Reader, Library, Browser), at most two rows expanded and one
-  small capsule folded, one play/pause button, glass inside one `GlassEffectContainer` on
+  chrome"). Three destinations (Library, Browser, Settings), at most two rows expanded and a glass bubble
+  folded, the Listen button ending row 1, the pill alone on row 2 (no ⋯ and no play/pause in the chrome;
+  Listen is a cover above it; menus are on title lines and the Browser field's leading glyph), glass inside one `GlassEffectContainer` on
   iOS 26 with a blur and glass tint as the fallback. Its translucent fade takes the colour of what is under it: a
   web page's `underPageBackgroundColor` (`WebViewStore.pageBackground`, KVO), paper, or the reading
   theme. The in-place reader (`ReaderSurface`) covers a web view that takes no touches, so it
-  carries its own left-edge swipe for ‹. The rest of design 5e (PR2 to PR4) is under "Planned"
+  carries its own left-edge swipe for ‹. The rest of design 5e is under "Planned"
   there. Regular width is untouched.
+- **Only the screen showing drives the compact chrome, handed over in one step.** Every report to
+  `ChromeScroll` names its `ChromeSource`, and so does the in-place reader's full-screen write
+  (`setFullScreen(_:from:)`; the Browser's reader stays mounted under other destinations); the check
+  against the owner runs when the report is delivered, not when it was sent: the Browser's web view
+  queues its offset reports in a `Task`, and keeps sending them under a reader, the Library, Listen or a
+  sheet (hit testing off doesn't stop KVO). A refused report touches nothing, not even the baseline. The
+  owner is `ShellState.chromeOwner` (the source and the screen within it: the Library's and Settings'
+  paths, the Browser's page (`browserPage`, so a page that changes under another destination or a cover
+  is a new screen only when the Browser shows again), the page read in place; nil under Listen, the Reader, any sheet or the Files picker), handed
+  over by `syncChromeOwner` from the `didSet` of every property it reads, so each transition reaches
+  `ChromeScroll.hand(to:)` synchronously; a new input to `chromeOwner` needs the same `didSet`. The
+  handover drops the gesture's continuity on every change, keeping what is drawn: the first accepted
+  report after it only sets the baseline, so a fling under a Listen or sheet that opened and closed
+  never lands its travel at once. A cover and its removal back to the same owner keep the fold and full
+  screen (a pending settle is cancelled under the cover and rescheduled when the owner is back); any other owner starts expanded and out of full screen. The rule (`ChromePolicy`) is computed
+  in the same step from the source and `ChromeConditions` (VoiceOver, the reading layout, which
+  destinations are in Edit, whether the Browser has a page), which `ChromeHost` keeps current; no screen
+  resets the chrome on appearing.
+- **A reading page's offset reports are a finger's or a move's, kept apart end to end.** The coordinator's
+  `report(_:byFinger:)` is the only caller of `ReadingChrome.userScrolled` (finger) and `textMoved` (move,
+  which only re-anchors). A finger report (`isDragging || isDecelerating`) is a move when code wrote the
+  offset (every write in `Features/Reader/` goes through `movingByCode`, even mid-fling: a reflow, `showTop`,
+  a page swipe's `y = 0`) or when the farthest offset it is clamped to changed since the last report:
+  entering full screen drops the foot's inset by the chrome's height, and within that distance of the end
+  the clamp would read as a scroll up of that height. A new offset write in a reader goes through
+  `movingByCode`, or a fling under it toggles the bars.
 - **Regular width: the browser and the Library share the field band** (`SurfaceBand`: the field and its ✕),
   over the clustered dock; the dock's toolbar is a `BottomToolbarLayout` whose items name their slots
   (`.toolbarSlot`), one role per slot on both surfaces. Compact width has no band: `ChromeHost` draws it.
@@ -89,7 +126,7 @@ changing the shell code.
   (`MorphMenu.focusOffsetFromAnchor`). The `moreMenuFocus` marker, Debug builds with
   `-uiTesting` only, shows where the focus ends up.
 - **Sizing.** Field capsules use a fixed height (an unbounded `Capsule` turns into a circle) that
-  grows with Dynamic Type up to `BottomChrome.maxTextGrowth` (1.5×); every control gets a 44 pt
+  grows with Dynamic Type up to `Control.maxTextGrowth` (1.5×); every control gets a 44 pt
   tap area through `tapTarget`.
 - **Gestures.** Drags that dismiss or collapse lock their axis on the first movement and rubber-band
   the wrong direction (`SwipeGesturePolicy`, in the design system); releases seed the
@@ -97,7 +134,9 @@ changing the shell code.
   `Sheet`'s scrolling body pulls it from its top: `Sheet` puts a `SheetPullHandoff` in its
   content's environment, and a UIKit scroll view there feeds it through `ScrollPullHandoff` (a
   target on its pan, after the scroll view's own). New scrolling content in a `Sheet` needs that
-  hook, or it only scrolls. Under
+  hook, or it only scrolls. A UIKit pan's translation starts at zero where it recognizes, so a
+  slow drag has no direction at `.began`: read the axis once it has moved
+  (`SheetPullTracking.decidingMovement`), never from the first event. Under
   Reduce Motion, slides and the morph become fades (`Motion.slideAndFade`, `Motion.sheet`).
 - **Regular width (iPad) is a second layout of the same shell, not a second shell.** The gate is
   `horizontalSizeClass == .regular`; nothing iPad-specific applies in compact. What it changes

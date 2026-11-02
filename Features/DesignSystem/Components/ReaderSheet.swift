@@ -6,10 +6,10 @@ import SwiftUI
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │                 ───                  │ <- grabber (the sheet's)
-/// │ ( < Browser )             (Aa) (^)  │ <- `SheetTopBar`: the close pill (the sheet's) names what is
+/// │ ( < Browser )             (Aa) (^)  │ <- top bar: the close pill (the sheet's) names what is
 /// │ `banner` (the ^ hint, while on)      │   underneath; `textAppearance` (Aa), `accessory` (^)
-/// │ ... `text`: ReadingHeading, then the │ <- fills the page, running under the header and
-/// │   text in the reading theme ...      │   the band
+/// │ ... `text`: the title and source,    │ <- fills the page, running under the header and
+/// │   then the text in the theme ...     │   the band
 /// │ ─────────────────────────────────────│ <- hairline divider
 /// │ [art] Title          (Voice)    [🔖]│ <- title; Voice then bookmark (trailing)
 /// │       source                        │
@@ -31,9 +31,9 @@ struct ReaderSheet<Band: View, Reading: View, TextAppearance: View, Accessory: V
     let onListen: () -> Void
     /// The reading theme's colours.
     var palette: ReadingPalette = .app
-    /// Aa (`TextAppearanceButton` and its panel), just before `accessory`.
+    /// Aa (`TextAppearanceControl`: its `IconButton` and panel), just before `accessory`.
     @ViewBuilder var textAppearance: TextAppearance
-    /// The control at the trailing end of the top bar (☝︎, `JumpModeButton`).
+    /// The control at the trailing end of the top bar (☝︎, an `IconButton`).
     @ViewBuilder var accessory: Accessory
     /// Under the top bar, in the header (the ☝︎ hint, `JumpHint`): the text's top inset grows
     /// with it, so it never covers the first line.
@@ -75,30 +75,6 @@ extension ReaderSheet where TextAppearance == EmptyView, Accessory == EmptyView,
     }
 }
 
-/// The top of a page in the Reader and Now Playing: its title (none for a page without one) over
-/// its source and length.
-struct ReadingHeading: View {
-    let title: String?
-    /// ["example.org", "9 min"], spaced apart (`DetailLine`).
-    let detail: [String]
-
-    @Environment(\.readingPalette) private var reading
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            if let title {
-                Text(title)
-                    .typeStyle(.title)
-                    .foregroundStyle(reading?.ink ?? Palette.ink)
-                    .accessibilityAddTraits(.isHeader)
-            }
-            DetailLine(detail)
-                .typeStyle(.caption)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 #if DEBUG
 struct ReaderSheetGallery: View {
     var body: some View {
@@ -122,9 +98,9 @@ struct ReaderSheetGallery: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     SaveToggleButton(isSaved: saved, identifier: "preview", onToggle: {})
-                        .frame(width: BottomChrome.minTapTarget)
+                        .frame(width: Control.tap)
                         // Hug the trailing content edge (scrubber end) while keeping the 44 pt hit area.
-                        .padding(.trailing, -(BottomChrome.minTapTarget - BottomChrome.iconSize) / 2)
+                        .padding(.trailing, -(Control.tap - Glyph.regular) / 2)
                 }
                 ScrubTrack(value: 0).frame(height: 20)
                 NowPlayingTransport(state: state, canSkipBack: false, canSkipForward: false,

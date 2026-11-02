@@ -1,14 +1,13 @@
 import SwiftData
 import SwiftUI
 
-/// The Library home: the Everything / Favorites / Recent tab (`ShellState.homeTab`) above one
-/// mixed list of folders and pages. Everything is the top level of the Library: its folders, then
-/// the pages in no folder in the top level's sort. Favorites is the starred folders and pages from
-/// anywhere in the tree, in the Library or not. Recent is the pages played without saving, most
-/// recent first (no folders). The band's search (`ShellState.librarySearch`), begun on the home,
-/// searches the selected tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'. A favorite
-/// keeps its location; filtered (a tab other than Everything, or a search) a row shows where it
-/// is (`LibraryScreenKey.filtered`).
+/// The Library home: the title line (with ⋯ on compact width, `LibraryTitleMenu`), then the Library /
+/// History tab (`ShellState.homeTab`; History is the `recent` case) above one mixed list of folders
+/// and pages. Library (`everything`) is the top level: its folders, then the pages in no folder in
+/// the top level's sort. History is the pages played without saving, most recent first (no
+/// folders). The band's search (`ShellState.librarySearch`), begun on the home, searches the
+/// selected tab, folders then pages, each by title. Which items each shows is `LibraryQueries`'.
+/// Filtered (History, or a search) a row shows where it is (`LibraryScreenKey.filtered`).
 struct LibraryHomeView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
@@ -34,9 +33,6 @@ struct LibraryHomeView: View {
         case .everything:
             _queriedFolders = Query(LibraryQueries.folders)
             _queriedArticles = Query(LibraryQueries.looseArticles(sort: articleSort))
-        case .favorites:
-            _queriedFolders = Query(LibraryQueries.favoriteFolders)
-            _queriedArticles = Query(LibraryQueries.favoriteArticles)
         case .recent:
             _queriedFolders = Query(LibraryQueries.noFolders)
             _queriedArticles = Query(LibraryQueries.recent)
@@ -63,26 +59,19 @@ struct LibraryHomeView: View {
             Section {
                 EmptyView()
             } header: {
-                ScreenTitle(Verbs.library)
-                    .accessibilityIdentifier("libraryTitle")
-                    .listHeader()
-            }
-            Section {
-                Picker("Library view", selection: $shell.homeTab) {
-                    ForEach(LibraryHomeTab.allCases, id: \.self) { Text($0.title).tag($0) }
+                // The tabs sit under the title in its header, not as a row: a row would take the
+                // card list's minimum row height.
+                VStack(spacing: Spacing.belowTopBar) {
+                    TitleLine(title: Verbs.library) { LibraryTitleMenu() }
+                        .accessibilityIdentifier("libraryTitle")
+                    SegmentedTabs(label: String(localized: "Library view"),
+                                  options: LibraryHomeTab.allCases.map { ($0, $0.title) },
+                                  selection: $shell.homeTab)
+                    .accessibilityIdentifier("libraryTabs")
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("libraryTabs")
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
+                .listHeader()
             }
-            if tab == .everything {
-                Section {
-                    NewFolderRow { screen.makeFolder(in: nil) }
-                }
-                .listRowInsets(EdgeInsets())
-                .listCard()
-            }
+            .headerOnlySection()
             Section {
                 ForEach(folders, id: \.id) { folder in
                     LibraryFolderRow(folder: folder)
@@ -115,53 +104,18 @@ struct LibraryHomeView: View {
         if !searchText.isEmpty {
             ContentUnavailableView.search(text: searchText)
                 .listRowBackground(Color.clear)
-        } else if tab == .favorites {
-            EmptyState(String(localized: "No Favorites Yet"), symbol: Icons.favorite,
-                       description: String(localized: "Star a folder or article to find it here."))
-                .listRowBackground(Color.clear)
-        } else if tab == .recent {
-            EmptyState(String(localized: "No Recent Articles Yet"), symbol: Icons.recent,
-                       description: String(localized: "Articles you start show up here, saved or not."))
-                .listRowBackground(Color.clear)
         } else {
-            emptyCard
-        }
-    }
-
-    // MARK: - Empty
-
-    /// An empty Everything: what the toolbar does, with the two first-run actions.
-    private var emptyCard: some View {
-        EmptyState(String(localized: "Find Something to Listen To"), symbol: Icons.library,
-                   description: Text("Tap \(Text.symbol(Icons.browser)) to find an article, or \(Text.symbol(Icons.add)) to import an EPUB. Articles you save, EPUBs you import and folders you make show up here.")) {
-            ActionButtonRow { fit in
-                PillButton(String(localized: "Browse the Web"), shortTitle: String(localized: "Browse"),
-                           systemImage: Icons.browser, style: .filled, fit: fit) { shell.leaveLibrary() }
-                    .accessibilityIdentifier("libraryEmptyBrowse")
-                PillButton(Verbs.importBook, shortTitle: Verbs.import,
-                           systemImage: Icons.importFile, style: .neutral, fit: fit) {
-                    BookImportActions(library: library, shell: shell).pickBook(into: nil)
-                }
-                .accessibilityIdentifier("libraryEmptyImport")
+            EmptyState(tab == .recent ? String(localized: "No History") : String(localized: "Start Your Library"),
+                       description: tab == .recent
+                           ? Text("Articles you listen to show up here.")
+                           : Text("Articles you save show up here.")) {
+                AddToLibraryTiles(folder: nil)
             }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .accessibilityIdentifier("libraryEmpty")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("libraryEmpty")
-    }
-}
-
-/// A tappable row at the top of the Library's Everything list: plus-folder icon and "New Folder…",
-/// accent tinted, triggers the new-folder alert.
-private struct NewFolderRow: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            SymbolRow(Verbs.newFolder, symbol: Icons.newFolder, ink: Palette.accent)
-                .padding(.horizontal, Spacing.m)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("libraryNewFolder")
     }
 }
 
@@ -180,29 +134,12 @@ enum LibraryTopLevel {
     }
 }
 
-extension View {
-    /// A screen with no navigation bar (the Library home): paper behind the status bar, so rows
-    /// scrolled up pass under it rather than under the clock.
-    func statusBarBacking() -> some View {
-        // A line with no height at the safe area's top; its paper reaches up through the status
-        // bar. (The list itself runs edge to edge, so an overlay of it starts above the clock.)
-        safeAreaInset(edge: .top, spacing: 0) {
-            Color.clear
-                .frame(height: 0)
-                .background(Palette.paper.ignoresSafeArea(edges: .top))
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-    }
-}
-
 extension LibraryHomeTab {
     /// Its name in the tabs.
     var title: String {
         switch self {
         case .everything: Verbs.library
-        case .favorites: Verbs.favorites
-        case .recent: String(localized: "Recent")
+        case .recent: Verbs.history
         }
     }
 
@@ -211,7 +148,7 @@ extension LibraryHomeTab {
         Self.searchPrompt(naming: self == .everything ? Verbs.library : title)
     }
 
-    /// "Search Favorites", "Search Demo Finance": the band's field names what it searches, the
+    /// "Search History", "Search Demo Finance": the band's field names what it searches, the
     /// home's tab or a folder.
     static func searchPrompt(naming place: String) -> String {
         String(localized: "Search \(place)")

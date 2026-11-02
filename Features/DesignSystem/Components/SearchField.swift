@@ -23,7 +23,7 @@ struct SearchField: View {
             Image(systemName: Icons.search)
                 .font(isChromeField ? BottomChrome.chromeGlyph : .caption)
                 .foregroundStyle(Palette.secondaryInk)
-                .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
+                .frame(width: ChromeMetrics.endGlyphSlot, height: ChromeMetrics.endGlyphSlot)
                 .accessibilityHidden(true)
 
             textField
@@ -48,8 +48,8 @@ struct SearchField: View {
             }
         }
         // In the chrome 🔍 and ⊗ are 24 pt slots concentric with the end caps (`fieldEndInset`).
-        .bottomChromeField(leading: isChromeField ? BottomChrome.fieldEndInset : Spacing.s,
-                           trailing: clearable ? (isChromeField ? BottomChrome.fieldEndInset : Spacing.xxs) : Spacing.s)
+        .bottomChromeField(leading: isChromeField ? ChromeMetrics.endInset : Spacing.s,
+                           trailing: clearable ? (isChromeField ? ChromeMetrics.endInset : Spacing.xxs) : Spacing.s)
     }
 
     @ViewBuilder

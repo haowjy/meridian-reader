@@ -206,10 +206,9 @@ extension LibraryStore {
     /// the ⋯ of the browser, the Reader and Now Playing), all of `articles` in one save: each leaves
     /// its folder and every Library list it was in (`addedAt = nil`, `removedAt` now), Recent
     /// included (`LibraryQueries`), and once that is saved its audio turns ephemeral
-    /// (`plan(.ephemeral, key:)`). The star stays, and with it the page's place in Favorites. A
-    /// save puts it back in the Library. Nothing is deleted here: the launch prune deletes a
-    /// removed page that isn't starred 7 days after its last play (one never played, at the next
-    /// launch). A link
+    /// (`plan(.ephemeral, key:)`). A save puts it back in the Library. Nothing is deleted here:
+    /// the launch prune deletes a removed page 7 days after its last play (one never played, at
+    /// the next launch). A link
     /// holding the text of a play keeps it as a played page's; a link without text stays a link.
     /// A chapter leaves its book as any page leaves its folder. Once the remove is saved, the page
     /// you hear among them stops (`stopPlaybackIfPlaying`), as a deleted one does, and so does a
@@ -263,10 +262,12 @@ extension LibraryStore {
         try edit("delete all prepared") { for article in articles { deleteWithoutSaving(article) } }
     }
 
-    /// *Remove Prepared audio*: the page's audio only; the page stays saved.
+    /// *Remove Prepared Audio*, *Clear Audio from Listening*: the page's audio only, its old
+    /// voices too; the page stays saved.
     func deletePreparedAudio(_ article: Article) {
         guard let key = article.key else { return }
         try? audio.clearListenAudio(for: key)
+        try? audio.audioCache.deleteOldVoices(of: key)
     }
 
     // MARK: - Pieces

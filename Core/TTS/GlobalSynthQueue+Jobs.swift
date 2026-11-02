@@ -8,7 +8,9 @@ extension GlobalSynthQueue {
         var cacheKey: UUID
         var paragraphs: [String] {
             didSet {
-                if paragraphs != oldValue { paragraphHashes = paragraphs.map(ArticleIdentity.paragraphHash) }
+                guard paragraphs != oldValue else { return }
+                paragraphHashes = paragraphs.map(ArticleIdentity.paragraphHash)
+                missing = nil
             }
         }
         /// `ArticleIdentity.paragraphHash` of each paragraph (chunk scratch dirs, failure marks):
@@ -16,6 +18,8 @@ extension GlobalSynthQueue {
         private(set) var paragraphHashes: [String]
         var plan: BakePriorityPlan
         var isEphemeral: Bool
+        /// The paragraphs still needing audio, kept between picks (nil: work it out again).
+        var missing: MissingParagraphs?
 
         init(cacheKey: UUID, paragraphs: [String], plan: BakePriorityPlan, isEphemeral: Bool) {
             self.cacheKey = cacheKey
@@ -25,11 +29,40 @@ extension GlobalSynthQueue {
             self.isEphemeral = isEphemeral
         }
 
-        /// Of `work` (missing paragraphs in plan order), those that may render now: below `cap`
-        /// (a staged chapter's opening), and with `aheadOnly` only from the plan's start (the
-        /// playhead) on.
-        func renderable(_ work: [Int], cap: Int?, aheadOnly: Bool) -> [Int] {
-            work.filter { $0 < (cap ?? .max) && !(aheadOnly && $0 < plan.priorityStart) }
+        /// The kept missing paragraphs when they are still `target`'s at the article's index
+        /// change `changes`; else `compute` (of the job's paragraphs) is kept and returned.
+        mutating func missing(in target: RenderTarget, changes: UInt64, compute: ([String]) -> [Int]) -> [Int] {
+            if let missing, missing.holds(for: target, at: changes) { return missing.paragraphs }
+            let paragraphs = compute(self.paragraphs)
+            missing = MissingParagraphs(target: target, indexChanges: changes, paragraphs: paragraphs)
+            return paragraphs
+        }
+
+        /// Paragraph `index` has audio in `target`'s voice now: the kept list loses it, when it was
+        /// current (`before`: the article's index changes then); `after` is the count now. Else the
+        /// next pick works the list out again.
+        mutating func noteRendered(_ index: Int, in target: RenderTarget, changes before: UInt64, after: UInt64) {
+            guard var kept = missing, kept.holds(for: target, at: before) else {
+                missing = nil
+                return
+            }
+            kept.paragraphs.removeAll { $0 == index }
+            kept.indexChanges = after
+            missing = kept
+        }
+    }
+
+    /// A job's paragraphs that still need audio in `target`'s voice
+    /// (`ArticleAudioCache.missingParagraphs`), as of its article's index change `indexChanges`
+    /// (`ArticleAudioCache.indexChanges(of:)`). Worked out again when the text, the voice or the
+    /// article's audio changes; the queue's own publish shortens it instead.
+    struct MissingParagraphs: Equatable {
+        var target: RenderTarget
+        var indexChanges: UInt64
+        var paragraphs: [Int]
+
+        func holds(for target: RenderTarget, at changes: UInt64) -> Bool {
+            self.target == target && indexChanges == changes
         }
     }
 
@@ -53,7 +86,8 @@ extension GlobalSynthQueue {
         var isEphemeral: Bool
     }
 
-    /// Fold persisted pending jobs into the queue after the local engine warms.
+    /// Fold persisted pending jobs into the queue (at the end of the launch's hold, and when
+    /// audio held for library work is let go).
     ///
     /// The active article / playhead stays #1:
     /// - `focusKey` (the article the user most recently opened / listened to) is adopted first

@@ -79,7 +79,7 @@ struct FollowPreviewSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Button(action: onToggle) {
                     FollowCheckbox(symbol: isKept ? Icons.included : Icons.excluded)
-                        .tapTarget(BottomChrome.minTapTarget)
+                        .tapTarget(Control.tap)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Include")

@@ -1,68 +1,24 @@
 import SwiftUI
 
-/// The sizes and helpers every bottom control shares, on both widths (docs/NAVIGATION.md): glyph
-/// and tap-target sizes, the field capsule, the transport discs. The compact chrome's own sizes are
-/// `ChromeMetrics`; the regular-width band's layout is in `RegularBand.swift`.
+/// The helpers every bottom control shares, on both widths (docs/NAVIGATION.md): the field capsule,
+/// field controls, toolbar icons, tap targets. Their sizes are `Control` and `Glyph`; the compact
+/// chrome's layout is `ChromeMetrics`; the regular-width band's layout is in `RegularBand.swift`.
 enum BottomChrome {
-    /// Vertical padding inside the field capsule.
-    static let fieldVerticalPadding = Spacing.xxs
-    /// Field capsule / toolbar row height.
-    static let rowHeight: CGFloat = 44
     /// The field capsule's fill: `chrome`, or the reading page's card.
     static func fieldFill(_ reading: ReadingPalette?) -> Color { reading?.card ?? Palette.chrome }
-    /// Toolbar glyph size.
-    static let iconSize: CGFloat = 19
-    /// Every control glyph in the compact chrome, the field's controls too: one size, fixed, medium.
-    static let chromeGlyph = Font.system(size: ChromeMetrics.segmentGlyphHeight, weight: .medium)
-    /// The glyph inside a round icon control (`roundFieldControl`): the chrome glyph's weight (medium),
-    /// scaled to the 36 pt circle. Fixed, like every chrome glyph.
-    static let roundGlyph = Font.system(size: 18, weight: .medium)
+    /// Every control glyph in the compact chrome, the field's controls and a round icon control too:
+    /// one size, fixed, medium.
+    static let chromeGlyph = Font.system(size: Glyph.regular, weight: .medium)
     /// The address field's trailing 🎤 or ⊗ while searching: Safari's size and weight there.
     static let fieldAccessoryGlyph = Font.system(size: 17, weight: .regular)
-    /// How far a 24 pt field glyph slot (🔍, 🎤, ⊗) sits in from the capsule's end while
-    /// searching: equal top, bottom and end, so the slot is concentric with the end cap.
-    static let fieldEndInset: CGFloat = ChromeMetrics.endInset
-    /// Text on a round control's face (the speed): the same weight, even-width digits.
-    static let roundText = Font.system(size: 15, weight: .medium).monospacedDigit()
-    /// The place name on Listen's ‹ ("‹ reddit.com"): the chrome glyph's weight, fixed like it.
-    static let originLabel = Font.system(size: 15, weight: .medium)
     /// Text standing in for a field control (the speed). Like the glyphs it keeps its size at
     /// large text sizes, so the controls never crowd.
     static let toolbarTextSize: CGFloat = 17
-    /// Small controls inside the field capsule (mic, the speed) and in a sheet's top bar (☝︎).
-    static let fieldControlSize: CGFloat = 36
-    /// The smallest tap area of a control (`tapTarget`), whatever it looks like.
-    static let minTapTarget = ChromeMetrics.minTapTarget
-    /// Now Playing's round play / pause in the transport's centre slot. Fixed like the toolbar
-    /// glyphs (the large content viewer shows it at large text sizes). The row stays
-    /// `rowHeight`; the disc reaches past it above and below by half the difference.
-    static let transportDiscSize: CGFloat = 52
-    /// The glyph inside the transport disc.
-    static let transportDiscGlyph: CGFloat = 21
-    /// A folder header's play / pause between Prepare and More (C124): smaller than the
-    /// transport's, its glyph in the same proportion.
-    static let headerDiscSize: CGFloat = 56
-    /// The glyph inside the header disc.
-    static let headerDiscGlyph: CGFloat = (transportDiscGlyph * headerDiscSize / transportDiscSize).rounded()
-    /// The play / pause disc floating over a reading page in full screen: a bar's height, tapped in
-    /// `minTapTarget`.
-    static let floatingDiscSize: CGFloat = ChromeMetrics.barHeight
-    /// The glyph inside the floating disc.
-    static let floatingDiscGlyph: CGFloat = 16
-    /// How far the field capsule and its controls grow with Dynamic Type, as a multiple of their
-    /// default size: enough that text and glyphs never clip, while the chrome stays a band.
-    static let maxTextGrowth: CGFloat = 1.5
-
-    /// A Dynamic Type–scaled size (`@ScaledMetric` of `base`), kept between `base` and
-    /// `maxTextGrowth` times it.
-    static func grown(_ scaled: CGFloat, from base: CGFloat) -> CGFloat {
-        min(max(scaled, base), base * maxTextGrowth)
-    }
 }
 
 extension View {
     /// The field capsule: the browser's address field, the reader's scrub row and title row.
-    /// 44 pt, growing with Dynamic Type (up to `maxTextGrowth`) so its text never clips.
+    /// 44 pt, growing with Dynamic Type (up to `Control.maxTextGrowth`) so its text never clips.
     func bottomChromeField(leading: CGFloat = Spacing.s, trailing: CGFloat = Spacing.xxs) -> some View {
         modifier(BottomChromeField(leading: leading, trailing: trailing))
     }
@@ -71,31 +27,24 @@ extension View {
     /// keeps its size at large text sizes (like the system's toolbars); a long press shows it in
     /// the large content viewer instead.
     func toolbarIconFrame() -> some View {
-        self.font(.system(size: BottomChrome.iconSize))
-            .frame(maxWidth: .infinity, minHeight: BottomChrome.rowHeight)
+        self.font(.system(size: Glyph.regular))
+            .frame(maxWidth: .infinity, minHeight: Control.tap)
             .contentShape(Rectangle())
             .accessibilityShowsLargeContentViewer()
     }
 
     /// A small control inside the field capsule (mic, Jump, bookmark): 36 pt with a body-size
     /// glyph, growing with Dynamic Type like the capsule; taps land anywhere in 44 pt. In the
-    /// compact chrome's field: the chrome's fixed glyph in a 30 pt frame.
+    /// compact chrome's field: the chrome's fixed glyph in its 24 pt slot.
     func fieldControlFrame() -> some View {
         modifier(FieldControlFrame())
     }
 
     /// The app's one round icon control: 36 pt, `fill` with a hairline edge, the glyph at
-    /// `BottomChrome.roundGlyph`, taps anywhere in 44 pt. Voice, the bookmark, Aa and ☝︎ on the
-    /// player card and in a sheet's top bar, ✕ beside the search field. Use `RoundIconButton` for
-    /// a plain symbol button.
+    /// `BottomChrome.chromeGlyph`, taps anywhere in 44 pt. Voice, the bookmark, Aa and ☝︎ on the
+    /// player card and in a sheet's top bar. `IconButton` and `SaveToggleButton` draw it (`iconButtonFace`).
     func roundFieldControl(fill: Color) -> some View {
-        modifier(RoundFieldFace(fill: fill, isText: false))
-    }
-
-    /// The same face for a short text instead of a glyph (the playback speed): a circle, or a
-    /// capsule as wide as the text needs.
-    func roundFieldText(fill: Color) -> some View {
-        modifier(RoundFieldFace(fill: fill, isText: true))
+        modifier(RoundFieldFace(fill: fill))
     }
 
     /// Text standing in for a field control (the speed in Now Playing's scrub capsule): as tall
@@ -105,10 +54,10 @@ extension View {
         modifier(FieldTextFrame())
     }
 
-    /// Grows the tap area of a control drawn `size` points wide to `BottomChrome.minTapTarget`
+    /// Grows the tap area of a control drawn `size` points wide to `Control.tap`
     /// without moving it or changing its look.
     func tapTarget(_ size: CGFloat) -> some View {
-        contentShape(Rectangle().inset(by: -max(0, (BottomChrome.minTapTarget - size) / 2)))
+        contentShape(Rectangle().inset(by: -max(0, (Control.tap - size) / 2)))
     }
 }
 
@@ -117,7 +66,7 @@ extension View {
 private struct BottomChromeField: ViewModifier {
     let leading: CGFloat
     let trailing: CGFloat
-    @ScaledMetric(relativeTo: .body) private var height = BottomChrome.rowHeight
+    @ScaledMetric(relativeTo: .body) private var height = Control.tap
     @Environment(\.readingPalette) private var reading
     @Environment(\.isChromeField) private var isChromeField
 
@@ -125,14 +74,14 @@ private struct BottomChromeField: ViewModifier {
         content
             .padding(.leading, leading)
             .padding(.trailing, trailing)
-            .padding(.vertical, BottomChrome.fieldVerticalPadding)
-            .frame(height: isChromeField ? ChromeMetrics.barHeight : BottomChrome.grown(height, from: BottomChrome.rowHeight))
+            .padding(.vertical, Spacing.xxs)
+            .frame(height: isChromeField ? Control.chrome : Control.grown(height, from: Control.tap))
             .chromeSurface(Capsule(), fill: BottomChrome.fieldFill(reading))
     }
 }
 
 private struct FieldControlFrame: ViewModifier {
-    @ScaledMetric(relativeTo: .body) private var size = BottomChrome.fieldControlSize
+    @ScaledMetric(relativeTo: .body) private var size = Control.small
     @Environment(\.isChromeField) private var isChromeField
 
     func body(content: Content) -> some View {
@@ -140,11 +89,11 @@ private struct FieldControlFrame: ViewModifier {
             // In the compact chrome's fixed-height field: the chrome's glyph, in the field's slot.
             content
                 .font(BottomChrome.chromeGlyph)
-                .frame(width: Glyph.fieldLeading, height: Glyph.fieldLeading)
-                .tapTarget(Glyph.fieldLeading)
+                .frame(width: ChromeMetrics.endGlyphSlot, height: ChromeMetrics.endGlyphSlot)
+                .tapTarget(ChromeMetrics.endGlyphSlot)
                 .accessibilityShowsLargeContentViewer()
         } else {
-            let side = BottomChrome.grown(size, from: BottomChrome.fieldControlSize)
+            let side = Control.grown(size, from: Control.small)
             content
                 .font(.body)
                 .frame(width: side, height: side)
@@ -155,30 +104,26 @@ private struct FieldControlFrame: ViewModifier {
 
 private struct RoundFieldFace: ViewModifier {
     let fill: Color
-    let isText: Bool
     @Environment(\.readingPalette) private var reading
 
     func body(content: Content) -> some View {
-        let side = BottomChrome.fieldControlSize
+        let side = Control.small
         let edge = reading?.hairline ?? Palette.hairline
         content
-            .font(isText ? BottomChrome.roundText : BottomChrome.roundGlyph)
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, isText ? Spacing.xxs : 0)
-            .frame(minWidth: isText ? BottomChrome.minTapTarget : side, minHeight: side, maxHeight: side)
-            .background { Capsule().fill(fill) }
-            .overlay { Capsule().strokeBorder(edge, lineWidth: 0.5) }
+            .font(BottomChrome.chromeGlyph)
+            .frame(width: side, height: side)
+            .background { Circle().fill(fill) }
+            .overlay { Circle().strokeBorder(edge, lineWidth: 0.5) }
             .tapTarget(side)
             .accessibilityShowsLargeContentViewer()
     }
 }
 
 private struct FieldTextFrame: ViewModifier {
-    @ScaledMetric(relativeTo: .body) private var size = BottomChrome.fieldControlSize
+    @ScaledMetric(relativeTo: .body) private var size = Control.small
 
     func body(content: Content) -> some View {
-        let side = BottomChrome.grown(size, from: BottomChrome.fieldControlSize)
+        let side = Control.grown(size, from: Control.small)
         content
             .font(.system(size: BottomChrome.toolbarTextSize, weight: .medium).monospacedDigit())
             .lineLimit(1)

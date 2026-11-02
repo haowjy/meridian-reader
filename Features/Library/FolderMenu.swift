@@ -1,24 +1,23 @@
 import SwiftUI
 
 /// A folder's menu (a book or series as any other): the one definition its row's ⋯ and long press,
-/// its header's *More* and its Favorites tile render (decisions C4, C98). Which options show
+/// and its header's *More* render (decisions C4, C98). Which options show
 /// where, in what order and greyed or not is `MenuRegistry`'s (docs/MENUS.md); this gives each its
 /// title, symbol and action. Built only when the menu opens: a row passes this view, never its
 /// `rows`, so nothing here runs on a row's redraw.
 ///
 /// The row's one prepare option: *Prepare* (the toggle off, nothing prepared), *Turn Off
-/// Prepare* (toggle on, still to finish), *Remove Prepared audio* (all prepared, red). *Turn Off
+/// Prepare* (toggle on, still to finish), *Remove Prepared Audio* (all prepared, red). *Turn Off
 /// Prepare* asks first (`onTurnOffPrepare`, by the control the menu opened from), then turns it
-/// off and keeps what is prepared. *Remove Prepared audio* deletes its pages' audio and keeps them
+/// off and keeps what is prepared. *Remove Prepared Audio* deletes its pages' audio and keeps them
 /// out of its prepare (P8). *Edit Details…* holds the name too (no *Rename…*). Delete asks
 /// through `LibraryScreenState`'s dialogs, which the screen hosts.
 struct FolderMenu: View {
     enum Place {
-        case row, tile, header
+        case row, header
         var registryPlace: MenuRegistry.Place {
             switch self {
             case .row: .row
-            case .tile: .tile
             case .header: .header
             }
         }
@@ -33,7 +32,7 @@ struct FolderMenu: View {
     var place: Place = .row
     /// What its row or header already computed; nil: computed here.
     var progress: FolderProgress?
-    /// *Turn Off Prepare*: its host asks `turnOffPrepareQuestion` by the control the menu
+    /// *Stop Preparing*: its host asks `turnOffPrepareQuestion` by the control the menu
     /// opened from (a row's ⋯, the header's *More*).
     let onTurnOffPrepare: () -> Void
     /// After *Move to…* is saved (the folder's own screen shows it where it went).
@@ -42,17 +41,7 @@ struct FolderMenu: View {
     static let deleteRowID = "menuDeleteFolder"
 
     var body: some View {
-        if place == .header {
-            // More: the folder's rows, then the create group into this folder (C126), and
-            // Delete Folder alone at the bottom, as everywhere else it is the last row (C130).
-            let all = rows
-            let delete = all.filter { $0.id == Self.deleteRowID }
-            MenuRows(blocks: [all.filter { $0.id != Self.deleteRowID },
-                              LibraryCreateMenu(library: actions.library, shell: actions.shell,
-                                                screen: screen, folder: folder).rows, delete])
-        } else {
-            MenuRows(rows)
-        }
+        MenuRows(rows)
     }
 
     /// The folder's state as the registry reads it.
@@ -62,9 +51,7 @@ struct FolderMenu: View {
         facts.hasArticles = !articles.isEmpty
         facts.prepareIsOn = preparedAudio.isOn(folder)
         facts.hasPreparedAudio = preparedAudio.hasPreparedAudio(folder, articles: articles)
-        facts.isFixedOrder = false
         facts.isBookOrSeries = folder.kind.isBookOrSeries
-        facts.hasVoices = true // C138a: every article has a voice (an Apple one too)
         return facts
     }
 
@@ -99,14 +86,8 @@ struct FolderMenu: View {
         case .folderVoice:
             let tts = actions.speech.localTTS
             let selection = folder.voiceID.flatMap(VoiceSelection.init(stored:)) ?? tts.defaultSelection
-            return MenuRow(id: "menuVoice", title: Verbs.voiceRow(tts.voiceName(of: selection)),
+            return MenuRow(id: "menuVoice", title: Verbs.voiceRow(tts.voiceSummary(of: selection)),
                            icon: Icons.voice) { shell.present(.voice(.folder(folder.id))) }
-        case .folderFavorite:
-            let isFavorite = folder.isFavorite
-            return MenuRow(id: "menuFavorite", title: isFavorite ? Verbs.removeFromFavorites : Verbs.addToFavorites,
-                           icon: isFavorite ? Icons.unfavorite : Icons.favorite) {
-                FavoriteFlow(library: actions.library, shell: shell).toggle(folder)
-            }
         case .folderMove:
             return MenuRow(id: "menuMove", title: Verbs.moveTo, icon: Icons.move) {
                 actions.move([.folder(folder)], onMoved: onMoved)
@@ -115,9 +96,11 @@ struct FolderMenu: View {
             return MenuRow(id: "menuEditDetails", title: Verbs.editDetails, icon: Icons.editDetails) {
                 shell.present(.folderDetails(folder.id))
             }
-        default:
+        case .deleteFolder:
             return MenuRow(id: Self.deleteRowID, title: Verbs.deleteFolder(isBook: folder.kind == .book),
                            icon: Icons.delete, isDestructive: true) { screen.confirmDelete([folder]) }
+        default:
+            preconditionFailure("No folder row for \(option)")
         }
     }
 
@@ -126,9 +109,12 @@ struct FolderMenu: View {
                 isDestructive: true) { preparedAudio.deletePreparedAudio(of: folder) }
     }
 
-    /// A row's swipe, without building the menu: the menu's *Delete Folder…* (it asks first).
+    /// A row's swipe, without building the menu: the menu's *Delete Folder…*, *Delete* on the swipe
+    /// (it asks first, naming the folder).
     static func swipe(for folder: Folder, screen: LibraryScreenState) -> MenuRow {
-        MenuRow(id: Self.deleteRowID, title: Verbs.deleteFolder(isBook: folder.kind == .book), icon: Icons.delete,
-                isDestructive: true) { screen.confirmDelete([folder]) }
+        var row = MenuRow(id: Self.deleteRowID, title: Verbs.deleteFolder(isBook: folder.kind == .book), icon: Icons.delete,
+                          isDestructive: true) { screen.confirmDelete([folder]) }
+        row.swipeTitle = Verbs.delete
+        return row
     }
 }

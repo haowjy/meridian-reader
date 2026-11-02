@@ -65,10 +65,10 @@ enum EngineLatencyProbe {
         // the only one loaded and timings aren't interleaved.
         let waitStart = ListenTimingLog.now()
         await coordinator.withRenderingQuiet {
-            log("app engine=\(coordinator.selectedEngineID.rawValue) quiet after \(ListenTimingLog.ms(since: waitStart)) ms (crash guard count=\(EngineCrashGuard.shared.crashCount))")
+            log("app engine=\(coordinator.engineLabel) quiet after \(ListenTimingLog.ms(since: waitStart)) ms (crash guard count=\(EngineCrashGuard.shared.crashCount))")
             let registry = coordinator.engines
             // Reverse descriptor order (recommended engine last).
-            let descriptors = registry.localDescriptors.reversed().filter {
+            let descriptors = registry.descriptors.reversed().filter {
                 registry.supports($0.id) && (request.engines?.contains($0.shortName.lowercased()) ?? true)
             }
             for descriptor in descriptors {
@@ -85,12 +85,13 @@ enum EngineLatencyProbe {
         let name = descriptor.shortName
         let installed = coordinator.isModelInstalled(engine)
         log("[\(name)] init start (models on disk=\(installed))")
-        guard let limits = descriptor.onDevice?.limits,
-              let made = coordinator.engines.makeHost(for: engine, voice: coordinator.voice(for: engine)),
-              let host = LocalChunkRenderer(host: made, descriptor: descriptor) else {
+        let limits = descriptor.onDevice.limits
+        guard let route = coordinator.engines.routes(for: engine).first,
+              let made = coordinator.engines.makeHost(for: route, voice: coordinator.voice(for: engine)) else {
             log("[\(name)] no host on this OS")
             return
         }
+        let host = LocalChunkRenderer(host: made, descriptor: descriptor, route: route)
         if let routing = made.routingLabel { log("[\(name)] compute units=\(routing)") }
         let tInit = ListenTimingLog.now()
         do {

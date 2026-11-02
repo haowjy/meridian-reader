@@ -20,6 +20,22 @@ struct ScreenTitle: View {
     }
 }
 
+extension View {
+    /// A screen with no navigation bar (the Library home, Settings in place): paper behind the
+    /// status bar, so rows scrolled up pass under it rather than under the clock.
+    func statusBarBacking() -> some View {
+        // A line with no height at the safe area's top; its paper reaches up through the status
+        // bar. (The list itself runs edge to edge, so an overlay of it starts above the clock.)
+        safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear
+                .frame(height: 0)
+                .background(Palette.paper.ignoresSafeArea(edges: .top))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
 #if DEBUG
 struct ScreenTitleGallery: View {
     var body: some View {

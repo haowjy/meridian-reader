@@ -133,6 +133,10 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      # Phonon's model bundle ships in the app but isn't in git (~170 MB; docs/RELEASE.md).
+      - name: Fetch the Phonon model bundle
+        run: tools/fetch-phonon-bundle.sh
+
       # ── Select Xcode ────────────────────────────────────────────────
       - name: Select latest Xcode
         run: |

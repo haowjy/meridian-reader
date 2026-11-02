@@ -3,18 +3,16 @@ import SwiftUI
 /// Draws the compact chrome's pieces where `ChromeLayout` puts them. Animatable in the fold
 /// (`ChromeState.progress`): while a finger scrolls, the host feeds it the smoothed progress
 /// (`ChromeScroll.displayed`) and this body runs every frame, so the pieces fold away
-/// as the finger moves (one step, then the other). Anything else that changes (the keyboard, the arrows, ▶) is a discrete
+/// as the finger moves (one step, then the other). Anything else that changes (the keyboard, the arrows) is a discrete
 /// step the host animates as the frames move.
 ///
 /// A piece is in the tree only while `ChromePiece.isShown`.
 struct ChromePieces: View, Animatable {
     @Environment(ShellState.self) private var shell
+    @Environment(\.readingPalette) private var reading
     var state: ChromeState
     let width: CGFloat
     let screen: ChromeScreen
-    let card: ChromeCard?
-    let play: ChromePlayButton?
-    let hasReader: Bool
     let underColor: Color
     let focus: FocusState<Bool>.Binding
     let onSelect: (ChromeDestination) -> Void
@@ -26,7 +24,7 @@ struct ChromePieces: View, Animatable {
     }
 
     private typealias K = ChromeMetrics
-    /// The largest text the field, and the card draw: they sit in pieces of a fixed
+    /// The largest text the field draws: it sits in a piece of a fixed
     /// height, where larger text clips or overlaps. Every glyph still offers the large content viewer.
     private static let largestText = DynamicTypeSize.xxxLarge
 
@@ -39,31 +37,30 @@ struct ChromePieces: View, Animatable {
                                  onBack: screen.onBack, onForward: screen.onForward)
             }
             fieldPiece(layout)
-            piece(layout.play) { play }
             piece(layout.pill) {
-                ChromePill(lit: state.destination, hasReader: hasReader, expandedWidth: layout.expandedPillWidth, onSelect: onSelect)
+                ChromePill(lit: state.destination, onSelect: onSelect)
             }
             piece(layout.editBar) {
                 screen.editBar.frame(maxHeight: .infinity).chromeSurface(Capsule())
             }
-            piece(layout.listen) { screen.listen }
-            piece(layout.more) { more }
-            stripPiece(layout.strip, opacity: layout.stripOpacity)
+            piece(layout.listen) { ChromeListenButton() }
+            piece(layout.cancel) { cancel }
+            bubblePiece(layout)
         }
         .chromeGlassContainer()
-        .frame(width: width, height: K.readerFootprint, alignment: .topLeading)
+        .frame(width: width, height: K.rowsHeight, alignment: .topLeading)
         .background(alignment: .bottom) {
-            if let top = layout.top { ChromeFade(top: top, underColor: underColor, strip: layout.stripOpacity) }
+            if let top = layout.top { ChromeFade(top: top, underColor: underColor) }
         }
         .background(alignment: .bottom) {
-            // While a row is up, the whole footprint is the chrome's: a tap between the rows, beside
+            // While a row is up, the whole box is the chrome's: a tap between the rows, beside
             // them, or in the home indicator's strip under them never reaches the page behind.
             if let top = layout.top, state.fold < 0.75 {
                 Color.clear
                     .contentShape(Rectangle())
-                    .frame(height: K.readerFootprint - top + K.topPadding)
+                    .frame(height: K.rowsHeight - top + Spacing.xxs)
                     .ignoresSafeArea(.container, edges: .bottom)
-                    .frame(height: K.readerFootprint, alignment: .bottom)
+                    .frame(height: K.rowsHeight, alignment: .bottom)
                     .onTapGesture {}
             }
         }
@@ -73,7 +70,7 @@ struct ChromePieces: View, Animatable {
                     PrepareProgressEdge()
                     ShellToastLayer()
                 }
-                .offset(y: top - K.topPadding)
+                .offset(y: top - Spacing.xxs)
             }
         }
     }
@@ -89,35 +86,34 @@ struct ChromePieces: View, Animatable {
     private func piece(_ piece: ChromePiece, @ViewBuilder _ content: () -> some View) -> some View {
         if piece.isShown {
             content()
-                .frame(width: piece.fullWidth, height: piece.fullHeight)
-                .scaleEffect(piece.scale, anchor: .topLeading)
-                // Labels and glyphs go early, so what is left to shrink away is bare glass (and no
-                // glyph drifts over the page once its glass has gone).
-                .opacity(K.ramp(piece.scale, 0.8...0.95))
-                .frame(width: piece.rect.width, height: piece.rect.height, alignment: .topLeading)
+                .frame(width: piece.rect.width, height: piece.rect.height)
+                // Labels and glyphs go before their glass.
+                .opacity(piece.opacity)
                 .offset(x: piece.rect.minX, y: piece.rect.minY)
                 .transition(.opacity)
         }
     }
 
-    /// The folded chrome: the page's name as one line of text over the home indicator, no glass
-    /// (Brave's), whose tap brings both rows back. Its hit area is `minTapTarget` tall,
-    /// `stripHitOutset` past the text box above and below and `stripSidePadding` past the text each side.
+    /// The folded chrome: a small glass capsule naming the page, the field shrunk (Safari's), whose tap
+    /// brings both rows back. Its hit area is `bubbleHitOutset` past its glass above and below, `Control.tap` tall.
     @ViewBuilder
-    private func stripPiece(_ piece: ChromePiece, opacity: CGFloat) -> some View {
+    private func bubblePiece(_ layout: ChromeLayout) -> some View {
+        let piece = layout.bubble
         if piece.isShown {
-            let outset = K.stripHitOutset, title = screen.stripTitle
+            let outset = K.bubbleHitOutset, title = screen.bubbleTitle
             Button(action: onExpand) {
+                // The name starts where the field's text was and glides to the centre (`ChromeLayout`).
                 Text(title)
-                    .font(.system(size: K.stripFontSize, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
+                    .font(.system(size: TypeStyle.caption.size, weight: .semibold))
+                    .foregroundStyle(reading?.ink ?? Palette.ink)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .padding(.horizontal, K.stripSidePadding)
-                    .frame(width: piece.rect.width, height: piece.rect.height)
-                    // It rises the last few points into place as it fades in.
-                    .offset(y: (1 - opacity) * K.unit)
-                    .opacity(opacity)
+                    .frame(maxWidth: max(0, piece.rect.width - layout.bubbleTextX - Spacing.m), alignment: .leading)
+                    .scaleEffect(layout.bubbleTextScale, anchor: .leading)
+                    .opacity(piece.opacity)
+                    .padding(.leading, layout.bubbleTextX)
+                    .frame(width: piece.rect.width, height: piece.rect.height, alignment: .leading)
+                    .chromeSurface(Capsule(), fill: BottomChrome.fieldFill(reading))
                     .padding(.vertical, outset)
                     .contentShape(Rectangle())
                     .chromeLargeContent(title, symbol: state.destination.symbol)
@@ -126,66 +122,45 @@ struct ChromePieces: View, Animatable {
             .frame(width: piece.rect.width, height: piece.rect.height + 2 * outset)
             .offset(x: piece.rect.minX, y: piece.rect.minY - outset)
             .accessibilityLabel(title)
-            .accessibilityHint(String(localized: "Shows the bar"))
-            .accessibilityIdentifier("chromeStrip")
+            .accessibilityHint(String(localized: "Shows the controls"))
+            .accessibilityIdentifier("chromeBubble")
             .transition(.opacity)
         }
     }
 
-    /// The address, the search, or on Listen the player card, which is its own glass (never folded).
-    @ViewBuilder
+    /// The address or the search field.
     private func fieldPiece(_ layout: ChromeLayout) -> some View {
         let field = layout.field
-        if state.destination == .reader {
-            piece(field) {
-                ZStack(alignment: .topLeading) {
-                    if let card {
-                        card.content
-                            .frame(width: field.fullWidth, height: K.card, alignment: .top)
+        return piece(field) {
+            screen.field(focus)
+                .dynamicTypeSize(...Self.largestText)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("bandField")
+                .environment(\.isChromeField, true)
+                .environment(\.chromeFieldWidth, field.rect.width)
+                .overlay {
+                    if state.destination == .browse {
+                        LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())
                     }
                 }
-                .frame(width: field.fullWidth, height: field.fullHeight, alignment: .topLeading)
-                .dynamicTypeSize(...Self.largestText)
-                .clipShape(RoundedRectangle(cornerRadius: field.radius, style: .continuous))
-                .chromeSurface(RoundedRectangle(cornerRadius: field.radius, style: .continuous), interactive: false)
-            }
-        } else {
-            piece(field) {
-                screen.field(focus)
-                    .dynamicTypeSize(...Self.largestText)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("bandField")
-                    .environment(\.isChromeField, true)
-                    .environment(\.chromeFieldWidth, field.fullWidth)
-                    .overlay {
-                        if state.destination == .browse {
-                            LoadProgressLine(web: shell.web).frame(maxHeight: .infinity, alignment: .bottom).clipShape(Capsule())
-                        }
-                    }
-            }
         }
     }
 
-    /// ⋯, or the word Cancel while a search is editing (a text button in the accent, as Clear All is).
-    @ViewBuilder
-    private var more: some View {
-        if state.keyboard {
-            Button(action: screen.onCancel) {
-                Text(Verbs.cancel)
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.accent)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .dynamicTypeSize(...Self.largestText)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .chromeLargeContent(Verbs.cancel, symbol: Icons.close)
-            }
-            .buttonStyle(.plain)
-                .accessibilityLabel(Verbs.cancel)
-                .accessibilityIdentifier(screen.cancelID)
-        } else {
-            screen.more
+    /// The word Cancel while a search is editing (a text button in the accent, as Clear All is).
+    private var cancel: some View {
+        Button(action: screen.onCancel) {
+            Text(Verbs.cancel)
+                .typeStyle(.row)
+                .foregroundStyle(Palette.accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .dynamicTypeSize(...Self.largestText)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(ChromeHitShape())
+                .chromeLargeContent(Verbs.cancel, symbol: Icons.close)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Verbs.cancel)
+        .accessibilityIdentifier(screen.cancelID)
     }
 }

@@ -15,13 +15,22 @@ struct ClusteredPlayerDock: View {
     @Environment(LibraryStore.self) private var library
     @Environment(PrepareCenter.self) private var preparedAudio
     @Query(LibraryQueries.lastPlayed) private var lastPlayed: [Article]
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var isHidden: Bool {
         isCovered || shell.isNowPlayingPresented || shell.sheet != nil
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: Spacing.m) {
+        // At the accessibility sizes the tools take a row of their own above the player, which
+        // beside them would have room for a letter or two of its title.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .trailing, spacing: Spacing.xs))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: Spacing.m))
+        layout {
+            if typeSize.isAccessibilitySize, let trailingTools {
+                trailingTools
+            }
             Group {
                 if isHidden {
                     placeholder.hidden().accessibilityHidden(true)
@@ -36,11 +45,13 @@ struct ClusteredPlayerDock: View {
                 }
             }
             .frame(maxWidth: RegularLayout.playerClusterWidth, alignment: .leading)
+            .frame(maxWidth: typeSize.isAccessibilitySize ? .infinity : nil, alignment: .leading)
 
-            Spacer(minLength: 0)
-
-            if let trailingTools {
-                trailingTools
+            if !typeSize.isAccessibilitySize {
+                Spacer(minLength: 0)
+                if let trailingTools {
+                    trailingTools
+                }
             }
         }
         .padding(.horizontal, Spacing.m)
@@ -61,6 +72,7 @@ struct ClusteredPlayerDock: View {
                     .typeStyle(.caption)
                     .foregroundStyle(Palette.secondaryInk)
             }
+            .layoutPriority(1)
             Spacer(minLength: 0)
             PlayStateButton(state: .idle, action: {})
                 .disabled(true)
@@ -82,6 +94,7 @@ private struct ClusteredLiveBar: View {
     @Environment(PrepareCenter.self) private var preparedAudio
     @Query private var articles: [Article]
     @State private var cover = BarCover()
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(speech: SpeechController, now: NowPlaying) {
         self.speech = speech
@@ -110,7 +123,7 @@ private struct ClusteredLiveBar: View {
                             Text(now.lineOne)
                                 .typeStyle(.row, weight: .semibold)
                                 .foregroundStyle(Palette.ink)
-                                .lineLimit(1)
+                                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
                             DetailLine(parts: detail)
                                 .typeStyle(.caption)
                                 .foregroundStyle(Palette.secondaryInk)
@@ -140,6 +153,7 @@ private struct ClusteredResumeBar: View {
     let article: Article
     let actions: ArticleActions
     @State private var cover = BarCover()
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         if article.isLive {
@@ -154,7 +168,7 @@ private struct ClusteredResumeBar: View {
                             Text(article.lineOne)
                                 .typeStyle(.row, weight: .semibold)
                                 .foregroundStyle(Palette.ink)
-                                .lineLimit(1)
+                                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
                             DetailLine(parts: detail(progress))
                                 .typeStyle(.caption)
                                 .foregroundStyle(Palette.secondaryInk)

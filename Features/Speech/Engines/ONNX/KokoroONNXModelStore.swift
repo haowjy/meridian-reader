@@ -6,7 +6,10 @@ import Observation
 /// (`KokoroCPUHost.prepare` awaits `ensureInstalled`).
 /// `Application Support/CPURoute/kokoro-82m-v1.0-onnx/model_fp16.onnx` (163 MB, excluded from
 /// iCloud backup; the folder name predates the route and stays so installed models are found).
-/// Foreground `URLSession` download with progress + cancel; SHA-256 verified.
+/// Foreground `URLSession` download with progress + cancel; SHA-256 verified. One download at a
+/// time, shared by everyone who needs the model (every Kokoro voice's transfer, the CPU route
+/// benchmark): each is an instance with its own id, waiters and session, so a late callback of a
+/// stopped one (URLSession reports a cancel after it) never touches the retry that followed.
 @MainActor
 @Observable
 final class KokoroONNXModelStore {
@@ -25,10 +28,17 @@ final class KokoroONNXModelStore {
     }
 
     private(set) var state: State = .notDownloaded
-    private var task: URLSessionDownloadTask?
-    private var session: URLSession?
-    /// `ensureInstalled` callers waiting for the current download.
-    private var waiters: [CheckedContinuation<Void, Error>] = []
+
+    /// The download in flight (downloading, then verifying).
+    private struct Download {
+        let id: UUID
+        let task: URLSessionDownloadTask
+        let session: URLSession
+        /// `ensureInstalled` callers waiting for this download.
+        var waiters: [CheckedContinuation<Void, Error>] = []
+    }
+
+    private var current: Download?
     private var progressObservers: [UUID: @Sendable (Double) -> Void] = [:]
 
     /// Cheap existence + size check (no hashing), usable off the main actor.
@@ -70,35 +80,44 @@ final class KokoroONNXModelStore {
         }
     }
 
-    /// Download (if needed) and wait until the model is installed. Progress 0…1 while bytes
-    /// arrive. Throws `CancellationError` when the calling task is cancelled (the download stops)
-    /// or `cancel()` is called; the download error otherwise.
+    /// Download (if needed) and wait until the model is installed, joining the download in
+    /// flight. Progress 0…1 while bytes arrive. On cellular or in Low Data Mode it asks first
+    /// (`LargeModelDownloadConsent`), a stage a stop ends too. Throws `CancellationError` when the
+    /// calling task is cancelled (the download stops, for everyone waiting on it), the prompt is
+    /// declined or `cancel()` is called; the download error otherwise.
     func ensureInstalled(progress: (@Sendable (Double) -> Void)? = nil) async throws {
         refresh()
         if isInstalled { return }
-        // Cellular / Low Data Mode: ask once before the ~163 MB ONNX (Wi‑Fi starts immediately).
-        if !isBusy {
+        if current == nil {
             try await LargeModelDownloadConsent.shared.confirmIfNeeded(
                 engineName: "Kokoro", bytes: Self.expectedBytes)
+            refresh()
+            if isInstalled { return }
         }
+        // Another caller may have started it while this one was asked.
+        let id = current?.id ?? beginDownload()
         let token = UUID()
         if let progress { progressObservers[token] = progress }
         defer { progressObservers[token] = nil }
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                waiters.append(cont)
-                if case .failed = state { state = .notDownloaded }
-                if !isBusy { beginDownload() }
+                guard current?.id == id, !Task.isCancelled else {
+                    cont.resume(throwing: CancellationError())
+                    return
+                }
+                current?.waiters.append(cont)
             }
         } onCancel: {
-            Task { @MainActor in KokoroONNXModelStore.shared.cancel() }
+            Task { @MainActor [weak self] in self?.cancel(id) }
         }
     }
 
-    private func resumeWaiters(_ result: Result<Void, Error>) {
-        let pending = waiters
-        waiters.removeAll()
-        for w in pending { w.resume(with: result) }
+    /// End download `id` for everyone waiting on it; nothing when another has replaced it.
+    private func settle(_ id: UUID, _ result: Result<Void, Error>, state next: State) {
+        guard let download = current, download.id == id else { return }
+        current = nil
+        state = next
+        for waiter in download.waiters { waiter.resume(with: result) }
     }
 
     nonisolated static var directory: URL {
@@ -108,12 +127,7 @@ final class KokoroONNXModelStore {
     nonisolated static var modelURL: URL { directory.appendingPathComponent("model_fp16.onnx") }
 
     var isInstalled: Bool { if case .installed = state { return true } else { return false } }
-    var isBusy: Bool {
-        switch state {
-        case .downloading, .verifying: return true
-        default: return false
-        }
-    }
+    var isBusy: Bool { current != nil }
 
     init() { refresh() }
 
@@ -128,26 +142,20 @@ final class KokoroONNXModelStore {
         }
     }
 
+    /// The CPU route benchmark's *Download*: the same operation every voice's transfer waits on.
     func download() {
-        guard !isBusy, !isInstalled else { return }
-        Task { @MainActor in
-            do {
-                try await LargeModelDownloadConsent.shared.confirmIfNeeded(
-                    engineName: "Kokoro", bytes: Self.expectedBytes)
-            } catch {
-                return
-            }
-            self.beginDownload()
-        }
+        guard current == nil, !isInstalled else { return }
+        Task { try? await ensureInstalled() }
     }
 
-    private func beginDownload() {
-        guard !isBusy, !isInstalled else { return }
+    /// Start a download and return its id.
+    private func beginDownload() -> UUID {
+        let id = UUID()
         state = .downloading(fraction: 0, written: 0, total: Self.expectedBytes)
         let delegate = DownloadDelegate(
             progress: { [weak self] written, total in
                 Task { @MainActor in
-                    guard let self, case .downloading = self.state else { return }
+                    guard let self, self.current?.id == id, case .downloading = self.state else { return }
                     let t = total > 0 ? total : Self.expectedBytes
                     let f = Double(written) / Double(t)
                     self.state = .downloading(fraction: f, written: written, total: t)
@@ -155,52 +163,60 @@ final class KokoroONNXModelStore {
                 }
             },
             finished: { [weak self] result in
-                Task { @MainActor in self?.finish(result) }
+                Task { @MainActor in self?.finish(id, result) }
             })
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForResource = 60 * 60
-        let s = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
-        session = s
-        let t = s.downloadTask(with: Self.remoteURL)
-        task = t
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+        let task = session.downloadTask(with: Self.remoteURL)
+        current = Download(id: id, task: task, session: session)
         ListenTimingLog.log("cpubench_model_download", ["op": "start"])
         ListenDebugLog.shared.append("CPU route: model download started")
-        t.resume()
+        task.resume()
+        return id
     }
 
+    /// Stop the download in flight (the benchmark's *Cancel*).
     func cancel() {
-        guard case .downloading = state else { return }
-        task?.cancel()
-        task = nil
-        session?.invalidateAndCancel()
-        session = nil
-        state = .notDownloaded
+        if let id = current?.id { cancel(id) }
+    }
+
+    /// Stop download `id` while its bytes arrive; its check, once they are in, runs to the end.
+    private func cancel(_ id: UUID) {
+        guard let download = current, download.id == id, case .downloading = state else { return }
+        download.task.cancel()
+        download.session.invalidateAndCancel()
+        settle(id, .failure(CancellationError()), state: .notDownloaded)
         ListenTimingLog.log("cpubench_model_download", ["op": "cancel"])
         ListenDebugLog.shared.append("CPU route: model download cancelled")
-        resumeWaiters(.failure(CancellationError()))
     }
 
-    func delete() {
+    /// Delete the model (the Voice picker's *Remove* of Kokoro's last voice, the CPU route
+    /// benchmark). Nothing while a download is in flight.
+    func delete() throws {
         guard !isBusy else { return }
-        try? FileManager.default.removeItem(at: Self.directory)
+        if FileManager.default.fileExists(atPath: Self.directory.path) {
+            try FileManager.default.removeItem(at: Self.directory)
+        }
         state = .notDownloaded
         ListenTimingLog.log("cpubench_model_download", ["op": "delete"])
         ListenDebugLog.shared.append("CPU route: model deleted")
     }
 
-    private func finish(_ result: Result<URL, Error>) {
-        session?.finishTasksAndInvalidate()
-        session = nil
-        task = nil
+    private func finish(_ id: UUID, _ result: Result<URL, Error>) {
+        // A stopped download's last callback: its retry (if any) is another download.
+        guard let download = current, download.id == id else {
+            if case .success(let staged) = result { try? FileManager.default.removeItem(at: staged) }
+            return
+        }
+        download.session.finishTasksAndInvalidate()
         switch result {
         case .failure(let error):
             if (error as NSError).code == NSURLErrorCancelled {
-                state = .notDownloaded
-                resumeWaiters(.failure(CancellationError()))
+                settle(id, .failure(CancellationError()), state: .notDownloaded)
                 return
             }
-            state = .failed(error.localizedDescription)
-            resumeWaiters(.failure(error))
+            settle(id, .failure(error), state: .failed(error.localizedDescription))
             ListenTimingLog.log("cpubench_model_download", ["op": "fail", "err": error.localizedDescription])
             ListenDebugLog.shared.append("CPU route: download failed: \(error.localizedDescription)")
         case .success(let staged):
@@ -210,13 +226,11 @@ final class KokoroONNXModelStore {
                 await MainActor.run {
                     switch outcome {
                     case .success(let bytes):
-                        self.state = .installed(bytes: bytes)
-                        self.resumeWaiters(.success(()))
+                        self.settle(id, .success(()), state: .installed(bytes: bytes))
                         ListenTimingLog.log("cpubench_model_download", ["op": "installed", "bytes": bytes])
                         ListenDebugLog.shared.append("CPU route: model installed (\(FileSizes.label(bytes)))")
                     case .failure(let error):
-                        self.state = .failed(error.localizedDescription)
-                        self.resumeWaiters(.failure(error))
+                        self.settle(id, .failure(error), state: .failed(error.localizedDescription))
                         ListenTimingLog.log("cpubench_model_download", ["op": "fail", "err": error.localizedDescription])
                         ListenDebugLog.shared.append("CPU route: verify failed: \(error.localizedDescription)")
                     }
@@ -231,7 +245,8 @@ final class KokoroONNXModelStore {
         do {
             let size = (try fm.attributesOfItem(atPath: staged.path)[.size] as? NSNumber)?.int64Value ?? 0
             guard size == expectedBytes else {
-                throw LocalSynthError.engineUnavailable("Downloaded \(size) bytes, expected \(expectedBytes)")
+                ListenTimingLog.log("kokoro_model_bad_download", ["bytes": size, "expected": expectedBytes])
+                throw LocalSynthError.engineUnavailable("The download didn’t finish. Try again.")
             }
             let handle = try FileHandle(forReadingFrom: staged)
             defer { try? handle.close() }
@@ -240,7 +255,10 @@ final class KokoroONNXModelStore {
                 hasher.update(data: chunk)
             }
             let hex = hasher.finalize().map { String(format: "%02x", $0) }.joined()
-            guard hex == sha256 else { throw LocalSynthError.engineUnavailable("SHA-256 mismatch (\(hex.prefix(12))…)") }
+            guard hex == sha256 else {
+                ListenTimingLog.log("kokoro_model_bad_download", ["sha256": String(hex.prefix(12))])
+                throw LocalSynthError.engineUnavailable("The download was damaged. Try again.")
+            }
             var dir = directory
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
             var values = URLResourceValues()
@@ -296,7 +314,7 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, @unc
             finished(.success(staged))
         } else {
             let code = (task.response as? HTTPURLResponse)?.statusCode ?? -1
-            finished(.failure(LocalSynthError.engineUnavailable("Download failed (HTTP \(code))")))
+            finished(.failure(LocalSynthError.engineUnavailable("The download failed (error \(code)). Try again.")))
         }
     }
 }

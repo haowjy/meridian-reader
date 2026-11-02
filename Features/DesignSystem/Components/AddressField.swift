@@ -3,13 +3,13 @@ import SwiftUI
 /// The browser's field capsule: 📄 at the leading end toggles the page's reader view. At the
 /// trailing end, regular width has 🎧 (listen to the page; shown only on a readable page, `listen`
 /// non-nil; a `PlayStateButton`: grey when the page isn't what you hear, accent with bars when it
-/// is) and compact width has ↻ (`reload`: reload, or stop while the page loads), with Aa before it
-/// while the page shows as its reader view (`appearance`). Compact never has 🎧: play and pause live
-/// in the chrome's own button.
+/// is) and compact width has ↻ (`reload`: reload, or stop while the page loads). Compact never has
+/// 🎧: play and pause live in the chrome's own button.
 ///
 /// ```
 /// ( 📄 news.example.org/…              ↻ )     compact
-/// ( 📄 news.example.org/…         Aa   ↻ )     compact, reader view
+/// ((📄) news.example.org/…             ↻ )     compact, reader view (📄 lit)
+/// ((📄) investing.example.com            )     compact, Library Read (no ↻)
 /// ( 📄 news.example.org/…              🎧 )    regular
 /// ```
 ///
@@ -17,6 +17,9 @@ import SwiftUI
 /// folded to one row beside ‹ and ▶ the 🔍 / 📄 give way and the address truncates. ↻ / ✕ never
 /// does: it is a whole 44 pt control at the field's trailing end, its glyph the chrome's own,
 /// centred in the capsule's end (concentric with it), so the text gives way to it.
+///
+/// `holdMenu` (the compact Browser's menu, which has no ⋯ in its chrome) opens on a press and hold of
+/// the leading glyph, 📄 or 🔍, as a system menu; a tap on 📄 still toggles the reader view.
 ///
 /// `field` is the text itself: the page's address while idle, the `TextField` while editing.
 /// `accessory` sits at the trailing end while editing, in the trailing button's place (🎤).
@@ -30,7 +33,8 @@ struct AddressField<Field: View, Accessory: View>: View {
         case extracting
         /// The page is readable: 📄.
         case available
-        /// The page shows as its reader view: 📄 lit, a tap shows the web page again.
+        /// The page shows as its reader view: 📄 lit, a tap shows the web page again (Library Read:
+        /// opens the page in the Browser).
         case showing
     }
 
@@ -46,10 +50,11 @@ struct AddressField<Field: View, Accessory: View>: View {
     var listen: PlayState?
     /// Compact width: ↻ / ✕ at the trailing end; nil (regular width, the start page) draws none.
     var reload: ReloadButton?
-    /// Aa before ↻ while the Browser shows a page's reader (compact width): opens the text appearance
-    /// panel pointing at it. The binding is the panel's open state; nil draws no Aa.
-    var appearance: Binding<Bool>?
-    var onOpenReader: () -> Void = {}
+    /// The menu a press and hold on the leading glyph opens (nil: none).
+    var holdMenu: [[MenuRow]]?
+    /// 📄's tap. nil with a `holdMenu` (Library Read on a page with no web address): the lit 📄 has
+    /// nothing to show, so a tap opens the menu and it reads as *More*.
+    var onOpenReader: (() -> Void)? = {}
     var onListen: () -> Void = {}
     var onReload: () -> Void = {}
     @ViewBuilder var field: Field
@@ -66,7 +71,7 @@ struct AddressField<Field: View, Accessory: View>: View {
     }
 
     /// The 📄 glyph's frame.
-    private static var readerSize: CGFloat { Glyph.fieldLeading }
+    private static var readerSize: CGFloat { ChromeMetrics.endGlyphSlot }
     /// The field's control glyphs: the chrome's own in the compact chrome, else body text size.
     private var controlFont: Font { isChromeField ? BottomChrome.chromeGlyph : .body }
 
@@ -82,27 +87,13 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .accessibilityIdentifier("addressListen")
                     .transition(.opacity)
             }
-            if let appearance {
-                Button { appearance.wrappedValue.toggle() } label: {
-                    Image(systemName: Icons.textAppearance)
-                        .font(controlFont)
-                        .foregroundStyle(appearance.wrappedValue ? Palette.accent : Palette.ink)
-                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .textAppearancePopover(isPresented: appearance, arrowEdge: .bottom)
-                .accessibilityLabel(Verbs.textAppearance)
-                .accessibilityIdentifier("readerAppearance")
-                .chromeLargeContent(Verbs.textAppearance, symbol: Icons.textAppearance)
-            }
             if let reload {
                 Button(action: onReload) {
                     Image(systemName: reload == .stop ? Icons.close : Icons.reload)
                         .font(controlFont)
                         .foregroundStyle(Palette.ink)
-                        .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
-                        .contentShape(Rectangle())
+                        .frame(width: reloadSide, height: reloadSide)
+                        .tapTarget(reloadSide)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(reload == .stop ? Verbs.stopLoading : Verbs.reload)
@@ -112,17 +103,21 @@ struct AddressField<Field: View, Accessory: View>: View {
             }
             accessory
         }
-        // In the chrome a 24 pt glyph slot (📄, 🔍, 🎤, ⊗) sits `fieldEndInset` in from the capsule's end, so it
-        // is concentric with the end cap; a 44 pt button (↻ / ✕, 🎧) sits 2 pt in, which centres it the same way.
+        // In the chrome a 24 pt glyph slot (📄, 🔍, 🎤, ⊗) sits `endInset` in from the capsule's end, so it is
+        // concentric with the end cap; ↻ / ✕ is a circle as tall as the capsule at its very end, centred the same
+        // way (tapped 44). On the band a 44 pt button (↻ / ✕, 🎧) sits 2 pt in.
         .bottomChromeField(leading: reader == .showing ? leadingInset * (1 - readerReveal) : leadingInset,
-                           trailing: reload != nil || appearance != nil || listen != nil
-                               ? (ChromeMetrics.barHeight - BottomChrome.minTapTarget) / 2
+                           trailing: reload != nil || listen != nil
+                               ? (isChromeField ? 0 : Spacing.xxs / 2)
                                : Accessory.self == EmptyView.self ? Spacing.s
-                               : isChromeField ? BottomChrome.fieldEndInset : Spacing.xxs)
+                               : isChromeField ? ChromeMetrics.endInset : Spacing.xxs)
     }
 
+    /// ↻ / ✕'s frame: the capsule's height in the chrome, `Control.tap` on the band.
+    private var reloadSide: CGFloat { isChromeField ? Control.chrome : Control.tap }
+
     /// The leading glyph slot's inset: concentric with the end cap in the chrome.
-    private var leadingInset: CGFloat { isChromeField ? BottomChrome.fieldEndInset : Spacing.s }
+    private var leadingInset: CGFloat { isChromeField ? ChromeMetrics.endInset : Spacing.s }
 
     @ViewBuilder
     private var leading: some View {
@@ -130,20 +125,31 @@ struct AddressField<Field: View, Accessory: View>: View {
         // 🔍 when there is nothing to read or while editing: the same slot, glyph and frame as
         // the Library's `SearchField`, so both fields line up. A caption-size hint, not a control.
         case .hidden, .searching:
-            Image(systemName: Icons.search)
+            let glyph = Image(systemName: Icons.search)
                 .font(isChromeField ? BottomChrome.chromeGlyph : .caption)
                 .foregroundStyle(Palette.secondaryInk)
-                .frame(width: Glyph.fieldLeading * readerReveal, height: Glyph.fieldLeading)
+                .frame(width: ChromeMetrics.endGlyphSlot * readerReveal, height: ChromeMetrics.endGlyphSlot)
                 .opacity(readerReveal)
                 .clipped()
-                .accessibilityHidden(true)
+            if let holdMenu, reader == .hidden {
+                // Nothing to read: the glyph holds the page's menu, and a tap does nothing.
+                Menu { MenuRows(blocks: holdMenu) } label: { glyph.tapTarget(ChromeMetrics.endGlyphSlot) } primaryAction: {}
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .allowsHitTesting(readerReveal > 0.5)
+                    .accessibilityHidden(readerReveal < 0.5)
+                    .accessibilityLabel(Verbs.more)
+                    .accessibilityIdentifier("addressMenu")
+            } else {
+                glyph.accessibilityHidden(true)
+            }
         case .extracting:
             ProgressView()
                 .controlSize(.small)
                 .frame(width: Self.readerSize * readerReveal, height: Self.readerSize)
                 .opacity(readerReveal)
         case .available:
-            Button(action: onOpenReader) {
+            readerControl {
                 Image(systemName: Icons.reader)
                     .font(controlFont)
                     .foregroundStyle(Palette.accent)
@@ -151,7 +157,6 @@ struct AddressField<Field: View, Accessory: View>: View {
                     .opacity(readerReveal)
                     .tapTarget(Self.readerSize)
             }
-            .buttonStyle(.plain)
             .allowsHitTesting(readerReveal > 0.5)
             .accessibilityHidden(readerReveal < 0.5)
             .accessibilityLabel(Verbs.openInReader)
@@ -161,35 +166,57 @@ struct AddressField<Field: View, Accessory: View>: View {
         case .showing:
             // The reader view shows: the icon sits in a lit capsule inset from the field's edge,
             // concentric with it (the pill's lit segment, the same fill).
-            let side = ChromeMetrics.barHeight
-            Button(action: onOpenReader) {
+            let side = Control.chrome
+            readerControl {
                 Image(systemName: Icons.readerShowing)
                     .font(controlFont)
                     .foregroundStyle(Palette.accent)
                     .frame(width: side, height: side)
-                    .background { Circle().fill(Palette.lit).padding(ChromeMetrics.litInset) }
-                    .contentShape(Circle())
+                    .background { Circle().fill(Palette.lit).frame(width: ChromeMetrics.innerCircle, height: ChromeMetrics.innerCircle) }
+                    // The capsule's end, `hitOutset` past it: at least `Control.tap` to tap.
+                    .contentShape(ChromeHitShape())
                     .frame(width: side * readerReveal, alignment: .leading)
                     .opacity(readerReveal)
                     .clipped()
             }
-            .buttonStyle(.plain)
             .allowsHitTesting(readerReveal > 0.5)
             .accessibilityHidden(readerReveal < 0.5)
-            .accessibilityLabel(Verbs.showWebPage)
+            .accessibilityLabel(onOpenReader == nil ? Verbs.more : Verbs.showWebPage)
             .accessibilityAddTraits(.isSelected)
             .accessibilityIdentifier("addressReader")
-            .chromeLargeContent(Verbs.showWebPage, symbol: Icons.readerShowing)
+            .chromeLargeContent(onOpenReader == nil ? Verbs.more : Verbs.showWebPage, symbol: Icons.readerShowing)
             .transition(.opacity)
+        }
+    }
+}
+
+extension AddressField {
+    /// 📄: a tap toggles the reader view; with a `holdMenu`, a press and hold opens it (with no
+    /// `onOpenReader`, a tap does).
+    @ViewBuilder
+    fileprivate func readerControl(@ViewBuilder _ label: () -> some View) -> some View {
+        if let holdMenu {
+            if let onOpenReader {
+                Menu { MenuRows(blocks: holdMenu) } label: { label() } primaryAction: { onOpenReader() }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+            } else {
+                Menu { MenuRows(blocks: holdMenu) } label: { label() }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+            }
+        } else {
+            Button(action: { onOpenReader?() }, label: label)
+                .buttonStyle(.plain)
         }
     }
 }
 
 extension AddressField where Accessory == EmptyView {
     init(reader: ReaderButton = .hidden, listen: PlayState? = nil, reload: ReloadButton? = nil,
-         appearance: Binding<Bool>? = nil, onOpenReader: @escaping () -> Void = {}, onListen: @escaping () -> Void = {},
+         onOpenReader: (() -> Void)? = {}, onListen: @escaping () -> Void = {},
          onReload: @escaping () -> Void = {}, @ViewBuilder field: () -> Field) {
-        self.init(reader: reader, listen: listen, reload: reload, appearance: appearance, onOpenReader: onOpenReader, onListen: onListen,
+        self.init(reader: reader, listen: listen, reload: reload, onOpenReader: onOpenReader, onListen: onListen,
                   onReload: onReload, field: field, accessory: { EmptyView() })
     }
 }

@@ -10,8 +10,6 @@ extension LibraryStore {
     struct MigrationReport: Equatable {
         var copiedArticles = 0
         var copiedBookmarks = 0
-        /// Bookmarks whose page was already saved: that page is starred where it is (D6).
-        var savedIntoFavorites = 0
         var mergedDuplicates = 0
         /// `bookmarks.json` holds bytes that don't decode: none of it was copied or recorded, and
         /// the file is left as it is (a later launch copies it if it becomes readable).
@@ -63,9 +61,9 @@ extension LibraryStore {
             report.copiedArticles += 1
         }
 
-        // Bookmarks → starred pages, in file order. A bookmark for a page that exists stars it
-        // where it is (D6): one in a folder stays there; one out of the Library joins it as a
-        // link, in no folder. Any other bookmark is a new starred link page in no folder.
+        // Bookmarks → link pages in the Library, in file order. A bookmark for a page that exists
+        // leaves it where it is: one in a folder stays there; one out of the Library joins it as a
+        // link, in no folder. Any other bookmark is a new link page in no folder.
         for bookmark in bookmarks {
             let canonical = ArticleIdentity.canonicalURLString(from: bookmark.urlString)
             if let existing = copiedByURL[canonical] ?? article(canonicalURL: canonical) {
@@ -75,15 +73,12 @@ extension LibraryStore {
                     existing.sortKey = looseKey
                     looseKey += 1
                 }
-                existing.isFavorite = true
                 if existing.artworkData == nil { existing.artworkData = bookmark.faviconData }
-                if existing.isSaved { report.savedIntoFavorites += 1 }
             } else {
                 let article = Article(key: ArticleIdentity.articleKey(canonicalURL: canonical), title: bookmark.title,
                                 byline: bookmark.host, urlString: bookmark.urlString, contentState: .link,
                                 addedAt: bookmark.createdAt, sortKey: looseKey, artworkData: bookmark.faviconData)
                 article.canonicalURL = canonical
-                article.isFavorite = true
                 context.insert(article)
                 looseKey += 1
                 copiedByURL[canonical] = article
@@ -106,7 +101,7 @@ extension LibraryStore {
         log("migration: \(report)")
         ListenTimingLog.log("library_migration", [
             "articles": report.copiedArticles, "bookmarks": report.copiedBookmarks,
-            "saved_into_favorites": report.savedIntoFavorites, "merged": report.mergedDuplicates,
+            "merged": report.mergedDuplicates,
         ])
         return report
     }

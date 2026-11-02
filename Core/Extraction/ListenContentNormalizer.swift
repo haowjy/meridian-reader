@@ -56,10 +56,10 @@ final class ListenContentNormalizer {
             result = try await webView.callAsyncJavaScript(body, arguments: ["html": html, "selector": ListenHTMLBlocks.innerSelector],
                                                            in: nil, contentWorld: .page)
         } catch {
-            throw ExtractionError.engineFailed(message: "Couldn't prepare the text for listening: \(error.localizedDescription)")
+            throw ExtractionError.engineFailed(message: "Couldn’t prepare the text for listening.")
         }
         guard let normalized = result as? String else {
-            throw ExtractionError.engineFailed(message: "Couldn't prepare the text for listening.")
+            throw ExtractionError.engineFailed(message: "Couldn’t prepare the text for listening.")
         }
         return normalized
     }

@@ -13,6 +13,8 @@ struct MenuRow: Identifiable {
     let title: String
     /// nil: a submenu's choice drawn as its title alone (a Sort choice not picked).
     let icon: String?
+    /// The registry group; renderers preserve its dividers even when rows are passed as one list.
+    var group = 0
     var isDestructive = false
     var availability: MenuAvailability = .enabled
     /// A submenu (the ⋯ panel's *Sort*): its rows open instead of an action.
@@ -20,6 +22,9 @@ struct MenuRow: Identifiable {
     /// VoiceOver's label and hint, when they differ from the title (a big button's).
     var accessibilityLabel: String?
     var accessibilityHint: String?
+    /// Its list row's swipe, one word as iOS's are (*Delete*, *Remove*): the swipe already shows
+    /// what it acts on, and a question it asks names the thing (`Verbs.swipe`).
+    var swipeTitle: String?
     var action: () -> Void = {}
 
     init(id: String, title: String, icon: String?, isDestructive: Bool = false,
@@ -39,23 +44,18 @@ struct MenuRow: Identifiable {
 
     var isShown: Bool { availability != .hidden }
 
-    /// The row as its list row's swipe (a swipe is its menu row): its name and symbol, red, its
-    /// action. `role: .destructive` only where the action takes the row out of the list's data at
+    /// The row as its list row's swipe (a swipe is its menu row): its one-word `swipeTitle`, its
+    /// symbol, red, its action. `role: .destructive` only where the action takes the row out of the list's data at
     /// once; a row that can stay (it asks first, or a save can fail) takes the tint alone
     /// (AGENTS.md's swipe rule).
+    /// Dimmed and inert while its availability says it can't run.
     func swipeButton(role: ButtonRole? = nil) -> some View {
-        Button(role: role, action: action) {
+        let title = swipeTitle ?? title
+        return Button(role: role, action: action) {
             if let icon { Label(title, systemImage: icon) } else { Text(title) }
         }
         .tint(Palette.destructive)
-    }
-}
-
-extension [MenuRow] {
-    /// The first of the rows `ids` that deletes and can run now: the one a swipe offers.
-    func swipeRow(_ ids: String...) -> MenuRow? {
-        ids.lazy.compactMap { id in first { $0.id == id } }
-            .first { $0.isDestructive && $0.availability == .enabled }
+        .disabled(availability != .enabled)
     }
 }
 
@@ -74,7 +74,14 @@ struct MenuRows: View {
     }
 
     var body: some View {
-        let shown = blocks.map { $0.filter(\.isShown) }.filter { !$0.isEmpty }
+        let shown = blocks.flatMap { rows -> [[MenuRow]] in
+            var groups: [[MenuRow]] = []
+            for row in rows where row.isShown {
+                if groups.last?.last?.group == row.group { groups[groups.count - 1].append(row) }
+                else { groups.append([row]) }
+            }
+            return groups
+        }
         ForEach(shown.indices, id: \.self) { index in
             Section {
                 ForEach(shown[index]) { row in
@@ -112,6 +119,7 @@ extension MenuRegistry {
             func make(_ entry: Entry) -> MenuRow {
                 var made = row(entry.option)
                 made.availability = entry.availability
+                made.group = entry.block
                 made.submenu = entry.children.map(make)
                 return made
             }

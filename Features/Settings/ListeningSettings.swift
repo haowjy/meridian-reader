@@ -1,54 +1,48 @@
 import SwiftUI
-import AVFoundation
 
 /// Settings › Listening, on the Settings card:
 ///
 /// 1. **Voice ›**: the default voice for new articles and books, from the one voice switcher
-///    (`VoicePage`, `VoiceSelectionList`: compact Engine chips then that engine's voices, C138a).
-/// 3. **Language ›**: Automatic (match article) or a manual language (`LanguagePage`).
-/// 4. **Speed ›**: the playback speeds, the list Now Playing's speed opens (`SpeedPage`).
+///    (`VoicePage`, `VoiceSelectionList`: each engine a section that opens in place).
+/// 2. **Speed ›**: the playback speeds, the list Now Playing's speed opens (`SpeedPage`).
 struct ListeningSettingsSection: View {
     @Bindable var speech: SpeechController
+
+    @Environment(\.settingsSearch) private var search
+
+    static let group = SettingsSearch.Group(title: String(localized: "Listening"),
+                                            rows: [Verbs.voice, Verbs.speed])
 
     private var localTTS: LocalTTSCoordinator { speech.localTTS }
 
     var body: some View {
-        Section {
-            SettingsLinkRow(title: Verbs.voice, symbol: nil, value: voiceName,
-                            accessibilityID: "settingsVoice") {
-                VoicePage(speech: speech)
+        if search.shows(Self.group) {
+            Section {
+                if search.shows(Verbs.voice, in: Self.group) {
+                    SettingsLinkRow(title: Verbs.voice, value: voiceValue,
+                                    accessibilityID: "settingsVoice", route: .voice)
+                }
+                if search.shows(Verbs.speed, in: Self.group) {
+                    SettingsLinkRow(title: Verbs.speed, value: ListenRate.label(speech.rateMultiplier),
+                                    accessibilityID: "settingsSpeed", route: .speed)
+                }
+            } header: {
+                SectionHeader(title: Self.group.title, size: .settings).listHeader()
             }
-            SettingsLinkRow(title: Verbs.language, symbol: nil, value: languageName,
-                            accessibilityID: "settingsLanguage") {
-                LanguagePage(speech: speech)
-            }
-            SettingsLinkRow(title: Verbs.speed, symbol: nil, value: ListenRate.label(speech.rateMultiplier),
-                            accessibilityID: "settingsSpeed") {
-                SpeedPage(speech: speech)
-            }
-        } header: {
-            SectionHeader(title: String(localized: "Listening"), size: .settings).listHeader()
-        } footer: {
-            if let notice = localTTS.engineCrashNotice {
-                Text(notice).foregroundStyle(Palette.destructive).listFooter()
-            }
+            .listCard()
         }
-        .listCard()
     }
 
     // MARK: - Values shown on the rows
 
-    private var voiceName: String { localTTS.voiceName(of: localTTS.defaultSelection) }
-
-    private var languageName: String {
-        speech.languageAutomatic ? String(localized: "Automatic")
-            : VoiceCatalog.languageName(for: speech.selectedLanguageCode)
-    }
+    /// "Default" while the built-in voice is the pick, else its voice library ("Kokoro"): never a
+    /// voice's name, which means nothing before you have heard it.
+    private var voiceValue: String { localTTS.voiceSummary(of: localTTS.defaultSelection) }
 }
 
 /// Settings › Listening › Speed: `ListenRate`'s speeds, slowest first, with Now Playing's speed
 /// list's labels and ids (`listenSpeedOption-1×`); the chosen one ✓.
-private struct SpeedPage: View {
+struct SpeedPage: View {
     @Bindable var speech: SpeechController
 
     var body: some View {
@@ -64,99 +58,150 @@ private struct SpeedPage: View {
             }
             .listCard()
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
         .navigationTitle(Verbs.speed)
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 /// Settings › Listening › Voice: the default voice for new articles and books (C138a), from the
-/// one voice switcher. An article or a book that already has audio keeps its own.
+/// one voice switcher. An article or a book that already has audio keeps its own. Picking a voice
+/// that isn't on the device downloads it, and the ✓ moves once it is there
+/// (`LocalTTSCoordinator.chooseDefault`). *Edit* (top right) gives each downloaded voice the
+/// List's delete control; a swipe offers *Remove* too. Removing the default, or a voice library's
+/// last voice (its shared model), asks first.
 struct VoicePage: View {
     @Bindable var speech: SpeechController
     @State private var preview = VoicePreviewPlayer()
+    @State private var editing = false
+    /// The removal being asked about.
+    @State private var asking: VoiceRemovalPlan?
+
+    @Environment(ShellState.self) private var shell
+    #if DEBUG
+    @Environment(\.voicePageProbe) private var probe
+    #endif
 
     private var localTTS: LocalTTSCoordinator { speech.localTTS }
 
     var body: some View {
         List {
             VoiceSelectionList(
-                speech: speech, current: localTTS.defaultSelection, preparingID: localTTS.voiceDownloadID,
-                footer: String(localized: "New articles and books speak in this voice. One already with audio keeps its own: change it from its More menu › Voice."),
-                error: localTTS.voiceDownloadError, preview: preview
+                speech: speech, current: localTTS.defaultSelection,
+                footer: String(localized: "New articles and books use this voice. To change it for one you’ve already listened to, use Voice in its ⋯ menu."),
+                preview: preview, onRemove: askRemoval
             ) { selection in
-                Task {
-                    if !selection.isApple {
-                        guard await localTTS.downloadVoice(selection.voice, for: selection.engine) else { return }
-                    }
-                    localTTS.setDefaultSelection(selection)
-                }
+                Task { await localTTS.chooseDefault(selection) }
             }
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
+        .environment(\.editMode, .constant(editing ? .active : .inactive))
         .navigationTitle(Verbs.voice)
         .navigationBarTitleDisplayMode(.inline)
-        .onDisappear { preview.stop() }
-    }
-
-    /// A default voice's second line: its detail, then that it is the default ("Default" alone
-    /// when it has no detail).
-    static func defaultVoiceSubtitle(_ detail: String) -> String {
-        detail.isEmpty ? String(localized: "Default") : String(localized: "\(detail) (default)")
-    }
-}
-
-/// Settings › Listening › Language: Automatic (match article, `NLLanguageRecognizer`) or a manual
-/// language.
-struct LanguagePage: View {
-    @Bindable var speech: SpeechController
-
-    var body: some View {
-        List {
-            Section {
-                SettingsChoiceRow(
-                    title: String(localized: "Automatic (match article)"),
-                    subtitle: DetailPart(automaticSubtitle),
-                    selected: speech.languageAutomatic,
-                    accessibilityID: "languageRow-automatic"
-                ) {
-                    speech.selectAutomaticLanguage()
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(editing ? Verbs.done : Verbs.edit) {
+                    withAnimation(Motion.snappy) { editing.toggle() }
                 }
-                ForEach(VoiceCatalog.availableLanguages()) { language in
-                    SettingsChoiceRow(
-                        title: language.displayName,
-                        subtitle: nil,
-                        selected: !speech.languageAutomatic && isSelected(language.code),
-                        accessibilityID: "languageRow-\(language.code)"
-                    ) {
-                        speech.selectLanguage(language.code)
-                    }
-                }
-            } footer: {
-                Group {
-                    if let note = speech.languageResolution.note {
-                        Text("This article: \(note).")
-                    } else {
-                        Text("Automatic detects each article's language. A new article in a language the default voice can't speak takes Apple's voice for that language.")
-                    }
-                }
-                .listFooter()
+                .fontWeight(editing ? .semibold : .regular)
+                .accessibilityIdentifier("voiceEdit")
             }
-            .listCard()
         }
-        .cardListStyle()
-        .navigationTitle(Verbs.language)
-        .navigationBarTitleDisplayMode(.inline)
+        .alert(asking.map(removalTitle) ?? "",
+               isPresented: Binding(get: { asking != nil }, set: { if !$0 { asking = nil } })) {
+            Button(Verbs.remove, role: .destructive) {
+                // The alert closes first: a changed plan asks again in a new alert once this one has
+                // gone (setting `asking` while it dismisses would be lost).
+                guard let plan = asking else { return }
+                asking = nil
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(Motion.standardResponse))
+                    remove(plan)
+                }
+            }
+            .accessibilityIdentifier("voiceRemoveConfirm")
+            Button(Verbs.cancel, role: .cancel) { asking = nil }
+        } message: {
+            if let asking { Text(removalMessage(asking)) }
+        }
+        .onDisappear { preview.stop() }
+        #if DEBUG
+        .task {
+            if probe.editing { editing = true }
+            if let voice = probe.removing,
+               let engine = localTTS.engines.descriptors.first(where: { $0.allVoices.contains { $0.id == voice } }) {
+                try? await Task.sleep(for: .seconds(1))
+                askRemoval(VoiceSelection(engine: engine.id, voice: voice))
+            }
+        }
+        #endif
     }
 
-    private var automaticSubtitle: String {
-        if let detected = speech.sessionDetectedLanguage {
-            return "This article: \(ListenLanguage.displayName(for: detected))"
-        }
-        return "Detects each article's language"
+    /// Removes at once a voice nothing depends on; asks first about the default, the voice of what
+    /// you're listening to, and a library's last voice (its shared model goes too).
+    private func askRemoval(_ selection: VoiceSelection) {
+        guard let plan = speech.voiceRemoval(of: selection) else { return }
+        if plan.asks { asking = plan } else { remove(plan) }
     }
 
-    private func isSelected(_ code: String) -> Bool {
-        VoiceCatalog.canonicalLang(speech.selectedLanguageCode) == VoiceCatalog.canonicalLang(code)
+    private func remove(_ plan: VoiceRemovalPlan) {
+        shell.attempt(String(localized: "Couldn’t remove \(name(of: plan.selection))")) {
+            // What it would do changed since the question: ask again about what it does now.
+            if let changed = try speech.removeVoice(plan) {
+                if changed.asks { asking = changed } else { remove(changed) }
+            }
+        }
+    }
+
+    private func name(of selection: VoiceSelection) -> String {
+        localTTS.engines.descriptor(selection.engine)?.allVoices.first { $0.id == selection.voice }?.label
+            ?? selection.voice
+    }
+
+    /// "Remove Kokoro?" for a library's last voice, else "Remove Bella?".
+    private func removalTitle(_ plan: VoiceRemovalPlan) -> String {
+        let subject = plan.removal.removesEngine ? localTTS.engines.shortName(plan.selection.engine) : name(of: plan.selection)
+        return String(localized: "Remove \(subject)?")
+    }
+
+    /// What it frees, then what changes: "Frees 164 MB. Kokoro voices will need to download again.
+    /// What you’re listening to is in Kokoro, so listening stops. New articles will use Zoey.
+    /// Articles already in Kokoro download it again before they play."
+    private func removalMessage(_ plan: VoiceRemovalPlan) -> String {
+        var parts: [String] = []
+        let subject: String
+        if plan.removal.removesEngine {
+            subject = localTTS.engines.shortName(plan.selection.engine)
+            parts.append(String(localized: "Frees \(FileSizes.megabytes(plan.removal.bytes)). \(subject) voices will need to download again."))
+        } else {
+            subject = name(of: plan.selection)
+            parts.append(String(localized: "Frees \(FileSizes.megabytes(plan.removal.bytes))."))
+        }
+        if plan.stopsListening {
+            parts.append(String(localized: "What you’re listening to is in \(subject), so listening stops."))
+        }
+        if let next = plan.newDefault {
+            parts.append(String(localized: "New articles will use \(name(of: next))."))
+            parts.append(String(localized: "Articles already in \(subject) download it again before they play."))
+        }
+        return parts.joined(separator: " ")
     }
 }
+
+#if DEBUG
+/// A Debug launch's look at the voice pickers (`LaunchTestHooks`): Edit on, a voice's *Remove*,
+/// an engine's section open.
+struct VoicePageProbe: Equatable {
+    var editing = false
+    /// The engine voice id whose *Remove* runs a second in ("af_heart").
+    var removing: String?
+    /// An engine's short name or id ("kokoro") whose section starts open in every voice picker.
+    var openSection: String?
+    /// The engine voice id whose *Remove* shows in Edit, as after a tap on its ⊖ ("af_heart").
+    var revealingRemove: String?
+}
+
+extension EnvironmentValues {
+    @Entry var voicePageProbe = VoicePageProbe()
+}
+#endif

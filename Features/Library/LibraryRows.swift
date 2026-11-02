@@ -1,21 +1,21 @@
 import SwiftUI
 
 /// A page row: a saved page, a link (lighter, 🔗), a followed story's chapter waiting for its
-/// text (a link with its status: "Fetching text…", "Retrying in 1:52", "Waiting"), or a page
+/// text (a link with the spinning arc and its status: "Downloading…", "Trying again in 1:52",
+/// "Waiting"), or a page
 /// played without saving. Every page uses this same row, including imported chapters: two lines,
 /// the title and then its site and status (decision D21). In a book or series the second line is
 /// the status alone ("5 min", "Skipped", "Playing"): its header already names the author or site,
 /// so rows don't repeat it. Front matter is dimmed and "Skipped" (any page skipped in playback is).
 ///
-/// Tapping the row plays it (`LibraryActions.play`; a waiting chapter is fetched first), except
-/// the page you hear, which opens Now Playing, so a stray tap never pauses it, and a link that
-/// can't play, which opens in the browser. Its only control is ⋯ (`ArticleMenu`), the same menu as
-/// its long press (decision D11), whose first row, *Read*, opens it. Its prepare shows on the
-/// row (`PrepareCenter.state(of:)`): dimmed under a jade ↓ while preparing, a accent filled ↓ once
-/// prepared. Swipe left removes it from the Library, and from every list it shows in
+/// Tapping the row plays it (`LibraryActions.play`; a link is fetched first), except the page you
+/// hear, which opens Now Playing, so a stray tap never pauses it. Its only control is ⋯ (`ArticleMenu`), the same menu as
+/// its long press (decision D11), whose *Read* (after its save group) opens it. Its prepare shows on the
+/// row (`PrepareCenter.state(of:)`): its `DownloadMark` before line two, the ring filling while it
+/// prepares, ●↓ once prepared. Swipe left removes it from the Library, and from every list it shows in
 /// (`LibraryQueries`). A page in the Library lifts into a drag from the long press, to be filed in
 /// a folder or placed between rows (`LibraryDrag`), a chapter as any page (decision D19); not on
-/// the home's Favorites tab or in search results (`LibraryScreenKey.filtered`), where a page in a
+/// the home's History tab or in search results (`LibraryScreenKey.filtered`), where a page in a
 /// folder shows the folder's path instead of its site. While its screen is in Edit the List's
 /// selection takes the tap, and the row has no ⋯.
 struct LibraryArticleRow: View {
@@ -36,8 +36,6 @@ struct LibraryArticleRow: View {
         guard !screenKey.isFiltered, !isEditing, article.isInLibrary else { return nil }
         return .article(article.listenKey)
     }
-    /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         RenderTiming.measure(.articleRow) { content }
@@ -57,19 +55,9 @@ struct LibraryArticleRow: View {
     /// A followed story's chapter waiting for its text: where it stands.
     private var chapterStatus: FollowCenter.ChapterStatus? { follow.status(of: article) }
 
-    /// A followed story's chapter says where its text stands ("Fetching text…", "Waiting").
+    /// A followed story's chapter says where its text stands ("Downloading…", "Waiting").
     private func note(now: Date) -> String? {
         chapterStatus.map { FollowText.rowNote($0, now: now) }
-    }
-
-    /// A tap: the page you hear opens Now Playing, a link that can't play opens in the browser
-    /// (`LibraryActions.open`); anything else plays (a waiting chapter once fetched).
-    private func activate() {
-        if playState.isCurrent || (article.isLink && !article.isWaitingChapter) {
-            actions.open(article)
-        } else {
-            actions.play(article)
-        }
     }
 
     /// Its menu, built only when it opens (C98): the row hands over this view, never its rows.
@@ -81,20 +69,16 @@ struct LibraryArticleRow: View {
         ArticleActions(article: article, library: library, shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }
 
-    private var playState: PlayState {
-        guard article.isLink else { return actions.playState(of: article) }
-        return follow.playWhenFetched == article.listenKey ? .preparing : .idle
-    }
-
     private func liveBody(now: Date) -> some View {
         ListRow(kind: kind, title: article.lineOne, subtitle: subtitle, note: note(now: now),
                 progress: article.isLink ? .unplayed(minutes: nil) : actions.progress(of: article),
-                playState: playState,
+                playState: actions.playState(of: article),
                 insertionEdge: screen.insertion?.id == .article(article.listenKey) ? screen.insertion?.edge : nil,
-                prepare: preparedAudio.state(of: article), isFavorite: marksFavorite && article.isFavorite,
+                prepare: preparedAudio.state(of: article),
+                download: chapterStatus?.mark,
                 menu: isEditing ? nil : AnyView(menu),
                 editHandle: isEditing ? AnyView(EditDragHandle(id: .article(article.listenKey), screen: screen)) : nil)
-            .opensOnTap(isEditing ? nil : activate)
+            .opensOnTap(isEditing ? nil : { actions.tap(article) })
             .libraryDropRow(.article(article.listenKey), in: screen)
             .libraryDrag(dragID, in: screen)
             .contextMenu { menu }
@@ -124,9 +108,9 @@ struct LibraryArticleRow: View {
 /// for the symbol. A folder whose pages play shows its place (the page it is at) and the time
 /// left; any other folder shows its count. Its only control is ⋯ (`FolderMenu`, with *Continue*
 /// and *Play from Start*), the same menu as its long press, which also lifts it into a drag; a
-/// dragged row let go on it is filed in it. Its prepare shows as a page's does: dimmed under a
-/// jade ↓ while its prepare runs, a accent filled ↓ once every page it covers is prepared; Prepare
-/// itself is in its screen's header. Swipe left asks to delete it. On the home's Favorites tab or in search results
+/// dragged row let go on it is filed in it. Its prepare shows as a page's does: its `DownloadMark`
+/// before line two while its prepare runs, ●↓ once every page it covers is prepared; Prepare
+/// itself is in its screen's header. Swipe left asks to delete it. In search results
 /// (`LibraryScreenKey.filtered`) a nested folder shows its parents' path, opens under them, so ‹
 /// goes to its parent, and doesn't lift.
 struct LibraryFolderRow: View {
@@ -140,7 +124,7 @@ struct LibraryFolderRow: View {
     @Environment(LibraryScreenState.self) private var screen
     @Environment(\.editMode) private var editMode
     @Environment(\.libraryScreenKey) private var screenKey
-    /// Its menu's *Turn Off Prepare* asked: the question shows by its ⋯.
+    /// Its menu's *Stop Preparing* asked: the question shows by its ⋯.
     @State private var turningOff: Folder?
 
     private var actions: LibraryActions { LibraryActions(library: library, speech: speech, shell: shell, follow: follow) }
@@ -148,8 +132,6 @@ struct LibraryFolderRow: View {
     private var isFiltered: Bool { screenKey.isFiltered }
     /// Where it is on a filtered list (`LibraryScreenKey.place(of:)`; nil at the top level).
     private var location: String? { screenKey.place(of: folder.parent) }
-    /// ★ after a favorite's title, except in the Favorites list, where every row is one.
-    private var marksFavorite: Bool { !(screenKey == .filtered(under: nil) && shell.homeTab == .favorites) }
 
     var body: some View {
         RenderTiming.measure(.folderRow) { content }
@@ -172,7 +154,7 @@ struct LibraryFolderRow: View {
             .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                // The menu's *Delete Folder…*: it asks first, so the row can stay (no role).
+                // The menu's *Delete Folder…*, *Delete* on the swipe: it asks first, so the row can stay (no role).
                 FolderMenu.swipe(for: folder, screen: screen).swipeButton()
             }
     }
@@ -203,7 +185,7 @@ struct LibraryFolderRow: View {
                        playState: plays ? actions.playState(of: folder) : .idle,
                        isDropTarget: screen.dropTarget == folder.id,
                        insertionEdge: screen.insertion?.id == .folder(folder.id) ? screen.insertion?.edge : nil,
-                       prepare: prepare, isFavorite: marksFavorite && folder.isFavorite,
+                       prepare: prepare,
                        folderHasDetails: folder.hasDetails, menu: menu,
                        menuAnchor: AnyView(Color.clear.turnOffPrepareQuestion($turningOff)),
                        editHandle: editHandle)

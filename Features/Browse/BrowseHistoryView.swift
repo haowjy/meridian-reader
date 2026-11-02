@@ -7,7 +7,7 @@ import SwiftUI
 /// *Remove from History*.
 ///
 /// ```
-/// History                                           ( Done )
+/// Browsing History                                  ( Done )
 /// ▣  Speech synthesis                                   ⋯
 ///    en.wikipedia.org   2 hr ago
 /// ```
@@ -20,9 +20,12 @@ struct BrowseHistoryView: View {
         NavigationStack {
             Group {
                 if visits.isEmpty {
-                    EmptyState(String(localized: "No History Yet"), symbol: Icons.history,
-                               description: String(localized: "Pages you open show up here."))
-                        .background(Palette.paper)
+                    EmptyState(String(localized: "No Browsing History Yet"),
+                               description: String(localized: "Pages you open show up here.")) {
+                        AddToLibraryTiles(folder: nil)
+                    }
+                    .padding(.horizontal, Spacing.pageMargin)
+                    .background(Palette.paper)
                 } else {
                     List {
                         Section {
@@ -36,7 +39,7 @@ struct BrowseHistoryView: View {
                     .cardListStyle()
                 }
             }
-            .navigationTitle(Verbs.history)
+            .navigationTitle(Verbs.browsingHistory)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 SheetBarButton(Verbs.done, placement: .confirmationAction, identifier: "historyDone", action: onDone)
@@ -78,7 +81,7 @@ private struct HistoryRow: View {
     }
 }
 
-/// The page's menu, then History's own *Remove from History*.
+/// The page's menu, then Browsing History's own *Remove from History*.
 private struct VisitMenu: View {
     let visit: RecentVisit
     let actions: ArticleActions

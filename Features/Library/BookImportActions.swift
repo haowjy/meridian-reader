@@ -1,6 +1,6 @@
 import Foundation
 
-/// How an import starts: *Import from…* (the Library's ＋ and ⋯, the empty Library's card) opens
+/// How an import starts: *Import a File…* (the Library's ＋ and ⋯, the empty Library's card) opens
 /// the Files picker for EPUB and PDF, and the picked file is copied in and imported at once; a
 /// book prepared from an `.epub` link waits in the sheet for *Import*. Either way the import
 /// sheet shows it (`BookImportFlow`) and lands on the book's screen.
@@ -38,7 +38,7 @@ struct BookImportActions {
             start(try files.copyIn(url), into: destinationID, waitsForImport: false)
         } catch {
             library.log("import: couldn't copy \(url.lastPathComponent): \(error)")
-            shell.showToast(ShellToast(message: String(localized: "Couldn't open this file"),
+            shell.showToast(ShellToast(message: String(localized: "Couldn’t open this file"),
                                        systemImage: Icons.warning))
         }
     }
@@ -52,7 +52,7 @@ struct BookImportActions {
         guard shell.importFlow == nil else {
             files.discard(file)
             library.log("import: \(file.lastPathComponent) arrived while another import was open; not imported")
-            shell.showToast(ShellToast(message: String(localized: "Another import is open; “\(file.lastPathComponent)” wasn't imported"),
+            shell.showToast(ShellToast(message: String(localized: "“\(file.lastPathComponent)” wasn’t imported because another import is open"),
                                        systemImage: Icons.warning))
             return
         }

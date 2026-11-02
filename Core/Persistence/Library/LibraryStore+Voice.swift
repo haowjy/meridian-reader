@@ -46,19 +46,19 @@ extension LibraryStore {
         return voice
     }
 
-    /// *Voice* in an article's menu: the article (or its book) speaks in `voice` from now on.
-    func setVoice(_ voice: String, of article: Article) {
-        try? edit("set voice") {
-            switch Self.voiceOwner(of: article) {
+    /// *Voice* in an article's or a book's menu: it speaks in `voice` from now on. One save holds
+    /// the selection and a voice record for each page it changes (the article, or every chapter),
+    /// done right after it (`settleVoice`); a save that fails is rolled back and throws, and no
+    /// file is touched.
+    func setVoice(_ voice: String, of owner: VoiceOwner) throws {
+        let keys = articlesSpeaking(in: owner).map(\.listenKey)
+        try edit("set voice") {
+            switch owner {
             case .article(let a): a.voiceID = voice
             case .folder(let f): f.voiceID = voice
             }
+            for key in keys { plan(.voice, key: key) }
         }
-    }
-
-    /// *Voice* in a book's menu.
-    func setVoice(_ voice: String, of folder: Folder) {
-        try? edit("set voice") { folder.voiceID = voice }
     }
 
     /// The pages whose audio a voice change on `owner` remakes: the article, or every chapter.
@@ -119,5 +119,25 @@ extension LibraryStore {
             }
         }
         return count
+    }
+
+    /// Migration: every article and book whose voice `isGone` (a voice library the app no longer
+    /// has) has none again, so it takes the Settings default at its next first use. Returns how
+    /// many changed; throws when the edit couldn't be saved (nothing changed then).
+    func clearVoices(where isGone: (String) -> Bool) throws -> Int {
+        let articles = (try? context.fetch(FetchDescriptor<Article>())) ?? []
+        let folders = (try? context.fetch(FetchDescriptor<Folder>())) ?? []
+        return try edit("clear voices") {
+            var count = 0
+            for article in articles where article.voiceID.map(isGone) == true {
+                article.voiceID = nil
+                count += 1
+            }
+            for folder in folders where folder.voiceID.map(isGone) == true {
+                folder.voiceID = nil
+                count += 1
+            }
+            return count
+        }
     }
 }

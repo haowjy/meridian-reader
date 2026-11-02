@@ -29,7 +29,7 @@ struct SurfaceBand<Field: View>: View {
                         .typeStyle(.row)
                         .foregroundStyle(Palette.accent)
                         .lineLimit(1)
-                        .frame(minHeight: BottomChrome.minTapTarget)
+                        .frame(minHeight: Control.tap)
                         .padding(.horizontal, Spacing.xxs)
                         .contentShape(Rectangle())
                 }

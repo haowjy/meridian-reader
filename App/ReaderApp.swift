@@ -16,6 +16,11 @@ enum AppMain {
         if LaunchOptions.current.resetsLibrary { LaunchHooks.resetStoredSettings(engines: AppComposition.engineRegistry) }
         BookImportActions.importsTestBook = LaunchOptions.current.importsTestEPUB
         ChromeSkin.forcesMaterial = LaunchOptions.current.forcesChromeFallback
+        ChromeScroll.forcedFold = LaunchOptions.current.chromeFold
+        ReadingChrome.opensInFullScreen = LaunchOptions.current.readerFullScreen
+        ReaderSurface.opensAppearance = LaunchOptions.current.presentsSheet == "appearance"
+        HTMLReadingWebView.Coordinator.scrollsToEndOnOpen = LaunchOptions.current.readerScrollsToEnd
+        HTMLReadingWebView.Coordinator.probeSteps = LaunchOptions.current.readerProbe
         #endif
         ReaderApp.main()
     }

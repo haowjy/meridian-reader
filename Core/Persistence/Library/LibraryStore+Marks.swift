@@ -23,14 +23,14 @@ extension LibraryStore {
         try setFinished(Array(order[..<index]), true)
     }
 
-    /// *Skip in Playback*: carrying on through its folder passes over the page (it still plays
+    /// *Skip When Playing*: carrying on through its folder passes over the page (it still plays
     /// when started directly).
     func setSkipsInPlayback(_ article: Article, _ skips: Bool) throws {
         guard article.skipsInPlayback != skips else { return }
         try edit(skips ? "skip in playback" : "play in playback") { article.skipsInPlayback = skips }
     }
 
-    /// Whether `article` has audio on disk for any voice (*Remove Prepared audio* is offered).
+    /// Whether `article` has audio on disk for any voice (*Remove Prepared Audio* is offered).
     func hasPreparedAudio(_ article: Article) -> Bool {
         guard let key = article.key else { return false }
         return audio.audioCache.hasCache(for: key)

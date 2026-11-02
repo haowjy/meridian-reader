@@ -2,10 +2,10 @@ import SwiftUI
 
 /// What the Library's rows, headers and Edit's bar do, in one place: open a page (the
 /// Reader, Now Playing when it is what you hear, the browser for a link), play a page or a book
-/// (a followed story's chapter still waiting for its text is fetched first, then plays:
-/// `FollowCenter.play`),
-/// mark and remove pages, delete folders, file things with the Move tree. Opening never plays,
-/// and playing never navigates. Each edit is one save: one that can't be saved changes nothing
+/// (a link page, *Add a Link…*'s or a followed story's chapter still waiting for its text, is
+/// fetched first, then plays: `FollowCenter.play`),
+/// mark and remove pages, delete folders, file things with the Move tree. Opening never plays;
+/// a row's tap plays and slides Listen up (`tap`), and nothing else that plays navigates. Each edit is one save: one that can't be saved changes nothing
 /// and shows a toast, and what follows its success runs only after the save.
 @MainActor
 struct LibraryActions {
@@ -16,10 +16,10 @@ struct LibraryActions {
 
     // MARK: - Pages
 
-    /// A saved page in the Reader sheet (Now Playing if it is what you hear); a link in
-    /// the browser.
+    /// A saved page in the Reader sheet; Now Playing if it is what you hear, a link included; any
+    /// other link in the browser.
     func open(_ article: Article) {
-        if article.isLink {
+        if article.isLink, !playState(of: article).isCurrent {
             if let url = article.url { shell.navigate(to: url) }
             return
         }
@@ -30,15 +30,42 @@ struct LibraryActions {
     /// mode: no change of destination and nothing plays. Regular width opens the Reader sheet; a
     /// link opens in the browser.
     func read(_ article: Article) {
-        if article.isLink || !shell.readsInPlace || !shell.isInLibrary {
+        if article.isLink || !shell.isCompact || !shell.isInLibrary {
             open(article)
             return
         }
         shell.openSaved(article.listenKey, in: library, inPlace: true)
     }
 
+    /// A row's tap: the page you hear opens Listen (`open`); anything else plays and, on compact
+    /// width, Listen slides up over the Library. A link page plays once its text is in, and Listen
+    /// stays down meanwhile (its ⋯ *Read* opens it in the browser).
+    func tap(_ article: Article) {
+        if playState(of: article).isCurrent {
+            open(article)
+            return
+        }
+        play(article)
+        if shell.isCompact, playState(of: article).isCurrent { shell.showNowPlaying() }
+    }
+
+    /// *Paste Text…*'s *Save*: a new article in `folder` (nil: the top level), opened in Library
+    /// Read (`read`). One that can't be saved opens nothing; a toast says so.
+    @discardableResult
+    func savePastedText(title: String, text: String, in folder: Folder?) -> Bool {
+        guard let article = shell.attempt(String(localized: "Couldn’t save"), {
+            try library.saveText(title: title, text: text, in: folder)
+        }) else { return false }
+        read(article)
+        return true
+    }
+
+    /// What its ▶ shows: the session's state when it is what you hear; otherwise a link waiting
+    /// for its text to play shows preparing.
     func playState(of article: Article) -> PlayState {
-        speech.playState(of: .article(article.listenKey))
+        let state = speech.playState(of: .article(article.listenKey))
+        guard article.isLink, !state.isCurrent else { return state }
+        return follow.playWhenFetched == article.listenKey ? .preparing : .idle
     }
 
     /// What `article`'s row shows: its length or time left at the current speed, finished, skipped.
@@ -55,12 +82,12 @@ struct LibraryActions {
 
     /// *Play from Here* on a page in a folder: from its start, carrying on through the folder.
     func playFromStart(_ article: Article) {
-        if article.isWaitingChapter { follow.play(article) } else { speech.playArticle(article.listenKey) }
+        if article.isLink { follow.play(article) } else { speech.playArticle(article.listenKey) }
     }
 
-    /// Plays `article` from `spot`, replacing what plays; a chapter waiting for its text once it is in.
+    /// Plays `article` from `spot`, replacing what plays; a link page once its text is in.
     private func start(_ article: Article, at spot: ListenSpot) {
-        if article.isWaitingChapter { follow.play(article) } else { speech.start(.article(article), at: spot) }
+        if article.isLink { follow.play(article) } else { speech.start(.article(article), at: spot) }
     }
 
     // MARK: - Folders
@@ -110,17 +137,17 @@ struct LibraryActions {
         shell.attempt(String(localized: "Couldn’t mark as finished")) { try library.markAllAbove(article) }
     }
 
-    /// *Skip in Playback* / *Play in Playback* on a page in a folder.
+    /// *Skip When Playing* / *Don’t Skip* on a page in a folder.
     func toggleSkipsInPlayback(_ article: Article) {
-        shell.attempt(String(localized: "Couldn’t change Skip in Playback")) {
+        shell.attempt(String(localized: "Couldn’t save the change")) {
             try library.setSkipsInPlayback(article, !article.skipsInPlayback)
         }
     }
 
     /// *Remove from Library* from every path (a row's menu and swipe, Edit's *Remove*, the Now
     /// Playing bar's long-press, and through `ArticleActions` 🔖 and the browser's, the Reader's and
-    /// Now Playing's ⋯), all of `articles` in one save (`LibraryStore.remove`: the star stays, and
-    /// the page you hear stops). False when it couldn't be saved: none removed, playback as it
+    /// Now Playing's ⋯), all of `articles` in one save (`LibraryStore.remove`: the page you hear
+    /// stops). False when it couldn't be saved: none removed, playback as it
     /// was, and a toast says so.
     @discardableResult
     func remove(_ articles: [Article]) -> Bool {

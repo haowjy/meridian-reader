@@ -1,12 +1,13 @@
 import SwiftData
 import SwiftUI
 
-/// Regular-width left column (~280 pt): Library / Browse surface swap, Favorites + folder tree,
+/// Regular-width left column (~280 pt): Library / Browse surface swap, the folder tree,
 /// Search, Settings. Compact devices never show this; they keep today's bottom band.
 struct RegularShellSidebar: View {
     @Environment(ShellState.self) private var shell
     @Environment(LibraryStore.self) private var library
     @Query(LibraryQueries.folders) private var allFolders: [Folder]
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var topFolders: [Folder] {
         LibraryStore.ordered(LibraryQueries.topLevel(allFolders.filter(\.isLive)))
@@ -38,12 +39,6 @@ struct RegularShellSidebar: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    sidebarButton(title: Verbs.favorites, symbol: Icons.favorited,
-                                  identifier: "sidebarFavorites",
-                                  selected: shell.isInLibrary && shell.homeTab == .favorites
-                                      && shell.libraryPath.isEmpty,
-                                  action: shell.showFavorites)
-
                     ForEach(topFolders, id: \.id) { folder in
                         sidebarButton(title: folder.name, symbol: Icons.folder,
                                       identifier: "sidebarFolder-\(folder.id.uuidString)",
@@ -56,7 +51,7 @@ struct RegularShellSidebar: View {
             .frame(maxHeight: .infinity, alignment: .top)
 
             sidebarButton(title: Verbs.settings, symbol: Icons.settings, identifier: "sidebarSettings",
-                          selected: isSettingsUp, action: { shell.present(.settings) })
+                          selected: isSettingsUp, action: shell.showSettings)
                 .padding(.horizontal, Spacing.xs)
                 .padding(.bottom, Spacing.m)
         }
@@ -69,19 +64,25 @@ struct RegularShellSidebar: View {
 
     private var brand: some View {
         HStack(spacing: Spacing.xs) {
-            Image(systemName: Icons.library)
-                .foregroundStyle(Palette.accent)
-                .tileSymbol()
+            // At the accessibility sizes the name needs the room: the symbol only decorates it.
+            if !typeSize.isAccessibilitySize {
+                Image(systemName: Icons.library)
+                    .foregroundStyle(Palette.accent)
+                    .glyphSize(Glyph.regular)
+            }
+            // One word: smaller rather than broken where the column can't hold it.
             Text("Meridian")
                 .typeStyle(.heading, weight: .bold)
                 .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             Spacer(minLength: 0)
             Button {
                 withAnimation(Motion.snappy) { shell.sidebarCollapsed = true }
             } label: {
                 Image(systemName: Icons.back)
                     .foregroundStyle(Palette.secondaryInk)
-                    .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                    .frame(width: Control.tap, height: Control.tap)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -107,7 +108,7 @@ struct RegularShellSidebar: View {
             if surface == .library {
                 shell.openLibrary()
             } else {
-                shell.leaveLibrary()
+                shell.showBrowser()
             }
         }
         .padding(.horizontal, Spacing.xs)
@@ -116,23 +117,15 @@ struct RegularShellSidebar: View {
     private func sidebarButton(title: String, symbol: String, identifier: String, selected: Bool,
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: symbol)
-                    .frame(width: Glyph.rowLeading, alignment: .center)
-                Text(title)
-                    .typeStyle(.row, weight: selected ? .semibold : .regular)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(selected ? Palette.accent : Palette.ink)
-            .padding(.horizontal, Spacing.s)
-            .padding(.vertical, Spacing.xs)
-            .frame(maxWidth: .infinity, minHeight: RowHeight.compact, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .fill(selected ? Palette.playingTint : Color.clear)
-            )
-            .contentShape(Rectangle())
+            // The symbol column and the title grow with the text together (two lines at the
+            // accessibility sizes), so neither runs into the other.
+            SymbolRow(title, symbol: symbol, ink: selected ? Palette.accent : nil)
+                .padding(.horizontal, Spacing.s)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .fill(selected ? Palette.playingTint : Color.clear)
+                )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -159,7 +152,7 @@ struct RegularSidebarRevealButton: View {
         } label: {
             Image(systemName: Icons.forward)
                 .foregroundStyle(Palette.ink)
-                .frame(width: BottomChrome.minTapTarget, height: BottomChrome.minTapTarget)
+                .frame(width: Control.tap, height: Control.tap)
                 .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
         .buttonStyle(.plain)

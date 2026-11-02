@@ -46,7 +46,7 @@ struct PreviewGallery<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.l) { content }
+        VStack(alignment: .leading, spacing: Spacing.m) { content }
             .padding(Spacing.pageMargin)
             .frame(width: Self.width, alignment: .leading)
             .background(Palette.paper)
@@ -86,7 +86,10 @@ struct SampleReading: View {
         let palette = reading ?? .app
         let other = palette.ink
         VStack(alignment: .leading, spacing: Spacing.m) {
-            ReadingHeading(title: title, detail: detail)
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(title).typeStyle(.title).foregroundStyle(palette.ink)
+                DetailLine(detail).typeStyle(.caption)
+            }
             Text("Tides rise and fall twice a day along most coasts, pulled by the moon and, more weakly, the sun.")
                 .foregroundStyle(other)
             (Text("Where a bay narrows, the water piles up.").underline(spoken, color: palette.underline)

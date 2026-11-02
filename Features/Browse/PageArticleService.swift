@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the browser does with the page it has loaded: show it in the Reader, listen to it, save
-/// it, add it to Favorites, record it in History. Extraction resolves the article's identity against the
+/// it, record it in History. Extraction resolves the article's identity against the
 /// library, so the same page gets the same key (and its cached audio) every time.
 @MainActor
 struct PageArticleService {
@@ -72,31 +72,25 @@ struct PageArticleService {
         return .started(article)
     }
 
-    /// The browser's page saved (`ArticleActions.LoadedPage.save`: *Save to Library*, or *Save to
-    /// Folder…* once a place is picked in the Move tree): the folder, or no folder (nil, out of the
-    /// folder it was in). ⋯ spins meanwhile. A page that can't be extracted throws; a save that
-    /// can't be stored says so in a toast.
-    func save(in folder: Folder?) async throws {
+    /// The browser's page saved (`ArticleActions.LoadedPage.save`: *Save to Library* and Follow's
+    /// *Save This Page Only* keep a page the Library has where it is; *Save to Folder…* files it in
+    /// the folder picked in the Move tree). ⋯ spins meanwhile. It throws when the page can't be
+    /// extracted or stored, and stores nothing once its task is cancelled (Follow's ✕).
+    func save(_ placement: SavePlacement, expectedURL: URL?) async throws {
+        guard web.currentURL == expectedURL else {
+            throw ExtractionError.unavailable(reason: String(localized: "The page has changed. Open it again to save it."))
+        }
         shell.busy = .save
         defer { shell.busy = nil }
         var (article, url) = try await extract()
         if article.artwork == nil {
             article.artwork = await favicon(for: url)
         }
-        shell.attempt(String(localized: "Couldn’t save")) {
-            try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+        guard url == expectedURL, web.currentURL == expectedURL else {
+            throw ExtractionError.unavailable(reason: String(localized: "The page has changed. Open it again to save it."))
         }
-    }
-
-    /// ⋯ → Add to Favorites / Remove from Favorites (`FavoriteFlow`): the page in or out of
-    /// Favorites, asking first when it is filed elsewhere.
-    func toggleFavorite() {
-        guard let url = web.currentURL, LibraryStore.canFavorite(url) else { return }
-        let liveTitle = web.webView?.title.flatMap { $0.isEmpty ? nil : $0 }
-        FavoriteFlow(library: library, shell: shell).toggle(url: url, title: liveTitle ?? web.pageTitle,
-                                                            artwork: recentFavicon(for: url)) {
-            await favicon(for: url)
-        }
+        try Task.checkCancellation()
+        try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: placement)
     }
 
     /// The page finished loading: add it to History with its icon.

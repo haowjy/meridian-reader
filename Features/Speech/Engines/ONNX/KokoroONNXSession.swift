@@ -2,7 +2,7 @@ import Foundation
 import OnnxRuntimeBindings
 
 /// Kokoro-82M through ONNX Runtime on the CPU execution provider (no Core ML EP, no GPU, no
-/// ANE — nothing that is restricted in the background): Kokoro's main route (`KokoroCPUHost`).
+/// ANE — nothing that is restricted in the background): Kokoro's route (`KokoroCPUHost`).
 /// The only file that imports ONNX Runtime. Model:
 /// `onnx-community/Kokoro-82M-v1.0-ONNX/onnx/model_fp16.onnx`, downloaded at runtime by
 /// `KokoroONNXModelStore` (never bundled).

@@ -11,6 +11,8 @@ struct ChunkRenderRequest: Sendable {
     /// The next chunk's first word: a cut before "and/but/which…" is a clause join (`ChunkEdgeTrim`).
     var nextWord: String? = nil
     var priority: RenderPriority = .listener
+    /// Threads the call may use, for a route that takes a count (the render policy's).
+    var threads: Int? = nil
     /// The render queue's front job.
     var isPrimary = false
     /// C138: the engine voice to speak in (the article's own); nil: the host's current voice.
@@ -24,33 +26,35 @@ struct ChunkRenderRequest: Sendable {
     }
 }
 
-/// Engine-agnostic render pipeline around one `LocalSynthHost`:
-/// shared normalize → prepare → `SynthRenderGate` → call (with `EngineCrashGuard` if the engine is
-/// crash-guarded) → on `LocalSynthError.inputTooLong` re-split (≈halves, down to the engine's
-/// `minResplit`) and recurse → write 24 kHz mono CAF. Every model call is logged (`synth`).
+/// Engine-agnostic render pipeline around one `LocalSynthHost` on one route:
+/// shared normalize → prepare → the route's lane gate (`SynthRenderGate.of`) → the lane runs in
+/// the app's phase (else `LaneUnavailable`) → call (with `EngineCrashGuard` if the engine is
+/// crash-guarded) → on `LocalSynthError.inputTooLong` re-split
+/// (≈halves, down to the engine's `minResplit`) and recurse → write 24 kHz mono CAF. Every model
+/// call is logged (`synth`).
 /// Host-specific spoken-text tweaks (`LocalSynthHost.spokenText(forChunk:)`) run here at render
 /// so planned chunks still reassemble to normalize(paragraph).
 final class LocalChunkRenderer: Sendable {
     let host: LocalSynthHost
     let descriptor: EngineDescriptor
+    let route: RenderRoute
     private let limits: TextChunker.Limits
     private let gate: SynthRenderGate
     private let crashGuard: EngineCrashGuard?
-    /// Checked right before every model call: nothing starts while backgrounded.
+    /// The app phase each call starts in (`Lane.runs(in:)`), its log line and crash marker record.
     private let runState: AppRunState
     static let maxResplitDepth = 5
 
-    /// nil for an engine that isn't on-device (no `OnDeviceTraits`).
-    init?(host: LocalSynthHost, descriptor: EngineDescriptor,
-          gate: SynthRenderGate = .shared, crashGuard: EngineCrashGuard = .shared,
-          runState: AppRunState = .shared) {
-        guard let traits = descriptor.onDevice else { return nil }
+    init(host: LocalSynthHost, descriptor: EngineDescriptor, route: RenderRoute,
+         crashGuard: EngineCrashGuard = .shared, runState: AppRunState = .shared) {
+        let traits = descriptor.onDevice
         self.host = host
         self.descriptor = descriptor
+        self.route = route
         self.limits = traits.limits
-        self.gate = gate
+        self.gate = SynthRenderGate.of(route.lane)
         self.runState = runState
-        self.crashGuard = traits.crashNotice != nil ? crashGuard : nil
+        self.crashGuard = traits.isCrashGuarded ? crashGuard : nil
     }
 
     var engineID: SpeechEngineID { descriptor.id }
@@ -94,44 +98,47 @@ final class LocalChunkRenderer: Sendable {
         }
     }
 
-    /// One call; on overflow split and recurse. Caller holds the gate.
+    /// One call; on overflow split and recurse. Caller holds the gate. A call whose lane doesn't
+    /// run in the app's phase now throws `LaneUnavailable` before its crash marker: the phase
+    /// can change between the plan and here (the task's start, `prepare`, the gate).
     func synthesizeResilient(_ text: String, depth: Int, request: ChunkRenderRequest) async throws -> SynthesizedPCM {
         try Task.checkCancellation()
-        // Last line of defense (the queue decides first): the hard rule of `RenderAdmission`.
-        guard RenderAdmission.modelCallsAllowed(phase: runState.phase, rendersInBackground: host.rendersInBackground) else {
-            ListenTimingLog.log("synth_blocked_bg", ["engine": descriptor.shortName.lowercased(), "chars": text.count])
-            throw LocalSynthError.deferredInBackground
-        }
-        // C138: the article's voice, set under the gate right before every call.
-        if let voice = request.voice { host.setVoice(voice) }
-        let t0 = ListenTimingLog.now()
         let phase = runState.phase
+        guard route.lane.runs(in: phase) else { throw LaneUnavailable(lane: route.lane) }
+        // C138: the article's voice, its files made sure of (before the crash marker), then set
+        // under the gate right before every call.
+        if let voice = request.voice {
+            try await host.prepareVoice(voice)
+            host.setVoice(voice)
+        }
+        let t0 = ListenTimingLog.now()
         var fields = request.logFields
         if let voice = request.voice { fields["voice"] = voice }
         fields["engine"] = descriptor.shortName.lowercased()
         fields["chars"] = text.count
         fields["depth"] = depth
-        if let route = host.routeTag { fields["route"] = route }
+        fields["route"] = route.id
         fields["phase"] = phase.rawValue
-        crashGuard?.beginCall(engine: descriptor.id, chars: text.count, route: host.routeTag,
-                              article: request.article, paragraph: request.paragraph, phase: phase)
+        fields["qos"] = request.priority == .listener ? "userInitiated" : "utility"
+        if let threads = request.threads { fields["threads"] = threads }
+        let call = crashGuard?.beginCall(engine: descriptor.id, chars: text.count, route: host.routeTag,
+                                         article: request.article, paragraph: request.paragraph, phase: phase)
         let priority = request.priority
         do {
-            let pcm = try await host.synthesizeOnce(text: text, priority: priority)
-            crashGuard?.endCall()
+            let pcm = try await host.synthesizeOnce(text: text, priority: priority, threads: request.threads)
+            if let call { crashGuard?.endCall(call) }
             let wall = ListenTimingLog.now() - t0
             fields["wall_ms"] = ListenTimingLog.ms(since: t0)
             fields["audio_s"] = (pcm.duration * 100).rounded() / 100
             if wall > 0 { fields["rtf"] = (pcm.duration / wall * 100).rounded() / 100 }
-            // The pace feeds the listener's head-start rule: bake-ahead runs at a lower QoS and
-            // would make the worker look slower than it is for a listener.
+            // The debug panel's pace is the listener's: work nobody waits on runs at a lower QoS.
             if priority == .listener { RenderPace.shared.record(audioSeconds: pcm.duration, wallSeconds: wall) }
             fields["ok"] = true
             fields.merge(pcm.metrics) { a, _ in a }
             ListenTimingLog.log("synth", fields)
             return pcm
         } catch {
-            crashGuard?.endCall()
+            if let call { crashGuard?.endCall(call) }
             fields["wall_ms"] = ListenTimingLog.ms(since: t0)
             fields["ok"] = false
             fields["err"] = error.localizedDescription

@@ -12,7 +12,7 @@ final class TestVoiceProvider: SpeechEngineProvider {
 
     static let descriptor = EngineDescriptor(
         id: id,
-        displayName: "Test Voice (UI tests)", shortName: "Test Voice", subtitle: "A tone, for UI tests",
+        displayName: "Test Voice (UI tests)", shortName: "Test Voice",
         sortOrder: 90,
         voices: [EngineVoice(id: "one", label: "One"), EngineVoice(id: "two", label: "Two")],
         defaultVoiceID: "one",
@@ -21,23 +21,22 @@ final class TestVoiceProvider: SpeechEngineProvider {
 
     var descriptors: [EngineDescriptor] { [Self.descriptor] }
 
-    func makeHost(for id: SpeechEngineID, voice: String?) -> LocalSynthHost? {
-        id == Self.id ? TestVoiceHost(engineID: id) : nil
+    var routes: [RenderRoute] { [RenderRoute(id: "testvoice.cpu", engine: Self.id, lane: .cpu, threads: .uncapped,
+                                              footprintMB: 1)] }
+
+    func makeHost(for route: RenderRoute, voice: String?) -> LocalSynthHost? {
+        route.engine == Self.id ? TestVoiceHost(engineID: route.engine) : nil
     }
 
     func isInstalled(_ id: SpeechEngineID) -> Bool { true }
-    func deleteModels(_ id: SpeechEngineID) throws {}
 }
 
 private final class TestVoiceHost: LocalSynthHost, @unchecked Sendable {
     let engineID: SpeechEngineID
     /// Seconds each render takes (default 0.15); `-testVoice.delay 1.5` slows it so a prepare can
-    /// be seen in progress.
+    /// be seen in progress, or below real time so playback catches up with rendering.
     private let delay: TimeInterval = UserDefaults.standard.double(forKey: "testVoice.delay") > 0 ? UserDefaults.standard.double(forKey: "testVoice.delay") : 0.15
     var routingLabel: String? { "test" }
-    /// `-testVoice.rendersInBackground YES`: renders in the background like Kokoro's CPU route, to
-    /// test background rendering on the simulator.
-    var rendersInBackground: Bool { UserDefaults.standard.bool(forKey: "testVoice.rendersInBackground") }
     var onProgress: (@Sendable (Double) -> Void)?
     private let lock = NSLock()
     private var prepared = false
@@ -53,7 +52,7 @@ private final class TestVoiceHost: LocalSynthHost, @unchecked Sendable {
         lock.withLock { prepared = true }
     }
 
-    func synthesizeOnce(text: String, priority: RenderPriority) async throws -> SynthesizedPCM {
+    func synthesizeOnce(text: String, priority: RenderPriority, threads: Int?) async throws -> SynthesizedPCM {
         try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
         let rate = 24_000
         let count = max(1, Int(Double(text.count) * 0.06 * Double(rate)))

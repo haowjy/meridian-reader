@@ -9,14 +9,19 @@ import SwiftUI
 /// Jane Austen   Book   61 chapters
 /// ```
 ///
-/// The first part (the lead) is what gives way: it truncates when the rest need the room. The
+/// The first part (the lead) is what gives way: it truncates when the rest need the room (alone,
+/// at the accessibility sizes, it has nothing to give way to and takes up to three lines). The
 /// other parts never truncate; when they would leave the lead less than a third of the line
-/// (large text), the parts wrap onto further lines instead (`DetailLineLayout`). The caller sets
-/// the font (`typeStyle`). VoiceOver reads the parts as one label, joined with commas.
+/// (large text), the parts wrap onto further lines instead (`DetailLineLayout`). A list row's
+/// line (`wraps` false) never wraps: the parts give way in order, the last (its status) last.
+/// The caller sets the font (`typeStyle`). VoiceOver reads the parts as one label, joined with
+/// commas.
 struct DetailLine: View {
     let parts: [DetailPart]
+    var wraps = true
 
     @Environment(\.readingPalette) private var reading
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// `Spacing.s` at the default text size, growing with the caption it separates.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var spacing = Spacing.s
 
@@ -27,24 +32,23 @@ struct DetailLine: View {
 
     /// Parts that may carry a symbol or a listening ring (`DetailPart.finished`); empty ones are
     /// left out.
-    init(parts: [DetailPart]) {
+    init(parts: [DetailPart], wraps: Bool = true) {
         self.parts = parts.filter { !$0.text.isEmpty }
+        self.wraps = wraps
     }
 
     var body: some View {
-        DetailLineLayout(spacing: spacing) {
+        DetailLineLayout(spacing: spacing, wraps: wraps) {
             ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
                 HStack(spacing: Spacing.xxs) {
                     if let ring = part.ring { ProgressRing(fraction: ring) }
-                    if let symbol = part.symbol {
-                        // The prepared ↓ takes the accent, as the Prepare control does (C97).
-                        if symbol == Icons.prepared { Image(systemName: symbol).foregroundStyle(Palette.accent) }
-                        else { Image(systemName: symbol) }
-                    }
+                    if let symbol = part.symbol { Image(systemName: symbol) }
                     Text(part.text)
                 }
-                .foregroundStyle(index == 0 ? DetailLine.leadInk(reading) : DetailLine.restInk(reading))
-                .lineLimit(index == 0 ? 1 : nil)
+                .foregroundStyle(part.isAlert ? Palette.destructive
+                                 : part.isLit ? reading?.accent ?? Palette.accent
+                                 : index == 0 ? DetailLine.leadInk(reading) : DetailLine.restInk(reading))
+                .lineLimit(!wraps ? 1 : index > 0 ? nil : parts.count == 1 && typeSize.isAccessibilitySize ? 3 : 1)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -70,12 +74,19 @@ struct DetailPart: Hashable, ExpressibleByStringLiteral {
     var ring: Double?
     /// What VoiceOver reads for it, when the symbol says something the text doesn't.
     var spoken: String?
+    /// In the accent: a row's status while it is what you hear ("Playing", "Paused").
+    var isLit = false
+    /// In the destructive colour: something that went wrong ("Couldn’t download").
+    var isAlert = false
 
-    init(_ text: String, symbol: String? = nil, ring: Double? = nil, spoken: String? = nil) {
+    init(_ text: String, symbol: String? = nil, ring: Double? = nil, spoken: String? = nil, isLit: Bool = false,
+         isAlert: Bool = false) {
         self.text = text
         self.symbol = symbol
         self.ring = ring
         self.spoken = spoken
+        self.isLit = isLit
+        self.isAlert = isAlert
     }
 
     init(stringLiteral text: String) {
@@ -85,20 +96,16 @@ struct DetailPart: Hashable, ExpressibleByStringLiteral {
     /// A page heard to its end: the listening ring, full, and "Finished", as a row's status draws
     /// it (no ✓: that is selection's only).
     static var finished: DetailPart { DetailPart(ListeningTime.finishedLabel, ring: 1) }
-
-    /// `text` after the accent filled ↓ a prepared row starts its second line with (a page's, a
-    /// download's, a voice model's in Settings).
-    static func prepared(_ text: String) -> DetailPart {
-        DetailPart(text, symbol: Icons.prepared, spoken: "\(Verbs.prepared), \(text)")
-    }
 }
 
-/// The parts of a `DetailLine` (or a row's second line), side by side `spacing` apart on their
-/// first text baseline. One line when they fit; one line with the first part truncated while it
-/// keeps at least a third of the width; otherwise each part flows onto the next line when it
-/// doesn't fit beside the one before (a part wider than the line gets the line's width).
+/// The parts of a `DetailLine`, side by side `spacing` apart on their first text baseline. One
+/// line when they fit; one line with the first part truncated while it keeps at least a third of
+/// the width; otherwise each part flows onto the next line when it doesn't fit beside the one
+/// before (a part wider than the line gets the line's width). Not `wraps`: always one line, the
+/// parts narrowed in order until the rest fit.
 struct DetailLineLayout: Layout {
     var spacing: CGFloat = Spacing.s
+    var wraps = true
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         arrange(width: proposal.width, subviews: subviews).size
@@ -132,7 +139,14 @@ struct DetailLineLayout: Layout {
         var rows: [[(index: Int, width: CGFloat)]]
         // Half a point of slack: placed in exactly the width it asked for (centred), the bounds
         // can come back a rounding error narrower.
-        if let width, total > width + 0.5 {
+        if let width, total > width + 0.5, !wraps {
+            var overflow = total - width
+            rows = [subviews.indices.map { index in
+                let cut = min(overflow, ideal[index])
+                overflow -= cut
+                return (index, ideal[index] - cut)
+            }]
+        } else if let width, total > width + 0.5 {
             let rest = total - ideal[0]
             let leadRoom = width - rest
             if subviews.count > 1, leadRoom >= min(ideal[0], width / 3) {
@@ -161,7 +175,8 @@ struct DetailLineLayout: Layout {
         for row in rows {
             let measured = row.map { entry -> (index: Int, width: CGFloat, height: CGFloat, baseline: CGFloat) in
                 let d = subviews[entry.index].dimensions(in: ProposedViewSize(width: entry.width, height: nil))
-                return (entry.index, entry.width, d.height, d[VerticalAlignment.firstTextBaseline])
+                // A truncated part can come back narrower than offered: the next part follows its text.
+                return (entry.index, min(entry.width, d.width), d.height, d[VerticalAlignment.firstTextBaseline])
             }
             let ascent = measured.map(\.baseline).max() ?? 0
             let descent = measured.map { $0.height - $0.baseline }.max() ?? 0

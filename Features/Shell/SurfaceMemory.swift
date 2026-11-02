@@ -6,13 +6,15 @@ enum LibraryRoute: Hashable, Codable {
     case folder(UUID)
 }
 
-/// The surface you left (decision D10): the Library with its path, or the browser with its page.
-/// The app reopens on it; a fresh install has none and opens the Library. Device-local
+/// The surface you left (decision D10): the Library with its path, the browser with its page, or
+/// Settings. The app reopens on it; a fresh install has none and opens the Library. Device-local
 /// (UserDefaults `shell.lastSurface`), never synced.
 struct SurfaceMemory: Codable, Equatable {
+    /// Stored by raw value: a value never changes once shipped.
     enum Base: String, Codable {
         case library
         case browse
+        case settings
     }
 
     var base: Base
@@ -50,9 +52,11 @@ struct SurfaceMemory: Codable, Equatable {
 struct SurfaceMemoryStore {
     static let key = "shell.lastSurface"
     static let homeTabKey = "library.homeTab"
-    /// Where the tab was kept while there were two (true: Favorites); read once, then removed.
+    /// Retired: where the tab was kept while there were two (true: Favorites). Nothing reads or
+    /// writes it; it stays here so `-resetLibrary` still clears what older builds stored.
     static let favoritesTabKey = "library.favoritesTab"
-    /// Where the playing listening was launched from (`ListenLaunch.Stored`): Listen's ‹ after a relaunch.
+    /// Retired: where a listening was launched from, for a ‹ on Listen that no longer exists. Nothing
+    /// reads or writes it; it stays here so `-resetLibrary` still clears what older builds stored.
     static let listenLaunchKey = "shell.listenLaunch"
     static let storedKeys = [key, homeTabKey, favoritesTabKey, listenLaunchKey]
 
@@ -64,33 +68,15 @@ struct SurfaceMemoryStore {
         defaults.data(forKey: Self.key).flatMap { try? JSONDecoder().decode(SurfaceMemory.self, from: $0) }
     }
 
-    func loadListenLaunch() -> ListenLaunch? {
-        defaults.data(forKey: Self.listenLaunchKey)
-            .flatMap { try? JSONDecoder().decode(ListenLaunch.Stored.self, from: $0) }
-            .flatMap(ListenLaunch.init(stored:))
-    }
-
-    func saveListenLaunch(_ launch: ListenLaunch?) {
-        guard let launch, let data = try? JSONEncoder().encode(launch.stored) else {
-            defaults.removeObject(forKey: Self.listenLaunchKey)
-            return
-        }
-        defaults.set(data, forKey: Self.listenLaunchKey)
-    }
-
     func save(_ memory: SurfaceMemory) {
         guard let data = try? JSONEncoder().encode(memory) else { return }
         defaults.set(data, forKey: Self.key)
     }
 
-    /// The tab the Library home showed. One stored as the two-tab Bool moves to its own key.
+    /// The tab the Library home showed: the Library when none is stored, or one this version no
+    /// longer has (an older build's `"favorites"`).
     func loadHomeTab() -> LibraryHomeTab {
-        if let tab = defaults.string(forKey: Self.homeTabKey).flatMap(LibraryHomeTab.init(rawValue:)) { return tab }
-        guard defaults.object(forKey: Self.favoritesTabKey) != nil else { return .everything }
-        let tab: LibraryHomeTab = defaults.bool(forKey: Self.favoritesTabKey) ? .favorites : .everything
-        saveHomeTab(tab)
-        defaults.removeObject(forKey: Self.favoritesTabKey)
-        return tab
+        defaults.string(forKey: Self.homeTabKey).flatMap(LibraryHomeTab.init(rawValue:)) ?? .everything
     }
 
     func saveHomeTab(_ tab: LibraryHomeTab) {

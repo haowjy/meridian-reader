@@ -1,8 +1,8 @@
 import FluidAudio
 import Foundation
 
-/// Kokoro's files in FluidAudio's English repo directory, shared by both routes: vocab, voice
-/// packs, G2P + lexicon, and the Core ML stages (used only by the Core ML route).
+/// Kokoro's files in FluidAudio's English repo directory: vocab, voice packs, G2P + lexicon (and
+/// Core ML stages an older build downloaded, which `KokoroCoreMLStageCleanup` deletes).
 enum KokoroAssets {
     /// `Application Support/fluidaudio`: FluidAudio's download cache, every model under it.
     static var fluidAudioDirectory: URL {
@@ -12,10 +12,6 @@ enum KokoroAssets {
     /// `Application Support/fluidaudio/Models/kokoro-82m-coreml/ANE` (FluidAudio's English repo dir).
     static var repoDirectory: URL {
         fluidAudioDirectory.appendingPathComponent("Models/kokoro-82m-coreml/ANE", isDirectory: true)
-    }
-
-    static var repoDirectoryExists: Bool {
-        FileManager.default.fileExists(atPath: repoDirectory.path)
     }
 
     /// Bundled default pack (`Resources/Kokoro/af_heart.bin`, ~0.5 MB). Ships with the app so the
@@ -73,14 +69,17 @@ enum KokoroAssets {
         ListenTimingLog.log("kokoro_voice_download", ["voice": voice, "ms": ListenTimingLog.ms(since: t0)])
     }
 
+    /// A voice pack's size: 510 × 256 fp32 values.
+    static let packBytes: Int64 = 510 * 256 * 4
+
     /// Remove one voice pack (`.bin`). Does not touch the shared ONNX model or other packs.
     /// Returns bytes freed (0 when the file was already gone).
     @discardableResult
-    static func deleteVoicePack(_ voice: String, fileManager fm: FileManager = .default) -> Int64 {
+    static func deleteVoicePack(_ voice: String, fileManager fm: FileManager = .default) throws -> Int64 {
         let url = voicePackURL(voice)
         guard fm.fileExists(atPath: url.path) else { return 0 }
         let bytes = FileSizes.allocatedBytes(at: url, fileManager: fm)
-        try? fm.removeItem(at: url)
+        try fm.removeItem(at: url)
         ListenTimingLog.log("kokoro_voice_delete", ["voice": voice, "bytes": bytes])
         return bytes
     }
@@ -88,11 +87,6 @@ enum KokoroAssets {
     /// Flat 510×256 fp32 voice pack (`<voice>.bin`).
     static func loadVoicePack(_ voice: String) throws -> [Float] {
         try KokoroAneVoicePack.load(from: voicePackURL(voice)).storage
-    }
-
-    /// The Core ML route's 7-stage chain appears to be on disk (cheap existence check).
-    static var coreMLStagesLookInstalled: Bool {
-        FileManager.default.fileExists(atPath: repoDirectory.appendingPathComponent("KokoroVocoder.mlmodelc").path)
     }
 
     /// Delete the Core ML stage bundles (keeps vocab, voice packs, G2P + lexicon). Returns bytes freed.
@@ -107,13 +101,5 @@ enum KokoroAssets {
             if (try? fm.removeItem(at: url)) != nil { freed += bytes }
         }
         return freed
-    }
-
-    /// Remove Kokoro's models and the shared English G2P / lexicon from FluidAudio's cache.
-    static func clearCachedModels() {
-        let fm = FileManager.default
-        let models = AppDirectories.applicationSupport.appendingPathComponent("fluidaudio/Models", isDirectory: true)
-        try? fm.removeItem(at: models.appendingPathComponent("kokoro-82m-coreml", isDirectory: true))
-        try? fm.removeItem(at: models.appendingPathComponent("kokoro", isDirectory: true))
     }
 }

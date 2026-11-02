@@ -14,11 +14,15 @@ enum ReadingStyle {
         var body: CGFloat
         var title: CGFloat
         var caption: CGFloat
+        /// The heading's Listen pill (`TypeStyle.row`, as `PillButton`'s title), grown no more than
+        /// `Control.maxTextGrowth`.
+        var row: CGFloat
 
-        init(body: CGFloat, title: CGFloat, caption: CGFloat) {
+        init(body: CGFloat, title: CGFloat, caption: CGFloat, row: CGFloat) {
             self.body = body
             self.title = title
             self.caption = caption
+            self.row = row
         }
 
         /// Scaled like `typeStyle(_:)` for `traits` (nil: the current ones).
@@ -26,11 +30,13 @@ enum ReadingStyle {
             func scaled(_ style: TypeStyle, _ text: UIFont.TextStyle) -> CGFloat {
                 UIFontMetrics(forTextStyle: text).scaledValue(for: style.size, compatibleWith: traits)
             }
-            self.init(body: scaled(.body, .body), title: scaled(.title, .title1), caption: scaled(.caption, .footnote))
+            self.init(body: scaled(.body, .body), title: scaled(.title, .title1), caption: scaled(.caption, .footnote),
+                      row: Control.grown(scaled(.row, .callout), from: TypeStyle.row.size))
         }
 
         var cssVariables: String {
             "--body: \(Int(body.rounded()))px; --title: \(Int(title.rounded()))px; --caption: \(Int(caption.rounded()))px;"
+                + " --row: \(Int(row.rounded()))px;"
         }
     }
 
@@ -67,6 +73,7 @@ enum ReadingStyle {
         var secondary: String
         var tertiary: String
         var accent: String
+        var onAccent: String
         var highlight: String
         var underline: String
         var rule: String
@@ -81,6 +88,7 @@ enum ReadingStyle {
             secondary = ReadingStyle.hex(palette.secondaryInk, traits)
             tertiary = ReadingStyle.hex(palette.tertiaryInk, traits)
             accent = ReadingStyle.hex(palette.accent, traits)
+            onAccent = ReadingStyle.hex(palette.onAccent, traits)
             highlight = ReadingStyle.hex(palette.highlight, traits)
             underline = ReadingStyle.hex(palette.underline, traits)
             rule = ReadingStyle.hex(palette.track, traits)
@@ -89,7 +97,7 @@ enum ReadingStyle {
         var cssVariables: String {
             "color-scheme: \(scheme == .dark ? "dark" : "light"); --paper: \(paper); --ink: \(ink); --dim: \(dim);"
                 + " --secondary: \(secondary); --tertiary: \(tertiary); --accent: \(accent);"
-                + " --highlight: \(highlight); --underline: \(underline); --rule: \(rule);"
+                + " --on-accent: \(onAccent); --highlight: \(highlight); --underline: \(underline); --rule: \(rule);"
         }
     }
 
@@ -115,7 +123,7 @@ enum ReadingStyle {
         html.reader-paged body { box-sizing: border-box; height: var(--page-h); padding-top: var(--page-top);
                padding-bottom: 0; column-width: calc(100vw - \(2 * margin)px); column-gap: \(2 * margin)px; column-fill: auto; }
         html.reader-paged img, html.reader-paged svg, html.reader-paged video, html.reader-paged iframe {
-               max-height: calc(var(--page-h) - var(--page-top) - \(Int(Spacing.l))px); object-fit: contain;
+               max-height: calc(var(--page-h) - var(--page-top) - \(Int(Spacing.m))px); object-fit: contain;
                break-inside: avoid; }
         h1, h2, h3, h4, h5, h6 { line-height: 1.25; }
         h1 { font-size: calc(var(--title) * var(--scale) * 0.9); }
@@ -128,11 +136,12 @@ enum ReadingStyle {
         .reader-heading { margin: 0 0 \(Int(Spacing.xl))px; }
         .reader-title { font-size: calc(var(--title) * var(--scale)); font-weight: 700; line-height: 1.15;
                         margin: 0 0 \(pad)px; }
+        /* One line: the site gives way first (an ellipsis), the length never wraps. */
         .reader-detail { font-family: -apple-system, system-ui, sans-serif; font-size: var(--caption);
-                         color: var(--tertiary); display: flex; flex-wrap: wrap;
+                         color: var(--tertiary); display: flex; align-items: center;
                          column-gap: calc(var(--caption) * \(Int(Spacing.s)) / \(Int(TypeStyle.caption.size))); }
-        .reader-detail span { min-width: 0; overflow-wrap: anywhere; }
-        .reader-detail span:first-child { color: var(--secondary); }
+        .reader-detail span { flex: 0 0 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .reader-detail span:first-child { flex-shrink: 1; color: var(--secondary); }
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
         html.reader-paged [data-reader-index] { transition: none; }

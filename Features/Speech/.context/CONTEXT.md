@@ -6,12 +6,12 @@ Behavior and architecture are in `../../../docs/LISTEN_PLAYBACK.md` and
 ## Where to start reading
 
 `SpeechController` (intents, engine binding; `+Advance` carries on through folders, `+NowPlaying`
-is the lock screen and remote commands, `+Settings` the language, voice and `ListenRate`) →
+is the lock screen and remote commands; `ListenRate` the speeds) →
 `Playback/PlaybackSession.swift` (the state machine)
-→ `Playback/` adapters (`AppleListenEngine`, `LocalListenEngine` → `LocalListenPlayer`) →
+→ `Playback/LocalListenEngine` → `LocalListenPlayer` →
 `LocalTTSCoordinator` (engine selection, `LocalSynthService`, launch recovery) →
 `Core/TTS/GlobalSynthQueue.swift` (render queue) and `Core/TTS/ArticleAudioCache.swift`. Engines are
-in `Engines/` (`Phonon/`, `FluidAudio/` and `ONNX/` for Kokoro, `Apple/`); each
+in `Engines/` (`Phonon/`, `FluidAudio/` and `ONNX/` for Kokoro); each
 provider owns its host, model store, voice catalog and chunk limits.
 
 ## Contracts that break quietly
@@ -19,8 +19,8 @@ provider owns its host, model store, voice catalog and chunk limits.
 - **What you hear.** Play buttons ask `playState(of:)` and press through `press(_:start:)`; never
   compare session ids in a view. Every start goes through `start(_:at:)` (`listen(to:)` wraps
   it). A finished article stays bound (`.finished`); only `stop()` (Stop Listening) and
-  `stopIfPlaying` (the article you hear removed, deleted, revised, or merged onto other text; no gap
-  fill) unbind. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
+  `stopIfPlaying` (the article you hear removed, deleted, revised, or merged onto other text)
+  unbind. `onProgress` fires synchronously from `publishPlayback`, so the recorder sees
   a replaced article's last spot (the `.stop` before the next `bind`). `listen(to:)` hands its article
   to `onListen` before it binds, so the recorder can keep an article the library doesn't have on its
   first start.
@@ -32,8 +32,7 @@ provider owns its host, model store, voice catalog and chunk limits.
   (`finishSession` is the end only); locked listening depends on it, and the
   `chapter_boundary` timing line checks it on a device. The library is reached only through
   `NextChapterProviding`. A staged next chapter must never render at listener priority, and sits
-  right behind the playing chapter's job (at the front once that is done), never behind a job that
-  parks in the background, and its opening goes before the playing chapter's paragraphs above
+  right behind the playing chapter's job (at the front once that is done), and its opening goes before the playing chapter's paragraphs above
   the playhead; prepared audio come after all of it. Playback never waits for a fetch: a followed
   story's chapter still waiting for its text ends playback there (`ChapterAdvance.Next.waiting`);
   a silent wait would need the app in front, and iOS may suspend an app holding a silent session.
@@ -47,7 +46,7 @@ provider owns its host, model store, voice catalog and chunk limits.
   (`bind`, `advance`) and travels in every `ListenProgress`. The recorder, `pageFinished` and a
   rollback's rewrite store progress only on an article holding that text (`LibraryStore.holds`), and
   `rekeyActiveSession` moves the session only onto an article holding it, else stops it
-  (`stopIfPlaying`: a gap fill would render under a key no article holds). The crash
+  (`stopIfPlaying`: nothing may render under a key no article holds). The crash
   resume file carries it too, and `AppLaunch.resumeAfterCrash` applies its paragraph only on a
   article holding it. Anything new that writes a position, start or end onto an article, or moves the
   session to another key, goes through the same check.
@@ -60,53 +59,109 @@ provider owns its host, model store, voice catalog and chunk limits.
   (`PlayheadReader`, the Now Playing bar's progress, Now Playing's sentence underline); reading it
   in a screen's body redraws the screen on every tick.
 - **One `VoiceSelection` per article (C138a).** Engine + voice, stored on the article
-  (`Article.voiceID`, its book's `Folder.voiceID`), resolved by `LocalTTSCoordinator.selection(for:paragraphs:)`
+  (`Article.voiceID`, its book's `Folder.voiceID`), resolved by `LocalTTSCoordinator.selection(for:)`
   (brand new: the Settings default, locked then). It is passed explicitly to playback
-  (`ListenRoute`, `ListenPlayRequest.selection`, `QueueUnitSource`) and the render queue reads
-  `renderTarget(for: key)`, which is non-nil only when the article's own engine is the loaded one.
-  Never read `engineVoices`, `activeLocalEngineID` or `defaultSelection` to decide what an
-  existing article plays or renders. The queue never writes Apple audio into the cache; the C129
-  gap fill and D9 `.appleStandIn` are the only Apple audio in an on-device article's listen, both
-  unsaved. A job whose engine isn't loaded waits in the queue; `ensureChunk` loads it (`awaitEngine`).
+  (`ListenPlayRequest.selection`, `QueueUnitSource`) and the render queue reads
+  `renderTarget(for: key)`, the article's own selection whatever is loaded. Playback reads
+  rendered audio by the selection's cache voice, loaded or not (cached audio plays while the model
+  loads). Never read `engineVoices`, the loaded engines or `defaultSelection` to decide what
+  an existing article plays or renders.
+- **Only the render queue's worker loads an engine** (`GlobalSynthQueue.load` →
+  `LocalTTSCoordinator.makeResident`), the route the policy names for its unit (a listener's
+  chunk first) or for the launch's `preload`. Don't load at an enqueue, a play, a voice pick or launch, and don't add
+  an "is an engine loaded" gate in front of the queue: queue the work and let the worker load.
+  Anything that must rebuild a host (Retry, a setting, a reset) asks the queue to `dropHost`
+  (every lane: a free lane's host goes now, a busy lane's when its call or load ends; a pending
+  drop is that lane's, so a host loaded since on another lane stays); never unload a host under a
+  call. A render (`LocalSynthService.renderChunkToFile`) runs only on its route's resident host
+  and never loads one.
+- **Never another voice.** Playback never changes the voice on its own (AGENTS.md;
+  `docs/LISTEN_PLAYBACK.md` → "One voice, never swapped"). Audio the player can't get stops it
+  there (`LocalListenPlayer.hold` → `stalled`), and the controller tells why
+  (`SpeechController.tell`, the shell's toast); an article its voice can't read or run is refused
+  before it binds (`cantReadNotice`). Don't add a fallback engine, voice or skip for a gap: wait
+  or pause. A crash pauses for Retry in the same voice (`CrashRecovery.pauseForRetry`) unless the
+  provider's recovery resumes it in the same voice.
 - **What still needs audio** is decided only by `ArticleAudioCache.missingParagraphs` (a
   paragraph with chunks and no CAF in the voice; a bare "—" is never missing). Anything new that
   asks "is this rendered / done" calls it rather than counting `readyIndices` against the
   paragraph count.
-- **Phonon (the default engine).** Core ML on the Neural Engine (`PhononHost`), one-call-at-a-time
-  like the rest, and `rendersInBackground` is false: `RenderAdmission` parks background renders for
-  it, so a Phonon article only plays on in the background from audio already rendered. Its limits
+- **One voice per live directory.** Audio enters an article's directory only through
+  `ArticleAudioCache.publishParagraph` (which archives another voice there first) and the merges
+  (`prepareMerge`); a voice change moves files only through its voice record (`settleVoice`), never
+  directly from a view or the coordinator. A new path that writes or moves audio keeps that rule
+  and keeps the cache's in-memory indexes true itself (`forget`): an old voice's audio must never
+  count as prepared in the new one (`ArticleAudioCache+Voices.swift`).
+- **Phonon (the default engine).** Two routes: Core ML's CPU path (`phonon.cpu`), the app's, in
+  front and in the background, and the Neural Engine (`phonon.ane`, lane `.neuralEngine`), used
+  only by `LanePolicy` (Debug, `-renderPolicy lanes`) and only in front. The host's compute unit
+  and its load gate come from its route's lane. Its cache key doesn't name the compute unit (the
+  owner heard no difference): both routes share one cache revision. Its limits
   (`TextChunker.Limits.phonon`: target 1200, hardMax 1600, whole paragraphs) belong to
   `PhononProvider`; `PhononSpokenText` may change case and drop redundant punctuation, never words
   (chunks must still map to the normalized paragraph, see the chunk-plans rule below). Its model
-  zip goes through `LargeModelDownloadConsent`, as does Kokoro's ONNX. Don't add a shared
+  bundle ships in the app and is copied out once per process before the first load
+  (`PhononModelStore`); its cache voice keys carry the bundle's `built` stamp
+  (`OnDeviceTraits.cacheRevision`), so shipping another bundle means changing
+  `PhononModelStore.bundleBuilt`, and all Phonon audio renders again. The bundle is our own export
+  at a 200-token prefill, not upstream's 48-token release zip, which cuts long sentences into
+  false sentence ends; a ptts bump that needs a new bundle re-exports it (`docs/TTS_ENGINES.md` →
+  "Phonon"). Don't add a shared
   speakable-text pass: engines own normalization (`docs/TTS_ENGINES.md` → "Text prep for speech").
-- **Model calls.** One host's models resident at a time: `LocalSynthService` lets a host go
-  (`LocalChunkRenderer.unload`) before it loads the next, and an unloaded host is never used again.
-  One call at a time (`SynthRenderGate`), never a Core ML call in the background
-  (`RenderAdmission`; the Core ML route's `KokoroSplitHost` switches itself to ONNX there for the
-  rest of the process). Every extra Kokoro call is exposure to an uncatchable crash on iOS 26.4+, so
-  don't add re-renders: probe a change that could add calls by counting them in the timing log.
+- **Model calls.** One resident host per lane (`LocalSynthService`): loading on a lane lets that
+  lane's host go (`LocalChunkRenderer.unload`) first, never another lane's, and every load waits
+  for every host let go to release its models; an unloaded host is never used again. One call or
+  load per lane at a time (the queue gives a lane work only while it is free, and its
+  `SynthRenderGate`), one load at a time across lanes, and a paragraph in a call on one lane is
+  never offered to another. Every engine has a CPU route (the registry refuses one without): the
+  CPU lane is the only one in the background (`Lane.runsInBackground`) and the app's policy's only
+  one. A lane that can't run in the background is a fact on `Lane`, not a flag on the host; the
+  renderer holds to it at the model call (`Lane.runs(in:)`, else `LaneUnavailable`, which the
+  queue treats as "plan again", never as a failure or a cancellation). A lane is one `Lane` case:
+  its gate comes from `Lane.allCases`.
+  With `SingleCallPolicy` only the CPU lane ever has a host, so behavior is one call at a time.
+  Every extra call is exposure to an uncatchable engine crash, so don't add re-renders: probe a
+  change that could add calls by counting them in the timing log.
 - **Only a death inside the engine is a crash.** The in-flight marker exists only during a
   guarded call; termination clears it, and launch drops a marker the process outlived or a
   background memory kill (`EngineCrashGuard.MarkerVerdict`). Anything that adds a long wait inside
   a guarded call, or changes what the resume point records, moves those verdicts: keep calls far
   under `EngineCrashGuard.callBound`.
-- **Thread counts are per phase.** In front the ONNX session runs every core but one (3 to 6,
-  `KokoroRouteSettings.defaultThreads`), in the background one; the first call after a phase
-  change rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route
+- **Thread counts come from the policy, per call.** `SingleCallPolicy.threads(on:budget:)` passes
+  every core but one in front and one in the background (`LanePolicy` one fewer in front while a
+  Neural Engine host is loaded), never more than the route's cap (the
+  Kokoro setting, 3 to 6, `KokoroRouteSettings.defaultThreads`); the host reads no app phase. The
+  first call at a new count rebuilds the session (`KokoroONNXSessionSlot`). Pick the front count from the CPU route
   benchmark on a device, not from the Mac (a Mac has more performance cores than an iPhone's
   two).
-- **Background rendering is budgeted.** On the ONNX route the background gets one thread and
-  bake-ahead runs only in bursts between the watermarks (`BackgroundRenderWatermarks`); between
-  bursts the worker is idle until playback wakes it (`GlobalSynthQueue.playbackAdvanced`, called
-  by `LocalListenEngine` on each unit start and resume). Back-to-back background rendering got the
-  app killed by iOS. Anything new that renders in the background goes through the queue's
-  admission, and nothing holds a background task per chunk. Prepared Audio (`../../Prepared Audio/`) are
-  ordinary bake jobs (`LocalTTSCoordinator+PreparedAudio`): they park in the background and never
-  count as playing.
+- **What renders, when, is the render policy's call** (`RenderPolicy`; `SingleCallPolicy`, or
+  `LanePolicy` in a Debug launch with `-renderPolicy lanes`, built in
+  `AppComposition.makeRenderPolicy`). The queue offers every job's next unit by demand, in its
+  order, and checks the plan, an action per free lane (`RenderPlan.violation`), before it starts
+  them (`GlobalSynthQueue+Render.swift`); it plans again whenever a call or load ends, and never
+  while all the policy's lanes (`RenderPolicy.lanes`) are busy. Ordering rules, FIFO included,
+  lane choice, what a failed load means (wait, or tell the listeners: `RenderPlan.failed`) and the
+  memory check for a second model (`RenderSituation.availableMemoryMB` against
+  `RenderRoute.footprintMB`) go in the policy; a new policy is one type and that line. The selected route is the residency identity:
+  `makeResident(route)` builds the host for it on its lane (`makeHost(for:voice:)`) and the lane
+  snapshot reports the route loaded; nothing else picks a route. In the background it renders continuously while audio plays, one call at a time,
+  Kokoro on one ONNX thread: back-to-back rendering on three threads got the app killed by iOS
+  (1.0–1.3 GB), so a higher background budget needs an hour's locked listen on the phone first.
+  A throttle (issue #21) would need a clock and a timed wake in the seam; there is none now.
+  Each background call runs under the
+  `ReaderSynthDrain` grace, so audio stopping doesn't cut it. When rendering falls behind there,
+  the player pauses at the gap (`ListenStall.cantKeepUp`) and the toast waits for the front
+  (`SpeechController.backgroundNotice`). Prepared Audio (`../../PreparedAudio/`) are ordinary bake
+  jobs (`LocalTTSCoordinator+PreparedAudio`), rendered after the playing article and the staged
+  chapter.
 - **`onRenderStateChange` is called inside the queue's work** (`noteBakeMarksChanged` runs mid
   drain, `bakeCompleted` from the worker): its handler acts later, never re-entering the queue in
-  the call.
+  the call. It names the articles that changed (`noteBakeMarksChanged(of:)`, a job's end or
+  removal); nil means any may have, so a per-paragraph event must pass its key, or every prepared
+  page is checked again.
+- **A Play's first chunk is listener demand before its producer asks.** `LocalListenEngine.play`
+  calls `expectListener` before it queues the article: the worker it wakes runs before the
+  producer's `ensureChunk`, and without the mark the first load runs at `.utility`.
 - **Chunk plans are data.** Live playback and bake-ahead share one deterministic plan per text
   and engine, from one owner (`LocalTTSCoordinator.chunkPlans`);
   stitched paragraphs store `chunkDurations` by it. Changing `TextChunker` limits or rules changes
@@ -115,8 +170,20 @@ provider owns its host, model store, voice catalog and chunk limits.
 - **Listen blocks are versioned.** Changing `ListenHTMLBlocks` (Core/Domain) rules means bumping
   `ListenHTMLBlocks.version`; library pages rebuild once and positions / audio must be remapped
   like `LibraryStore.migrateParagraphLayout` does.
-- **Engine loads never re-route playback.** Views call `setDefaultSelection` (Settings),
-  `ArticleVoiceChange.apply` (a picker) or `deleteModel`; they never restart playback.
+- **Engine loads never re-route playback.** Views call `chooseDefault` (Settings),
+  `ArticleVoiceChange.apply` (a picker), `SpeechController.voiceRemoval` / `removeVoice` or
+  `VoiceDownloads`; they never stop or restart playback or load an engine.
+- **A voice pick downloads files, never loads.** `VoiceDownloads` fetches what a voice needs
+  through its provider (`downloadSize`, `download`) and selects only once it is there and still
+  the picker's newest pick; ■ forgets the pick, so a last step that finishes anyway selects
+  nothing. A cancel (■, the large-download prompt's Not Now) is never a failure. A transfer's
+  life (progress, stop, failure) is its provider's alone, one per voice whoever started it
+  (`transfer(of:for:)`; Kokoro's `KokoroTransfers`), so a load's or a render's download shows,
+  and fails, on the voice's row; `VoiceDownloads` keeps only each picker's newest pick. A render makes
+  sure of its own voice's files before its call (`LocalSynthHost.prepareVoice`), never only the
+  host's first voice's.
+  Removing a voice never changes an article's voice: its next play or prepare downloads it again
+  while playback waits; only the Settings default moves, and the picker asks first.
 - **Persisted ids and keys** never change (AGENTS.md); review any diff that touches one.
 
 ## Verifying here

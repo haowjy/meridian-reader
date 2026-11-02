@@ -32,11 +32,11 @@ enum ReadabilityRunner {
         (function() {
           try {
             if (typeof isProbablyReaderable === 'function' && !isProbablyReaderable(document)) {
-              return JSON.stringify({ ok: false, reason: 'Page is probably not an article.' });
+              return JSON.stringify({ ok: false, reason: 'This page doesn’t look like an article.' });
             }
             var article = new Readability(document.cloneNode(true)).parse();
             if (!article) {
-              return JSON.stringify({ ok: false, reason: 'Readability returned no article.' });
+              return JSON.stringify({ ok: false, reason: 'Couldn’t find a readable article on this page.' });
             }
             return JSON.stringify({
               ok: true,
@@ -66,7 +66,7 @@ enum ReadabilityRunner {
             throw ExtractionError.engineFailed(message: "Readability returned an unexpected payload.")
         }
         guard (obj["ok"] as? Bool) == true else {
-            let reason = (obj["reason"] as? String) ?? "Extraction failed."
+            let reason = (obj["reason"] as? String) ?? "Couldn’t read this page."
             throw ExtractionError.unavailable(reason: reason)
         }
         let site = (obj["siteName"] as? String).flatMap { $0.isEmpty ? nil : $0 }

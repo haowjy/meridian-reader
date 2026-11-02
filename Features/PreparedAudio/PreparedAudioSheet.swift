@@ -26,7 +26,7 @@ import SwiftUI
 /// Every row is a `ListRow`: a tap opens what was prepared (the Reader for a page, the Library
 /// at a folder); a queued one has its pause / resume control before the ⋯; ⋯ and the long press
 /// are the prepare's menu (`PrepareMenu`, the same in every section); swipe left is its
-/// *Remove Prepare* (*Remove Prepared audio* on a folder).
+/// *Remove Prepared Audio* (a page or a folder).
 struct PreparedAudioSheet: View {
     @Environment(ShellState.self) private var shell
 
@@ -50,7 +50,7 @@ struct PreparedAudioSheet: View {
 /// row is one page (C110), a folder's pages each on their own row: its status mark before line
 /// two (a spinner waiting, the accent ↓ filling with its own progress, filled once done), line two
 /// its folder's name (its site when it is in no folder). Waiting is in the order pages render.
-/// A folder's own prepare (its toggle, *Turn Off Prepare*) stays on the folder's screen.
+/// A folder's own prepare (its toggle, *Stop Preparing*) stays on the folder's screen.
 struct PreparedAudioList: View {
     @Environment(PrepareCenter.self) private var preparedAudio
     @Environment(LibraryStore.self) private var library
@@ -73,10 +73,11 @@ struct PreparedAudioList: View {
         List {
             if overview.isEmpty && listening.isEmpty {
                 Section {
-                    EmptyState(String(localized: "Nothing Prepared"), symbol: Icons.preparedAudio,
-                               description: Text("Prepare an article’s audio from its \(Text.symbol(Icons.more)) in the Library, or a folder’s with \(Text.symbol(Icons.prepare)) on its screen. Its audio is made ahead of time, so it plays offline."))
-                        .accessibilityElement(children: .combine)
-                        .accessibilityIdentifier("downloadsEmpty")
+                    EmptyState(String(localized: "Nothing Prepared"),
+                               description: Text("Audio you prepare shows up here.")) {
+                        AddToLibraryTiles(folder: nil)
+                    }
+                    .accessibilityIdentifier("downloadsEmpty")
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
@@ -100,7 +101,7 @@ struct PreparedAudioList: View {
                         headerID: "downloadsDoneHeader") {
                     let total = overview.done.compactMap { sizes[$0.key] }.reduce(0, +)
                     if total > 0 {
-                        Text(String(localized: "\(FileSizes.label(total)) on this iPhone"))
+                        Text(String(localized: "\(FileSizes.label(total)) on this device"))
                             .accessibilityIdentifier("downloadsStorage")
                             .listFooter()
                     }
@@ -119,8 +120,8 @@ struct PreparedAudioList: View {
                         .accessibilityIdentifier("preparedListeningHeader")
                 } footer: {
                     let total = listening.compactMap { listeningSizes[$0] }.reduce(0, +)
-                    Text(String(localized: "Audio made while you listen. It’s cleared once its article leaves the last \(LibraryStore.recentLimit) in Recent.")
-                         + (total > 0 ? " " + String(localized: "\(FileSizes.label(total)) on this iPhone.") : ""))
+                    Text(String(localized: "Audio made while you listen. It’s deleted when its article leaves the last \(LibraryStore.recentLimit) in History.")
+                         + (total > 0 ? " " + String(localized: "\(FileSizes.label(total)) on this device.") : ""))
                         .listFooter()
                 }
             }
@@ -128,10 +129,8 @@ struct PreparedAudioList: View {
                 section(overview.differentVoice,
                         header: SectionHeader(title: String(localized: "Different Voice"), count: overview.differentVoice.count),
                         headerID: "downloadsDifferentVoiceHeader") {
-                    if let voice = speech.localTTS.prepareVoice {
-                        Text(String(localized: "Its audio isn’t in its article’s voice, so it doesn’t play. Prepare Again makes it in that voice (\(voiceLabel(voice)) for new articles)."))
-                            .listFooter()
-                    }
+                    Text(String(localized: "This audio is in a different voice from its article, so it won’t play. Prepare Again makes it in the article’s voice."))
+                        .listFooter()
                 }
             }
         }
@@ -142,13 +141,10 @@ struct PreparedAudioList: View {
         .task(id: overview.done.map(\.key)) { sizes = await measure(overview.done.map(\.key)) }
         .task(id: "\(revision)-\(preparedAudio.records.count)") { await loadListening() }
         .toolbar {
+            // The screen's ⋯ where every pushed page and sheet has it: last on the trailing side, after the sheet's Done.
             let rows = listMenuRows(hasPrepared: !overview.isEmpty)
             if !rows.isEmpty {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu { MenuRows(rows) } label: { Image(systemName: Icons.more) }
-                        .accessibilityLabel(Verbs.more)
-                        .accessibilityIdentifier("preparedMore")
-                }
+                ScreenMenuToolbarItem { TitleMenuButton(id: "preparedMore", blocks: [rows]) { TitleMenuToolbarGlyph() } }
             }
         }
         .alert(String(localized: "Delete \(preparedAudio.heldArticleKeys.count) articles and their prepared audio? This can’t be undone."),
@@ -173,13 +169,17 @@ struct PreparedAudioList: View {
         var facts = MenuRegistry.Facts()
         facts.hasPrepared = hasPrepared && !preparedAudio.heldArticleKeys.isEmpty
         facts.hasListeningAudio = !listening.isEmpty
-        return MenuRegistry.rows(.screen, at: .preparedAudio, facts) { option in
-            if option == .deleteAllPrepared {
-                return MenuRow(id: "preparedDeleteAll", title: Verbs.deleteAllPrepared, icon: Icons.delete,
-                               isDestructive: true) { confirmingDeleteAll = true }
+        return MenuContext.screenRows(at: .preparedAudio, facts: facts, shell: shell) { option in
+            switch option {
+            case .deleteAllPrepared:
+                MenuRow(id: "preparedDeleteAll", title: Verbs.deleteAllPrepared, icon: Icons.delete,
+                        isDestructive: true) { confirmingDeleteAll = true }
+            case .clearListeningAudio:
+                MenuRow(id: "preparedClearListening", title: Verbs.clearListeningAudio, icon: Icons.delete,
+                        isDestructive: true) { confirmingClear = true }
+            default:
+                nil
             }
-            return MenuRow(id: "preparedClearListening", title: Verbs.clearListeningAudio, icon: Icons.delete,
-                           isDestructive: true) { confirmingClear = true }
         }
     }
 
@@ -196,7 +196,11 @@ struct PreparedAudioList: View {
                        menu: AnyView(menu), showsListening: false)
             .opensOnTap { open(article) }
             .contextMenu { AnyView(menu) }
-            .swipeActions(edge: .trailing) { menu.removeRow.swipeButton(role: .destructive) }
+            .swipeActions(edge: .trailing) {
+                // The tint alone: the row stays while playback needs its audio, and the list reloads
+                // after a delete (AGENTS.md's swipe rule).
+                menu.removeRow.swipeButton()
+            }
             .accessibilityIdentifier("listeningAudioRow")
     }
 
@@ -246,20 +250,15 @@ struct PreparedAudioList: View {
         }
     }
 
-    /// "Heart" for a cache voice key (C138: as an article's *Voice* row names it).
+    /// "Default", "Kokoro" for a cache voice key, as an article's *Voice* row says it (never the voice's name).
     private func voiceLabel(_ voice: String) -> String {
-        speech.localTTS.engines.voiceName(forCacheVoice: voice)
+        speech.localTTS.voiceSummary(ofCacheVoice: voice)
     }
 
+    /// This device can run none of the voice libraries (`wantsLocalBake`), so nothing renders.
     private var waitingNote: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(String(localized: "Prepared audio renders with an on-device voice. Choose one in Settings to go on."))
-            PillButton(Verbs.settings, systemImage: Icons.settings, style: .neutral, size: .compact) {
-                shell.present(.settings)
-            }
-                .accessibilityIdentifier("downloadsSettings")
-        }
-        .padding(.top, Spacing.xxs)
+        Text(String(localized: "This device can’t run the voices, so nothing can be prepared."))
+            .padding(.top, Spacing.xxs)
     }
 
     // MARK: - A row
@@ -300,7 +299,7 @@ struct PreparedAudioList: View {
         case .fetching: return [String(localized: "Getting the article")]
         case .queued: return [voice].compactMap { $0 }
         case .paused: return [String(localized: "Paused"), voice].compactMap { $0 }
-        case .waitingForVoice: return [String(localized: "Needs a voice")]
+        case .waitingForVoice: return [String(localized: "Can’t prepare on this device")]
         case .done, .differentVoice:
             if item.failed { return [String(localized: "Couldn’t prepare")] }
             return [voice, sizes[item.key].map(FileSizes.label)].compactMap { $0 }

@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// Now Playing's transport row: [leading] [⏮] (⏸) [⏭] [trailing], in the five-slot
-/// grid (`NowPlayingTransport`). It always acts on the session, which is what Now Playing shows.
-/// `leading` is Now Playing's 🔖 and `trailing` its ⋯, in the Reader's slots. A sideways swipe on
-/// the row skips a paragraph; with developer options on, a long-press on play / pause opens
-/// Listen debug.
+/// Now Playing's transport (`NowPlayingTransport`), acting on the session, which is what Now
+/// Playing shows. On regular width the five-slot row, `[leading] [⏮] (⏸) [⏭] [trailing]`: 🔖 and
+/// ⋯ in the Reader's slots. The compact player card takes the `card` size: ⏮ ▶ ⏭ alone, larger,
+/// with no slots. A sideways swipe on it skips a paragraph; with developer options on, a
+/// long-press on play / pause opens Listen debug.
 struct ListenTransportView: View {
+    var size = TransportSize.row
     var leading: AnyView? = nil
     var trailing: AnyView? = nil
 
@@ -20,6 +21,7 @@ struct ListenTransportView: View {
     var body: some View {
         NowPlayingTransport(
             state: state,
+            size: size,
             canSkipBack: speech.canSkipToPreviousParagraph,
             canSkipForward: speech.canSkipToNextParagraph,
             onSkipBack: speech.skipToPreviousParagraph,
@@ -39,7 +41,7 @@ struct ListenTransportView: View {
         if let view {
             view
         } else {
-            Color.clear.frame(height: BottomChrome.rowHeight)
+            Color.clear.frame(height: Control.tap)
         }
     }
 
@@ -61,13 +63,10 @@ struct ListenTransportView: View {
     }
 }
 
-/// The playback speed ("1×", "1.25×") at the trailing end of Now Playing's scrub capsule; a tap
-/// opens the speed list, pointing at it.
+/// The playback speed ("1×", "1.25×"): at the trailing end of the regular-width scrub capsule, and
+/// at the trailing end of the compact player card. A tap opens the speed list, pointing at it.
 struct SpeedButton: View {
     @Bindable var speech: SpeechController
-    /// On the round control face of the player card's transport (as Aa across from it), not bare
-    /// text in a scrub capsule.
-    var round = false
     @State private var showsPicker = false
     @Environment(\.readingPalette) private var reading
 
@@ -75,15 +74,9 @@ struct SpeedButton: View {
 
     var body: some View {
         Button { showsPicker = true } label: {
-            if round {
-                Text(ListenRate.label(speech.rateMultiplier))
-                    .foregroundStyle(palette.ink)
-                    .roundFieldText(fill: BottomChrome.fieldFill(reading))
-            } else {
-                Text(ListenRate.label(speech.rateMultiplier))
-                    .foregroundStyle(palette.ink)
-                    .fieldTextFrame()
-            }
+            Text(ListenRate.label(speech.rateMultiplier))
+                .foregroundStyle(palette.ink)
+                .fieldTextFrame()
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(Verbs.speed) \(ListenRate.label(speech.rateMultiplier))")

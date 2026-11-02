@@ -4,15 +4,15 @@ import SwiftData
 /// What a page holds. Stored as `Article.contentStateRaw`; raw values are persisted.
 /// "Audio ready" isn't a state: it depends on the voice, so `ArticleAudioCache` answers it.
 enum ArticleContentState: String, Codable {
-    /// A web address the user chose to keep (a favorite, a followed story's chapter not fetched
-    /// yet). Any text it holds is a cache, refreshed when it is played again and cleared by the
+    /// A web address the user chose to keep (an address saved from a website or pasted, a
+    /// followed story's chapter not fetched yet). Any text it holds is a cache, refreshed when it is played again and cleared by the
     /// prune.
     case link
     /// Text and listen blocks kept.
     case saved
 }
 
-/// A page in the library tree: a saved article, a link (favorite), a book chapter, a page you
+/// A page in the library tree: a saved article, a link, a book chapter, a page you
 /// played without saving (`addedAt == nil`, kept 7 days after its last play), or one you removed
 /// from the Library (`removedAt`, in no list, kept 7 days after its last play; one never played
 /// goes at the next launch). One page per canonical URL, app-wide,
@@ -45,7 +45,8 @@ final class Article {
     /// Read only with `addedAt == nil`: saving it again leaves the date, which the next remove
     /// replaces.
     var removedAt: Date?
-    /// Favorite is an independent flag; it does not imply a special location in the tree.
+    /// Not written or read: the star of older builds' Favorites (kept as stored; persisted fields
+    /// don't change).
     var isFavorite: Bool = false
     /// Order inside its folder, or among pages with no folder.
     var sortKey: Double = 0
@@ -70,7 +71,7 @@ final class Article {
     var positionUTF16: Int = 0
     var lastPlayedAt: Date?
     var finishedAt: Date?
-    /// Front matter, licence pages, or the user's "Skip in Playback": never reached by carrying
+    /// Front matter, licence pages, or the user's "Skip When Playing": never reached by carrying
     /// on from the chapter before.
     var skipsInPlayback: Bool = false
     /// C138: the voice all its audio is in, as a cache voice key ("kokoro.af_heart"); set when its
@@ -155,9 +156,9 @@ extension Article {
     /// duplicate, or the chapter *Replace* finds under a new key), so nothing either one held is
     /// lost: its text, listen paragraphs, icon, address and key where this one has none; saved if
     /// either is; in the Library since the earlier date, and removed as of the later; the later
-    /// play; its spot when this one has none, and finished if either is; starred, and skipped in
-    /// playback, if either is. Where the page sits (its folder and order) is the caller's: dedupe
-    /// and *Replace* place it by different rules.
+    /// play; its spot when this one has none; finished, and skipped in playback, if either is.
+    /// Where the page sits (its folder and order) is the caller's: dedupe and *Replace* place it
+    /// by different rules.
     func absorb(_ other: Article) {
         if !hasText, other.hasText {
             bodyHTML = other.bodyHTML
@@ -185,7 +186,6 @@ extension Article {
             positionUTF16 = other.positionUTF16
         }
         finishedAt = finishedAt ?? other.finishedAt
-        isFavorite = isFavorite || other.isFavorite
         skipsInPlayback = skipsInPlayback || other.skipsInPlayback
     }
 }
@@ -218,15 +218,6 @@ extension Article {
         detectedLanguageCode = ListenLanguage.detectCached(paragraphs: paragraphs)
     }
 
-    /// Stored detected language; a page without one detects it from its listen blocks once.
-    @discardableResult
-    func detectedLanguageBackfilling() -> String? {
-        if let detectedLanguageCode { return detectedLanguageCode }
-        guard let paragraphs = cachedListenParagraphs else { return nil }
-        let code = ListenLanguage.detectCached(paragraphs: paragraphs)
-        if let code { detectedLanguageCode = code }
-        return code
-    }
 
     /// Stored paragraphs if valid, otherwise built now and stored (one-time backfill).
     func listenDocument() -> ParagraphDocument {

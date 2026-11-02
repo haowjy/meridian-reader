@@ -5,35 +5,35 @@ import SwiftUI
 struct AcknowledgementsView: View {
     private static let entries: [Entry] = [
         .init(name: "FluidAudio", license: "Apache-2.0",
-              detail: "On-device Kokoro TTS (vendored with local patches)"),
+              detail: "Runs Kokoro’s voices"),
         .init(name: "Kokoro", license: "Apache-2.0",
-              detail: "82M English voice model (downloaded on device)"),
+              detail: "Voices, downloaded when chosen"),
         .init(name: "Phonon / Gradium", license: "Apache-2.0 / MIT",
-              detail: "Phonon 31m English Core ML (ptts)"),
+              detail: "Voices built into the app"),
         .init(name: "ONNX Runtime", license: "MIT",
-              detail: "Kokoro CPU inference"),
+              detail: "Runs Kokoro’s model"),
         .init(name: "ZIPFoundation", license: "MIT",
-              detail: "EPUB and Phonon model unzip"),
+              detail: "Opens EPUB books and Phonon’s voices"),
         .init(name: "Mozilla Readability", license: "Apache-2.0",
-              detail: "Article extraction from web pages"),
+              detail: "Finds the article on a web page"),
     ]
 
     var body: some View {
         List {
             Section {
                 ForEach(Self.entries) { entry in
-                    SymbolRow(entry.name, subtitle: DetailPart("\(entry.license) · \(entry.detail)"),
-                              symbol: nil)
+                    SymbolRow(entry.name, details: [DetailPart(entry.license), DetailPart(entry.detail)],
+                              symbol: nil) { EmptyView() }
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("ack-\(entry.id)")
                 }
             } footer: {
-                Text("All of these licenses are permissive and compatible with App Store distribution. Model weights download to this iPhone when you pick that voice; nothing is uploaded to Meridian.")
+                Text("Every voice runs on this device. What you read and listen to is never uploaded.")
                     .listFooter()
             }
             .listCard()
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
         .navigationTitle(String(localized: "Acknowledgements"))
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("acknowledgementsList")

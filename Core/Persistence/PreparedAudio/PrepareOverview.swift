@@ -21,7 +21,7 @@ struct PrepareOverview: Equatable {
         /// Waiting its turn.
         case queued(fraction: Double)
         case paused(fraction: Double)
-        /// No on-device voice is selected that renders prepared audio (Apple's voice speaks live).
+        /// This device can run none of the voice libraries, so nothing renders prepared audio.
         case waitingForVoice(fraction: Double)
         case done
         /// Done, with audio in this voice (a cache voice key) rather than the prepare voice.

@@ -6,8 +6,7 @@ import Foundation
 /// article, the Settings default) and passed explicitly; nothing in playback or rendering reads a
 /// global engine or voice.
 ///
-/// Stored as `"<engine id>/<voice id>"` ("local.kokoro/af_heart", "apple/com.apple.voice.premium.en-US.Ava";
-/// an empty voice id for Apple is the system voice for the article's language).
+/// Stored as `"<engine id>/<voice id>"` ("local.kokoro/af_heart", "local.phonon/Zoey").
 struct VoiceSelection: Hashable, Sendable, CustomStringConvertible {
     let engine: SpeechEngineID
     let voice: String
@@ -28,5 +27,4 @@ struct VoiceSelection: Hashable, Sendable, CustomStringConvertible {
 
     var stored: String { "\(engine.rawValue)/\(voice)" }
     var description: String { stored }
-    var isApple: Bool { engine == .apple }
 }

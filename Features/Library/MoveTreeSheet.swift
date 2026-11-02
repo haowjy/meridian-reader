@@ -82,7 +82,7 @@ struct MoveTreeList: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("moveNewFolder")
-                place(String(localized: "Library (no folder)"), symbol: Icons.library, depth: 0,
+                place(String(localized: "Library"), symbol: Icons.library, depth: 0,
                       isCurrent: current == .topLevel, isEnabled: true, id: "moveTopLevel") { pick(nil) }
                 ForEach(tree, id: \.folder.id) { entry in
                     let folder = entry.folder
@@ -98,7 +98,7 @@ struct MoveTreeList: View {
             }
             .listCard()
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
         .newFolderAlert(isPresented: $naming, name: $newName,
                         message: newParent.map { "It goes inside “\($0.name)”, and this goes into it." }
                             ?? "It goes at the top level, and this goes into it.") {
@@ -118,7 +118,7 @@ struct MoveTreeList: View {
                         .accessibilityHidden(true)
                 }
             }
-            .padding(.leading, Spacing.l * CGFloat(depth))
+            .padding(.leading, Spacing.m * CGFloat(depth))
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)

@@ -32,12 +32,11 @@ extension ArticleAudioCache {
         var changed: Bool { remapped > 0 || dropped > 0 || adopted > 0 || sliced > 0 }
     }
 
-    /// A CAF taking part in a change: its entry, its engine and voice, and where the file is now.
+    /// A CAF taking part in a change: its entry and where the file is now. Every unit of one
+    /// change is in that change's voice (`units(of:in:for:origin:)`), so a unit carries none.
     struct AlignUnit {
         enum Origin { case own, slice, adopted }
         var entry: IndexFile.ParagraphEntry
-        var engineID: String
-        var voiceID: String
         var url: URL
         /// `own` and `slice` CAFs are in the article's directory: one that stays on its paragraph
         /// keeps its file.
@@ -66,31 +65,40 @@ extension ArticleAudioCache {
     /// chunks line up with the old render (`slices`; `chunkPlan` is the render queue's plan, nil
     /// cuts nothing); the rest is dropped. Unhashed legacy units keep their slot. `adopting`: a
     /// merged article whose audio fills the paragraphs this one has no unit for, the same way;
-    /// its directory is deleted once this article's index is saved. Copy-on-write (above): a
-    /// failure throws and leaves the last saved index usable.
+    /// its directory is deleted once this article's index is saved. Its old voices become this
+    /// article's, and its audio in another voice than `voice` (the one this article renders in)
+    /// becomes an old-voice entry of this article instead (`prepareMerge`). Copy-on-write (above):
+    /// a failure throws and leaves the last saved index usable.
     @discardableResult
-    func reconcile(articleID: UUID, paragraphs: [String], adopting source: UUID? = nil,
+    func reconcile(articleID: UUID, paragraphs: [String], adopting source: UUID? = nil, voice: CacheVoice? = nil,
                    chunkPlan: ((String, String) -> [String]?)? = nil) throws -> ReconcileResult {
         var result = ReconcileResult()
-        let source = source == articleID ? nil : source
+        var source = source == articleID ? nil : source
+        if let from = source, !(try prepareMerge(from: from, into: articleID, voice: voice)) { source = nil }
         let own = index(for: articleID)
         let merged = source.flatMap { index(for: $0) }
-        var units = self.units(of: own, for: articleID, origin: .own)
-        if let source { units += self.units(of: merged, for: source, origin: .adopted) }
+        // An index with no paragraphs left holds no voice, whatever its header names: the merging
+        // audio's voice is the one published then. Only with no audio at all is the header kept.
+        let voice = mergeVoice(articleID, source)
+            ?? (own ?? merged).map { CacheVoice(engineID: $0.engineID, voiceID: $0.voiceID) }
         var placed: [Int: AlignUnit] = [:]
-        if !units.isEmpty {
-            let slices = try self.slices(of: units, paragraphs: paragraphs, into: directory(for: articleID),
-                                         chunkPlan: chunkPlan, &result)
-            placed = place(slices + units, on: paragraphs, &result)
+        if let voice {
+            var units = self.units(of: own, in: voice, for: articleID, origin: .own)
+            if let source { units += self.units(of: merged, in: voice, for: source, origin: .adopted) }
+            if !units.isEmpty {
+                let slices = try self.slices(of: units, engineID: voice.engineID, paragraphs: paragraphs,
+                                             into: directory(for: articleID), chunkPlan: chunkPlan, &result)
+                placed = place(slices + units, on: paragraphs, &result)
+            }
         }
         let unchanged = placed.count == (own?.paragraphs.count ?? 0)
             && placed.allSatisfy { $0.value.origin == .own && $0.value.entry.index == $0.key }
         // The saved index can list CAFs the loaded one left out (missing or empty files).
-        if let base = own ?? merged, !unchanged || readIndexFile(for: articleID) != own {
-            try publish(placed, for: articleID, engineID: base.engineID, voiceID: base.voiceID)
+        if let voice, !unchanged || readIndexFile(for: articleID) != own {
+            try publish(placed, for: articleID, in: voice)
         }
         if let source, hasDirectory(for: source) {
-            if merged != nil { markSaved(cacheKey: articleID) }
+            if merged != nil { try markSaved(cacheKey: articleID) }
             try deleteAudio(for: source)
         }
         try removeUnlisted(articleID: articleID, previous: own)
@@ -111,13 +119,21 @@ extension ArticleAudioCache {
         }
     }
 
-    func units(of index: IndexFile?, for articleID: UUID, origin: AlignUnit.Origin) -> [AlignUnit] {
+    /// The voice audio merging into `key` from `source` publishes in: `key`'s audio's, else the
+    /// merging audio's (`prepareMerge` has made them one); nil when neither holds audio.
+    func mergeVoice(_ key: UUID, _ source: UUID?) -> CacheVoice? {
+        audioVoice(of: key) ?? source.flatMap { audioVoice(of: $0) }
+    }
+
+    /// `index`'s units in `voice`. A paragraph in another voice (an older build's, left by a voice
+    /// switch; it never played) takes no part, so the index published drops it.
+    func units(of index: IndexFile?, in voice: CacheVoice, for articleID: UUID,
+               origin: AlignUnit.Origin) -> [AlignUnit] {
         guard let index else { return [] }
         let dir = directory(for: articleID)
-        return index.paragraphs.map {
-            AlignUnit(entry: $0, engineID: index.engine(of: $0), voiceID: index.voice(of: $0),
-                      url: dir.appendingPathComponent($0.file), origin: origin)
-        }
+        return index.paragraphs
+            .filter { index.matches($0, engineID: voice.engineID, voiceID: voice.voiceID) }
+            .map { AlignUnit(entry: $0, url: dir.appendingPathComponent($0.file), origin: origin) }
     }
 
     /// Which unit ends up on each paragraph. In order: a unit on a paragraph with its text keeps
@@ -167,8 +183,10 @@ extension ArticleAudioCache {
     }
 
     /// Copies each placed unit that isn't already this article's file on that paragraph in under
-    /// a new `m-` name, then saves the index listing them all: the commit point.
-    func publish(_ placed: [Int: AlignUnit], for articleID: UUID, engineID: String, voiceID: String) throws {
+    /// a new `m-` name, then saves the index listing them all: the commit point. The index is in
+    /// `voice`, the voice of every unit placed, and no entry names a voice of its own: one voice
+    /// per directory.
+    func publish(_ placed: [Int: AlignUnit], for articleID: UUID, in voice: CacheVoice) throws {
         let dir = directory(for: articleID)
         try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
         var entries: [IndexFile.ParagraphEntry] = []
@@ -180,12 +198,12 @@ extension ArticleAudioCache {
                 entry.file = name
             }
             entry.index = paragraph
-            let same = unit.engineID == engineID && unit.voiceID == voiceID
-            entry.engineID = same ? nil : unit.engineID
-            entry.voiceID = same ? nil : unit.voiceID
+            entry.engineID = nil
+            entry.voiceID = nil
             entries.append(entry)
         }
-        try publishIndex(IndexFile(engineID: engineID, voiceID: voiceID, createdAt: Date(), paragraphs: entries),
+        try publishIndex(IndexFile(engineID: voice.engineID, voiceID: voice.voiceID, createdAt: Date(),
+                                   paragraphs: entries),
                          for: articleID)
         bumpContentRevision()
     }
