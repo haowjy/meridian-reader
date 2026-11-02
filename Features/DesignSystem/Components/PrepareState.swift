@@ -17,19 +17,6 @@ enum PrepareState: Equatable {
     /// Every page it covers is prepared (in the prepare voice, or one its prepare kept).
     case prepared
 
-    /// Preparing or paused: it has pages still to prepare.
-    var isPreparing: Bool {
-        switch self {
-        case .preparing, .queued, .paused: true
-        default: false
-        }
-    }
-
-    var isPaused: Bool {
-        if case .paused = self { return true }
-        return false
-    }
-
     /// "Prepare Audio", "Preparing", "Prepared": a header control's caption and VoiceOver label.
     var label: String {
         switch self {
@@ -38,14 +25,6 @@ enum PrepareState: Equatable {
         case .queued: String(localized: "Waiting")
         case .paused: String(localized: "Paused")
         case .prepared: Verbs.prepared
-        }
-    }
-
-    /// How much is ready while preparing, waiting or paused; nil otherwise.
-    var fraction: Double? {
-        switch self {
-        case .preparing(let f), .queued(let f), .paused(let f): f
-        default: nil
         }
     }
 

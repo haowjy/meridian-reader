@@ -55,14 +55,6 @@ struct MenuRow: Identifiable {
     }
 }
 
-extension [MenuRow] {
-    /// The first of the rows `ids` that deletes and can run now: the one a swipe offers.
-    func swipeRow(_ ids: String...) -> MenuRow? {
-        ids.lazy.compactMap { id in first { $0.id == id } }
-            .first { $0.isDestructive && $0.availability == .enabled }
-    }
-}
-
 /// Menu rows as a system menu's buttons (a `Menu`'s or a `.contextMenu`'s content). Each block
 /// is a section, so the item's own rows and a screen's rows after them are set apart by the
 /// system's divider. Hidden rows are left out, dimmed ones disabled, destructive ones red.
