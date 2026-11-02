@@ -22,6 +22,8 @@ enum AppLaunch {
                        importFiles: BookImportFiles = .standard) async {
         // No import is running yet: a book file a killed import left goes.
         importFiles.clearLeftovers()
+        // The network monitor starts now, so its path is known before a model download asks.
+        _ = NetworkPathStatus.shared
         #if DEBUG
         LaunchHooks.runBeforeMigrations(.current, library: library, tts: speech.localTTS)
         #endif

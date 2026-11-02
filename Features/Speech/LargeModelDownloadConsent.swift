@@ -19,6 +19,7 @@ final class LargeModelDownloadConsent {
             switch caution {
             case .lowDataMode: String(localized: "Download in Low Data Mode?")
             case .cellular: String(localized: "Download on Cellular?")
+            case .unknown: String(localized: "Download \(engineName)?")
             }
         }
 
@@ -27,6 +28,7 @@ final class LargeModelDownloadConsent {
             return switch caution {
             case .lowDataMode: String(localized: "\(engineName) needs \(size). Low Data Mode is on.")
             case .cellular: String(localized: "\(engineName) needs \(size). You’re not on Wi‑Fi.")
+            case .unknown: String(localized: "\(engineName) needs \(size). The network didn’t say whether it’s Wi‑Fi.")
             }
         }
     }
@@ -40,7 +42,7 @@ final class LargeModelDownloadConsent {
         #if DEBUG
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
         #endif
-        guard let caution = NetworkPathStatus.shared.largeDownloadCaution else { return }
+        guard let caution = await NetworkPathStatus.shared.largeDownloadCaution() else { return }
         let allowed = await request(Prompt(engineName: engineName, bytes: bytes, caution: caution))
         if !allowed { throw CancellationError() }
     }

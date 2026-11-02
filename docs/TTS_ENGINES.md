@@ -192,7 +192,8 @@ Files: `Features/Speech/Engines/Phonon/` (`PhononProvider`, `PhononHost`, `Phono
 On Wi-Fi (or Ethernet) with Low Data Mode off a download starts without a prompt. With Low Data
 Mode on, an alert from `RootView` asks "Download in Low Data Mode?" ("<engine> needs <size>. Low
 Data Mode is on."); on cellular otherwise, "Download on Cellular?" ("<engine> needs <size>.
-You're not on Wi-Fi."). Its buttons are *Download* and *Not Now*, which stops the download (the
+You're not on Wi-Fi."). It waits for the network monitor's first update (started at launch) up
+to a second; a path still unknown asks too ("Download Kokoro?"). Its buttons are *Download* and *Not Now*, which stops the download (the
 voice's row goes back to not downloaded; nothing waits for Wi-Fi). Offline never prompts, so the
 download's own error shows.
 
