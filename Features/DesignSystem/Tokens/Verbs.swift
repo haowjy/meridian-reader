@@ -33,6 +33,7 @@ import Foundation
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
 /// | Pause (a prepare), Prepare Again | `Icons.pause`, `Icons.reprepare` |
 /// | New Folder…, Import from…, Paste Text…, Add Link…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.paste`, `Icons.link`, `Icons.follow` |
+/// | Follow a Site (the empty screens' tile) | `Icons.follow` |
 /// | Prepared Audio, Settings | `Icons.preparedAudio`, `Icons.settings` |
 enum Verbs {
     // MARK: A page
@@ -123,6 +124,9 @@ enum Verbs {
     static let create = String(localized: "Add")
     /// A story's table of contents, read into a folder of chapters.
     static let follow = String(localized: "Follow…")
+    /// The empty screens' tile (`AddToLibraryTiles`): the Follow sheet, asking for an address. No
+    /// ellipsis: a tile names a way in, as its neighbours do (*Paste Text*, *Add a Link*).
+    static let followSite = String(localized: "Follow a Site")
     static let unfollow = String(localized: "Unfollow")
     static let followAgain = String(localized: "Follow Again")
     static let checkNow = String(localized: "Check Now")

@@ -108,7 +108,7 @@ struct LibraryHomeView: View {
             EmptyState(tab == .recent ? String(localized: "No History") : String(localized: "Start Your Library"),
                        description: tab == .recent
                            ? Text("Articles you listen to show up here.")
-                           : Text("Save articles from the web, a file, text or a link.")) {
+                           : Text("Save from the web, a file, text or a link, or follow a site.")) {
                 AddToLibraryTiles(folder: nil)
             }
             .listRowInsets(EdgeInsets())

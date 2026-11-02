@@ -1,8 +1,7 @@
 import SwiftUI
 
 /// Every empty screen says so the same way: a heading, one line under it, and its ways out as
-/// `ActionTile`s, two to a row (one at the accessibility sizes,
-/// where two side by side would break their words). It sits a fixed way down from the top of
+/// `ActionTile`s in an `ActionTileGrid`. It sits a fixed way down from the top of
 /// whatever holds it (less at the accessibility sizes), never centred, so every empty screen lines up,
 /// and scrolls when what holds it is too short for it. Search results with no match
 /// use the system's search view instead. It takes the width it is given: in a card list that is the
@@ -49,9 +48,7 @@ struct EmptyState<Tiles: View>: View {
             }
             .multilineTextAlignment(.center)
             .accessibilityElement(children: .combine)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.s),
-                                     count: typeSize.isAccessibilitySize ? 1 : 2),
-                      spacing: Spacing.s) { tiles() }
+            tiles()
         }
         // Less at the accessibility sizes, where the heading, its line and the tiles need the height.
         .padding(.top, typeSize.isAccessibilitySize ? Spacing.xl : Spacing.xl * 4)
@@ -62,13 +59,15 @@ struct EmptyState<Tiles: View>: View {
 struct EmptyStateGallery: View {
     var body: some View {
         PreviewGallery {
-            // The app's empty screens all show these four (`AddToLibraryTiles`).
-            PreviewState("four tiles") {
-                EmptyState("Start Your Library", description: "Save articles from the web, a file, text or a link.") {
-                    ActionTile(title: "Browse the Web", symbol: Icons.browser, prominent: true) {}
-                    ActionTile(title: "Import a File", symbol: Icons.importFile) {}
-                    ActionTile(title: "Paste Text", symbol: Icons.paste) {}
-                    ActionTile(title: "Add a Link", symbol: Icons.link) {}
+            // The app's empty screens all show these five (`AddToLibraryTiles`).
+            PreviewState("four tiles and a wide one") {
+                EmptyState("Start Your Library", description: "Save from the web, a file, text or a link, or follow a site.") {
+                    ActionTileGrid(tiles: [
+                        ActionTile(title: "Browse the Web", symbol: Icons.browser, prominent: true) {},
+                        ActionTile(title: Verbs.followSite, symbol: Icons.follow) {},
+                        ActionTile(title: "Import a File", symbol: Icons.importFile) {},
+                        ActionTile(title: "Paste Text", symbol: Icons.paste) {},
+                    ], wide: ActionTile(title: "Add a Link", symbol: Icons.link) {})
                 }
             }
         }

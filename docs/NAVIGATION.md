@@ -297,7 +297,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   the middle tap leaves it, as in the in-place readers. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
 - **Listen with nothing to play** (nothing bound and nothing played before): the same cover, its grabber and
-  pull down, with *Nothing Playing*, "Choose an article or book to listen to." and the four tiles every empty
+  pull down, with *Nothing Playing*, "Choose an article or book to listen to." and the five tiles every empty
   screen has (`AddToLibraryTiles`, below), each closing Listen first. A pull from
   anywhere on it closes it. Listen that loses what it showed (the page removed from the Library) closes
   instead.
@@ -416,7 +416,7 @@ the same spot. ⋯ is never replaced.
   pages visited, newest first, as Library rows (the site under a titled visit, none under an
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
   and long press are the article's menu ("Menus", below; on the Library's article for the address when
-  it has one), then *Remove from Browsing History*. Empty, it says *No Browsing History Yet*, "Pages you open show up here.", over the four tiles every empty screen has; each closes it first (*Browse the Web* to the Browser).
+  it has one), then *Remove from Browsing History*. Empty, it says *No Browsing History Yet*, "Pages you open show up here.", over the five tiles every empty screen has; each closes it first (*Browse the Web* to the Browser).
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work; over the in-place
   reader, a swipe from the left edge does what ‹ does.
@@ -567,15 +567,17 @@ commas.
   Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
   isn't in History. Every empty screen looks the same (`EmptyState`): a heading, one line under it, and
-  its ways in as tiles (`ActionTile`), side by side (at the accessibility text sizes stacked, each a
-  row with its symbol beside its label), the first accent-tinted, 96 pt below what is above it (24 pt
+  its ways in as tiles (`ActionTile`, laid out by `ActionTileGrid`), two to a row at one size, the
+  same height, then one across the full width (at the accessibility text sizes stacked, each a
+  row with its symbol beside its label, the full-width one still last), the first accent-tinted, 96 pt below what is above it (24 pt
   at the accessibility sizes). An empty Library says
-  *Start Your Library*, "Save articles from the web, a file, text or a link.", over four tiles, two by two, the
+  *Start Your Library*, "Save from the web, a file, text or a link, or follow a site.", over five tiles, the
   same on every empty screen (`AddToLibraryTiles`; a folder's go into the folder, every other's into the top
-  level): *Browse the Web* (the Browser), *Import a File* (as *Import from…*), *Paste Text* (as *Paste Text…*)
-  and *Add a Link* (as *Add Link…*), each closing what is over the screen first (a sheet, Listen) and landing
-  where its result shows (the Browser, or the Library with the picker, editor or address field up); History says *No History*, "Articles you listen to show up here.",
-  over the same four. It keeps the last 50 started (`LibraryStore.recentLimit`); one played without saving
+  level): *Browse the Web* (the Browser) and *Follow a Site* (the Follow sheet asking for a story's address,
+  into the top level even from a folder), *Import a File* (as *Import from…*) and *Paste Text* (as *Paste Text…*),
+  then *Add a Link* (as *Add Link…*) across the full width, each closing what is over the screen first (a sheet, Listen) and landing
+  where its result shows (the Browser, the Follow sheet, or the Library with the picker, editor or address field up); History says *No History*, "Articles you listen to show up here.",
+  over the same five. It keeps the last 50 started (`LibraryStore.recentLimit`); one played without saving
   also leaves after 7 days unplayed (`pruneUnsaved`). Search with no match is the system's search view.
   Search filters the tab on screen: on
   Everything the Library's folders and pages across the tree, on
@@ -645,7 +647,7 @@ commas.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
   every empty screen has (`EmptyState`): *This Folder Is Empty*, *Move articles here, or save them
-  here from the Reader's 🔖* (the toolbar's symbol), over the same four tiles as the Library's (into
+  here from the Reader's 🔖* (the toolbar's symbol), over the same five tiles as the Library's (into
   the folder).
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
@@ -938,7 +940,7 @@ page's, or the folder's, which lists the folder's pages afresh). A page
 that couldn't be fetched or rendered is counted ("2 couldn’t prepare"), and *Prepare Again* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
 nothing in it, it says *Nothing Prepared* (`EmptyState`): prepare an article from its ⋯, or a
-folder or a book from its screen's ↓, over the four tiles every empty screen has, each closing the sheet first.
+folder or a book from its screen's ↓, over the five tiles every empty screen has, each closing the sheet first.
 
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…* (titled *Move to*) and every *Save
 to Folder…* (an article's menu out of the Library, 🔖 held; titled *Save to Folder*); the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
