@@ -26,6 +26,11 @@ protocol SpeechEngineProvider: AnyObject {
     /// Throws `CancellationError` when the task is cancelled or the large-download prompt declined.
     func download(_ voice: String, for id: SpeechEngineID,
                   progress: @escaping @MainActor (Double?) -> Void) async throws
+    /// A download of `voice`'s files in flight, whoever started it (a pick, or playback's engine
+    /// load or render); nil when none is. Observable, so the picker's rows follow it.
+    func transfer(of voice: String, for id: SpeechEngineID) -> VoiceTransfer?
+    /// Stop `voice`'s download in flight: everyone waiting on it stops waiting, playback included.
+    func stopTransfer(of voice: String, for id: SpeechEngineID)
     /// What removing `voice`'s download frees; nil when it can't be removed (it ships in the app,
     /// or isn't downloaded).
     func removal(of voice: String, for id: SpeechEngineID) -> VoiceRemoval?
@@ -53,6 +58,8 @@ extension SpeechEngineProvider {
     func downloadSize(of voice: String, for id: SpeechEngineID) -> Int64? { nil }
     func download(_ voice: String, for id: SpeechEngineID,
                   progress: @escaping @MainActor (Double?) -> Void) async throws {}
+    func transfer(of voice: String, for id: SpeechEngineID) -> VoiceTransfer? { nil }
+    func stopTransfer(of voice: String, for id: SpeechEngineID) {}
     func removal(of voice: String, for id: SpeechEngineID) -> VoiceRemoval? { nil }
     func remove(_ voice: String, for id: SpeechEngineID) throws {}
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? { nil }
@@ -160,6 +167,14 @@ final class EngineRegistry {
         try await byID[id]?.1.download(voice, for: id, progress: progress)
     }
 
+    func transfer(of voice: String, for id: SpeechEngineID) -> VoiceTransfer? {
+        byID[id]?.1.transfer(of: voice, for: id)
+    }
+
+    func stopTransfer(of voice: String, for id: SpeechEngineID) {
+        byID[id]?.1.stopTransfer(of: voice, for: id)
+    }
+
     func removal(of voice: String, for id: SpeechEngineID) -> VoiceRemoval? {
         byID[id]?.1.removal(of: voice, for: id)
     }
@@ -191,4 +206,10 @@ struct VoiceRemoval: Equatable {
     /// The voice library's shared model goes with it: every one of its voices downloads again
     /// before it is chosen (the last downloaded voice of the library).
     let removesEngine: Bool
+}
+
+/// A voice's download in flight (`SpeechEngineProvider.transfer(of:for:)`).
+struct VoiceTransfer: Equatable {
+    /// How far, once the size is known; nil while it starts or checks.
+    let fraction: Double?
 }

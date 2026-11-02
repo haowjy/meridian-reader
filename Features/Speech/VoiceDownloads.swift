@@ -43,17 +43,24 @@ final class VoiceDownloads {
         self.engines = engines
     }
 
+    /// A download of it in flight shows whoever started it: a pick here, or playback's engine load
+    /// or render (`SpeechEngineProvider.transfer(of:for:)`).
     func status(of selection: VoiceSelection) -> Status {
         _ = revision
+        let size = engines.downloadSize(of: selection.voice, for: selection.engine)
+        if let transfer = engines.transfer(of: selection.voice, for: selection.engine) {
+            return .downloading(fraction: transfer.fraction, bytes: size ?? running[selection]?.bytes ?? 0)
+        }
         if let run = running[selection] { return .downloading(fraction: run.fraction, bytes: run.bytes) }
-        guard let bytes = engines.downloadSize(of: selection.voice, for: selection.engine) else { return .onDevice }
+        guard let bytes = size else { return .onDevice }
         return failed.contains(selection) ? .failed(bytes: bytes) : .notDownloaded(bytes: bytes)
     }
 
-    /// A picker chose `selection` (`picker`: "default", a `VoiceTarget.id`): downloads it if it
-    /// needs to. True when its files are on the device and it is still that picker's newest pick,
-    /// so the caller selects it now; false when the download failed or was stopped, or a later
-    /// pick replaced it.
+    /// A picker chose `selection` (`picker`: "default", a `VoiceTarget.id`), the voice it already
+    /// has included (which supersedes a pick still downloading): downloads it if it needs to. True
+    /// when its files are on the device and it is still that picker's newest pick, so the caller
+    /// selects it now; false when the download failed or was stopped (■ forgets the pick), or a
+    /// later pick replaced it.
     func pick(_ selection: VoiceSelection, for picker: String) async -> Bool {
         latestPick[picker] = selection
         guard await download(selection), latestPick[picker] == selection else { return false }
@@ -73,7 +80,8 @@ final class VoiceDownloads {
                 try await engines.download(selection.voice, for: selection.engine) { fraction in
                     self?.running[selection]?.fraction = fraction
                 }
-                return true
+                // A stop that came as its last step finished (a check that ignores it) still stops.
+                return !Task.isCancelled
             } catch {
                 // Stopped (■, the large-download prompt's Not Now): back to not downloaded.
                 if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
@@ -91,15 +99,19 @@ final class VoiceDownloads {
         return done
     }
 
-    /// The row's ■: stop `selection`'s download. Its row goes back to not downloaded.
+    /// The row's ■: stop `selection`'s download, whoever started it (playback waiting on it stops
+    /// waiting), and forget every pick of it, so nothing selects it when a last step finishes
+    /// anyway. Its row goes back to not downloaded.
     func cancel(_ selection: VoiceSelection) {
+        for (picker, pick) in latestPick where pick == selection { latestPick[picker] = nil }
         running[selection]?.task.cancel()
+        engines.stopTransfer(of: selection.voice, for: selection.engine)
     }
 
     /// What removing `selection` frees; nil when it can't be removed.
     func removal(of selection: VoiceSelection) -> VoiceRemoval? {
         _ = revision
-        guard running[selection] == nil else { return nil }
+        guard running[selection] == nil, engines.transfer(of: selection.voice, for: selection.engine) == nil else { return nil }
         return engines.removal(of: selection.voice, for: selection.engine)
     }
 

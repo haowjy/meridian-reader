@@ -78,8 +78,15 @@ chunk (playback pauses there with Retry), and `LocalPCMWriter` writes non-finite
   `download`, `removal`, `remove`): a voice is on the device when its pack, the ONNX model and
   the frontend's files are. Its size line is what choosing it fetches: the pack, plus the model
   (163.2 MB) while it is missing, plus the frontend (about 12 MB, measured) on a fresh install.
-  Choosing one downloads the frontend, the pack, then the model (its progress is the row's ring;
-  a render queue load waiting on the model shares the transfer). Removing a voice deletes its
+  Choosing one downloads the frontend, the pack, then the model (its progress is the row's ring).
+  Every download of a voice's files is one transfer per voice (`KokoroTransfers`), whoever starts
+  it: a pick, the host's load, or a render in a voice whose pack isn't on the device
+  (`LocalSynthHost.prepareVoice`, before the crash marker, so a removed pack downloads again
+  rather than failing the render). The picker shows each on its voice's row and stops it there
+  (`transfer(of:for:)`, `stopTransfer`); the model is one download all of them share, so a stop
+  stops it for every voice and load waiting on it. A transfer stopped while its last step
+  finished (the model's check ignores a stop) still counts as stopped: the files stay, nothing
+  is selected. Removing a voice deletes its
   pack; Heart's ships in the app, so Heart is removable only as the last voice on the device,
   which deletes the model (Kokoro then downloads again for any voice).
 - Voices (`KokoroVoiceCatalog`): `af_heart` (Heart, default), `af_bella`, `bf_emma`, `am_puck`,

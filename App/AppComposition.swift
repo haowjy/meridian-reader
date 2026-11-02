@@ -227,7 +227,8 @@ enum AppComposition {
     static func makeProviders() -> [SpeechEngineProvider] {
         #if DEBUG
         let simulation = LaunchOptions.current.voiceDownloadSimulation.map {
-            KokoroDownloadSimulation(seconds: $0.seconds, failing: $0.failing, modelMissing: $0.modelMissing)
+            KokoroDownloadSimulation(seconds: $0.seconds, failing: $0.failing, modelMissing: $0.modelMissing,
+                                     playbackTransfer: $0.playbackTransfer)
         }
         var providers: [SpeechEngineProvider] = [FluidAudioProvider(simulation: simulation), PhononProvider()]
         if LaunchOptions.current.usesTestVoice { providers.append(TestVoiceProvider()) }

@@ -17,27 +17,30 @@ extension FluidAudioProvider {
         return bytes > 0 ? bytes : nil
     }
 
-    /// The frontend's files and the pack first (small, so a failure shows at once), then the model, whose
-    /// progress is the row's ring. The model download is shared: a render queue load waiting for
-    /// it waits for the same transfer (`KokoroONNXModelStore.ensureInstalled`), and it asks first
-    /// on cellular or in Low Data Mode (`LargeModelDownloadConsent`).
+    /// `voice`'s transfer (`KokoroTransfers`): the frontend, the pack, then the model, whose
+    /// progress is the row's ring. A host load or render downloading the same voice is the same
+    /// transfer.
     func download(_ voice: String, for id: SpeechEngineID,
                   progress: @escaping @MainActor (Double?) -> Void) async throws {
         guard id == .kokoro, downloadSize(of: voice, for: id) != nil else { return }
         #if DEBUG
-        if let simulation {
-            try await simulation.download(voice, progress: progress)
-            return
+        let work: KokoroTransfers.Work = if let simulation {
+            { try await simulation.download(voice, progress: $0) }
+        } else {
+            KokoroTransfers.download(voice, model: true)
         }
+        #else
+        let work = KokoroTransfers.download(voice, model: true)
         #endif
-        progress(nil)
-        try await KokoroAneCPUFrontendFiles.download()
-        try await KokoroAssets.ensureVoicePack(voice)
-        try Task.checkCancellation()
-        try await KokoroONNXModelStore.shared.ensureInstalled { fraction in
-            // Called on the main actor (the store's progress hop); nil while the download is checked.
-            Task { @MainActor in progress(fraction < 1 ? fraction : nil) }
-        }
+        try await KokoroTransfers.shared.fetch(voice, work: work)
+    }
+
+    func transfer(of voice: String, for id: SpeechEngineID) -> VoiceTransfer? {
+        id == .kokoro ? KokoroTransfers.shared.transfer(of: voice) : nil
+    }
+
+    func stopTransfer(of voice: String, for id: SpeechEngineID) {
+        if id == .kokoro { KokoroTransfers.shared.stop(voice) }
     }
 
     func removal(of voice: String, for id: SpeechEngineID) -> VoiceRemoval? {
@@ -92,7 +95,8 @@ extension FluidAudioProvider {
 /// probes on the Simulator. Nothing is fetched or deleted; what is on the device is what the
 /// launch says, then what the simulated downloads and removals made it. A download spins for a
 /// moment (its size unknown), then fills over `seconds`; one of `failing` stops half-way with a
-/// network error. `-kokoroNotDownloaded` starts with the model missing.
+/// network error. `-kokoroNotDownloaded` starts with the model missing; `-transferVoice <id>`
+/// starts a download of that voice outside the picker, as playback's load would.
 @MainActor
 final class KokoroDownloadSimulation {
     let seconds: Double
@@ -101,15 +105,23 @@ final class KokoroDownloadSimulation {
     private(set) var modelOnDevice: Bool?
     private var packs: [String: Bool] = [:]
 
-    init(seconds: Double, failing: Set<String>, modelMissing: Bool) {
+    init(seconds: Double, failing: Set<String>, modelMissing: Bool, playbackTransfer: String? = nil) {
         self.seconds = seconds
         self.failing = failing
         modelOnDevice = modelMissing ? false : nil
+        if let voice = playbackTransfer {
+            // `-transferVoice`: a download of `voice` not started by the picker, as playback's
+            // engine load starts one, a few seconds in.
+            Task { @MainActor [self] in
+                try? await Task.sleep(for: .seconds(3))
+                try? await KokoroTransfers.shared.fetch(voice) { try await self.download(voice, progress: $0) }
+            }
+        }
     }
 
     func packOnDevice(_ voice: String) -> Bool? { packs[voice] }
 
-    func download(_ voice: String, progress: @MainActor (Double?) -> Void) async throws {
+    func download(_ voice: String, progress: @escaping @MainActor (Double?) -> Void) async throws {
         progress(nil)
         try await Task.sleep(for: .seconds(1.5))
         let steps = max(1, Int(seconds * 10))

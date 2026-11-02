@@ -61,6 +61,9 @@ protocol LocalSynthHost: AnyObject, Sendable {
     func synthesizeOnce(text: String, priority: RenderPriority, threads: Int?) async throws -> SynthesizedPCM
     /// Switch voice (no-op for single-voice engines).
     func setVoice(_ voice: String)
+    /// Make sure `voice`'s own files are on the device before a call in it: download them when
+    /// missing (a voice removed since the host loaded). Called outside the crash guard.
+    func prepareVoice(_ voice: String) async throws
     /// Release the models for good, once a load in flight has stopped (it can't set them again).
     /// An unloaded host isn't used again: `LocalSynthService` builds a new one.
     func unload() async
@@ -76,6 +79,7 @@ protocol LocalSynthHost: AnyObject, Sendable {
 extension LocalSynthHost {
     var routeTag: String? { nil }
     var trimsEdgeSilence: Bool { false }
+    func prepareVoice(_ voice: String) async throws {}
     func spokenText(forChunk text: String) -> String { text }
 }
 

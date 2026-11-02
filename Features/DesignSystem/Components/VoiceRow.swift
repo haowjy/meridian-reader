@@ -18,8 +18,13 @@ import SwiftUI
 ///        Couldn't download                               (in the destructive colour)
 /// ```
 ///
-/// The size line stays while it downloads, so the row's height never changes then. A tap on the
-/// row (or ⤓) is `onPick`; the ring's tap is `onStop`. Every control's hit area is `Control.tap`.
+/// ✓ means the voice speaks now, so it shows only on a voice on the device: the voice in use that
+/// isn't (removed since, or its library's model missing) shows ⤓ and its size like any other,
+/// and VoiceOver still calls it selected; a tap downloads it, and the ✓ comes back once it is
+/// there. The size line stays while it downloads, so the row's height never changes then. A tap
+/// on the row (or ⤓) is `onPick`; the ring's tap is `onStop`, which stops the download for
+/// everyone waiting on it, listening included (its VoiceOver hint says so). Every control's hit
+/// area is `Control.tap`.
 struct VoiceRow: View {
     /// Whether the voice is on the device, and what its row says about it.
     enum Download: Equatable {
@@ -34,7 +39,7 @@ struct VoiceRow: View {
 
     let name: String
     let download: Download
-    /// The voice in use (the ✓).
+    /// The voice in use (the ✓ once it is on the device).
     let selected: Bool
     /// Its sample is playing (▶ shows ■).
     var previewing = false
@@ -105,8 +110,9 @@ struct VoiceRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(String(localized: "Stop Downloading \(name)"))
+            .accessibilityHint(String(localized: "Listening that waits for it stops too."))
             .accessibilityIdentifier("\(accessibilityID)-stop")
-        case _ where selected:
+        case .onDevice where selected:
             Image(systemName: Icons.checkmark)
                 .glyphSize(Glyph.regular, weight: .semibold)
                 .foregroundStyle(Palette.accent)
@@ -188,6 +194,10 @@ struct VoiceRowGallery: View {
                              accessibilityID: "e", onPick: {})
                     VoiceRow(name: "Emma", download: .failed, selected: false, accessibilityID: "f", onPick: {})
                 }
+            }
+            PreviewState("in use, not on the device (no ✓ until it is)") {
+                VoiceRow(name: "Heart", download: .notDownloaded(size: "163 MB"), selected: true,
+                         accessibilityID: "g", onPick: {})
             }
         }
     }

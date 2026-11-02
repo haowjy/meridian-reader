@@ -174,9 +174,13 @@ provider owns its host, model store, voice catalog and chunk limits.
   `ArticleVoiceChange.apply` (a picker), `removeVoice` or `VoiceDownloads`; they never restart
   playback or load an engine.
 - **A voice pick downloads files, never loads.** `VoiceDownloads` fetches what a voice needs
-  through its provider (`downloadSize`, `download`; Kokoro's model through the same
-  `KokoroONNXModelStore` transfer a host load waits on) and selects only once it is there and still
-  the picker's newest pick. A cancel (■, the large-download prompt's Not Now) is never a failure.
+  through its provider (`downloadSize`, `download`) and selects only once it is there and still
+  the picker's newest pick; ■ forgets the pick, so a last step that finishes anyway selects
+  nothing. A cancel (■, the large-download prompt's Not Now) is never a failure. A provider
+  reports every download of a voice's files, whoever started it (`transfer(of:for:)`; Kokoro's
+  `KokoroTransfers`), so a load's or a render's download shows on the voice's row. A render makes
+  sure of its own voice's files before its call (`LocalSynthHost.prepareVoice`), never only the
+  host's first voice's.
   Removing a voice never changes an article's voice: its next play or prepare downloads it again
   while playback waits; only the Settings default moves, and the picker asks first.
 - **Persisted ids and keys** never change (AGENTS.md); review any diff that touches one.

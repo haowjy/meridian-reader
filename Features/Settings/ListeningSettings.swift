@@ -131,18 +131,31 @@ struct VoicePage: View {
         #endif
     }
 
-    /// Removes at once a voice nothing depends on; asks first about the default, and about a
-    /// library's last voice (its shared model goes too).
+    /// Removes at once a voice nothing depends on; asks first about the default, the voice of what
+    /// you're listening to, and a library's last voice (its shared model goes too).
     private func askRemoval(_ selection: VoiceSelection) {
         guard let removal = localTTS.voiceDownloads.removal(of: selection) else { return }
-        if removal.removesEngine || localTTS.defaultAfterRemoving(selection, removal) != nil {
+        if removal.removesEngine || localTTS.defaultAfterRemoving(selection, removal) != nil
+            || stopsListening(selection, removal) {
             asking = selection
         } else {
             remove(selection)
         }
     }
 
+    /// What you're listening to (playing or paused) speaks in `selection`, or in its library when
+    /// the removal takes the library's model: removing it stops listening first, rather than
+    /// leaving playback to wait for the voice to download again mid-article.
+    private func stopsListening(_ selection: VoiceSelection, _ removal: VoiceRemoval) -> Bool {
+        guard let key = speech.activeSessionID else { return false }
+        let listening = localTTS.effectiveSelection(of: key)
+        return removal.removesEngine ? listening.engine == selection.engine : listening == selection
+    }
+
     private func remove(_ selection: VoiceSelection) {
+        if let removal = localTTS.voiceDownloads.removal(of: selection), stopsListening(selection, removal) {
+            speech.stop()
+        }
         shell.attempt(String(localized: "Couldn’t remove \(name(of: selection))")) {
             try localTTS.removeVoice(selection)
         }
@@ -161,7 +174,8 @@ struct VoicePage: View {
     }
 
     /// What it frees, then what changes: "Frees 164 MB. Kokoro voices will need to download again.
-    /// New articles will use Zoey. Articles already in Kokoro download it again before they play."
+    /// What you’re listening to is in Kokoro, so listening stops. New articles will use Zoey.
+    /// Articles already in Kokoro download it again before they play."
     private func removalMessage(_ selection: VoiceSelection) -> String {
         guard let removal = localTTS.voiceDownloads.removal(of: selection) else { return "" }
         var parts: [String] = []
@@ -172,6 +186,9 @@ struct VoicePage: View {
         } else {
             subject = name(of: selection)
             parts.append(String(localized: "Frees \(FileSizes.megabytes(removal.bytes))."))
+        }
+        if stopsListening(selection, removal) {
+            parts.append(String(localized: "What you’re listening to is in \(subject), so listening stops."))
         }
         if let next = localTTS.defaultAfterRemoving(selection, removal) {
             parts.append(String(localized: "New articles will use \(name(of: next))."))

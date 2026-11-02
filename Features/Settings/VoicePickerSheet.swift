@@ -69,8 +69,9 @@ struct VoicePickerSheet: View {
     private func pick(_ selection: VoiceSelection, change: ArticleVoiceChange) {
         error = nil
         if selection == change.selection, change.ownSelection != nil {
-            // Its own voice, removed since: download it again; nothing else changes.
-            Task { _ = await speech.localTTS.voiceDownloads.download(selection) }
+            // Its own voice: it replaces a pick still downloading, and downloads again if it was
+            // removed; nothing else changes.
+            Task { _ = await speech.localTTS.voiceDownloads.pick(selection, for: target.id) }
             return
         }
         let cost = change.cost()

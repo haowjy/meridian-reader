@@ -105,8 +105,12 @@ final class LocalChunkRenderer: Sendable {
         try Task.checkCancellation()
         let phase = runState.phase
         guard route.lane.runs(in: phase) else { throw LaneUnavailable(lane: route.lane) }
-        // C138: the article's voice, set under the gate right before every call.
-        if let voice = request.voice { host.setVoice(voice) }
+        // C138: the article's voice, its files made sure of (before the crash marker), then set
+        // under the gate right before every call.
+        if let voice = request.voice {
+            try await host.prepareVoice(voice)
+            host.setVoice(voice)
+        }
         let t0 = ListenTimingLog.now()
         var fields = request.logFields
         if let voice = request.voice { fields["voice"] = voice }

@@ -144,12 +144,14 @@ struct LaunchOptions: Equatable {
     var showsWhatsNew = false
     /// `-simulateVoiceDownloads`: Kokoro's downloads and removals in the Voice picker run offline
     /// (`KokoroDownloadSimulation`): `-voiceDownloadSeconds N` (8) to fill, `-failVoiceDownload
-    /// <voice ids, comma separated>` fail half-way, `-kokoroNotDownloaded` starts with its model missing.
+    /// <voice ids, comma separated>` fail half-way, `-kokoroNotDownloaded` starts with its model missing,
+    /// `-transferVoice <voice id>` starts a download of it outside the picker (as playback's load would).
     var voiceDownloadSimulation: VoiceDownloadSimulationOptions?
     struct VoiceDownloadSimulationOptions: Equatable {
         let seconds: Double
         let failing: Set<String>
         let modelMissing: Bool
+        let playbackTransfer: String?
     }
     /// `-downloadVoice <voice id>` (with `-openSettingsPage voice`): two seconds in, what a tap on
     /// that voice's row in Settings › Voice does; `-stopVoiceDownloadAfter N` then stops it N s later.
@@ -235,7 +237,8 @@ struct LaunchOptions: Equatable {
         if flags.contains("-simulateVoiceDownloads") {
             voiceDownloadSimulation = VoiceDownloadSimulationOptions(seconds: value(after: "-voiceDownloadSeconds").flatMap(Double.init) ?? 8,
                                        failing: Set((value(after: "-failVoiceDownload") ?? "").split(separator: ",").map(String.init)),
-                                       modelMissing: flags.contains("-kokoroNotDownloaded"))
+                                       modelMissing: flags.contains("-kokoroNotDownloaded"),
+                                       playbackTransfer: value(after: "-transferVoice"))
         }
         downloadsVoice = value(after: "-downloadVoice")
         stopsVoiceDownloadAfter = value(after: "-stopVoiceDownloadAfter").flatMap(Double.init)

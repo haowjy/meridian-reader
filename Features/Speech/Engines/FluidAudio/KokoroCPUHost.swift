@@ -81,6 +81,13 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
     }
 
     func setVoice(_ voice: String) { lock.withLock { self.voice = voice } }
+
+    /// A render in `voice` needs its pack: download it (as the voice's transfer) when it isn't on
+    /// the device and not already in memory, as after its removal in Settings › Voice.
+    func prepareVoice(_ voice: String) async throws {
+        guard lock.withLock({ packs[voice] }) == nil, !KokoroAssets.voicePackInstalled(voice) else { return }
+        try await KokoroTransfers.shared.fetch(voice, work: KokoroTransfers.download(voice, model: false))
+    }
     private var currentVoice: String { lock.withLock { voice } }
     var isPrepared: Bool { load.isLoaded }
 
@@ -94,12 +101,14 @@ final class KokoroCPUHost: LocalSynthHost, @unchecked Sendable {
             let reused = KokoroONNXModelStore.fileLooksInstalled
             ListenTimingLog.log("kokoro_cpu_init_start", ["voice": voice, "threads": threads, "model_on_disk": reused])
             do {
-                // 1) Small frontend files (vocab, G2P weights, lexicon ≈ 12 MB on a fresh install).
+                // 1) The files: frontend (≈ 12 MB on a fresh install), the voice's pack and the
+                // 163 MB ONNX model, as the voice's transfer, which the Voice picker shows and stops.
                 progress?(0.01)
-                try await KokoroAneCPUFrontend.ensureAssets()
-                try await KokoroAssets.ensureVoicePack(voice)
-                // 2) The 163 MB ONNX model.
-                try await KokoroONNXModelStore.shared.ensureInstalled { f in progress?(0.03 + 0.97 * f) }
+                if !KokoroTransfers.filesPresent(for: voice, model: true) {
+                    try await KokoroTransfers.shared.fetch(voice, progress: { f in
+                        if let f { progress?(0.03 + 0.97 * f) }
+                    }, work: KokoroTransfers.download(voice, model: true))
+                }
                 try Task.checkCancellation()
                 let tPrepared = ListenTimingLog.ms(since: t0)
                 // 3) Load: lexicon + Swift G2P, voice pack, ORT session (on the render QoS).
