@@ -166,6 +166,7 @@
 		60EA744033EF805F2078D52C /* AppComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA53C61111F09F9BC3AD7B1E /* AppComposition.swift */; };
 		6244B32635768E61E49E0B48 /* FolderDetailsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA90CAA557380DFD7094335 /* FolderDetailsSheet.swift */; };
 		62F8D035CCB30BB7DB1B1383 /* ListeningSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADA216D1FF95E806A5DC56FA /* ListeningSettings.swift */; };
+		6348FB462038E373D08858AA /* MenuProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B560BEB6339DBFB3DDD51F60 /* MenuProbe.swift */; };
 		6351E9B7FF5012D829846B96 /* CoreMLCompileCacheJanitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8122E991A69FF2C278D81194 /* CoreMLCompileCacheJanitor.swift */; };
 		63592059F8B5319E135331E6 /* MoreMenuPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2D1ECC1F9AF15CAC13AA6B /* MoreMenuPanel.swift */; };
 		63A131CCF737B7B538093CC6 /* LocalListenPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C52F7DFE899099765B08FB8 /* LocalListenPlayer.swift */; };
@@ -794,6 +795,7 @@
 		B5056AFF33D29F06005C6FED /* LocalSynthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSynthService.swift; sourceTree = "<group>"; };
 		B508C89829FFE771EED158CB /* ReaderScrubMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderScrubMap.swift; sourceTree = "<group>"; };
 		B54A2AC9BC4575E65D610AE7 /* QuickListen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickListen.swift; sourceTree = "<group>"; };
+		B560BEB6339DBFB3DDD51F60 /* MenuProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuProbe.swift; sourceTree = "<group>"; };
 		B586C0BF4290A714731191A0 /* PhononProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhononProvider.swift; sourceTree = "<group>"; };
 		B66CC434F6F7F9CAA08AAF4C /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spacing.swift; sourceTree = "<group>"; };
 		B6C242E03123DB8ED8760EAF /* SettingsRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRows.swift; sourceTree = "<group>"; };
@@ -1129,6 +1131,7 @@
 				113C7301700ABAE18A124F18 /* Info.plist */,
 				66E2C1F8CB7C2F6D4A8A8F5F /* LaunchHooks.swift */,
 				8A90987D414269FE1F330324 /* LaunchOptions.swift */,
+				B560BEB6339DBFB3DDD51F60 /* MenuProbe.swift */,
 				0D9FD159029A83B908E2E513 /* MeridianReader.entitlements */,
 				D8BDF7FD66C755366BBC4DB7 /* ReaderApp.swift */,
 				CBFD3354CC38D882B6A037E1 /* RootView.swift */,
@@ -2239,6 +2242,7 @@
 				BE406CAE610E87236F714D5E /* MarkupElement.swift in Sources */,
 				186C0DFFB539ECE208F46C9A /* MenuAvailability.swift in Sources */,
 				EC284B82B9C806460589538F /* MenuContext.swift in Sources */,
+				6348FB462038E373D08858AA /* MenuProbe.swift in Sources */,
 				C88F4A2ADD2A404ED00472EE /* MenuRegistry.swift in Sources */,
 				8DDFDA29EA5881C7C9456959 /* MenuRow.swift in Sources */,
 				63592059F8B5319E135331E6 /* MoreMenuPanel.swift in Sources */,

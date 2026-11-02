@@ -121,7 +121,6 @@ enum LaunchHooks {
         if let voice = options.downloadsVoice { downloadVoice(voice, options, tts: speech.localTTS) }
         if options.opensVoicePicker { await openVoicePicker(in: library, shell: shell, book: options.seedsDemoBook) }
         if options.readsDemoInLibrary { await readNewestInLibrary(in: library, shell: shell) }
-        if let sheet = options.presentsSheet, let follow { await presentSheet(sheet, library: library, shell: shell, follow: follow) }
         if let away = options.switchesDestinationAndBack {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(5))
@@ -139,6 +138,11 @@ enum LaunchHooks {
             try? await Task.sleep(for: .seconds(1))
             let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
             if let folder = folders.first(where: { $0.name == name }) { _ = preparedAudio.prepare(folder) }
+        }
+        if let sheet = options.presentsSheet, let follow { await presentSheet(sheet, options: options, library: library, shell: shell, follow: follow) }
+        if let menu = options.opensMenu, let follow, let preparedAudio {
+            try? await Task.sleep(for: .seconds(2))
+            MenuProbe.open(menu, library: library, speech: speech, shell: shell, follow: follow, preparedAudio: preparedAudio)
         }
         if options.opensPageMenu, let follow, let preparedAudio {
             Task { @MainActor in
@@ -457,9 +461,9 @@ enum LaunchHooks {
         shell.sheet = .voice(.article(saved.listenKey))
     }
 
-    /// `-presentSheet`: Move (the newest saved article's *Save to Folder*), Follow (the test story's
-    /// contents) or Following (the test story, followed first). `appearance` is `ReaderSurface`'s.
-    static func presentSheet(_ name: String, library: LibraryStore, shell: ShellState, follow: FollowCenter) async {
+    /// `-presentSheet`: input, move, and settings sheets; Following seeds the offline story.
+    /// `follow` opens Add a Link. `appearance` is `ReaderSurface`’s.
+    static func presentSheet(_ name: String, options: LaunchOptions, library: LibraryStore, shell: ShellState, follow: FollowCenter) async {
         try? await Task.sleep(for: .seconds(1))
         guard let story = URL(string: "reader-test://story/toc") else { return }
         switch name {
@@ -469,8 +473,35 @@ enum LaunchHooks {
             shell.present(.preparedAudio)
         case "listenDebug":
             shell.present(.listenDebug)
-        case "follow":
-            shell.present(.follow(FollowFlow(url: story, parentID: nil, center: follow)))
+        case "addLink", "follow":
+            let parentID: UUID? = shell.libraryPath.last.flatMap {
+                if case .folder(let id) = $0 { return id }
+                return nil
+            }
+            let flow = FollowFlow(url: nil, parentID: parentID, center: follow)
+            flow.address = options.addLinkText ?? ""
+            shell.present(.follow(flow))
+            if options.submitsAddLink, let url = flow.typedURL { flow.read(url) }
+            if let action = options.linkReviewAction {
+                Task { @MainActor in
+                    for _ in 0..<50 {
+                        try? await Task.sleep(for: .milliseconds(200))
+                        guard shell.sheet == .follow(flow) else { return }
+                        if case .review(let contents) = flow.step {
+                            switch action {
+                            case "save": await flow.savePage()
+                            case "preview":
+                                if let chapter = contents.chapters.first { flow.showPreview(of: chapter) }
+                            case "cancel": shell.sheet = nil
+                            default: break
+                            }
+                            return
+                        }
+                    }
+                }
+            }
+        case "pasteText":
+            shell.present(.pasteText(nil))
         case "following":
             guard let contents = try? await follow.readContents(of: story),
                   let folder = library.story(contentsURL: contents.url) ?? (try? follow.follow(contents, keeping: contents.chapters, in: nil))

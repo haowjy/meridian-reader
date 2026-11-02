@@ -137,7 +137,7 @@ struct LaunchOptions: Equatable {
     var tapsLibraryRow: String?
     /// `-pasteText <text>`: once launched, *Paste Text…*'s *Save* of `<text>` into the top level.
     var pastesText: String?
-    /// `-importBook`: once launched, what *Import from…* does (with `-importTestEPUB`, the test book).
+    /// `-importBook`: once launched, what *Import a File…* does (with `-importTestEPUB`, the test book).
     var importsBook = false
     var listenDemoFrom: String?
     var closesListenAfter: Double?
@@ -176,10 +176,17 @@ struct LaunchOptions: Equatable {
     var revealsVoiceRemove: String?
     /// `-openVoicePicker`: the newest saved article's *Voice* sheet; with `-seedDemoBook`, the book's.
     var opensVoicePicker = false
-    /// `-presentSheet move|preparedAudio|listenDebug|follow|following|appearance`: a second in, that sheet over the screen
-    /// (Move: the newest saved article's *Save to Folder*; Follow and Following: the test story,
+    /// `-presentSheet addLink|pasteText|move|preparedAudio|listenDebug|follow|following|appearance`: a second in, that sheet over the screen
+    /// (Follow opens Add a Link; Following uses the test story,
     /// with `-browseTestPages`; appearance: the in-place reader's Aa panel, with a reader open).
     var presentsSheet: String?
+    /// Offline input-sheet probes; typing and submitting remain separate actions.
+    var addLinkText: String?
+    var submitsAddLink = false
+    /// `-openMenu <name>`: the named production menu in the screenshot panel.
+    var opensMenu: String?
+    /// `-linkReviewAction save|preview|cancel`: an action once the offline review is ready.
+    var linkReviewAction: String?
     /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
     /// load at launch; its voice is the default for new articles.
     var selectsEngine: SpeechEngineID?
@@ -267,6 +274,10 @@ struct LaunchOptions: Equatable {
         revealsVoiceRemove = value(after: "-revealVoiceRemove")
         opensVoicePicker = flags.contains("-openVoicePicker")
         presentsSheet = value(after: "-presentSheet")
+        addLinkText = value(after: "-addLinkText")
+        submitsAddLink = flags.contains("-submitAddLink")
+        opensMenu = value(after: "-openMenu")
+        linkReviewAction = value(after: "-linkReviewAction")
         usesLanePolicy = value(after: "-renderPolicy") == "lanes"
         if flags.contains("-engineProbe") {
             engineProbe = EngineLatencyProbe.Request(
