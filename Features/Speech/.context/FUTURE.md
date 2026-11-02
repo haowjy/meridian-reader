@@ -41,8 +41,15 @@
   - **Phonon 40m** (ptts, the same Swift API, `Phonon.Language`): `fr`, `de`, `es` and `pt`
     as one model each, or `phonon-40m-multilingual` for all five. CC BY-NC 4.0 and gated on
     Hugging Face; the owner decides on the licence before shipping it.
-  - **Kokoro's non-English voices:** each language needs its own G2P, and FluidAudio's Kokoro
-    path is English only.
+  - **Kokoro:** voices for Spanish (`ef_`/`em_`), French (`ff_`), Hindi (`hf_`/`hm_`),
+    Italian (`if_`/`im_`), Brazilian Portuguese (`pf_`/`pm_`), Japanese (`jf_`/`jm_`) and
+    Mandarin (`zf_`/`zm_`). Apache 2.0, so no licence question. The vendored FluidAudio already
+    has the G2P pieces: a multilingual CharsiuG2P model (`TTS/G2P/MultilingualG2PLanguage.swift`
+    maps each voice prefix to its language) and separate Mandarin and Japanese Kokoro variants
+    (`KokoroAne`, `ANE-zh/`, `ANE-ja/`). The app's Kokoro route (ONNX on the CPU,
+    `KokoroCPUHost`) uses English phonemes only; with it, a `zf_`/`jf_` pack speaks English in
+    that voice's timbre. Wiring a language means its G2P in front of that route (or its variant),
+    the provider's `supportedLanguages`, and the voices in the catalog.
 
   Once there are languages, the picker becomes language, then voice, with one chosen voice per
   language. For mixed-language documents, detect each paragraph's language on the device
