@@ -1411,12 +1411,17 @@ a symbol. Top to bottom:
     download* in red on its row, with ⤓ back (a tap tries again); a stopped one goes back to not
     downloaded. On cellular or in Low Data Mode Kokoro's model asks first ("Download on
     Cellular?" or "Download in Low Data Mode?", *Download* or *Not Now*, which stops it).
-    *Edit* (top right) gives each downloaded Kokoro voice the List's delete control, and a swipe
-    on one offers *Remove*. Heart ships in the app, so it is removable only as Kokoro's last
+    A download playback started fails on its row the same way. A stop while it waits for the
+    network's answer or for that question ends the wait and takes the question away.
+    *Edit* (top right) leads each downloaded Kokoro voice's row with ⊖ (every row moves over for
+    its column); a tap on ⊖ turns it upright and shows a red *Remove* in place of the row's mark
+    (one row at a time), the same action as the swipe's *Remove*. The row stays: only the
+    download goes, after its question. Heart ships in the app, so it is removable only as Kokoro's last
     voice, which removes Kokoro's model too ("Remove Kokoro? Frees 164 MB. Kokoro voices will
     need to download again."); removing the default, or the voice of what you're listening to,
     asks first and says what changes: listening stops, which voice new articles take, and that
-    articles already in it download it again before they play. A failed removal is a
+    articles already in it download it again before they play (`SpeechController.voiceRemoval`
+    decides it, and `removeVoice` carries it out, asking again if what it does changed meanwhile). A failed removal is a
     toast. Edit and the swipe work in every open section, and a section closes in Edit too. A
     failed engine load's message is the first row of its section; a library the device can't run
     keeps its row, and opening it says what it needs. The note under the card is the screen's. The *Voice ›* row's

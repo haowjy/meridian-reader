@@ -25,8 +25,10 @@ import SwiftUI
 /// (removed since, or its library's model missing) shows ⤓ and its size like any other, and
 /// VoiceOver still calls it selected; a tap downloads it, and the ✓ comes back once it is there.
 /// A tap on the row (or ⤓) is `onPick`; the ring's tap is `onStop`, which stops the download for
-/// everyone waiting on it, listening included (its VoiceOver hint says so). Every control's hit
-/// area is `Control.tap`.
+/// everyone waiting on it, listening included (its VoiceOver hint says so). In Edit a row whose
+/// download can go leads with ⊖, which shows *Remove* in place of its mark (`onRemove`, the
+/// swipe's action too); the row never leaves the list, so the List never thinks it was deleted.
+/// Every control's hit area is `Control.tap`.
 struct VoiceRow: View {
     /// Whether the voice is on the device, and what its row says about it.
     enum Download: Equatable {
@@ -50,15 +52,33 @@ struct VoiceRow: View {
     var hasPreview = true
     /// Its row's identifier; ▶, ⤓ and the ring take it with a suffix.
     let accessibilityID: String
+    /// The screen is in Edit: a removable row (`onRemove`) leads with ⊖.
+    var editing = false
     let onPick: () -> Void
     var onPreview: () -> Void = {}
     var onStop: () -> Void = {}
+    /// Removes its download (asking first when it must); nil: it can't be removed now.
+    var onRemove: (() -> Void)?
+    /// ⊖ was tapped: *Remove* shows in place of the trailing mark. The list holds it, so one row
+    /// shows it at a time and leaving Edit hides it.
+    var removeShown: Binding<Bool> = .constant(false)
+    private var revealed: Bool { removeShown.wrappedValue }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Where the name starts: past the ▶'s column. A row that leads into voice rows lines up here.
     static let nameInset = Control.tap + Spacing.xs
 
     var body: some View {
         HStack(spacing: Spacing.xs) {
+            // In Edit every row takes ⊖'s column, as iOS indents a list in Edit, so names stay lined up.
+            if editing {
+                if onRemove != nil {
+                    removeControl
+                } else {
+                    Color.clear.frame(width: Control.tap, height: Control.tap).accessibilityHidden(true)
+                }
+            }
             previewButton
             Button(action: onPick) {
                 SymbolRow(name, subtitle: detail, symbol: nil)
@@ -67,11 +87,53 @@ struct VoiceRow: View {
             .accessibilityIdentifier(accessibilityID)
             .accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityValue(downloadingValue)
-            if hasMark {
+            if revealed, let onRemove {
+                removeButton(onRemove)
+            } else if hasMark {
                 trailing
                     .frame(minWidth: Control.tap, minHeight: Control.tap)
             }
         }
+    }
+
+    /// Edit's ⊖: shows (or hides) *Remove*, as iOS's delete control. The row stays in the list
+    /// whatever happens next: only its download goes, after its question.
+    private var removeControl: some View {
+        Button {
+            withAnimation(reduceMotion ? Motion.fadeIn : Motion.snappy) { removeShown.wrappedValue.toggle() }
+        } label: {
+            Image(systemName: Icons.removeControl)
+                .glyphSize(Glyph.regular)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(Palette.onDestructive, Palette.destructive)
+                .rotationEffect(.degrees(revealed ? -90 : 0))
+                .frame(minWidth: Control.tap, minHeight: Control.tap)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(String(localized: "Remove \(name)"))
+        .accessibilityHint(String(localized: "Shows Remove."))
+        .accessibilityIdentifier("\(accessibilityID)-removeControl")
+        .transition(.opacity)
+    }
+
+    private func removeButton(_ onRemove: @escaping () -> Void) -> some View {
+        Button {
+            removeShown.wrappedValue = false
+            onRemove()
+        } label: {
+            Text(Verbs.remove)
+                .typeStyle(.row)
+                .foregroundStyle(Palette.onDestructive)
+                .padding(.horizontal, Spacing.m)
+                .frame(minHeight: Control.small)
+                .background(Capsule().fill(Palette.destructive))
+                .frame(minHeight: Control.tap)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("\(accessibilityID)-remove")
+        .transition(.move(edge: .trailing).combined(with: .opacity))
     }
 
     /// A row without a mark (on the device, not in use) gives the name the room, so a long one
@@ -213,6 +275,17 @@ struct VoiceRowGallery: View {
                     VoiceRow(name: "Fable", download: .downloading(fraction: 0.4, size: "164 MB"), selected: false,
                              accessibilityID: "e", onPick: {})
                     VoiceRow(name: "Emma", download: .failed, selected: false, accessibilityID: "f", onPick: {})
+                }
+            }
+            PreviewState("Edit: ⊖ on the rows whose download can go") {
+                VStack(spacing: 0) {
+                    VoiceRow(name: "Bella", download: .onDevice(size: "0.5 MB"), selected: false,
+                             accessibilityID: "h", editing: true, onPick: {}, onRemove: {})
+                    VoiceRow(name: "Emma", download: .onDevice(size: "0.5 MB"), selected: false,
+                             accessibilityID: "j", editing: true, onPick: {}, onRemove: {},
+                             removeShown: .constant(true))
+                    VoiceRow(name: "Heart", download: .onDevice(size: "0.5 MB"), selected: true,
+                             accessibilityID: "i", editing: true, onPick: {})
                 }
             }
             PreviewState("in use, not on the device (no ✓ until it is)") {

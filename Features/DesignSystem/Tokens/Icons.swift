@@ -73,6 +73,9 @@ enum Icons {
     /// Something goes for good: *Delete Folder…*, Edit's *Remove*, *Remove from History*, *Remove
     /// Cover*. (A page leaving the Library is `unsave`; a prepare going, `removePrepare`.)
     static let delete = "trash"
+    /// Edit's control on a row whose download can go (a voice): ⊖, turned upright while its
+    /// *Remove* shows, as iOS's delete control.
+    static let removeControl = "minus.circle.fill"
     static let sort = "arrow.up.arrow.down"
     /// ≡ Drag handle for reorder in Edit (C148).
     static let reorder = "line.3.horizontal"

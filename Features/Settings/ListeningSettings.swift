@@ -191,6 +191,8 @@ struct VoicePageProbe: Equatable {
     var removing: String?
     /// An engine's short name or id ("kokoro") whose section starts open in every voice picker.
     var openSection: String?
+    /// The engine voice id whose *Remove* shows in Edit, as after a tap on its ⊖ ("af_heart").
+    var revealingRemove: String?
 }
 
 extension EnvironmentValues {

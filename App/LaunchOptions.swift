@@ -164,6 +164,9 @@ struct LaunchOptions: Equatable {
     /// `-openVoiceSection <engine>` ("kokoro", or its id): the voice pickers open with that
     /// engine's section open, as well as the ones they open anyway.
     var opensVoiceSection: String?
+    /// `-revealVoiceRemove <voice id>` (with `-editVoices`): that row's *Remove* shows, as after
+    /// a tap on its ⊖.
+    var revealsVoiceRemove: String?
     /// `-openVoicePicker`: the newest saved article's *Voice* sheet; with `-seedDemoBook`, the book's.
     var opensVoicePicker = false
     /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
@@ -248,6 +251,7 @@ struct LaunchOptions: Equatable {
         editsVoices = flags.contains("-editVoices")
         removesVoice = value(after: "-removeVoice")
         opensVoiceSection = value(after: "-openVoiceSection")
+        revealsVoiceRemove = value(after: "-revealVoiceRemove")
         opensVoicePicker = flags.contains("-openVoicePicker")
         usesLanePolicy = value(after: "-renderPolicy") == "lanes"
         if flags.contains("-engineProbe") {

@@ -59,6 +59,8 @@ enum Palette {
     /// Such an action takes this tint, not the role, which has the list take the row out at once
     /// (`LibraryFolderRow`, `LibraryArticleRow`, the engine rows in Settings).
     static let destructive = Color(uiColor: .systemRed)
+    /// Text on a `destructive` fill (Edit's *Remove* on a voice row).
+    static let onDestructive = Color.white
     /// A warning glyph (the engine notice's ⚠︎): amber, 3:1 on paper and on the bar material.
     static let caution = Color(light: 0x9A5B00, dark: 0xF2A93B)
     /// The empty part of a ring, a scrubber or a progress line (the reading page's is

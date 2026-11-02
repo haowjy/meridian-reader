@@ -85,7 +85,8 @@ private struct LaunchTestHooks: ViewModifier {
             .environment(\.searchSuggestionProvider, options.suggestionProvider)
             .environment(\.showsScrubBubbleDemo, options.scrubBubbleDemo)
             .environment(\.voicePageProbe, VoicePageProbe(editing: options.editsVoices, removing: options.removesVoice,
-                                                           openSection: options.opensVoiceSection))
+                                                           openSection: options.opensVoiceSection,
+                                                           revealingRemove: options.revealsVoiceRemove))
     }
 }
 #endif
