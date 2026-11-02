@@ -171,14 +171,15 @@ provider owns its host, model store, voice catalog and chunk limits.
   `ListenHTMLBlocks.version`; library pages rebuild once and positions / audio must be remapped
   like `LibraryStore.migrateParagraphLayout` does.
 - **Engine loads never re-route playback.** Views call `chooseDefault` (Settings),
-  `ArticleVoiceChange.apply` (a picker), `removeVoice` or `VoiceDownloads`; they never restart
-  playback or load an engine.
+  `ArticleVoiceChange.apply` (a picker), `SpeechController.voiceRemoval` / `removeVoice` or
+  `VoiceDownloads`; they never stop or restart playback or load an engine.
 - **A voice pick downloads files, never loads.** `VoiceDownloads` fetches what a voice needs
   through its provider (`downloadSize`, `download`) and selects only once it is there and still
   the picker's newest pick; ■ forgets the pick, so a last step that finishes anyway selects
-  nothing. A cancel (■, the large-download prompt's Not Now) is never a failure. A provider
-  reports every download of a voice's files, whoever started it (`transfer(of:for:)`; Kokoro's
-  `KokoroTransfers`), so a load's or a render's download shows on the voice's row. A render makes
+  nothing. A cancel (■, the large-download prompt's Not Now) is never a failure. A transfer's
+  life (progress, stop, failure) is its provider's alone, one per voice whoever started it
+  (`transfer(of:for:)`; Kokoro's `KokoroTransfers`), so a load's or a render's download shows,
+  and fails, on the voice's row; `VoiceDownloads` keeps only each picker's newest pick. A render makes
   sure of its own voice's files before its call (`LocalSynthHost.prepareVoice`), never only the
   host's first voice's.
   Removing a voice never changes an article's voice: its next play or prepare downloads it again

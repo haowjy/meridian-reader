@@ -83,6 +83,7 @@
 		2C666F14BC21F96EF171908E /* PrepareList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F1AE563425966896FBEB8DA /* PrepareList.swift */; };
 		2C8C2959A775758E2A918A2C /* AddToLibraryTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F0C2F7285093AA1DADC2C36 /* AddToLibraryTiles.swift */; };
 		2E0BF1BFA0D39AB4E3D6EE37 /* ProcessMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8769B2CD25D5E467372D25D /* ProcessMemory.swift */; };
+		2ECA694FEE131E5FE97FFB38 /* SpeechController+VoiceRemoval.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A6C64A706E7D580F9A1B7E /* SpeechController+VoiceRemoval.swift */; };
 		2F51527F266E19EB4DFE4BE9 /* URL+Web.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873A935475797F25334192D6 /* URL+Web.swift */; };
 		2F53AE947E46E1423D455AA1 /* KokoroVoiceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B7C40BC9E55A2B320911AC8 /* KokoroVoiceCatalog.swift */; };
 		2FC879240803473DAA7D674D /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 1716FA466CF4200245F4773B /* ZIPFoundation */; };
@@ -847,6 +848,7 @@
 		D34BCA10E720A744ECD793A8 /* BrowseStartPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseStartPage.swift; sourceTree = "<group>"; };
 		D396B73BEFEC5E440402C4F2 /* ReadingPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingPage.swift; sourceTree = "<group>"; };
 		D424D7C28771A64E4AEDC7C8 /* VoiceSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSelectionTests.swift; sourceTree = "<group>"; };
+		D4A6C64A706E7D580F9A1B7E /* SpeechController+VoiceRemoval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SpeechController+VoiceRemoval.swift"; sourceTree = "<group>"; };
 		D4CC64997670AF354F390072 /* FetchPacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FetchPacing.swift; sourceTree = "<group>"; };
 		D553622E9139BB88940E7CDE /* EPUBRefusals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EPUBRefusals.swift; sourceTree = "<group>"; };
 		D5F6C28EC28000AF6426CFA8 /* LegacyListenHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyListenHistory.swift; sourceTree = "<group>"; };
@@ -1664,6 +1666,7 @@
 				9F840C768BD6761A0DF0BB92 /* SpeechController.swift */,
 				FABF8DCDADBF530570E8FB5E /* SpeechController+Advance.swift */,
 				51911BCFC20EA3EB4428499B /* SpeechController+NowPlaying.swift */,
+				D4A6C64A706E7D580F9A1B7E /* SpeechController+VoiceRemoval.swift */,
 				6E8B0299093D6A2A9176A519 /* SpeechEnvironment.swift */,
 				A45B5E10201208AAF433BDB2 /* SpeechSession.swift */,
 				DF649183841240A7A78E6E55 /* SubParagraphPosition.swift */,
@@ -2330,6 +2333,7 @@
 				AEF7474182497E559CB4C1F3 /* Spacing.swift in Sources */,
 				11411A53149D55CAAD435B79 /* SpeechController+Advance.swift in Sources */,
 				96D86CA1738B53B50C8D17E2 /* SpeechController+NowPlaying.swift in Sources */,
+				2ECA694FEE131E5FE97FFB38 /* SpeechController+VoiceRemoval.swift in Sources */,
 				A7D189553E40A3046A88BA34 /* SpeechController+WarmUp.swift in Sources */,
 				0BD1EF88BA1B68EECA4E2B77 /* SpeechController.swift in Sources */,
 				64D2E152289C4060F3D122AD /* SpeechEngineProvider.swift in Sources */,

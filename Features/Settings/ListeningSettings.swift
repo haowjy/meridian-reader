@@ -74,8 +74,8 @@ struct VoicePage: View {
     @Bindable var speech: SpeechController
     @State private var preview = VoicePreviewPlayer()
     @State private var editing = false
-    /// The voice whose removal is being asked about.
-    @State private var asking: VoiceSelection?
+    /// The removal being asked about.
+    @State private var asking: VoiceRemovalPlan?
 
     @Environment(ShellState.self) private var shell
     #if DEBUG
@@ -134,30 +134,16 @@ struct VoicePage: View {
     /// Removes at once a voice nothing depends on; asks first about the default, the voice of what
     /// you're listening to, and a library's last voice (its shared model goes too).
     private func askRemoval(_ selection: VoiceSelection) {
-        guard let removal = localTTS.voiceDownloads.removal(of: selection) else { return }
-        if removal.removesEngine || localTTS.defaultAfterRemoving(selection, removal) != nil
-            || stopsListening(selection, removal) {
-            asking = selection
-        } else {
-            remove(selection)
-        }
+        guard let plan = speech.voiceRemoval(of: selection) else { return }
+        if plan.asks { asking = plan } else { remove(plan) }
     }
 
-    /// What you're listening to (playing or paused) speaks in `selection`, or in its library when
-    /// the removal takes the library's model: removing it stops listening first, rather than
-    /// leaving playback to wait for the voice to download again mid-article.
-    private func stopsListening(_ selection: VoiceSelection, _ removal: VoiceRemoval) -> Bool {
-        guard let key = speech.activeSessionID else { return false }
-        let listening = localTTS.effectiveSelection(of: key)
-        return removal.removesEngine ? listening.engine == selection.engine : listening == selection
-    }
-
-    private func remove(_ selection: VoiceSelection) {
-        if let removal = localTTS.voiceDownloads.removal(of: selection), stopsListening(selection, removal) {
-            speech.stop()
-        }
-        shell.attempt(String(localized: "Couldn’t remove \(name(of: selection))")) {
-            try localTTS.removeVoice(selection)
+    private func remove(_ plan: VoiceRemovalPlan) {
+        shell.attempt(String(localized: "Couldn’t remove \(name(of: plan.selection))")) {
+            // What it would do changed since the question: ask again about what it does now.
+            if let changed = try speech.removeVoice(plan) {
+                if changed.asks { asking = changed } else { remove(changed) }
+            }
         }
     }
 
@@ -167,30 +153,28 @@ struct VoicePage: View {
     }
 
     /// "Remove Kokoro?" for a library's last voice, else "Remove Bella?".
-    private func removalTitle(_ selection: VoiceSelection) -> String {
-        let removal = localTTS.voiceDownloads.removal(of: selection)
-        let subject = removal?.removesEngine == true ? localTTS.engines.shortName(selection.engine) : name(of: selection)
+    private func removalTitle(_ plan: VoiceRemovalPlan) -> String {
+        let subject = plan.removal.removesEngine ? localTTS.engines.shortName(plan.selection.engine) : name(of: plan.selection)
         return String(localized: "Remove \(subject)?")
     }
 
     /// What it frees, then what changes: "Frees 164 MB. Kokoro voices will need to download again.
     /// What you’re listening to is in Kokoro, so listening stops. New articles will use Zoey.
     /// Articles already in Kokoro download it again before they play."
-    private func removalMessage(_ selection: VoiceSelection) -> String {
-        guard let removal = localTTS.voiceDownloads.removal(of: selection) else { return "" }
+    private func removalMessage(_ plan: VoiceRemovalPlan) -> String {
         var parts: [String] = []
         let subject: String
-        if removal.removesEngine {
-            subject = localTTS.engines.shortName(selection.engine)
-            parts.append(String(localized: "Frees \(FileSizes.megabytes(removal.bytes)). \(subject) voices will need to download again."))
+        if plan.removal.removesEngine {
+            subject = localTTS.engines.shortName(plan.selection.engine)
+            parts.append(String(localized: "Frees \(FileSizes.megabytes(plan.removal.bytes)). \(subject) voices will need to download again."))
         } else {
-            subject = name(of: selection)
-            parts.append(String(localized: "Frees \(FileSizes.megabytes(removal.bytes))."))
+            subject = name(of: plan.selection)
+            parts.append(String(localized: "Frees \(FileSizes.megabytes(plan.removal.bytes))."))
         }
-        if stopsListening(selection, removal) {
+        if plan.stopsListening {
             parts.append(String(localized: "What you’re listening to is in \(subject), so listening stops."))
         }
-        if let next = localTTS.defaultAfterRemoving(selection, removal) {
+        if let next = plan.newDefault {
             parts.append(String(localized: "New articles will use \(name(of: next))."))
             parts.append(String(localized: "Articles already in \(subject) download it again before they play."))
         }

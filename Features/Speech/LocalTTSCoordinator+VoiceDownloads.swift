@@ -1,7 +1,8 @@
 import Foundation
 
 /// The Voice picker's choices that touch files: choosing a voice that isn't on the device, and
-/// removing one (`VoiceDownloads` keeps the rows' state).
+/// removing one (decided and run by `SpeechController.removeVoice`; `VoiceDownloads` reads the
+/// rows' state).
 extension LocalTTSCoordinator {
     /// Settings › Voice's picker, for `VoiceDownloads.pick`.
     static let defaultVoicePicker = "default"
@@ -26,13 +27,11 @@ extension LocalTTSCoordinator {
         return builtInDefaultSelection
     }
 
-    /// Remove `selection`'s download (Settings › Voice: a swipe, or Edit; asked first when it is
-    /// the default or takes its library's shared model). Articles in it keep it: the next time one
-    /// plays or prepares, its voice downloads again while playback waits (never another voice).
-    /// The default for new articles moves (`defaultAfterRemoving`), which the picker said first.
-    func removeVoice(_ selection: VoiceSelection) throws {
-        guard let removal = voiceDownloads.removal(of: selection) else { return }
-        let newDefault = defaultAfterRemoving(selection, removal)
+    /// The files step of a voice's removal (`SpeechController.removeVoice`, which decided `removal`
+    /// and `newDefault` and stopped listening when it had to). Articles in it keep it: the next
+    /// time one plays or prepares, its voice downloads again while playback waits (never another
+    /// voice).
+    func removeVoice(_ selection: VoiceSelection, _ removal: VoiceRemoval, newDefault: VoiceSelection?) throws {
         defer { voiceDownloads.filesChanged() }
         try engines.remove(selection.voice, for: selection.engine)
         if removal.removesEngine || voice(for: selection.engine) == selection.voice {

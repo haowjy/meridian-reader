@@ -171,8 +171,10 @@ player and the lock screen agree. The engine reports facts; it owns no bake poli
 - Nothing moves a live play to another engine or voice: engine state changes don't re-route.
   Changing an article's voice stops its playback (`ArticleVoiceChange`).
 - Views only call `chooseDefault` (Settings), `ArticleVoiceChange.apply` (an article's or a
-  book's picker), `removeVoice` (Settings) and `VoiceDownloads` (a voice's files: download, stop);
-  they never restart playback or load an engine themselves.
+  book's picker), `SpeechController.voiceRemoval` / `removeVoice` (Settings: the decision a
+  removal's question is made from, then the one command that revalidates it, stops listening when
+  it must and removes the files) and `VoiceDownloads` (a voice's files: download, stop); they never
+  stop or restart playback or load an engine themselves.
 
 ### UI binding
 
