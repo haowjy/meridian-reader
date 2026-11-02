@@ -131,10 +131,14 @@ struct NowPlayingScreen: View {
         } banner: {
             VStack(spacing: 0) {
                 if !regular {
+
                     ReadingTopGroup(menu: menuBlocks(now, actions), menuID: "listenMore", appearanceOpen: $appearanceOpen,
                                     save: actions.readingSave(identifier: "nowPlayingBookmark",
                                                               isEnabled: actions.readerArticle != nil),
                                     carriesGrabber: true)
+                    #if DEBUG
+                    .onAppear { MenuProbeState.shared.offerPageMenu { menuBlocks(now, actions) } }
+                    #endif
                 }
                 if jumpMode { JumpHint { withAnimation(Motion.snappy) { jumpMode = false } } }
             }

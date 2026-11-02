@@ -2,8 +2,43 @@
 import SwiftUI
 import SwiftData
 
-/// Opens the production menu rows in the app's panel for offline screenshot probes. Native
-/// system menus still need a tap; this hook exercises their shared definitions and actions.
+/// What the probe panel shows: a menu's production rows, for a screenshot. A native menu can't be
+/// opened from code, so the panel lists the rows a tap on that ⋯ would show (`MenuRows` over the
+/// same `MenuContext`), with the same actions.
+@MainActor @Observable
+final class MenuProbeState {
+    static let shared = MenuProbeState()
+    var blocks: [[MenuRow]]?
+    /// `-openPageMenu`: the first reading page shown offers its ⋯ menu (`offerPageMenu`).
+    var wantsPageMenu = false
+
+    /// A reading page's ⋯ blocks, the same `MenuRows` input its own ⋯ draws, shown 3 s after the
+    /// page appears; only the first page offered while `-openPageMenu` is on.
+    func offerPageMenu(_ make: @escaping @MainActor () -> [[MenuRow]]) {
+        guard wantsPageMenu else { return }
+        wantsPageMenu = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            blocks = make()
+        }
+    }
+}
+
+struct MenuProbePanel: View {
+    @State private var state = MenuProbeState.shared
+
+    var body: some View {
+        if let blocks = state.blocks {
+            List { MenuRows(blocks: blocks) }
+                .frame(width: 320, height: 560)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+                .shadow(radius: 12)
+                .accessibilityIdentifier("menuProbePanel")
+        }
+    }
+}
+
+/// Fills the probe panel with the production menu rows for offline screenshot probes.
 @MainActor
 enum MenuProbe {
     static func open(_ name: String, library: LibraryStore, speech: SpeechController,
@@ -63,7 +98,7 @@ enum MenuProbe {
             let place: ArticleMenu.Place = name == "browser" ? .browser : .open
             let tail = name == "browser" ? MenuContext.screenRows(at: .browser, shell: shell) : []
             context = MenuContext(item: ArticleMenu(actions: pageActions, place: place).rows,
-                                  screen: tail, tiles: [], isOnReadingPage: name != "browser")
+                                  screen: tail, tiles: [])
         case "prepared":
             let overview = preparedAudio.pageOverview
             guard let item = (overview.now + overview.waiting + overview.done + overview.differentVoice).first else {
@@ -77,7 +112,7 @@ enum MenuProbe {
         let rows = context.item + context.screen + context.tiles
         ListenTimingLog.log("menu_probe", ["name": name,
                             "rows": rows.map { "\($0.group):\($0.title):\($0.availability)" }.joined(separator: " | ")], console: true)
-        shell.openMenu(context, from: CGRect(x: 340, y: 760, width: Control.tap, height: Control.tap))
+        MenuProbeState.shared.blocks = context.blocks
     }
 
     private static func missing(_ name: String, _ reason: String) {

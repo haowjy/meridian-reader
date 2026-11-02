@@ -21,7 +21,7 @@ Requirements: Xcode with the iOS 18+ SDK and [XcodeGen](https://github.com/yonas
 
 ## What's in it
 
-- Browser with a five-slot bottom toolbar and the ⋯ morph menu
+- Browser with a five-slot bottom toolbar and the ⋯ menu
 - Reader view extracted from the live article with Mozilla Readability
 - Library of saved articles (SwiftData), bookmarks and history
 - Listening: sentence and paragraph scrubbing, speed changes in place, mini player, lock screen

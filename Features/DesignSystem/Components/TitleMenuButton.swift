@@ -1,16 +1,23 @@
 import SwiftUI
 
-/// ⋯ at the end of a screen's title line (the Library home, a folder's navigation bar, Settings,
-/// Library Read): the screen's menu as a system menu, a section per block (`MenuRows`). A glass circle by
-/// default (`TitleMenuGlyph`), or `face`.
+/// A screen's ⋯ (a title line, a toolbar, a reading page's top group): its menu as a system menu, a
+/// section per block (`MenuRows`). A glass circle by default (`TitleMenuGlyph`), or `face`.
+/// `blocks` is evaluated in this view's own body, so what the menu reads (playback, prepares) redraws
+/// the ⋯ alone, never the chrome or screen that hosts it.
 struct TitleMenuButton<Face: View>: View {
     let id: String
-    let blocks: [[MenuRow]]
-    @ViewBuilder var face: Face
+    let blocks: () -> [[MenuRow]]
+    let face: Face
+
+    init(id: String, blocks: @escaping @autoclosure () -> [[MenuRow]], @ViewBuilder face: () -> Face) {
+        self.id = id
+        self.blocks = blocks
+        self.face = face()
+    }
 
     var body: some View {
         Menu {
-            MenuRows(blocks: blocks)
+            MenuRows(blocks: blocks())
         } label: {
             face
         }
@@ -20,8 +27,8 @@ struct TitleMenuButton<Face: View>: View {
 }
 
 extension TitleMenuButton where Face == TitleMenuGlyph {
-    init(id: String, blocks: [[MenuRow]]) {
-        self.init(id: id, blocks: blocks) { TitleMenuGlyph() }
+    init(id: String, blocks: @escaping @autoclosure () -> [[MenuRow]]) {
+        self.init(id: id, blocks: blocks()) { TitleMenuGlyph() }
     }
 }
 

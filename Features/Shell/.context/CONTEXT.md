@@ -45,8 +45,8 @@ changing the shell code.
   sheet over them (Settings, Share) leaves the strip above dark, so light stays right there.
   During a pull the dim lifts, and `Sheet` lays a scrim under the status bar
   (`PullDownLook.statusBarScrim`) that keeps the strip at the resting dim until the sheet is
-  removed: no switch of style mid-gesture, so nothing flickers. The ⋯ panel opened from either
-  sheet takes the theme too (`MenuContext.isOnReadingPage`).
+  removed: no switch of style mid-gesture, so nothing flickers. The ⋯ on either sheet is a system
+  menu and keeps the system's look, not the theme's.
 - **Full screen is the reading sheet's own state** (`ReadingChrome`, in
   `DesignSystem/Components/`), not the shell's (an in-place reader's is the shell's: `ChromeScroll.fullScreen`
   through `ReadingInPlace.fullScreen`, set by the centre tap or the reading rule, so the page's top group and the
@@ -72,17 +72,11 @@ changing the shell code.
   The status bar clock keeps ≥ 4.5:1 contrast on the surface on top: probe it in screenshots,
   including after leaving the app and coming back, and while a finger holds the sheet part way
   down.
-- **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome`, the morph
-  overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
-  `ShellState`, the ⋯ panel (`MenuContext`, drawn by `MoreMenuPanel` where a ⋯ grows a panel, and as a
-  system menu by `MenuRows(blocks: context.blocks)` on compact title lines: the item's rows from its
-  one menu definition, `ArticleMenu` / `FolderMenu`, then the screen's rows; regular width keeps
-  the navigation tiles; the panel draws `MenuRow`s and knows no surface), the Now Playing bar on a
+- **Shared look lives in `../DesignSystem/`**: tokens, `Motion`, `BottomChrome` and the components. This folder keeps what knows about the app:
+  `ShellState`, the ⋯ menu (`MenuContext`, drawn by `MenuRows(blocks: context.blocks)` in a system `Menu`, at
+  every width: the item's rows from its one menu definition, `ArticleMenu` / `FolderMenu`, then the
+  screen's rows, then regular width's navigation rows; `MenuRows` draws `MenuRow`s and knows no surface), the Now Playing bar on a
   surface (`NowPlayingBarView`, whose long press is the article's menu then *Stop Listening*).
-- **The ⋯ morph menu measures its focus point** through a preference and places the panel from it.
-  Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement
-  nudges the measurement each pass, and without the threshold the panel re-places itself forever
-  (a layout loop at 100% CPU). The glass grows by frame and corner radius, never by scale.
 - **Compact width: one chrome host** (`Chrome/ChromeHost.swift`; `docs/NAVIGATION.md` "Bottom
   chrome"). Three destinations (Library, Browser, Settings), at most two rows expanded and a glass bubble
   folded, the Listen button ending row 1, the pill alone on row 2 (no ⋯ and no play/pause in the chrome;
@@ -122,9 +116,7 @@ changing the shell code.
   over the clustered dock; the dock's toolbar is a `BottomToolbarLayout` whose items name their slots
   (`.toolbarSlot`), one role per slot on both surfaces. Compact width has no band: `ChromeHost` draws it.
   The Reader's `NowPlayingBarView` hides while covered.
-- **Geometry holds within 1 pt**: toolbar slot positions, and the ⋯ focus offset
-  (`MorphMenu.focusOffsetFromAnchor`). The `moreMenuFocus` marker, Debug builds with
-  `-uiTesting` only, shows where the focus ends up.
+- **Geometry holds within 1 pt**: toolbar slot positions.
 - **Sizing.** Field capsules use a fixed height (an unbounded `Capsule` turns into a circle) that
   grows with Dynamic Type up to `Control.maxTextGrowth` (1.5×); every control gets a 44 pt
   tap area through `tapTarget`.
@@ -137,7 +129,7 @@ changing the shell code.
   hook, or it only scrolls. A UIKit pan's translation starts at zero where it recognizes, so a
   slow drag has no direction at `.began`: read the axis once it has moved
   (`SheetPullTracking.decidingMovement`), never from the first event. Under
-  Reduce Motion, slides and the morph become fades (`Motion.slideAndFade`, `Motion.sheet`).
+  Reduce Motion, slides become fades (`Motion.slideAndFade`, `Motion.sheet`).
 - **Regular width (iPad) is a second layout of the same shell, not a second shell.** The gate is
   `horizontalSizeClass == .regular`; nothing iPad-specific applies in compact. What it changes
   (user-visible behavior: `../../../docs/NAVIGATION.md`, "iPad and regular width"): a collapsible

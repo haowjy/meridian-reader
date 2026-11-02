@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A page's menu: the one definition every way to a page's menu renders (decisions C4, C98), as a
-/// row's ⋯ and long press (`MenuRows`, through this view) and as the item block of the ⋯ panel
+/// row's ⋯ and long press (`MenuRows`, through this view) and as the item block of the ⋯ menu
 /// (`rows`). Which options show where, in what order and greyed or not is `MenuRegistry`'s
 /// (docs/MENUS.md: *Save* / *Remove from Library*, *Save to Folder…* / *Move to…* and *Follow…* lead
 /// it on a reading page; a list row's leads with *Read*); this gives each its title, symbol and action. Built only when the menu opens:
@@ -162,19 +162,16 @@ struct ArticleMenu: View {
 }
 
 extension ArticleActions {
-    /// The ⋯ panel of the Reader and regular width's Now Playing (decision D24, C140): the page's
-    /// menu, then regular width's `[Settings][Library][Listen]` tiles.
-    /// Listen is disabled: already reading. Website is reachable via Share in the article's own menu rows.
+    /// The ⋯ menu of the Reader and regular width's Now Playing (decision D24, C140): the page's
+    /// menu, then regular width's `[Settings][Library]` rows.
+    /// Listen is left out: already reading. Website is reachable via Share in the article's own menu rows.
     func readingPageMenu(_ place: ArticleMenu.Place) -> MenuContext {
-        let reader = MenuRow(id: "moreListen", title: Verbs.listen, icon: Icons.listen,
-                             availability: .disabled,
-                             accessibilityHint: String(localized: "Already in Listen"))
-        return MenuContext(item: ArticleMenu(actions: self, place: place).rows,
-                           screen: [],
-                           tiles: MenuContext.tiles(shell, compact: false, last: reader), isOnReadingPage: true)
+        MenuContext(item: ArticleMenu(actions: self, place: place).rows,
+                    screen: [],
+                    tiles: MenuContext.tiles(shell, compact: false, last: nil))
     }
 
-    /// The reading page on screen, with its ⋯ panel: the playing page on Now Playing, else the
+    /// The reading page on screen, with its ⋯ menu: the playing page on Now Playing, else the
     /// Reader sheet's.
     @MainActor
     static func readingPageMenu(shell: ShellState, library: LibraryStore, speech: SpeechController,

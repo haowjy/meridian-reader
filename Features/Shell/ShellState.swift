@@ -229,12 +229,8 @@ final class ShellState {
     }
     /// Where the picked book goes (nil: the Library's top level).
     private(set) var bookPickDestination: UUID?
-    /// The open ⋯ menu (nil = closed), rendered by the shell's one `MorphMenuOverlay`.
-    var menu: MenuContext?
     /// A short message over the bottom chrome of the surface on screen.
     private(set) var toast: ShellToast?
-    /// Global frame of the ⋯ button the open menu grows from.
-    private(set) var menuAnchor: CGRect = .zero
     var busy: BusyAction?
     let web = WebViewStore()
     /// The browser's address field. Idle, its text is the page's address.
@@ -690,11 +686,6 @@ final class ShellState {
     }
 
     // MARK: - Menu and sheets
-
-    func openMenu(_ context: MenuContext, from anchor: CGRect) {
-        menuAnchor = anchor
-        menu = context
-    }
 
     func present(_ sheet: ShellSheet) {
         if sheet.showsOverASheet, let under = self.sheet, under != sheet {

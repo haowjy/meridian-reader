@@ -1,6 +1,6 @@
 import Foundation
 
-/// One label per action, app-wide: menus, the ⋯ panel, swipes, header buttons, Edit's bar and
+/// One label per action, app-wide: menus, the ⋯ menu, swipes, header buttons, Edit's bar and
 /// sheet titles say the same thing for the same action, next to the same symbol (`Icons`). A
 /// label used in more than one place lives here; a literal repeating one is a bug.
 ///
@@ -137,7 +137,7 @@ enum Verbs {
     static let textAppearance = String(localized: "Text Appearance")
     /// ✕ in the address field while a page loads.
     static let stopLoading = String(localized: "Stop Loading")
-    /// The ⋯ panel's last rows and the screens they open.
+    /// The ⋯ menu's last rows and the screens they open.
     static let preparedAudio = String(localized: "Prepared Audio")
     static let settings = String(localized: "Settings")
     /// The Library's tab of pages played or opened and not kept (C100).

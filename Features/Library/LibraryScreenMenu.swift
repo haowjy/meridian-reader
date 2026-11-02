@@ -23,7 +23,7 @@ struct LibraryScreenMenu {
         }
     }
 
-    /// The title ⋯ (compact width: the create group, then Sort, no ＋ beside it) or the ⋯ panel
+    /// The title ⋯ (compact width: the create group, then Sort, no ＋ beside it) or the ⋯ menu
     /// (regular width: Sort and the navigation tiles; the create group is its ＋). Which rows each
     /// place has is the registry's.
     func menu(compact: Bool) -> MenuContext {
@@ -104,6 +104,17 @@ struct LibraryCreateMenu {
             }
         default:
             return nil
+        }
+    }
+}
+
+extension ArticleSort {
+    /// Its name in the Sort menu.
+    var title: String {
+        switch self {
+        case .manual: String(localized: "Manual")
+        case .newest: String(localized: "Newest")
+        case .title: String(localized: "Title")
         }
     }
 }

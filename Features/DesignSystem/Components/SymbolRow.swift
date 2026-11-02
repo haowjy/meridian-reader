@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The compact row: a symbol (or a small site tile) in one leading column, a title on one line
-/// and an optional subtitle under it, then the caller's trailing view. Settings, the ⋯ panel,
+/// and an optional subtitle under it, then the caller's trailing view. Settings, the ⋯ menu,
 /// the Move tree, the search suggestions and Following's actions are all this row; the Library's
 /// pages and folders are `ListRow`.
 ///
@@ -15,7 +15,7 @@ import SwiftUI
 /// Its geometry is `RowMetrics`: the leading column (`RowColumns`), a one- or two-line height
 /// (`rowHeight(lines:)`; `reservesDetail` keeps line two's room while it has nothing to say, so the
 /// row never changes height), the title's lines. `rowMinimum` is a one-line row's height:
-/// `Control.bar` on a card list (`cardListStyle`), `Control.tap` elsewhere (the ⋯ panel, the search
+/// `Control.bar` on a card list (`cardListStyle`), `Control.tap` elsewhere (the ⋯ menu, the search
 /// suggestions). Without a leading view (`symbol` nil) the text starts at the row's edge: a card's
 /// rows either all lead with a symbol or none does. The row adds no horizontal padding (its list or
 /// panel has its own) and no tap: the caller wraps it in a `Button`, `NavigationLink` or `Toggle`.

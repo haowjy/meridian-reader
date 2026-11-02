@@ -181,7 +181,7 @@ struct ReadingPalette: Equatable {
     /// The sheet and the page.
     let background: Color
     /// Field capsules and cards on it: the top bar's pill, the player card, the scrub capsule, the
-    /// ⋯ panel.
+    /// ⋯ menu.
     let card: Color
     let ink: Color
     let secondaryInk: Color
@@ -231,7 +231,7 @@ private struct ReadingSurface: ViewModifier {
 }
 
 extension EnvironmentValues {
-    /// Inside the Reader sheet or Now Playing (and a ⋯ panel opened from them): the reading page's
+    /// Inside the Reader sheet or Now Playing (and a ⋯ menu opened from them): the reading page's
     /// colours. nil on the app's surfaces. Components that sit on both read it.
     @Entry var readingPalette: ReadingPalette? = nil
 }

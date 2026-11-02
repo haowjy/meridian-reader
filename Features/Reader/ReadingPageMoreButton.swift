@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// ⋯ on the Reader sheet and on regular width's Listen: opens the page's ⋯ panel
+/// ⋯ on the Reader sheet and on regular width's Listen: the page's menu as a system menu
 /// (`ArticleActions.readingPageMenu`), a toolbar glyph cell in the transport row.
 struct ReadingPageMoreButton: View {
     let id: String
@@ -11,10 +11,17 @@ struct ReadingPageMoreButton: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(PrepareCenter.self) private var preparedAudio
 
+    private func blocks() -> [[MenuRow]] {
+        ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
+                                       preparedAudio: preparedAudio, follow: follow).blocks
+    }
+
     var body: some View {
-        MoreMenuButton(id: id) {
-            ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
-                                           preparedAudio: preparedAudio, follow: follow)
+        TitleMenuButton(id: id, blocks: blocks()) {
+            Image(systemName: Icons.more).toolbarIconFrame()
         }
+        #if DEBUG
+        .onAppear { MenuProbeState.shared.offerPageMenu(blocks) }
+        #endif
     }
 }

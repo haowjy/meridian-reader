@@ -137,56 +137,6 @@ struct PillSymbol: View {
     }
 }
 
-/// A sheet's *Done*, *Cancel* or *Save* in its navigation bar: the neutral compact `PillButton`
-/// the Reader's and Now Playing's close pill is, on every sheet (Prepared audio, History,
-/// Settings, Edit Details, the Move tree, Import Book), without the bar's own glass behind it. So a sheet's buttons look one way, at rest and over a scrolled list, light or dark.
-///
-/// With a `systemImage` it is the same neutral face as a circle with the symbol alone, `title` its
-/// VoiceOver label: an input sheet's ✕ (`InputSheet`).
-///
-/// ```
-/// ( Cancel )            Edit Details             ( Save )
-/// ( ✕ )                  Add a Link
-/// ```
-struct SheetBarButton: ToolbarContent {
-    let placement: ToolbarItemPlacement
-    let title: String
-    /// The symbol alone in a circle, in place of the title (nil: the title).
-    var systemImage: String?
-    let identifier: String
-    var isDisabled = false
-    let action: () -> Void
-
-    init(_ title: String, systemImage: String? = nil, placement: ToolbarItemPlacement, identifier: String,
-         isDisabled: Bool = false, action: @escaping () -> Void) {
-        self.title = title
-        self.systemImage = systemImage
-        self.placement = placement
-        self.identifier = identifier
-        self.isDisabled = isDisabled
-        self.action = action
-    }
-
-    var body: some ToolbarContent {
-        if #available(iOS 26.0, *) {
-            item.sharedBackgroundVisibility(.hidden)
-        } else {
-            item
-        }
-    }
-
-    private var item: some ToolbarContent {
-        ToolbarItem(placement: placement) {
-            PillButton(title, systemImage: systemImage, style: .neutral, size: .compact,
-                       fit: systemImage == nil ? .full : .icon, action: action)
-                // Its own width: the bar's leading slot would squeeze the title.
-                .fixedSize()
-                .disabled(isDisabled)
-                .accessibilityIdentifier(identifier)
-        }
-    }
-}
-
 /// Pressed: the pill (or the transport disc) dims a little, like a system button.
 struct PillPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
@@ -221,41 +171,4 @@ struct PillButtonGallery: View {
 #Preview("PillButton · dark", traits: .sizeThatFitsLayout) { PillButtonGallery().previewVariant(.dark) }
 #Preview("PillButton · AX5", traits: .sizeThatFitsLayout) { PillButtonGallery().previewVariant(.largestText) }
 
-struct SheetBarButtonGallery: View {
-    var body: some View {
-        NavigationStack {
-            List { Text("Rows") }
-                .cardListStyle()
-                .navigationTitle("Edit Details")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "previewCancel") {}
-                    SheetBarButton("Save", placement: .confirmationAction, identifier: "previewSave") {}
-                }
-        }
-    }
-}
-
-/// The icon form, as an input sheet's ✕.
-struct SheetBarIconGallery: View {
-    var body: some View {
-        NavigationStack {
-            List { Text("Rows") }
-                .cardListStyle()
-                .navigationTitle("Add a Link")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    SheetBarButton(Verbs.cancel, systemImage: Icons.close, placement: .cancellationAction,
-                                   identifier: "previewClose") {}
-                }
-        }
-    }
-}
-
-#Preview("SheetBarButton · light") { SheetBarButtonGallery().previewVariant(.light) }
-#Preview("SheetBarButton · dark") { SheetBarButtonGallery().previewVariant(.dark) }
-#Preview("SheetBarButton · AX5") { SheetBarButtonGallery().previewVariant(.largestText) }
-#Preview("SheetBarButton icon · light") { SheetBarIconGallery().previewVariant(.light) }
-#Preview("SheetBarButton icon · dark") { SheetBarIconGallery().previewVariant(.dark) }
-#Preview("SheetBarButton icon · AX5") { SheetBarIconGallery().previewVariant(.largestText) }
 #endif

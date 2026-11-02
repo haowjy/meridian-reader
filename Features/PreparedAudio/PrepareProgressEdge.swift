@@ -31,7 +31,7 @@ struct PrepareProgressEdge: View {
     }
 }
 
-/// Asking for a prepare from a row's menu, a folder header or a ⋯ panel: the request, then a
+/// Asking for a prepare from a row's menu, a folder header or a ⋯ menu: the request, then a
 /// toast only when nothing on screen shows it. One that starts (or resumes) has no toast: its row's
 /// mark and the header's control already show it (C96).
 @MainActor

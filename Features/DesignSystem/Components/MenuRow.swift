@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// One row of a menu, as every renderer draws it: a row's ⋯ and long press (`MenuRows`, in a
-/// SwiftUI `Menu` or `.contextMenu`) and the ⋯ panel (`MoreMenuPanel`). An item kind's menu (a
+/// SwiftUI `Menu` or `.contextMenu`) and the debug probe panel. An item kind's menu (a
 /// page's, a folder's, a prepare's) is one ordered list of these, built once by its definition
 /// and rendered unchanged by every entry point, so order, names, symbols, red and dimming are
 /// decided in one place. Its title comes from `Verbs` and its symbol from `Icons`; whether it
@@ -17,11 +17,8 @@ struct MenuRow: Identifiable {
     var group = 0
     var isDestructive = false
     var availability: MenuAvailability = .enabled
-    /// A submenu (the ⋯ panel's *Sort*): its rows open instead of an action.
+    /// A submenu (the ⋯ menu's *Sort*): its rows open instead of an action.
     var submenu: [MenuRow] = []
-    /// VoiceOver's label and hint, when they differ from the title (a big button's).
-    var accessibilityLabel: String?
-    var accessibilityHint: String?
     /// Its list row's swipe, one word as iOS's are (*Delete*, *Remove*): the swipe already shows
     /// what it acts on, and a question it asks names the thing (`Verbs.swipe`).
     var swipeTitle: String?
@@ -29,7 +26,6 @@ struct MenuRow: Identifiable {
 
     init(id: String, title: String, icon: String?, isDestructive: Bool = false,
          availability: MenuAvailability = .enabled, submenu: [MenuRow] = [],
-         accessibilityLabel: String? = nil, accessibilityHint: String? = nil,
          action: @escaping () -> Void = {}) {
         self.id = id
         self.title = title
@@ -37,8 +33,6 @@ struct MenuRow: Identifiable {
         self.isDestructive = isDestructive
         self.availability = availability
         self.submenu = submenu
-        self.accessibilityLabel = accessibilityLabel
-        self.accessibilityHint = accessibilityHint
         self.action = action
     }
 

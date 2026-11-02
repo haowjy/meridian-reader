@@ -96,7 +96,9 @@ struct LibrarySurface: View {
                 .accessibilityIdentifier("libraryAdd")
                 BandToolbarButton(systemImage: Icons.history, label: Verbs.browsingHistory,
                                   identifier: "libraryHistory") { shell.present(.history) }
-                MoreMenuButton(id: "libraryMore") { screenMenu.menu(compact: false) }
+                TitleMenuButton(id: "libraryMore", blocks: screenMenu.menu(compact: false).blocks) {
+                    Image(systemName: Icons.more).toolbarIconFrame()
+                }
             }
             .tint(Palette.ink)
         }

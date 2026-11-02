@@ -64,16 +64,23 @@ struct ListenTransportView: View {
 }
 
 /// The playback speed ("1×", "1.25×"): at the trailing end of the regular-width scrub capsule, and
-/// at the trailing end of the compact player card. A tap opens the speed list, pointing at it.
+/// at the trailing end of the compact player card. A tap opens a system menu of the speeds, the
+/// current one checked, the same setting as Settings › Listening › Speed.
 struct SpeedButton: View {
     @Bindable var speech: SpeechController
-    @State private var showsPicker = false
     @Environment(\.readingPalette) private var reading
 
     private var palette: ReadingPalette { reading ?? .app }
 
     var body: some View {
-        Button { showsPicker = true } label: {
+        Menu {
+            Picker(Verbs.speed, selection: Binding(get: { speech.rateMultiplier }, set: speech.setRateMultiplier)) {
+                ForEach(ListenRate.options, id: \.self) { rate in
+                    Text(ListenRate.label(rate)).tag(rate)
+                        .accessibilityIdentifier("listenSpeedOption-\(ListenRate.label(rate))")
+                }
+            }
+        } label: {
             Text(ListenRate.label(speech.rateMultiplier))
                 .foregroundStyle(palette.ink)
                 .fieldTextFrame()
@@ -81,63 +88,5 @@ struct SpeedButton: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(Verbs.speed) \(ListenRate.label(speech.rateMultiplier))")
         .accessibilityIdentifier("listenSpeed")
-        .popover(isPresented: $showsPicker, arrowEdge: .bottom) {
-            SpeedPickerPopover(speech: speech) { showsPicker = false }
-                .presentationCompactAdaptation(.popover)
-                // In the reading theme, as the sheet it points from.
-                .presentationBackground(palette.background)
-                .readingSurface(palette)
-        }
-    }
-}
-
-/// The speed list, in the reading theme: its rows on a card.
-private struct SpeedPickerPopover: View {
-    @Bindable var speech: SpeechController
-    var onDone: () -> Void
-
-    @Environment(\.readingPalette) private var reading
-
-    private var palette: ReadingPalette { reading ?? .app }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Text(Verbs.speed)
-                .typeStyle(.row, weight: .semibold)
-                .foregroundStyle(palette.ink)
-                .padding(.horizontal, Spacing.xxs)
-
-            VStack(spacing: 0) {
-                ForEach(ListenRate.options, id: \.self) { rate in
-                    Button {
-                        speech.setRateMultiplier(rate)
-                        onDone()
-                    } label: {
-                        HStack {
-                            Text(ListenRate.label(rate))
-                                .typeStyle(.row)
-                                .monospacedDigit()
-                                .foregroundStyle(palette.ink)
-                            Spacer()
-                            if speech.rateMultiplier == rate {
-                                Image(systemName: Icons.checkmark)
-                                    .foregroundStyle(palette.accent)
-                            }
-                        }
-                        .padding(.horizontal, Spacing.s)
-                        .padding(.vertical, Spacing.s)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("listenSpeedOption-\(ListenRate.label(rate))")
-                    if rate != ListenRate.options.last {
-                        Divider()
-                    }
-                }
-            }
-            .background(palette.card, in: RoundedRectangle(cornerRadius: Radius.card))
-        }
-        .padding(Spacing.m)
-        .frame(minWidth: 220)
     }
 }

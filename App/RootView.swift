@@ -69,8 +69,7 @@ struct RootView: View {
 
 #if DEBUG
 /// What the launch arguments ask of the views for probes and screenshot runs: still playing
-/// bars (`-uiTesting`, so the app can go idle between probe steps), the ⋯ panel's focus marker and
-/// no Google suggestions, the ⋯ morph slowed (`-slowMenuAnimation`), the offline test pages in the
+/// bars (`-uiTesting`, so the app can go idle between probe steps), no Google suggestions, the offline test pages in the
 /// browser (`-browseTestPages`), the scrubber's frozen bubble (`-scrubBubbleDemo`), and the Voice
 /// page in Edit or asking about a removal (`-editVoices`, `-removeVoice`).
 private struct LaunchTestHooks: ViewModifier {
@@ -79,8 +78,7 @@ private struct LaunchTestHooks: ViewModifier {
     func body(content: Content) -> some View {
         content
             .environment(\.playingBarsMove, !options.uiTesting)
-            .environment(\.morphMenuMarksFocus, options.uiTesting)
-            .environment(\.morphMenuAnimation, options.slowMenuAnimation ? .easeInOut(duration: 3) : Motion.standard)
+            .overlay { MenuProbePanel() }
             .environment(\.webViewSchemeHandlers, options.servesTestPages ? TestPageSchemeHandler.handlers : [:])
             .environment(\.searchSuggestionProvider, options.suggestionProvider)
             .environment(\.showsScrubBubbleDemo, options.scrubBubbleDemo)

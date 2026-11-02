@@ -92,7 +92,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **One menu definition per item kind** (decision C4): `ArticleMenu` and `FolderMenu` are each one
   ordered `[MenuRow]` (`rows`), and every way to that item's menu renders it: as a view
   (`MenuRows`) in a row's ⋯ and `.contextMenu`, the folder header's *More*, a
-  History visit, the Now Playing bar; as the item block of the ⋯ panel (the folder's screen, the
+  History visit, the Now Playing bar; as the item block of the ⋯ menu (the folder's screen, the
   Reader, Now Playing, the browser). A place passes a `ArticleMenu.Place`, which only hides or dims
   rows; its own rows go in a block after. Add a row in the definition, never at an entry point.
   They take their collaborators as values (`ArticleActions`, `LibraryActions`, `PrepareCenter`,

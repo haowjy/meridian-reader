@@ -51,7 +51,7 @@ enum Palette {
     static var placeholderInk: Color { AppAppearance.shared.accent.placeholderInk }
     /// Background of what is playing: the playing row, a playing pill, ☝︎ while on.
     static var playingTint: Color { AppAppearance.shared.accent.playingTint }
-    /// The edge of a floating panel (the ⋯ panel), so it shows over paper in both appearances.
+    /// The edge of a floating panel, so it shows over paper in both appearances.
     static let hairline = Color(light: 0xE4E2DC, dark: 0x3A3A40)
     /// A swipe action that can leave its row in the list (it asks first, as a folder row's
     /// *Delete*; it deletes what the row only shows, as an engine's download; or its change can
@@ -66,7 +66,7 @@ enum Palette {
     /// The empty part of a ring, a scrubber or a progress line (the reading page's is
     /// `ReadingPalette.track`).
     static let track = secondaryInk.opacity(0.22)
-    /// Dims and shadows: the dim behind a sheet or the ⋯ panel, a floating control's shadow.
+    /// Dims and shadows: the dim behind a sheet, a floating control's shadow.
     static let scrim = Color.black
 
     // MARK: Glass (the compact chrome before iOS 26)

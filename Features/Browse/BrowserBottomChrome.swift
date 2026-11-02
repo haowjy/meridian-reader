@@ -56,7 +56,7 @@ struct BrowserBottomChrome: View {
     // MARK: - Toolbar
 
     /// `[‹][›][🔖][🕘][⋯]`, slot for slot the Library's `[‹][›][＋][🕘][⋯]`. Reader is the icon in
-    /// the address field and the ⋯ panel's focus button; a new search is a tap on the field.
+    /// the address field and the ⋯ menu's Reader row; a new search is a tap on the field.
     private var toolbar: some View {
         BottomToolbarLayout {
             BandToolbarButton(systemImage: Icons.back, label: Verbs.back,
@@ -74,7 +74,9 @@ struct BrowserBottomChrome: View {
             BandToolbarButton(systemImage: Icons.history, label: Verbs.browsingHistory,
                               identifier: "browseHistory") { shell.present(.history) }
                 .toolbarSlot(3)
-            MoreMenuButton(id: "browseMore", menu: menu)
+            TitleMenuButton(id: "browseMore", blocks: menu().blocks) {
+                Image(systemName: Icons.more).toolbarIconFrame()
+            }
                 .toolbarSlot(BottomToolbarLayout.moreSlot)
         }
     }
