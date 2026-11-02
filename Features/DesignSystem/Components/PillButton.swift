@@ -141,19 +141,26 @@ struct PillSymbol: View {
 /// the Reader's and Now Playing's close pill is, on every sheet (Prepared audio, History,
 /// Settings, Edit Details, the Move tree, Import Book), without the bar's own glass behind it. So a sheet's buttons look one way, at rest and over a scrolled list, light or dark.
 ///
+/// With a `systemImage` it is the same neutral face as a circle with the symbol alone, `title` its
+/// VoiceOver label: an input sheet's ✕ (`InputSheet`).
+///
 /// ```
 /// ( Cancel )            Edit Details             ( Save )
+/// ( ✕ )                  Add a Link
 /// ```
 struct SheetBarButton: ToolbarContent {
     let placement: ToolbarItemPlacement
     let title: String
+    /// The symbol alone in a circle, in place of the title (nil: the title).
+    var systemImage: String?
     let identifier: String
     var isDisabled = false
     let action: () -> Void
 
-    init(_ title: String, placement: ToolbarItemPlacement, identifier: String, isDisabled: Bool = false,
-         action: @escaping () -> Void) {
+    init(_ title: String, systemImage: String? = nil, placement: ToolbarItemPlacement, identifier: String,
+         isDisabled: Bool = false, action: @escaping () -> Void) {
         self.title = title
+        self.systemImage = systemImage
         self.placement = placement
         self.identifier = identifier
         self.isDisabled = isDisabled
@@ -170,7 +177,8 @@ struct SheetBarButton: ToolbarContent {
 
     private var item: some ToolbarContent {
         ToolbarItem(placement: placement) {
-            PillButton(title, style: .neutral, size: .compact, action: action)
+            PillButton(title, systemImage: systemImage, style: .neutral, size: .compact,
+                       fit: systemImage == nil ? .full : .icon, action: action)
                 // Its own width: the bar's leading slot would squeeze the title.
                 .fixedSize()
                 .disabled(isDisabled)
@@ -228,7 +236,26 @@ struct SheetBarButtonGallery: View {
     }
 }
 
+/// The icon form, as an input sheet's ✕.
+struct SheetBarIconGallery: View {
+    var body: some View {
+        NavigationStack {
+            List { Text("Rows") }
+                .cardListStyle()
+                .navigationTitle("Add a Link")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    SheetBarButton(Verbs.cancel, systemImage: Icons.close, placement: .cancellationAction,
+                                   identifier: "previewClose") {}
+                }
+        }
+    }
+}
+
 #Preview("SheetBarButton · light") { SheetBarButtonGallery().previewVariant(.light) }
 #Preview("SheetBarButton · dark") { SheetBarButtonGallery().previewVariant(.dark) }
 #Preview("SheetBarButton · AX5") { SheetBarButtonGallery().previewVariant(.largestText) }
+#Preview("SheetBarButton icon · light") { SheetBarIconGallery().previewVariant(.light) }
+#Preview("SheetBarButton icon · dark") { SheetBarIconGallery().previewVariant(.dark) }
+#Preview("SheetBarButton icon · AX5") { SheetBarIconGallery().previewVariant(.largestText) }
 #endif

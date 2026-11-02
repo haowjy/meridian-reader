@@ -13,18 +13,17 @@ struct ActionTile: View {
     @ScaledMetric(relativeTo: .body) private var symbolLine = Glyph.large
 
     var body: some View {
-        // At the accessibility sizes tiles stack, one to a row, each a row like the full-width one, so a
-        // screen's tiles and its heading need as little height as they can.
+        // At the accessibility sizes tiles stack, one to a row, each laid out as a row (symbol before
+        // its label), so a screen's tiles and its heading need as little height as they can.
         let stacked = typeSize.isAccessibilitySize
-        let row = stacked
-        let layout = row ? AnyLayout(HStackLayout(spacing: Spacing.s)) : AnyLayout(VStackLayout(spacing: Spacing.xs))
+        let layout = stacked ? AnyLayout(HStackLayout(spacing: Spacing.s)) : AnyLayout(VStackLayout(spacing: Spacing.xs))
         Button(action: action) {
             layout {
                 Image(systemName: symbol)
                     .glyphSize(Glyph.large)
                     .foregroundStyle(Palette.accent)
                     // One symbol height in a cell, so tiles side by side keep their labels on one line.
-                    .frame(height: row ? nil : Control.grown(symbolLine, from: Glyph.large))
+                    .frame(height: stacked ? nil : Control.grown(symbolLine, from: Glyph.large))
                 Text(title)
                     .typeStyle(.row, weight: .semibold)
                     .foregroundStyle(Palette.ink)
@@ -32,8 +31,8 @@ struct ActionTile: View {
                     .frame(maxWidth: stacked ? .infinity : nil, alignment: .leading)
             }
             .padding(.horizontal, Spacing.m)
-            .padding(.vertical, row ? Spacing.xs : Spacing.m)
-            .frame(maxWidth: .infinity, minHeight: row ? RowMetrics.oneLineHeight : nil, maxHeight: .infinity)
+            .padding(.vertical, stacked ? Spacing.xs : Spacing.m)
+            .frame(maxWidth: .infinity, minHeight: stacked ? RowMetrics.oneLineHeight : nil, maxHeight: .infinity)
             .background(prominent ? Palette.lit : Palette.chrome,
                         in: RoundedRectangle(cornerRadius: Radius.surface, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: Radius.surface, style: .continuous))
@@ -62,7 +61,6 @@ struct ActionTileGrid: View {
                 // The row's height is its tallest tile's; the tiles (maxHeight: .infinity) fill it.
                 .fixedSize(horizontal: false, vertical: true)
             }
-
         }
     }
 }

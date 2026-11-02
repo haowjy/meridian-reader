@@ -125,7 +125,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   `typeStyle(_:)` (`TypeStyle`, Dynamic Type scaled), control and hit sizes from `Control` (36, the
   44 tap floor, 48, 62), symbol sizes from `Glyph` (16, 20, 26; `glyphSize(_:)` grows them with the
   text), colour from `Palette` (light and dark), SF Symbols from `Icons` (one per concept). Shared pieces (`PlayStateButton`, `PillButton` (a sheet's bar
-  buttons are `SheetBarButton`, in `PillButton.swift`), `IconButton` (every round or toolbar-cell icon control), `ListRow` (its second
+  buttons are `SheetBarButton`, in `PillButton.swift`; an input sheet's ✕ is its icon form), `IconButton` (every round or toolbar-cell icon control), `ListRow` (its second
   line a `DetailLine`), `SymbolRow`, `ArtworkTile`, `NowPlayingBar`, `Sheet`, …) take plain values and
   closures, never `SpeechController`, SwiftData or `ShellState`, and carry previews in light, dark
   and the largest text size. A value the scale lacks is a token change, made there.

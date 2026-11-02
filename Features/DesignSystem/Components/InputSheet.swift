@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// The shared frame for typed input and its review: native cancellation, inline title,
-/// content and bottom actions. Feature state and saving stay with the caller.
+/// The shared frame for typed input and its review: ✕ (`SheetBarButton`'s icon form), an inline
+/// title, content and bottom actions. Feature state and saving stay with the caller; ✕ is always
+/// usable, and the caller cancels whatever is under way when the sheet goes.
 struct InputSheet<Content: View, Actions: View>: View {
     let title: String
-    var isSaving = false
     let onCancel: () -> Void
     @ViewBuilder var content: Content
     @ViewBuilder var actions: Actions
@@ -24,14 +24,8 @@ struct InputSheet<Content: View, Actions: View>: View {
                 .navigationTitle(title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(action: onCancel) {
-                            Label(Verbs.cancel, systemImage: Icons.close)
-                        }
-                        .labelStyle(.iconOnly)
-                        .disabled(isSaving)
-                        .accessibilityIdentifier("inputSheetCancel")
-                    }
+                    SheetBarButton(Verbs.cancel, systemImage: Icons.close, placement: .cancellationAction,
+                                   identifier: "inputSheetCancel", action: onCancel)
                 }
         }
         .presentationDragIndicator(.visible)
