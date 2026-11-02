@@ -8,9 +8,6 @@ struct ChromePiece: Equatable {
     /// How much of its content (labels, glyphs) is drawn. Inside the glass container an opacity never
     /// fades glass, so a piece at 0 is bare glass.
     var opacity: CGFloat = 1
-
-    /// Capsules and circles: half the height.
-    var radius: CGFloat { rect.height / 2 }
 }
 
 /// Where each piece of the chrome sits, in a box `width` wide and `ChromeMetrics.rowsHeight`

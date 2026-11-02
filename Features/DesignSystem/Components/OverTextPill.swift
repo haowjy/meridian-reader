@@ -20,11 +20,9 @@ struct OverTextPill: View {
     @Environment(\.readingPalette) private var reading
     @Environment(\.readingChrome) private var chrome
 
-    private var visible: Bool { shows }
-
     var body: some View {
         ZStack {
-            if visible {
+            if shows {
                 Button(action: action) {
                     Label(label, systemImage: symbol)
                         .typeStyle(.row, weight: .semibold)
@@ -51,7 +49,7 @@ struct OverTextPill: View {
             chrome?.overTextClearance = height > 0 ? height + Spacing.s : 0
         }
         // Reduce Motion: a cross-fade, no spring.
-        .animation(visible ? (reduceMotion ? Motion.fadeIn : Motion.snappy) : Motion.fadeOut, value: visible)
+        .animation(shows ? (reduceMotion ? Motion.fadeIn : Motion.snappy) : Motion.fadeOut, value: shows)
     }
 }
 
