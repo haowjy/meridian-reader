@@ -435,6 +435,7 @@
 		F13D61761EB2145D2A10BF49 /* voice-preview-phonon-vyrmathrax-the-ancient.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7E637E172DC88C8816B40D3F /* voice-preview-phonon-vyrmathrax-the-ancient.m4a */; };
 		F1709D218A1E19A4DE46942C /* voice-preview-phonon-default.m4a in Resources */ = {isa = PBXBuildFile; fileRef = E206CA24365E97F725ADA774 /* voice-preview-phonon-default.m4a */; };
 		F1FD1A1EDB98E31BE64BEBE1 /* VoicePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EFCBAD5D056D105B07D73B0 /* VoicePickerSheet.swift */; };
+		F2990DEDABDD62894E392758 /* MarketingContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F3F82C35A963C416CE0E98E /* MarketingContent.swift */; };
 		F2DC2F08AFC22DD344DA0677 /* WholeWordsText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8957B1294EDBC3C3D77F382 /* WholeWordsText.swift */; };
 		F3565C97C81E3AB2C34B8AFD /* RegularBand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F6BB9089424CE86EF44C291 /* RegularBand.swift */; };
 		F35C9BE4CFF26E2AC9077E71 /* LibrarySurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B52C3690AF6D602EC1E385 /* LibrarySurface.swift */; };
@@ -508,6 +509,7 @@
 		0C66D8C67427BD048090C1F0 /* AppWebViewConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppWebViewConfiguration.swift; sourceTree = "<group>"; };
 		0D9FD159029A83B908E2E513 /* MeridianReader.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MeridianReader.entitlements; sourceTree = "<group>"; };
 		0EB4AF1A5EA196F0B14FC2BB /* HTMLReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLReadingView.swift; sourceTree = "<group>"; };
+		0F3F82C35A963C416CE0E98E /* MarketingContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarketingContent.swift; sourceTree = "<group>"; };
 		1058D3AF8B3347D3BFFA7661 /* VoicePreviewPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePreviewPlayer.swift; sourceTree = "<group>"; };
 		113C7301700ABAE18A124F18 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		124893343B0FE2C3040D7289 /* SymbolRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolRow.swift; sourceTree = "<group>"; };
@@ -1447,6 +1449,7 @@
 			isa = PBXGroup;
 			children = (
 				D60B0440F4C32ECE4EEA07DC /* DemoBook.swift */,
+				0F3F82C35A963C416CE0E98E /* MarketingContent.swift */,
 				7D773B5B260BAFB4B49B80C1 /* TestEPUB.swift */,
 				082ADCC29D07C10C1F9A0A0A /* TestPageSchemeHandler.swift */,
 				F69FB054EE43E3AF6E611167 /* TestSitePages.swift */,
@@ -2238,6 +2241,7 @@
 				9116690E6F615019A8642025 /* LocalTTSCoordinator+VoiceDownloads.swift in Sources */,
 				E3A22F12EB791C2CE0E2F26F /* LocalTTSCoordinator+VoiceSelection.swift in Sources */,
 				1B72DFAFEA2CE83052A94F85 /* LocalTTSCoordinator.swift in Sources */,
+				F2990DEDABDD62894E392758 /* MarketingContent.swift in Sources */,
 				ECDAFC29EDF7091D84D8D34A /* MarkupBudget.swift in Sources */,
 				BE406CAE610E87236F714D5E /* MarkupElement.swift in Sources */,
 				186C0DFFB539ECE208F46C9A /* MenuAvailability.swift in Sources */,

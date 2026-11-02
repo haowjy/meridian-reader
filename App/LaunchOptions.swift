@@ -111,6 +111,10 @@ struct LaunchOptions: Equatable {
     /// `-seedDemoFolders`: add a "Demo Finance" folder with two subfolders and saved pages (one in a
     /// subfolder).
     var seedsDemoFolders = false
+    /// `-seedMarketingLibrary`: the App Store screenshots' library (`MarketingContent`): four folders, six
+    /// essays and *Pride and Prejudice* (chapters 1-3) as a book at the top level. "A City in the
+    /// Rain" is the newest page, so `-listenDemo` and `-openDemoInBrowseReader` open it.
+    var seedsMarketingLibrary = false
     /// `-seedBigFolder N`: add "Big Folder" with N saved pages (the menu and row timing probe, C98).
     var bigFolderArticles = 0
     /// `-restoreSurface` (with `-uiTesting`): reopen on the remembered surface, as a normal launch
@@ -245,6 +249,7 @@ struct LaunchOptions: Equatable {
         demoBookPlace = value(after: "-seedDemoBookPlace").flatMap(Int.init)
         chainsDemoChapters = flags.contains("-chainDemoChapters")
         seedsDemoFolders = flags.contains("-seedDemoFolders")
+        seedsMarketingLibrary = flags.contains("-seedMarketingLibrary")
         bigFolderArticles = value(after: "-seedBigFolder").flatMap(Int.init) ?? 0
         restoresSurfaceInUITests = flags.contains("-restoreSurface")
         importsTestEPUB = flags.contains("-importTestEPUB")
