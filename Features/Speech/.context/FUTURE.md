@@ -32,3 +32,8 @@
   paragraphs of every article extracted from the web, and they are persisted (positions,
   per-paragraph audio): bump `ListenHTMLBlocks.version` and remap as
   `LibraryStore.migrateParagraphLayout` does, with a test on the wrapped document.
+- The Voice picker as a voice library: the owner's references are Speechify's Voice Library and
+  iOS's Spoken Content voices. Group voices by language, with a header per language. Let a few
+  chosen voices be pinned as shortcuts at the top. Once any voice needs the network, add a
+  filter between voices on the device and ones that aren't: today every voice runs on the device,
+  so there is nothing to filter yet.
