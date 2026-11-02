@@ -12,17 +12,16 @@ import UIKit
 /// bottom chrome goes with them (`ReadingInPlace`).
 ///
 /// - **Full screen is a tap in the middle of the text, in and out** (`tappedCentre`). A tap at either
-///   edge turns a screen (`revealFloatingControl`) and leaves the bars as they are (`TapZone`). On
+///   edge turns a screen and leaves the bars as they are (`TapZone`). On
 ///   regular width a pull down at the top of the text brings the bars back (`pulledDownAtTop`).
 ///   Listen's full screen is left by the middle tap alone. In place, full screen is the compact
 ///   chrome's (`ReadingInPlace.fullScreen`), and in Scroll mode a deliberate scroll down enters it and a
 ///   scroll up of 24 pt leaves it, however it began (`ChromeScroll`'s reading rule): this page only
 ///   reports its scroll, and from `hidden` down nothing knows which hand flipped it.
 /// - In full screen what floats over the text (the small play / pause at the bottom right, and
-///   Jump to Audio while the text is away from the audio) shows as one group (`floatingControl`)
-///   until `floatingDuration` after full screen begins, a scroll by a finger, an edge tap (a page
-///   turn) or a tap on it, then fades together. A tap in the middle brings the bars back instead,
-///   and they carry the play control.
+///   Jump to Audio while the text is away from the audio) stays for as long as full screen does:
+///   it never fades on its own. A tap in the middle brings the bars back instead, and they carry
+///   the play control.
 /// - While VoiceOver runs the bars never hide (`ReadingBars` shows them when it starts). The ☝︎
 ///   jump mode and the popovers keep them without a rule here: the web view reports nothing in
 ///   jump mode, and a popover or the ⋯ menu takes every touch until it closes.
@@ -50,21 +49,12 @@ final class ReadingChrome {
     /// The line of Jump to Audio while it shows (the pill and the gap under it), set by
     /// `OverTextPill`: in Scroll mode the end of the text scrolls clear of it (`ReadingBars`).
     var overTextClearance: CGFloat = 0
-    /// What floats over the text shows (only in full screen).
-    private(set) var floatingControl = false
-    /// When it fades: each reveal pushes this on, so a scroll's many reveals share one timer.
-    @ObservationIgnored private var floatingUntil = ContinuousClock.now
-
-    /// How long the floating play / pause stays after it appears.
-    static let floatingDuration: Duration = .seconds(3)
-
     /// In place: where the text's own scrolling goes (the compact chrome), as an offset from the
     /// text's top; set by `present`.
     @ObservationIgnored var onUserScroll: (CGFloat) -> Void = { _ in }
     /// In place: the text moved without a finger deciding anything (a restore, following the audio, a
     /// scrub, a reflow) or a drag began; the chrome measures from here next.
     @ObservationIgnored var onScrollAnchor: (CGFloat) -> Void = { _ in }
-    @ObservationIgnored private var floatingTimer: Task<Void, Never>?
     /// A pull down at the top of the text in full screen brings the bars back: true only for a
     /// regular-width sheet (`ReadingShowing.sheet`). Listen's full screen is left by the middle tap
     /// alone; in place, the compact chrome's reading rule reads the pull as a scroll up.
@@ -105,10 +95,9 @@ final class ReadingChrome {
     }
 
     /// A finger scrolled the text to `offset` (0 at its top): in place, the compact chrome decides
-    /// what it does; in full screen what floats over the text shows a while longer.
+    /// what it does.
     func userScrolled(to offset: CGFloat) {
         onUserScroll(offset)
-        revealFloatingControl()
     }
 
     /// The text is at `offset` without a finger having moved it.
@@ -127,39 +116,15 @@ final class ReadingChrome {
         hidden ? show() : hide()
     }
 
-    /// A scroll, an edge tap (a page turn) or a tap on the floating play / pause itself: in full
-    /// screen what floats shows for another `floatingDuration`.
-    func revealFloatingControl() {
-        guard hidden else { return }
-        floatingUntil = .now + Self.floatingDuration
-        if !floatingControl { floatingControl = true }
-        guard floatingTimer == nil else { return }
-        floatingTimer = Task { [weak self] in
-            while let until = self?.floatingUntil, ContinuousClock.now < until {
-                try? await Task.sleep(until: until)
-                if Task.isCancelled { return }
-            }
-            self?.floatingControl = false
-            self?.floatingTimer = nil
-        }
-    }
-
-    /// Full screen's floating group is up.
-    var showsFloating: Bool { hidden && floatingControl }
-
     /// The bars come back (over the text: nothing moves).
     func show() {
         guard hidden else { return }
         setHidden(false)
-        floatingTimer?.cancel()
-        floatingTimer = nil
-        floatingControl = false
     }
 
     private func hide() {
         guard !hidden, !UIAccessibility.isVoiceOverRunning else { return }
         setHidden(true)
-        revealFloatingControl()
     }
 
     /// Where a tap on the text lands, across its width: the left edge's first `edgeMargin`
@@ -202,10 +167,9 @@ struct ReaderTextInsets: Equatable {
     var bottom: CGFloat = 0
 }
 
-/// The play / pause floating at the bottom right of a reading page in full screen, while
-/// `ReadingChrome.floatingControl` says so: a small accent disc (`PlayStateButton`'s
-/// `disc` at `Control.bar`) with the floating shadow. A tap on it plays or pauses and keeps it a while
-/// longer. Goes in the page's `overText`, which places it above the home indicator.
+/// The play / pause floating at the bottom right of a reading page for as long as it is in full
+/// screen: a small accent disc (`PlayStateButton`'s `disc` at `Control.bar`) with the floating
+/// shadow. Goes in the page's `overText`, which places it above the home indicator.
 struct FloatingPlayButton: View {
     let state: PlayState
     let action: () -> Void
@@ -214,11 +178,8 @@ struct FloatingPlayButton: View {
 
     var body: some View {
         ZStack {
-            if let chrome, chrome.showsFloating {
-                PlayStateButton(state: state, look: .disc(size: Control.bar, glyph: Glyph.small)) {
-                    chrome.revealFloatingControl()
-                    action()
-                }
+            if let chrome, chrome.hidden {
+                PlayStateButton(state: state, look: .disc(size: Control.bar, glyph: Glyph.small), action: action)
                 .overTextShadow()
                 .accessibilityIdentifier("fullScreenPlayPause")
                 .transition(.opacity)
@@ -226,7 +187,7 @@ struct FloatingPlayButton: View {
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.trailing, Spacing.pageMargin)
-        .animation(chrome?.showsFloating == true ? Motion.snappy : Motion.fadeOut, value: chrome?.showsFloating == true)
+        .animation(chrome?.hidden == true ? Motion.snappy : Motion.fadeOut, value: chrome?.hidden == true)
     }
 }
 

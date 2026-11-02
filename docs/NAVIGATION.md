@@ -284,7 +284,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   full-width scrubber, no times. Under it one row, no labels: Voice (VoiceOver: "Voice", never a voice's name) at the card's
   left margin, the speed (1×) at its right (it changes more often, so it sits under the thumb); between them ⏮, a 62 pt ▶ / ⏸ and ⏭
   (`NowPlayingTransport`'s `card` size), centred. Aa and ⋯ are the top group's. **Jump to Audio** is not in the card: scrolled away from the audio, a thin accent pill,
-  "↑ Jump to Audio" or "↓ Jump to Audio" in the pills' type, 4 pt above and below (an `OverTextPill`; the same on regular width;
+  "↑ Jump to Audio" or "↓ Jump to Audio" in the pills' type, 8 pt above and below (an `OverTextPill`; the same on regular width;
   its tap area 44 pt), floats in the middle 12 pt above the card (above
   the home indicator's strip in full screen) and brings the text back to the spoken sentence; while the text follows the audio, or once the article has finished, it isn't there.
   The top group's ⋯ (`listenMore`) is a system menu, a section per
@@ -292,7 +292,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place). There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the
   card slides off, the status bar hides and Listen stops being a sheet: the gap at its top, its rounded
   corners and the dim above it go (`Motion.standard`), and the page covers the screen, its text from the
-  status bar's foot to the screen's, where its end now scrolls; a ▶ / ⏸ (and *Jump to Audio*, when the text is away) floats for 3 s after it begins and after each scroll or page turn. The text on
+  status bar's foot to the screen's, where its end now scrolls; a ▶ / ⏸ (and *Jump to Audio*, when the text is away) floats for as long as full screen lasts; neither fades on its own. The text on
   screen doesn't move in or out. A pull does nothing to the sheet there (the text only rubber-bands);
   the middle tap leaves it, as in the in-place readers. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
@@ -1173,7 +1173,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   fade; none under Reduce Motion), and the current sentence is underlined in the theme's accent, as in the Reader (per chunk on
   engines that report only chunk starts; no underline before iOS 17.2). Drag the text and following stops (a pull of the sheet from the text's top
   doesn't move the text, so following goes on). Then *Jump to Audio* shows, on both widths: a thin accent pill
-  (`OverTextPill`, 4 pt above and below its label) floating centred on the line just
+  (`OverTextPill`, 8 pt above and below its label) floating centred on the line just
   above what floats at the text's foot (compact Listen's player card, regular width's band; the home indicator's strip
   in full screen), with an arrow that points to the spoken sentence, ↑ when it is above the visible text and ↓ when
   below (Pages: on an earlier or a later page). While it shows, Scroll mode's text leaves its line clear: the end of

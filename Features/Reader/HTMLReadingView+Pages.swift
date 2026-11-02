@@ -463,7 +463,6 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         if sv.isTracking || sv.isDecelerating {
             host.userTookOver()
             host.stopFollowing()
-            host.chrome?.revealFloatingControl()
         }
         pageShown(index)
     }

@@ -2,9 +2,8 @@ import SwiftUI
 
 /// A thin accent pill floating in the middle of the line just above what floats at a reading
 /// page's foot (the card, or the strip in full screen), in the pills' type (row, semibold) with
-/// just 4 pt above and below: Listen's "↑ Jump to Audio". It fades in and out with `shows`; in full
-/// screen only with the floating play / pause (`ReadingChrome.showsFloating`), so the two come and
-/// go together.
+/// `Spacing.xs` above and below: Listen's "↑ Jump to Audio". It fades in and out with `shows`, in
+/// full screen too, where it stays with the floating play / pause.
 ///
 /// While it shows, Scroll mode's text leaves its line clear at the end
 /// (`ReadingChrome.overTextClearance`). It comes and goes with the audio, so Pages' card keeps still
@@ -21,10 +20,7 @@ struct OverTextPill: View {
     @Environment(\.readingPalette) private var reading
     @Environment(\.readingChrome) private var chrome
 
-    private var visible: Bool {
-        guard shows, let chrome, chrome.hidden else { return shows }
-        return chrome.showsFloating
-    }
+    private var visible: Bool { shows }
 
     var body: some View {
         ZStack {
@@ -35,12 +31,12 @@ struct OverTextPill: View {
                         .labelStyle(.titleAndIcon)
                         .foregroundStyle(reading?.onAccent ?? Palette.onAccent)
                         .padding(.horizontal, Spacing.s)
-                        .padding(.vertical, Spacing.xxs)
+                        .padding(.vertical, Spacing.xs)
                         // It floats over the text: past XXXL it would hide whole lines of it.
                         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         .background(reading?.accent ?? Palette.accent, in: Capsule(style: .continuous))
-                        // Thin, but its tap area is the tap floor.
-                        .contentShape(Capsule().inset(by: -Spacing.s))
+                        // Its tap area reaches the tap floor.
+                        .contentShape(Capsule().inset(by: -Spacing.xxs))
                 }
                 .buttonStyle(PillPressStyle())
                 .accessibilityLabel(label)

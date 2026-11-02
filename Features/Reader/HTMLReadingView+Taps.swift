@@ -30,7 +30,6 @@ extension HTMLReadingWebView.Coordinator {
                 userTookOver()
                 stopFollowing()
             }
-            chrome.revealFloatingControl()
         }
     }
 
