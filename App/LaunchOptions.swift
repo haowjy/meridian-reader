@@ -61,6 +61,9 @@ struct LaunchOptions: Equatable {
     var settingsPage: SettingsRoute?
     /// `-browseTestPages`: serve and open the offline `reader-test://` pages.
     var servesTestPages = false
+    /// `-openURL <address>`: once launched, the Browser on that address, as typing it in the field
+    /// does (the App Store screenshots' browser frame; a live page, so not for probes).
+    var opensAddress: URL?
     /// `-testStoryChapters N`: the offline story's table of contents (`reader-test://story/toc`)
     /// lists N chapters (8 without it), so a check finds new ones on a later launch.
     var testStoryChapters = 8
@@ -112,7 +115,7 @@ struct LaunchOptions: Equatable {
     /// subfolder).
     var seedsDemoFolders = false
     /// `-seedMarketingLibrary`: the App Store screenshots' library (`MarketingContent`): four folders, six
-    /// essays and *Pride and Prejudice* (chapters 1-3) as a book at the top level. "A City in the
+    /// essays and *Pride and Prejudice* (chapters 1-10, a drawn cover) as a book at the top level. "A City in the
     /// Rain" is the newest page, so `-listenDemo` and `-openDemoInBrowseReader` open it.
     var seedsMarketingLibrary = false
     /// `-seedBigFolder N`: add "Big Folder" with N saved pages (the menu and row timing probe, C98).
@@ -233,6 +236,7 @@ struct LaunchOptions: Equatable {
         settingsPage = value(after: "-openSettingsPage").flatMap(SettingsRoute.init(rawValue:))
         opensSettings = flags.contains("-openSettings") || settingsSearch != nil || settingsPage != nil
         servesTestPages = flags.contains("-browseTestPages")
+        opensAddress = value(after: "-openURL").flatMap(URL.init(string:))
         testStoryChapters = value(after: "-testStoryChapters").flatMap(Int.init) ?? testStoryChapters
         testBlogPosts = value(after: "-testBlogPosts").flatMap(Int.init) ?? testBlogPosts
         testStoryThrottles = flags.contains("-testStoryThrottles")
