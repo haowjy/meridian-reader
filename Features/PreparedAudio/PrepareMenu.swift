@@ -37,10 +37,9 @@ struct PrepareMenu: View {
         }
     }
 
-    /// *Remove Prepared Audio*, for a page or a folder, as their own menus say; the
-    /// row's swipe too.
+    /// *Delete Audio*, the row's swipe too (*Delete* there).
     var removeRow: MenuRow {
-        MenuRow(id: "menuDeleteAudio", title: Verbs.deleteAudio, icon: Icons.delete, isDestructive: true) {
+        var row = MenuRow(id: "menuDeleteAudio", title: Verbs.deleteAudio, icon: Icons.delete, isDestructive: true) {
             if isListeningAudio {
                 // Only the audio; the article stays (C135).
                 if !needsAudio(item.key), let article = library.article(key: item.key) { library.deletePreparedAudio(article) }
@@ -50,5 +49,7 @@ struct PrepareMenu: View {
                 preparedAudio.remove(item.recordID)
             }
         }
+        row.swipeTitle = Verbs.delete
+        return row
     }
 }

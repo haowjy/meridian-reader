@@ -568,7 +568,7 @@ commas.
   ("opened" is started: `lastPlayedAt`), saved, prepared or played without saving (articles only,
   a book's chapters and link pages too; no folders), most recent first, in the same rows; a tap plays one. An unsaved one's ⋯ (and
   long-press) has *Save to Library*, which moves the article into the Library (it stays in History), *Save to Folder…*, and *Remove from History* (the same remove as *Remove from
-  Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove from History*. *Remove from History* never shows on an article in the
+  Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove* (*Remove from History*). *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
   isn't in History. Every empty screen looks the same (`EmptyState`): a heading, one line under it, and
   its ways in as tiles (`ActionTile`, laid out by `ActionTileGrid`), two to a row at one size, the
@@ -787,10 +787,10 @@ article you hear, which opens Listen (a stray tap never pauses); a link page (*A
 a story's chapter waiting for its text) is fetched first, its row showing the download arc and saying *Downloading…* (or why it
 couldn't be had), then plays, Listen staying down; a skipped page plays when tapped. *Read*, the first row after the
 menu's save group, opens it (the Reader; Listen for the page you hear; the browser for a link). **Tapping a folder
-row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own last row,
-by its name: an article's *Remove from Library* (or *Remove from History*), which takes its row out of
-every list once it is saved, and leaves it, with a toast, when it can't be; a folder's *Delete
-Folder…* (*Delete Folder…*), which asks.
+row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own row, named in one word as iOS's swipes are (no noun, no ellipsis; the
+menu keeps the full label): an article's *Remove* (*Remove from Library*, or *Remove from History*),
+which takes its row out of every list once it is saved, and leaves it, with a toast, when it can't
+be; a folder's *Delete* (*Delete Folder…*), which asks, naming the folder.
 In Edit the row has no ⋯ and a tap selects it.
 
 A row's prepare shows on the row, never as a button: **preparing** (queued in any prepare,
@@ -825,10 +825,10 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 
 | Row | Tap | Swipe left |
 |---|---|---|
-| Folder, book or series | opens it (push) | *Delete Folder…* / *Delete Folder…* |
-| Saved article (including a chapter) | plays it (Listen if it's what you hear) | *Remove from Library* |
-| History article (played without saving) | plays it (Listen if it's what you hear) | *Remove from History* |
-| Link page | fetches its text, then plays it (Listen if it's what you hear; ⋯ *Read* opens it in the browser) | *Remove from Library* |
+| Folder, book or series | opens it (push) | *Delete* (asks, naming it) |
+| Saved article (including a chapter) | plays it (Listen if it's what you hear) | *Remove* (from the Library) |
+| History article (played without saving) | plays it (Listen if it's what you hear) | *Remove* (from History) |
+| Link page | fetches its text, then plays it (Listen if it's what you hear; ⋯ *Read* opens it in the browser) | *Remove* (from the Library) |
 
 ### Menus
 
@@ -934,7 +934,7 @@ the same in every section (`PrepareMenu`): *Pause / Resume* (dimmed once done), 
 (renders it again in its article's voice, C138; dimmed while queued) and *Remove Prepared Audio* on an article,
 *Remove Prepared Audio* on a folder (red: the same action as in the article's or folder's own menu,
 below). *Keep* is gone (C138): changing the voice in Settings no longer moves anything here; an
-article's own voice changes from its menu's *Voice: Default* (or *Voice: Kokoro*, …). Swipe left is the same *Remove Prepared Audio* / *Remove Prepared Audio*.
+article's own voice changes from its menu's *Voice: Default* (or *Voice: Kokoro*, …). Swipe left is *Delete*, the menu's *Delete Audio*.
 The list holds prepared audio of what is in the
 Library: removing an article from the Library, or deleting an article or folder, takes its prepare off
 the list too (a removed article's audio stays, ephemeral). On a device that can run neither

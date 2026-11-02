@@ -145,17 +145,19 @@ struct ArticleMenu: View {
     }
 
     /// A list row's swipe, without building the menu: *Remove from Library* in the Library,
-    /// *Remove from Recent* out of it (the menu's own rows, the same action). Cheap: it reads
+    /// *Remove from Recent* out of it, both *Remove* on the swipe (the menu's own rows, the same action). Cheap: it reads
     /// only the page's flags; the action is made when the swipe runs.
     static func swipe(for article: Article, actions: @escaping () -> ArticleActions) -> MenuRow? {
         let inLibrary = article.isInLibrary
         guard inLibrary || article.lastPlayedAt != nil else { return nil }
-        return MenuRow(id: inLibrary ? "menuSave" : "menuRemoveFromRecent",
+        var row = MenuRow(id: inLibrary ? "menuSave" : "menuRemoveFromRecent",
                        title: inLibrary ? Verbs.removeFromLibrary : Verbs.removeFromRecent,
                        icon: inLibrary ? Icons.unsave : Icons.removeFromRecent, isDestructive: true) {
             let made = actions()
             inLibrary ? made.toggleSaved() : made.remove()
         }
+        row.swipeTitle = Verbs.remove
+        return row
     }
 }
 

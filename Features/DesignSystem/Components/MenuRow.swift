@@ -20,6 +20,9 @@ struct MenuRow: Identifiable {
     /// VoiceOver's label and hint, when they differ from the title (a big button's).
     var accessibilityLabel: String?
     var accessibilityHint: String?
+    /// Its list row's swipe, one word as iOS's are (*Delete*, *Remove*): the swipe already shows
+    /// what it acts on, and a question it asks names the thing (`Verbs.swipe`).
+    var swipeTitle: String?
     var action: () -> Void = {}
 
     init(id: String, title: String, icon: String?, isDestructive: Bool = false,
@@ -39,12 +42,13 @@ struct MenuRow: Identifiable {
 
     var isShown: Bool { availability != .hidden }
 
-    /// The row as its list row's swipe (a swipe is its menu row): its name and symbol, red, its
-    /// action. `role: .destructive` only where the action takes the row out of the list's data at
+    /// The row as its list row's swipe (a swipe is its menu row): its one-word `swipeTitle`, its
+    /// symbol, red, its action. `role: .destructive` only where the action takes the row out of the list's data at
     /// once; a row that can stay (it asks first, or a save can fail) takes the tint alone
     /// (AGENTS.md's swipe rule).
     func swipeButton(role: ButtonRole? = nil) -> some View {
-        Button(role: role, action: action) {
+        let title = swipeTitle ?? title
+        return Button(role: role, action: action) {
             if let icon { Label(title, systemImage: icon) } else { Text(title) }
         }
         .tint(Palette.destructive)

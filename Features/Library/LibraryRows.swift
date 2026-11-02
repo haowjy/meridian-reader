@@ -154,7 +154,7 @@ struct LibraryFolderRow: View {
             .libraryDrag(isEditing || isFiltered ? nil : .folder(folder.id), in: screen)
             .contextMenu { menu }
             .swipeActions(edge: .trailing) {
-                // The menu's *Delete Folder…*: it asks first, so the row can stay (no role).
+                // The menu's *Delete Folder…*, *Delete* on the swipe: it asks first, so the row can stay (no role).
                 FolderMenu.swipe(for: folder, screen: screen).swipeButton()
             }
     }

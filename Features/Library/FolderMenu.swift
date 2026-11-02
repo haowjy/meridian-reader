@@ -117,9 +117,12 @@ struct FolderMenu: View {
                 isDestructive: true) { preparedAudio.deletePreparedAudio(of: folder) }
     }
 
-    /// A row's swipe, without building the menu: the menu's *Delete Folder…* (it asks first).
+    /// A row's swipe, without building the menu: the menu's *Delete Folder…*, *Delete* on the swipe
+    /// (it asks first, naming the folder).
     static func swipe(for folder: Folder, screen: LibraryScreenState) -> MenuRow {
-        MenuRow(id: Self.deleteRowID, title: Verbs.deleteFolder(isBook: folder.kind == .book), icon: Icons.delete,
-                isDestructive: true) { screen.confirmDelete([folder]) }
+        var row = MenuRow(id: Self.deleteRowID, title: Verbs.deleteFolder(isBook: folder.kind == .book), icon: Icons.delete,
+                          isDestructive: true) { screen.confirmDelete([folder]) }
+        row.swipeTitle = Verbs.delete
+        return row
     }
 }

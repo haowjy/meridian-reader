@@ -11,6 +11,10 @@ import Foundation
 /// footers, empty-state descriptions, toasts, a row's status, a setting's or fact's value
 /// ("today 8:02 AM").
 ///
+/// **Swipes.** A list row's swipe is one word, no noun and no ellipsis, as iOS's are: *Delete*,
+/// *Remove* (`MenuRow.swipeTitle`), even when it asks first; the swipe is on the thing, and the
+/// question names it. Its menu row keeps the full label (*Delete Folder…*).
+///
 /// **Ellipsis.** A label ends in "…" only when more input follows before anything happens: a
 /// picker, a question or a name to type (*Move to…*, *Rename…*, *Delete Folder…*). A sheet's title
 /// is its label without it ("Save to Folder").
