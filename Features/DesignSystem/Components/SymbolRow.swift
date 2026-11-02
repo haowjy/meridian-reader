@@ -21,8 +21,8 @@ import SwiftUI
 /// theme's ink.
 struct SymbolRow<Leading: View, Trailing: View>: View {
     let title: String
-    /// Line two (a `DetailLine` part).
-    var subtitle: DetailPart?
+    /// Line two: its parts, set apart by space (`DetailLine`), never joined with a separator.
+    var details: [DetailPart] = []
     /// The title's and the symbol's colour (nil: ink): the accent for *New Folder*, red for
     /// *Unfollow*.
     var ink: Color?
@@ -50,8 +50,8 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
                         .typeStyle(.row)
                         // Whole labels at Accessibility sizes (C130): two lines there, one otherwise.
                         .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                    if let subtitle {
-                        DetailLine(parts: [subtitle])
+                    if !details.isEmpty {
+                        DetailLine(parts: details)
                             .typeStyle(.caption)
                     }
                 }
@@ -75,7 +75,13 @@ extension SymbolRow where Leading == Image {
     /// A row led by an SF Symbol (nil: no leading column).
     init(_ title: String, subtitle: DetailPart? = nil, symbol: String?, ink: Color? = nil,
          @ViewBuilder trailing: () -> Trailing) {
-        self.init(title: title, subtitle: subtitle, ink: ink, leading: symbol.map { Image(systemName: $0) },
+        self.init(title, details: subtitle.map { [$0] } ?? [], symbol: symbol, ink: ink, trailing: trailing)
+    }
+
+    /// A row whose second line has several parts ("Apache-2.0   Runs Kokoro’s voices").
+    init(_ title: String, details: [DetailPart], symbol: String?, ink: Color? = nil,
+         @ViewBuilder trailing: () -> Trailing) {
+        self.init(title: title, details: details, ink: ink, leading: symbol.map { Image(systemName: $0) },
                   trailing: trailing)
     }
 }
@@ -90,7 +96,7 @@ extension SymbolRow {
     /// A row led by any view of the column's size (a site tile).
     init(_ title: String, subtitle: DetailPart? = nil, ink: Color? = nil, @ViewBuilder leading: () -> Leading,
          @ViewBuilder trailing: () -> Trailing) {
-        self.init(title: title, subtitle: subtitle, ink: ink, leading: leading(), trailing: trailing)
+        self.init(title: title, details: subtitle.map { [$0] } ?? [], ink: ink, leading: leading(), trailing: trailing)
     }
 }
 

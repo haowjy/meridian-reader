@@ -22,8 +22,8 @@ struct AcknowledgementsView: View {
         List {
             Section {
                 ForEach(Self.entries) { entry in
-                    SymbolRow(entry.name, subtitle: DetailPart("\(entry.license) · \(entry.detail)"),
-                              symbol: nil)
+                    SymbolRow(entry.name, details: [DetailPart(entry.license), DetailPart(entry.detail)],
+                              symbol: nil) { EmptyView() }
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("ack-\(entry.id)")
                 }
