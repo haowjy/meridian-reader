@@ -26,12 +26,17 @@ struct LibraryRouteView: View {
 /// A folder's screen once the folder is gone (deleted, or a remembered path to one that isn't
 /// there any more).
 struct FolderGoneView: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     var body: some View {
         EmptyState(String(localized: "This Folder Is Gone"),
                    description: String(localized: "It was deleted.")) {
             AddToLibraryTiles(folder: nil)
         }
         .padding(.horizontal, Spacing.pageMargin)
+        // Not a list: on compact width it keeps clear of the chrome itself, which floats over the
+        // screen's foot (the Library runs through the bottom safe area, `CompactChromeInsets`).
+        .padding(.bottom, sizeClass == .regular ? 0 : ChromeHome.footprint(step: 0))
     }
 }
 

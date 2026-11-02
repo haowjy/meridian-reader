@@ -32,6 +32,7 @@ extension View {
             .contentMargins(.top, startsWithCard ? Spacing.belowTopBar - Spacing.systemBarFoot : 0, for: .scrollContent)
             .environment(\.defaultMinListRowHeight, minimum)
             .environment(\.rowMinimum, minimum)
+            .modifier(ListRoomReader())
     }
 
     /// A section's rows on the card's fill, `RowMetrics.edgeInset` in from its sides and no List inset

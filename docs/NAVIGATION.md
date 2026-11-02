@@ -569,9 +569,13 @@ commas.
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
   isn't in History. Every empty screen looks the same (`EmptyState`): a heading, one line under it, and
   its ways in as tiles (`ActionTile`, laid out by `ActionTileGrid`), two to a row at one size, the
-  same height, then one across the full width (at the accessibility text sizes stacked, each a
-  row with its symbol beside its label, the full-width one still last), the first accent-tinted, 96 pt below what is above it (24 pt
-  at the accessibility sizes). An empty Library says
+  same height, a symbol over a label and only as tall as they need (85 pt at the default size), then one
+  across the full width, a row with its symbol beside its label, a one-line row's height (48 pt; at the
+  accessibility text sizes every tile is such a row, stacked, the full-width one still last), the first
+  accent-tinted. It is centred in what is visible between the rows above it (a title and tabs, a folder's
+  header) and the top of the chrome; at the default text size it fits there with the chrome expanded, and
+  scrolls only at the larger sizes or in a half-height sheet on a small phone (*Nothing Prepared*,
+  *No Browsing History Yet*), until the sheet is pulled up. An empty Library says
   *Start Your Library*, "Save from the web, a file, text or a link, or follow a site.", over five tiles, the
   same on every empty screen (`AddToLibraryTiles`; a folder's go into the folder, every other's into the top
   level): *Browse the Web* (the Browser) and *Follow a Site* (the Follow sheet asking for a story's address,

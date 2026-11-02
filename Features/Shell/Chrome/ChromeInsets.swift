@@ -60,6 +60,8 @@ struct CompactChromeInsets: ViewModifier {
                 .contentMargins(.bottom, ChromeHome.clearance(step: 0), for: .scrollContent)
                 .contentMargins(.bottom, ChromeHome.clearance(step: 0), for: .scrollIndicators)
                 .ignoresSafeArea(.container, edges: .bottom)
+                // Laid out to the screen's edge: the chrome covers its footprint from there.
+                .environment(\.scrollFootClearance, ChromeHome.footprint(step: 0))
         } else {
             content
         }
