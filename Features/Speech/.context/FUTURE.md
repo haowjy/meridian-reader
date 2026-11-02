@@ -37,3 +37,15 @@
   chosen voices be pinned as shortcuts at the top. Once any voice needs the network, add a
   filter between voices on the device and ones that aren't: today every voice runs on the device,
   so there is nothing to filter yet.
+- Other languages. Both shipped engines read English only. Options:
+  - **Phonon 40m** (ptts, the same Swift API, `Phonon.Language`): `fr`, `de`, `es` and `pt`
+    as one model each, or `phonon-40m-multilingual` for all five. CC BY-NC 4.0 and gated on
+    Hugging Face; the owner decides on the licence before shipping it.
+  - **Kokoro's non-English voices:** each language needs its own G2P, and FluidAudio's Kokoro
+    path is English only.
+
+  Once there are languages, the picker becomes language, then voice, with one chosen voice per
+  language. For mixed-language documents, detect each paragraph's language on the device
+  (`NLLanguageRecognizer`, no LLM) and play it in that language's chosen voice. This keeps "playback
+  never changes the voice on its own": the user picked a voice per language. `ListenLanguage` and
+  the providers' `supportedLanguages` are where it starts.
