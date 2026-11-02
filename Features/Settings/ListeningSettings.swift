@@ -110,8 +110,14 @@ struct VoicePage: View {
         .alert(asking.map(removalTitle) ?? "",
                isPresented: Binding(get: { asking != nil }, set: { if !$0 { asking = nil } })) {
             Button(Verbs.remove, role: .destructive) {
-                if let asking { remove(asking) }
+                // The alert closes first: a changed plan asks again in a new alert once this one has
+                // gone (setting `asking` while it dismisses would be lost).
+                guard let plan = asking else { return }
                 asking = nil
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(Motion.standardResponse))
+                    remove(plan)
+                }
             }
             .accessibilityIdentifier("voiceRemoveConfirm")
             Button(Verbs.cancel, role: .cancel) { asking = nil }
