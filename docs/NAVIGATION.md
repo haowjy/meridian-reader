@@ -183,8 +183,8 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   (`SaveToggleButton`, chrome face): a tap saves the page or removes it, held it opens *Save to Folder…*, and while
   the page is saved its filled symbol is in the accent. It is the page's one save (`ArticleActions`, the save path
   its menu's *Save to Library* takes): the Browser's reader mode extracts and saves the page; Library Read's page is
-  saved, so it shows filled and a tap removes it from the Library (*Remove from Library*: its audio and spot stay; if
-  you hear it, playback stops). It dims where it can't apply: a page with no text to save, Listen with no article
+  saved, so it shows filled, and a tap asks first (*Remove from Library?*, a confirmation dialog; every saved 🔖
+  does) before removing it from the Library (its audio and spot stay; if you hear it, playback stops). It dims where it can't apply: a page with no text to save, Listen with no article
   text. **▶ Listen** (`inPlaceListen`), the page's primary action, is an accent-filled capsule just after Aa (tinted
   glass; the accent on the material skin), the chrome's glyph and its worded pieces' type (`row`, semibold, at most
   XXXL), `Spacing.m` each side: it plays the page from its saved spot and slides Listen up. It never goes while

@@ -2,9 +2,10 @@ import SwiftUI
 
 /// 🔖 in a toolbar slot (slot 1 of the Reader and regular width's Now Playing, slot 3 of the browser), or
 /// on the chrome's round glass face (`chrome`: the compact reading pages' top group, beside ⋯). On a
-/// reading page it takes the page's ink and accent. Tap saves to the Library
-/// (or removes what is saved); long-press picks a folder (*Save to Folder…*), and a tap released
-/// early still saves. A spinner stands in while the save is under way.
+/// reading page it takes the page's ink and accent. Tap saves to the Library; on a saved page it
+/// asks first (*Remove from Library?*), since the button sits beside ⋯ and removing stops the page
+/// if it is playing. Long-press picks a folder (*Save to Folder…*), and a tap released early still
+/// saves. A spinner stands in while the save is under way.
 ///
 /// ```
 /// [🔖]  not saved      [🔖̲]  saved (filled, accent)      [◌]  saving
@@ -22,9 +23,12 @@ struct SaveToggleButton: View {
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.readingPalette) private var reading
+    @State private var confirmingRemove = false
 
     var body: some View {
-        Button(action: onToggle) {
+        Button {
+            if isSaved { confirmingRemove = true } else { onToggle() }
+        } label: {
             if chrome {
                 ChromeCircleFace(label: isSaved ? Verbs.removeFromLibrary : Verbs.saveToLibrary,
                                  symbol: isSaved ? Icons.saved : Icons.save) { glyph }
@@ -33,6 +37,12 @@ struct SaveToggleButton: View {
             }
         }
         .buttonStyle(GlyphButtonStyle())
+        .confirmationDialog(Verbs.removeFromLibraryQuestion, isPresented: $confirmingRemove,
+                            titleVisibility: .visible) {
+            Button(Verbs.removeFromLibrary, role: .destructive, action: onToggle)
+        } message: {
+            Text("Its audio and place are kept. If it’s playing, it stops.")
+        }
         .highPriorityGesture(
             LongPressGesture().onEnded { _ in onSaveToFolder?() },
             including: onSaveToFolder == nil ? .subviews : .all

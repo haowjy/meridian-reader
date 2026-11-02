@@ -80,6 +80,7 @@ enum Verbs {
     static let select = String(localized: "Select")
     static let saveToLibrary = String(localized: "Save to Library")
     static let removeFromLibrary = String(localized: "Remove from Library")
+    static let removeFromLibraryQuestion = String(localized: "Remove from Library?")
     /// A page out of the Library: the same remove as *Remove from Library* (in no list after).
     static let removeFromRecent = String(localized: "Remove from History")
     static let stopListening = String(localized: "Stop Listening")
