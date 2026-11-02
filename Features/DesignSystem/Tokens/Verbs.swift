@@ -144,7 +144,8 @@ enum Verbs {
     static let history = String(localized: "History")
     /// The browser's pages visited: its sheet's title and the buttons and menu rows that open it.
     static let browsingHistory = String(localized: "Browsing History")
-    static let removeFromBrowsingHistory = String(localized: "Remove from History")
+    /// A Browsing History visit's remove: the visit goes, the page (and the Library's copy) stays.
+    static let removeVisit = String(localized: "Remove from History")
     /// The start page's and the search layer's section of searches made, and its action.
     static let recentSearches = String(localized: "Recent Searches")
     /// The start page's sites with the most pages in History.

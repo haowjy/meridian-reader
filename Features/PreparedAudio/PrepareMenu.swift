@@ -29,8 +29,10 @@ struct PrepareMenu: View {
             switch option {
             case .reprepare:
                 return MenuRow(id: "menuReprepare", title: Verbs.reprepare, icon: Icons.reprepare) { preparedAudio.reprepare(article: key) }
-            default:
+            case .removePrepare:
                 return removeRow
+            default:
+                preconditionFailure("No prepare row for \(option)")
             }
         }
     }

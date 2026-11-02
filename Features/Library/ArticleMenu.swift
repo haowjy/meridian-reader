@@ -55,7 +55,7 @@ struct ArticleMenu: View {
     var facts: MenuRegistry.Facts {
         let article = actions.article
         var facts = MenuRegistry.Facts()
-        facts.hasTarget = article != nil || actions.url != nil
+        facts.hasTarget = article != nil || actions.url != nil || actions.readerArticle != nil
         facts.hasPage = article != nil
         facts.inLibrary = actions.isInLibrary
         facts.isSaved = actions.isSaved
@@ -135,9 +135,9 @@ struct ArticleMenu: View {
         case .stopListening:
             guard case .bar(let onStop) = place else { break }
             return MenuRow(id: "menuStopListening", title: Verbs.stopListening, icon: Icons.stop) { onStop?() }
-        case .removeFromHistory:
+        case .removeVisit:
             guard case .history(let onRemove) = place else { break }
-            return MenuRow(id: "menuRemoveFromHistory", title: Verbs.removeFromBrowsingHistory, icon: Icons.delete,
+            return MenuRow(id: "menuRemoveFromHistory", title: Verbs.removeVisit, icon: Icons.delete,
                            isDestructive: true, action: onRemove)
         default: break
         }

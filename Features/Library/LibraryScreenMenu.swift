@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The Library screen's menu: the create group followed by Sort on compact width;
-/// regular width keeps its separate ＋ and navigation tiles.
+/// regular width keeps its separate ＋ and navigation tiles (`MenuRegistry.Place.libraryPanel`).
 @MainActor
 struct LibraryScreenMenu {
     let library: LibraryStore
@@ -23,24 +23,29 @@ struct LibraryScreenMenu {
         }
     }
 
-    /// Compact width keeps navigation in the chrome; regular width keeps the panel's tiles.
+    /// The title ⋯ (compact width: the create group, then Sort, no ＋ beside it) or the ⋯ panel
+    /// (regular width: Sort and the navigation tiles; the create group is its ＋). Which rows each
+    /// place has is the registry's.
     func menu(compact: Bool) -> MenuContext {
         let folder = topFolder
-        let screenRows = MenuContext.screenRows(at: folder == nil ? .libraryHome : .folderScreen, facts: MenuRegistry.Facts(),
-                                                shell: shell) { option in
-            option == .sort ? sortRow(folder) : nil
+        let place: MenuRegistry.Place = compact ? (folder == nil ? .libraryHome : .folderScreen) : .libraryPanel
+        let create = createMenu
+        let screenRows = MenuContext.screenRows(at: place, shell: shell) { option in
+            option == .sort ? sortRow(folder) : create.row(option)
         }
         let reader = MenuRow(id: "moreListen", title: Verbs.listen, icon: Icons.listen,
                              availability: MenuAvailability(when: speech.nowPlaying != nil)) { [shell] in
             shell.showNowPlaying()
         }
-        return MenuContext(screen: compact ? createRows + screenRows : screenRows,
+        return MenuContext(screen: screenRows,
                            tiles: compact ? [] : MenuContext.tiles(shell, compact: false, last: reader))
     }
 
     /// ＋: the create group (`LibraryCreateMenu`) into the screen on top.
-    var createRows: [MenuRow] {
-        LibraryCreateMenu(library: library, shell: shell, follow: follow, screen: screen, folder: topFolder).rows
+    var createRows: [MenuRow] { createMenu.rows }
+
+    private var createMenu: LibraryCreateMenu {
+        LibraryCreateMenu(library: library, shell: shell, follow: follow, screen: screen, folder: topFolder)
     }
 
     /// *Sort*: the folder's page sort, or on the home the top level's.
@@ -74,26 +79,31 @@ struct LibraryCreateMenu {
     var filing: () -> [LibraryItem] = { [] }
 
     var rows: [MenuRow] {
+        MenuContext.screenRows(at: place, shell: shell, custom: row)
+    }
+
+    /// A create option's row (nil: not one of the create group's).
+    func row(_ option: MenuRegistry.Option) -> MenuRow? {
         let folder = folder
-        return MenuRegistry.rows(.screen, at: place, MenuRegistry.Facts()) { option in
-            switch option {
-            case .newFolder:
-                return MenuRow(id: "moreNewFolder", title: Verbs.newFolder, icon: Icons.newFolder) { [screen, filing] in
-                    screen.makeFolder(in: folder, with: filing())
-                }
-            case .importFile:
-                return MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.importFile) { [library, shell] in
-                    BookImportActions(library: library, shell: shell).pickBook(into: folder)
-                }
-            case .addLink:
-                return MenuRow(id: "moreAddLink", title: Verbs.addLink, icon: Icons.link) { [screen, shell, follow] in
-                    screen.addLink(into: folder, shell: shell, follow: follow)
-                }
-            default:
-                return MenuRow(id: "morePasteText", title: Verbs.pasteText, icon: Icons.paste) { [screen, shell] in
-                    screen.pasteText(into: folder, shell: shell)
-                }
+        switch option {
+        case .addLink:
+            return MenuRow(id: "moreAddLink", title: Verbs.addLink, icon: Icons.link) { [screen, shell, follow] in
+                screen.addLink(into: folder, shell: shell, follow: follow)
             }
+        case .importFile:
+            return MenuRow(id: "moreImportBook", title: Verbs.importBook, icon: Icons.importFile) { [library, shell] in
+                BookImportActions(library: library, shell: shell).pickBook(into: folder)
+            }
+        case .pasteText:
+            return MenuRow(id: "morePasteText", title: Verbs.pasteText, icon: Icons.paste) { [screen, shell] in
+                screen.pasteText(into: folder, shell: shell)
+            }
+        case .newFolder:
+            return MenuRow(id: "moreNewFolder", title: Verbs.newFolder, icon: Icons.newFolder) { [screen, filing] in
+                screen.makeFolder(in: folder, with: filing())
+            }
+        default:
+            return nil
         }
     }
 }

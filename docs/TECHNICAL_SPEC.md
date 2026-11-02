@@ -550,8 +550,12 @@ uses the group at `.edit`; `LibraryScreenState.makeFolder(in:with:)` holds the s
 ## The create group (C126)
 
 `LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds Add a Link, Import a File, Paste Text,
-then New Folder from `MenuRegistry` at `.add` and `.edit`. The compact title-line menu prepends
-these rows before Sort; ＋ shows the same rows, and Edit passes its selection for New Folder.
+then New Folder from `MenuRegistry` at `.add` and `.edit`. The compact title-line menu is the
+registry's `.libraryHome` / `.folderScreen` place, which holds these rows before Sort; regular
+width's ⋯ panel is `.libraryPanel` (Sort only, beside its ＋). Edit passes its selection for New
+Folder. `MenuContext.screenRows` builds *Browsing History* and takes every other screen row from
+its caller; a place showing an option its screen has no row for stops with a precondition failure
+rather than drawing a wrong row.
 The folder header's More does not append creation actions. `MenuRow.group` carries the registry's
 dividers through callers that flatten blocks, and `MenuRows` renders those groups as sections.
 

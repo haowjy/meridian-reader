@@ -495,18 +495,17 @@ struct BrowseStartView: View {
                              icon: showing ? Icons.readerShowing : Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
-        return MenuContext(item: webPage == nil && shell.pageReader == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: [],
+        return MenuContext(item: ArticleMenu(actions: actions, place: .browser).rows, screen: [],
                            tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader), isOnReadingPage: showing)
     }
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
 
     /// The compact Browser's menu, a press and hold on the field's leading glyph (the chrome has no ⋯):
-    /// the page's menu while a page is up, then *Browsing History*. The glyph's tap opens the reader
+    /// the page's menu while a page is up (none on the start page), then *Browsing History*. The glyph's tap opens the reader
     /// mode and leaves it, Reload is in the field and Listen in the chrome, so none of them is a row.
     private func holdMenu(_ actions: ArticleActions) -> [[MenuRow]] {
-        let page = webPage == nil && shell.pageReader == nil ? [] : ArticleMenu(actions: actions, place: .browser).blocks
-        return page + [MenuContext.screenRows(at: .browser, shell: shell)]
+        ArticleMenu(actions: actions, place: .browser).blocks + [MenuContext.screenRows(at: .browser, shell: shell)]
     }
 
     // MARK: - Start page

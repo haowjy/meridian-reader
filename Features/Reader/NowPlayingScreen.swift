@@ -192,8 +192,9 @@ struct NowPlayingScreen: View {
     private func menuBlocks(_ now: NowPlaying, _ actions: ArticleActions) -> [[MenuRow]] {
         var facts = MenuRegistry.Facts()
         facts.canJumpToParagraph = !speech.document.isEmpty
-        let screen = MenuContext.screenRows(at: .nowPlaying, facts: facts, shell: shell) { _ in
-            MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump) {
+        let screen = MenuContext.screenRows(at: .nowPlaying, facts: facts, shell: shell) { option in
+            guard option == .playFromParagraph else { return nil }
+            return MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump) {
                 withAnimation(Motion.snappy) { jumpMode.toggle() }
             }
         }

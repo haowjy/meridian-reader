@@ -169,13 +169,17 @@ struct PreparedAudioList: View {
         var facts = MenuRegistry.Facts()
         facts.hasPrepared = hasPrepared && !preparedAudio.heldArticleKeys.isEmpty
         facts.hasListeningAudio = !listening.isEmpty
-        return MenuRegistry.rows(.screen, at: .preparedAudio, facts) { option in
-            if option == .deleteAllPrepared {
-                return MenuRow(id: "preparedDeleteAll", title: Verbs.deleteAllPrepared, icon: Icons.delete,
-                               isDestructive: true) { confirmingDeleteAll = true }
+        return MenuContext.screenRows(at: .preparedAudio, facts: facts, shell: shell) { option in
+            switch option {
+            case .deleteAllPrepared:
+                MenuRow(id: "preparedDeleteAll", title: Verbs.deleteAllPrepared, icon: Icons.delete,
+                        isDestructive: true) { confirmingDeleteAll = true }
+            case .clearListeningAudio:
+                MenuRow(id: "preparedClearListening", title: Verbs.clearListeningAudio, icon: Icons.delete,
+                        isDestructive: true) { confirmingClear = true }
+            default:
+                nil
             }
-            return MenuRow(id: "preparedClearListening", title: Verbs.clearListeningAudio, icon: Icons.delete,
-                           isDestructive: true) { confirmingClear = true }
         }
     }
 

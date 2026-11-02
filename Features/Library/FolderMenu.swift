@@ -96,9 +96,11 @@ struct FolderMenu: View {
             return MenuRow(id: "menuEditDetails", title: Verbs.editDetails, icon: Icons.editDetails) {
                 shell.present(.folderDetails(folder.id))
             }
-        default:
+        case .deleteFolder:
             return MenuRow(id: Self.deleteRowID, title: Verbs.deleteFolder(isBook: folder.kind == .book),
                            icon: Icons.delete, isDestructive: true) { screen.confirmDelete([folder]) }
+        default:
+            preconditionFailure("No folder row for \(option)")
         }
     }
 

@@ -28,10 +28,12 @@ enum MenuRegistry {
         case browser
         /// A folder header's *More*.
         case header
-        /// The Library home's ⋯ panel.
+        /// The Library home's title ⋯ (compact width): the create group, then Sort.
         case libraryHome
-        /// A folder screen's ⋯ panel.
+        /// A folder screen's title ⋯ (compact width): the create group, then Sort.
         case folderScreen
+        /// The Library's ⋯ panel at regular width (the home or a folder's screen), beside its own ＋.
+        case libraryPanel
         /// A Prepared Audio list row.
         case preparedAudio
         /// The Library's ＋ (the home or a folder's screen).
@@ -44,7 +46,7 @@ enum MenuRegistry {
     enum Option: String, CaseIterable {
         // A page
         case save, move, follow, read, goTo, prepare, voice, finished, playback, markAllAbove, skip, share,
-             removeFromRecent, stopListening, removeFromHistory
+             removeFromRecent, stopListening, removeVisit
         // A folder, book or series
         case continueFolder, playFromStart, folderPrepare, removePreparedAudio, folderVoice, folderMove,
              editDetails, deleteFolder
@@ -59,6 +61,7 @@ enum MenuRegistry {
     /// The item's state as a menu needs it: plain values its host already has (no fetch, no disk).
     struct Facts: Equatable {
         // A page
+        /// There is a page to act on: a page model, an address or text on screen.
         var hasTarget = true
         /// A page model exists (played, saved or a link), not only a page in the browser.
         var hasPage = false
@@ -129,10 +132,11 @@ enum MenuRegistry {
     private static let playbackPlaces: Set<Place> = [.row, .bar, .reader]
     private static let saveEnabled: (Facts) -> Bool = { !$0.offersSave || $0.canSave }
     private static let folderPlaces: Set<Place> = [.row, .header]
+    /// The create group: the ＋, Edit's ＋, and compact width's title ⋯ (which has no ＋).
+    private static let createPlaces: Set<Place> = [.add, .edit, .libraryHome, .folderScreen]
 
     static let specs: [Spec] = [
-        Spec(option: .read, kind: .article, places: articleListPlaces,
-             enabled: { $0.hasTarget }, greyIf: "no page or address"),
+        Spec(option: .read, kind: .article, places: articleListPlaces),
         Spec(option: .save, kind: .article, places: articlePlaces, block: 1,
              applies: { $0.offersSave }, enabled: saveEnabled, hiddenIf: "already saved", greyIf: "nothing to save yet"),
         Spec(option: .move, kind: .article, places: articlePlaces, block: 1,
@@ -161,7 +165,7 @@ enum MenuRegistry {
              applies: { !$0.offersSave }, enabled: saveEnabled, hiddenIf: "not saved", greyIf: "nothing to save yet"),
         Spec(option: .removeFromRecent, kind: .article, places: [.row, .bar], block: 4,
              applies: { !$0.inLibrary }, enabled: { $0.inRecent }, hiddenIf: "in the Library", greyIf: "not in History"),
-        Spec(option: .removeFromHistory, kind: .article, places: [.history], block: 4),
+        Spec(option: .removeVisit, kind: .article, places: [.history], block: 4),
         Spec(option: .stopListening, kind: .article, places: [.bar], block: 5,
              enabled: { $0.isLoaded }, greyIf: "nothing loaded"),
 
@@ -182,11 +186,11 @@ enum MenuRegistry {
         Spec(option: .removePrepare, kind: .prepare, places: [.preparedAudio], block: 4,
              enabled: { !$0.audioInUse }, greyIf: "audio from listening that playback needs now"),
 
-        Spec(option: .addLink, kind: .screen, places: [.add, .edit]),
-        Spec(option: .importFile, kind: .screen, places: [.add, .edit]),
-        Spec(option: .pasteText, kind: .screen, places: [.add, .edit]),
-        Spec(option: .newFolder, kind: .screen, places: [.add, .edit], block: 1),
-        Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen], block: 2),
+        Spec(option: .addLink, kind: .screen, places: createPlaces),
+        Spec(option: .importFile, kind: .screen, places: createPlaces),
+        Spec(option: .pasteText, kind: .screen, places: createPlaces),
+        Spec(option: .newFolder, kind: .screen, places: createPlaces, block: 1),
+        Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen, .libraryPanel], block: 2),
         Spec(option: .browsingHistory, kind: .screen, places: [.browser], block: 5),
         Spec(option: .playFromParagraph, kind: .screen, places: [.nowPlaying], block: 5,
              enabled: { $0.canJumpToParagraph }, greyIf: "no text loaded"),
@@ -196,8 +200,10 @@ enum MenuRegistry {
              hiddenIf: "no audio from listening"),
     ]
 
-    /// The options a `kind` menu shows at `place` for `facts`, in order, with their submenus.
+    /// The options a `kind` menu shows at `place` for `facts`, in order, with their submenus. A page's
+    /// menu with no page and no address (the browser's start page) is empty.
     static func entries(_ kind: Kind, at place: Place, _ facts: Facts) -> [Entry] {
+        if kind == .article && !facts.hasTarget { return [] }
         func entry(_ spec: Spec) -> Entry? {
             guard spec.kind == kind, spec.places.contains(place), spec.applies(facts) else { return nil }
             let children = specs.filter { $0.parent == spec.option }.compactMap(entry)
@@ -212,7 +218,7 @@ enum MenuRegistry {
     /// The grey / hidden table for every menu (docs/MENUS.md), from the specs: per kind and
     /// place, each option it shows, when it is hidden there and when greyed.
     static var table: String {
-        var text = ""
+        var text = "\nA page's menu with no page and no address (the browser's start page) shows nothing.\n"
         for kind in Kind.allCases {
             for place in Place.allCases {
                 let shown = specs.filter { $0.kind == kind && $0.places.contains(place) }
