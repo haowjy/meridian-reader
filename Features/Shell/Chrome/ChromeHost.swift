@@ -64,14 +64,13 @@ struct ChromeHost: View {
     private var readerMode: Bool {
         (destination == .browse && shell.pageReader != nil) || (destination == .library && shell.libraryReader != nil)
     }
-    /// What scrolling does here. An in-place reader is expanded or full screen, by scroll in Scroll
-    /// mode without VoiceOver (Pages turns by tap; VoiceOver keeps the bars); the start page (no page
-    /// to name), Library Edit (its bar is row 2) and VoiceOver (the rows are what it reads) hold both
-    /// rows; everything else folds.
-    private var policy: ChromePolicy {
-        if readerMode { return .reads(scrollHides: !voiceOver && readingAppearance.layout == .scroll) }
-        if voiceOver || screen.editBar != nil || (destination == .browse && !shell.web.hasPage) { return .holds }
-        return .folds
+    /// What the scroll rule reads from here (`ChromeScroll.policy(for:_:)`): the screen handing over
+    /// is the shell's, at once; these follow the environment and the screens' own state.
+    private var conditions: ChromeConditions {
+        let screens: [(ChromeDestination, ChromeScreen)] = [(.library, library), (.browse, browse), (.settings, settings)]
+        return ChromeConditions(voiceOver: voiceOver, readsByScroll: readingAppearance.layout == .scroll,
+                                editing: Set(screens.filter { $0.1.editBar != nil }.map(\.0)),
+                                browserHasPage: shell.web.hasPage)
     }
 
     /// The bubble's width: its title at the fixed size and its padding (the layout caps it to the margins).
@@ -148,18 +147,9 @@ struct ChromeHost: View {
             dip = 1
         }
         .onChange(of: isSearching || shell.menu != nil, initial: true) { _, locked in scroll.isLocked = locked }
-        .onChange(of: destination, initial: true) { _, new in
-            scroll.policy = policy
-            scroll.reset()
-            focused = session?.isFocused == true
-        }
-        // A reader opening or closing in place is a different text driving the chrome (and ends its full screen).
-        .onChange(of: readerMode) { _, _ in
-            scroll.policy = policy
-            scroll.reset()
-        }
+        .onChange(of: destination) { _, _ in focused = session?.isFocused == true }
         // Pages mode, VoiceOver, Edit and the start page's page arriving change the rule without a new screen.
-        .onChange(of: policy) { _, new in scroll.policy = new }
+        .onChange(of: conditions, initial: true) { _, new in scroll.conditions = new }
         // Opening the search shows the field, so it brings the rows back first.
         .onChange(of: isSearching) { _, searching in
             if searching { scroll.expand() }

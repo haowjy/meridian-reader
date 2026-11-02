@@ -92,16 +92,23 @@ changing the shell code.
   theme. The in-place reader (`ReaderSurface`) covers a web view that takes no touches, so it
   carries its own left-edge swipe for ‹. The rest of design 5e is under "Planned"
   there. Regular width is untouched.
-- **Only the surface showing drives the compact chrome.** Every report to `ChromeScroll` names its
-  `ChromeSource`, and the check against `driver` runs when the report is delivered, not when it was
-  sent: the Browser's web view queues its offset reports in a `Task`, and keeps sending them under a
-  reader, the Library, Listen or a sheet (hit testing off doesn't stop KVO). A refused report touches
-  nothing, not even the baseline. The driver is `ShellState.chromeDriver` (nil under Listen, the Reader,
-  any sheet or the Files picker), handed over by `syncChromeDriver` from the `didSet` of every property it
-  reads, so each transition reaches `ChromeScroll.drive` synchronously; a new input to `chromeDriver`
-  needs the same `didSet`. `drive` drops the gesture's continuity on every change, keeping what is drawn:
-  the first accepted report after it only sets the baseline, so a fling under a Listen or sheet that
-  opened and closed never lands its travel at once, however quickly the changes follow each other.
+- **Only the screen showing drives the compact chrome, handed over in one step.** Every report to
+  `ChromeScroll` names its `ChromeSource`, and so does the in-place reader's full-screen write
+  (`setFullScreen(_:from:)`; the Browser's reader stays mounted under other destinations); the check
+  against the owner runs when the report is delivered, not when it was sent: the Browser's web view
+  queues its offset reports in a `Task`, and keeps sending them under a reader, the Library, Listen or a
+  sheet (hit testing off doesn't stop KVO). A refused report touches nothing, not even the baseline. The
+  owner is `ShellState.chromeOwner` (the source and the screen within it: the Library's and Settings'
+  paths, the page read in place; nil under Listen, the Reader, any sheet or the Files picker), handed
+  over by `syncChromeOwner` from the `didSet` of every property it reads, so each transition reaches
+  `ChromeScroll.hand(to:)` synchronously; a new input to `chromeOwner` needs the same `didSet`. The
+  handover drops the gesture's continuity on every change, keeping what is drawn: the first accepted
+  report after it only sets the baseline, so a fling under a Listen or sheet that opened and closed
+  never lands its travel at once. A cover and its removal back to the same owner keep the fold and full
+  screen; any other owner starts expanded and out of full screen. The rule (`ChromePolicy`) is computed
+  in the same step from the source and `ChromeConditions` (VoiceOver, the reading layout, which
+  destinations are in Edit, whether the Browser has a page), which `ChromeHost` keeps current; no screen
+  resets the chrome on appearing.
 - **A reading page's offset reports are a finger's or a move's, kept apart end to end.** The coordinator's
   `report(_:byFinger:)` is the only caller of `ReadingChrome.userScrolled` (finger) and `textMoved` (move,
   which only re-anchors). A finger report (`isDragging || isDecelerating`) is a move when code wrote the

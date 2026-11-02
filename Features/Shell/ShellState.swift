@@ -153,7 +153,7 @@ final class ShellState {
     private(set) var surface: Surface = .browse {
         didSet {
             remember()
-            syncChromeDriver()
+            syncChromeOwner()
         }
     }
     /// The Library's pushed screens, nearest the home first (`[.folder(Fiction), .folder(Short
@@ -161,6 +161,7 @@ final class ShellState {
     var libraryPath: [LibraryRoute] = [] {
         didSet {
             remember()
+            syncChromeOwner()
             if let folder = librarySearchFolder, !libraryPath.contains(.folder(folder)) { endLibrarySearch() }
         }
     }
@@ -175,20 +176,20 @@ final class ShellState {
     /// The Reader sheet (nil = closed; regular width only). Its close ends it through `readerDidClose`
     /// once it has gone.
     private(set) var reader: ReaderSheetState? {
-        didSet { syncChromeDriver() }
+        didSet { syncChromeOwner() }
     }
     /// The Browser's page as the Reader draws it, in place of the page (nil = the page itself).
     /// The address pill's reader icon toggles it; it is the page's own, so it ends when the page changes.
     /// It stays while another destination shows, so the Browser comes back as it was left.
     private(set) var pageReader: ReaderArticle? {
-        didSet { syncChromeDriver() }
+        didSet { syncChromeOwner() }
     }
     /// A Library page read in place (Library *Read*): its text replaces the Library's content, like the
     /// Browser's reader mode, under the same chrome with the Library segment lit. Nothing plays until
     /// the top group's ▶ Listen (which raises Now Playing over it); ‹ (or the edge swipe) puts the
     /// Library back as it was.
     private(set) var libraryReader: ReaderArticle? {
-        didSet { syncChromeDriver() }
+        didSet { syncChromeOwner() }
     }
     /// Compact width reads in place (`libraryReader`, `pageReader`) and has Settings as a destination;
     /// regular width keeps the Reader sheet and the Settings sheet, so a Settings surface (restored, or
@@ -207,7 +208,7 @@ final class ShellState {
     /// included. It shows what you hear, so it holds no article of its own. Its close reports the
     /// showing it closed (`nowPlayingDidClose`), so a close that lands late can't take down a newer one.
     private(set) var nowPlayingPresentation: UUID? {
-        didSet { syncChromeDriver() }
+        didSet { syncChromeOwner() }
     }
     var isNowPlayingPresented: Bool { nowPlayingPresentation != nil }
     /// Where Now Playing's text opens: the Reader's scroll position (its reading page's
@@ -217,14 +218,14 @@ final class ShellState {
     var sheet: ShellSheet? {
         didSet {
             if sheet == nil { overSheet = nil }
-            syncChromeDriver()
+            syncChromeOwner()
         }
     }
     /// A sheet over `sheet` (`ShellSheet.showsOverASheet`); it goes with it.
     var overSheet: ShellSheet?
     /// *Import Book…*'s Files picker is up (`pickBook(into:)`).
     var isPickingBook = false {
-        didSet { syncChromeDriver() }
+        didSet { syncChromeOwner() }
     }
     /// Where the picked book goes (nil: the Library's top level).
     private(set) var bookPickDestination: UUID?
@@ -243,7 +244,9 @@ final class ShellState {
     /// Search Settings, the Settings destination's field: its text filters the settings list.
     let settingsSearch = SearchSession()
     /// The Settings destination's pushed pages, kept while another destination shows.
-    var settingsPath: [SettingsRoute] = []
+    var settingsPath: [SettingsRoute] = [] {
+        didSet { syncChromeOwner() }
+    }
     /// Regular-width sidebar collapsed for focus reading / full-bleed Browse (iPad). Compact ignores it.
     var sidebarCollapsed = false
     /// Whether a target is what you hear (the playback session answers).
@@ -261,7 +264,7 @@ final class ShellState {
         self.isHearing = isHearing
         self.memory = memory
         // Observers don't run in an initializer: the restored surface is handed over on the way out.
-        defer { syncChromeDriver() }
+        defer { syncChromeOwner() }
         guard restores, let memory else { return }
         homeTab = memory.loadHomeTab()
         if let last = memory.load() {
@@ -290,15 +293,17 @@ final class ShellState {
         if case .library = surface { true } else { false }
     }
 
-    /// The surface whose scrolling moves the compact chrome: the one showing, and nothing while Listen,
-    /// the Reader or any sheet (the Files picker included) covers it. Every property it reads calls
-    /// `syncChromeDriver` when it changes, so the controller's driver is never out of step.
-    var chromeDriver: ChromeSource? {
+    /// The screen whose scrolling moves the compact chrome: the one showing (a pushed page and a page
+    /// read in place are screens of their own), and nothing while Listen, the Reader or any sheet (the
+    /// Files picker included) covers it. Every property it reads calls `syncChromeOwner` when it
+    /// changes, so the controller's owner is never out of step.
+    var chromeOwner: ChromeOwner? {
         if isNowPlayingPresented || reader != nil || sheet != nil || isPickingBook { return nil }
         return switch surface {
-        case .browse: pageReader != nil ? .browserReader : .browser
-        case .library: libraryReader != nil ? .libraryReader : .library
-        case .settings: .settings
+        case .browse: pageReader.map { ChromeOwner(source: .browserReader, screen: $0.id) } ?? ChromeOwner(source: .browser)
+        case .library: libraryReader.map { ChromeOwner(source: .libraryReader, screen: $0.id) }
+            ?? ChromeOwner(source: .library, screen: libraryPath)
+        case .settings: ChromeOwner(source: .settings, screen: settingsPath)
         }
     }
 
@@ -306,9 +311,9 @@ final class ShellState {
         if case .settings = surface { true } else { false }
     }
 
-    /// Hands `chromeDriver` to the controller, synchronously with the change that moved it.
-    private func syncChromeDriver() {
-        chromeScroll.drive(chromeDriver)
+    /// Hands `chromeOwner` to the controller, synchronously with the change that moved it.
+    private func syncChromeOwner() {
+        chromeScroll.hand(to: chromeOwner)
     }
 
     /// `path` up to its first folder that no longer exists: a deleted folder falls back to its
@@ -359,20 +364,18 @@ final class ShellState {
     }
 
     /// The Browser's page in place (`pageReader`); nothing if the user left the Browser (or ended the
-    /// reader) since `epoch`. Never switches destination, even for the page you hear. Opens with the
-    /// chrome expanded: it has no scroll to bring row 2 back.
+    /// reader) since `epoch`. Never switches destination, even for the page you hear. A new screen for
+    /// the chrome, so it opens expanded: it has no scroll to bring row 2 back.
     func openPageReader(_ article: ReaderArticle, requestedAt epoch: Int) {
         guard epoch == pageReaderEpoch, isBrowsing, reader == nil, !isNowPlayingPresented else { return }
         pageReader = article
-        chromeScroll.expand()
     }
 
-    /// A Library page's text in place of the Library (`libraryReader`), with the chrome expanded.
+    /// A Library page's text in place of the Library (`libraryReader`), a new screen for the chrome.
     func openLibraryReader(_ article: ReaderArticle) {
         guard isInLibrary, reader == nil, !isNowPlayingPresented else { return }
         endLibrarySearch()
         libraryReader = article
-        chromeScroll.expand()
     }
 
     /// The Library again, where it was.
@@ -492,7 +495,7 @@ final class ShellState {
             homeIndicator: ChromeHome.inset,
             scrolled: { [chromeScroll] in chromeScroll.scrolled(to: $0, from: source) },
             anchored: { [chromeScroll] in chromeScroll.anchor(at: $0, from: source) },
-            fullScreen: Binding(get: { [chromeScroll] in chromeScroll.fullScreen }, set: { [chromeScroll] in chromeScroll.setFullScreen($0) }))
+            fullScreen: Binding(get: { [chromeScroll] in chromeScroll.fullScreen }, set: { [chromeScroll] in chromeScroll.setFullScreen($0, from: source) }))
     }
 
     // MARK: - Remembering the surface

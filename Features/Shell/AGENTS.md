@@ -19,12 +19,12 @@ user sees: [`docs/NAVIGATION.md`](../../docs/NAVIGATION.md).
   sets `ChromeSkin.forcesMaterial` for `-chromeFallback`) with only a gradient fade behind. Screens reserve
   `ChromeHome.clearance(step: 0)` above the safe area (`CompactChromeInsets`) and report their scroll with
   `CompactChromeScroll`, naming their `ChromeSource`. What scrolling does is `ChromeScroll.policy` (`ChromePolicy`,
-  set by `ChromeHost`): `.folds` on pages, lists and Settings; `.holds` on the start page, in Edit and under
+  from the source and the `ChromeConditions` `ChromeHost` feeds it): `.folds` on pages, lists and Settings; `.holds` on the start page, in Edit and under
   VoiceOver; `.reads` on an in-place reader, which is expanded or full screen (`ChromeScroll.fullScreen`, the one
-  value the chrome and the page's `ReadingChrome.hidden` both read), never folded. Only the driver's reports count (`ShellState.chromeDriver`,
+  value the chrome and the page's `ReadingChrome.hidden` both read), never folded. Only the owner's reports and full-screen writes count (`ShellState.chromeOwner`,
   the surface showing, nil under Listen, the Reader, any sheet or the Files picker; every property it reads
-  hands it to `ChromeScroll.drive` from its `didSet`). A new surface that scrolls needs a `ChromeSource` case and a
-  `chromeDriver` branch, or its reports are dropped. Listen and the top group's ⋯ and Aa share one round face, `ChromeCircleFace`. Change the host, never one screen.
+  hands it to `ChromeScroll.hand(to:)` from its `didSet`, the one handover). A new surface that scrolls needs a `ChromeSource` case and a
+  `chromeOwner` branch, or its reports are dropped. Listen and the top group's ⋯ and Aa share one round face, `ChromeCircleFace`. Change the host, never one screen.
 - **Listen is not under the chrome.** `isNowPlayingPresented` draws `NowPlayingScreen` above the chrome
   in `BrowseStartView.layers`, as a `Sheet` that covers the screen (`ReadingShowing.cover`), below the ⋯
   menu overlay and the sheet presenters so Voice, Save to Folder, ⋯ and the debug panel open over it.

@@ -211,7 +211,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   progress to 0) (invariant 12), and by what is not a scroll: a new page or screen loading, opening the address
   or search field, VoiceOver being on. The Library, the Browser's page and Settings feed it; **Listen does not**
   (it has no chrome), the Browser's start page does not fold, and **an in-place reader never folds** (below).
-  **Only the screen showing drives the chrome** (`ChromeSource`, `ShellState.chromeDriver`): the web page under
+  **Only the screen showing drives the chrome** (`ChromeSource`, `ShellState.chromeOwner`): the web page under
   the reader mode, the Library under Library Read and anything under Listen or a sheet (Voice, Share, Follow,
   History, the Files picker, …) move nothing, and after Listen or a sheet closes, the next scroll only sets where
   the following one is measured from.

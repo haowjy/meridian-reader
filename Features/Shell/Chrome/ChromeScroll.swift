@@ -2,7 +2,7 @@ import CoreGraphics
 import Observation
 import QuartzCore
 
-/// What scrolling does to the compact chrome on the screen showing (picked by `ChromeHost`).
+/// What scrolling does to the compact chrome on the screen showing (`ChromeScroll.policy(for:_:)`).
 enum ChromePolicy: Equatable {
     /// Web pages, the Library, Settings: the continuous fold to the bubble.
     case folds
@@ -14,9 +14,9 @@ enum ChromePolicy: Equatable {
 }
 
 /// A surface that can drive the compact chrome by scrolling. Only the one showing does
-/// (`ChromeScroll.driver`); a new surface that scrolls needs a case here and a branch in
-/// `ShellState.chromeDriver`, or its reports are dropped.
-enum ChromeSource: Equatable {
+/// (`ChromeScroll.owner`); a new surface that scrolls needs a case here and a branch in
+/// `ShellState.chromeOwner`, or its reports are dropped.
+enum ChromeSource: Equatable, Hashable {
     /// The Browser's web page or start page.
     case browser
     /// The Browser's reader mode, in place.
@@ -27,6 +27,36 @@ enum ChromeSource: Equatable {
     case libraryReader
     /// Settings in place.
     case settings
+
+    var destination: ChromeDestination {
+        switch self {
+        case .browser, .browserReader: .browse
+        case .library, .libraryReader: .library
+        case .settings: .settings
+        }
+    }
+}
+
+/// The screen whose scrolling drives the chrome: its surface, and which of that surface's scroll views
+/// it is (`screen`: a pushed page's path, the page read in place). A different owner is a new screen
+/// (the chrome starts expanded, out of full screen); the same owner again after a cover is the screen
+/// coming back as it was left.
+struct ChromeOwner: Hashable {
+    var source: ChromeSource
+    var screen: AnyHashable = 0
+}
+
+/// What the rule depends on besides the screen, from the environment and the screens' own state
+/// (`ChromeHost` keeps it current). Per destination where it is one screen's, so a handover never
+/// reads another screen's state.
+struct ChromeConditions: Equatable {
+    var voiceOver = false
+    /// The reading layout is Scroll (not Pages).
+    var readsByScroll = true
+    /// Destinations whose screen is in Edit (its bar is row 2).
+    var editing: Set<ChromeDestination> = []
+    /// The Browser shows a page (else its start page, which has no page to name).
+    var browserHasPage = true
 }
 
 /// The one owner of the compact chrome's visibility, and its scroll controller, fed by the Library,
@@ -52,11 +82,12 @@ enum ChromeSource: Equatable {
 /// rebound from a pull past the top never hides; the pull itself counts toward a reveal. A move
 /// (`anchor`) never toggles. Pages mode and VoiceOver toggle by the tap alone.
 ///
-/// Every report names its source, and only the driver's counts (`driver`, checked when the report is
-/// delivered: a web view's report queued before a reader opened is judged against the reader).
-/// Every change of the driver (`drive`), suspension under Listen or a sheet included, drops the
-/// gesture's continuity at once: the next accepted report only sets the baseline, so travel from
-/// before never counts.
+/// **Handover** (`hand(to:)`, synchronously with the navigation that causes it): the owner and its rule
+/// change in one step. Every report and every full-screen write names its source, and only the owner's
+/// counts (checked when the report is delivered: a web view's report queued before a reader opened is
+/// judged against the reader). Every handover, a cover by Listen or a sheet included, drops the gesture's
+/// continuity at once: the next accepted report only sets the baseline, so travel from before never
+/// counts. A cover keeps what is drawn; a different screen starts expanded, out of full screen.
 @MainActor
 @Observable
 final class ChromeScroll {
@@ -75,23 +106,21 @@ final class ChromeScroll {
     /// Points of scrolling down still ignored after the bubble's tap: the rows stay for a short
     /// scroll (and the tail of a fling already under way), then fold again. Never a lasting pin.
     private(set) var grace: CGFloat = 0
-    /// What scrolling does on the screen showing. Anything but `.folds` unfolds; anything but `.reads`
-    /// leaves full screen. `.reads(true)` and `.reads(false)` share the full screen.
-    var policy: ChromePolicy = .folds {
-        didSet {
-            guard policy != oldValue else { return }
-            if policy != .folds { expand() }
-            if case .reads = policy {} else { setFullScreen(false) }
-            clearReading()
-            #if DEBUG
-            if policy == .folds, Self.forcedFold != nil { set(0) }
-            #endif
-        }
+    /// What scrolling does on the screen showing: its source's rule under `conditions`
+    /// (`policy(for:_:)`), changed only with them or the owner.
+    private(set) var policy: ChromePolicy = .folds
+    /// The environment the rule reads, from `ChromeHost`.
+    var conditions = ChromeConditions() {
+        didSet { if conditions != oldValue { applyPolicy() } }
     }
 
-    /// The surface whose reports count; nil: none (Listen or a sheet is up). Set by `ShellState`
-    /// through `drive` on every change of what it shows.
-    @ObservationIgnored private(set) var driver: ChromeSource?
+    /// The screen whose reports count; nil: none (Listen, the Reader, a sheet or the Files picker covers
+    /// it). Set by `ShellState` through `hand(to:)` on every change of what it shows.
+    @ObservationIgnored private(set) var owner: ChromeOwner?
+    /// The surface whose reports count (`owner`'s).
+    var driver: ChromeSource? { owner?.source }
+    /// The last screen that owned the chrome, kept under a cover: the same one back is no new screen.
+    @ObservationIgnored private var lastOwner: ChromeOwner?
 
     #if DEBUG
     /// `-chromeFold`: every fold is this one, where the chrome folds (`.folds`). Set by the launch (`AppMain`).
@@ -229,8 +258,8 @@ final class ChromeScroll {
     /// The step `value` is nearest: 0 two rows, 1 one row, 2 the bubble.
     nonisolated static func step(_ value: CGFloat) -> Int { value < 0.25 ? 0 : value < 0.75 ? 1 : 2 }
 
-    /// Back to two rows because a screen or page changed (a new screen, a page reader opening): scrolling
-    /// folds it again from here.
+    /// Back to two rows because the screen or page changed (a handover, a new web page, the search
+    /// opening): scrolling folds it again from here.
     func expand() {
         settling?.cancel()
         grace = 0
@@ -246,20 +275,68 @@ final class ChromeScroll {
         tappedAt = CACurrentMediaTime()
     }
 
-    /// A reader's full screen, by the centre tap (through the binding) or the reading rule. Each
-    /// change starts the travel afresh: re-hiding after a reveal takes a full `fullScreenDistance`.
-    func setFullScreen(_ on: Bool) {
+    /// A reader's centre tap (`ReadingInPlace.fullScreen`), from `source`: only the owner's counts,
+    /// as with its scroll, so a reader left mounted under another destination writes nothing.
+    func setFullScreen(_ on: Bool, from source: ChromeSource) {
+        guard driver == source, case .reads = policy else { return }
+        setFullScreen(on)
+    }
+
+    /// Full screen on or off by the reading rule or a handover. Each change starts the travel afresh:
+    /// re-hiding after a reveal takes a full `fullScreenDistance`.
+    private func setFullScreen(_ on: Bool) {
         guard fullScreen != on else { return }
         fullScreen = on
         clearReading()
     }
 
-    /// A different scroll view is now the one driving the chrome (a destination, a pushed screen):
-    /// two rows, out of full screen.
-    func reset() {
-        setFullScreen(false)
-        last = 0
-        expand()
+    /// The one handover: `new` drives the chrome from now, under its source's rule (nil: nothing, a
+    /// cover is up). Continuity drops at once whatever the change, keeping what is drawn. A cover and
+    /// its removal back to the same screen keep the fold and full screen; any other screen starts
+    /// expanded and out of full screen.
+    func hand(to new: ChromeOwner?) {
+        guard new != owner else { return }
+        owner = new
+        continuity = nil
+        guard let new else { return }
+        if new != lastOwner {
+            lastOwner = new
+            setFullScreen(false)
+            last = 0
+            expand()
+        }
+        applyPolicy()
+    }
+
+    /// What scrolling does for `source` under `conditions`. An in-place reader is expanded or full
+    /// screen, by scroll in Scroll mode without VoiceOver (Pages turns by tap; VoiceOver keeps the
+    /// bars); the start page (no page to name), Edit (its bar is row 2) and VoiceOver (the rows are
+    /// what it reads) hold both rows; everything else folds.
+    nonisolated static func policy(for source: ChromeSource, _ conditions: ChromeConditions) -> ChromePolicy {
+        switch source {
+        case .browserReader, .libraryReader:
+            return .reads(scrollHides: !conditions.voiceOver && conditions.readsByScroll)
+        case .browser where !conditions.browserHasPage:
+            return .holds
+        default:
+            if conditions.voiceOver || conditions.editing.contains(source.destination) { return .holds }
+            return .folds
+        }
+    }
+
+    /// The rule for the owner (the last one under a cover) now. Anything but `.folds` unfolds;
+    /// anything but `.reads` leaves full screen; `.reads(true)` and `.reads(false)` share it.
+    private func applyPolicy() {
+        guard let source = (owner ?? lastOwner)?.source else { return }
+        let new = Self.policy(for: source, conditions)
+        guard new != policy else { return }
+        policy = new
+        if new != .folds { expand() }
+        if case .reads = new {} else { setFullScreen(false) }
+        clearReading()
+        #if DEBUG
+        if new == .folds, Self.forcedFold != nil { set(0) }
+        #endif
     }
 
     /// Whether a finger report from `source` moves anything: only the driver's, and the first after
@@ -274,14 +351,6 @@ final class ChromeScroll {
             return false
         }
         return true
-    }
-
-    /// `source` drives the chrome from now (nil: nothing, under Listen or a sheet). A change drops
-    /// continuity at once, keeping what is drawn, so no change between two reports goes unseen.
-    func drive(_ source: ChromeSource?) {
-        guard source != driver else { return }
-        driver = source
-        continuity = nil
     }
 
     private func clearReading() {

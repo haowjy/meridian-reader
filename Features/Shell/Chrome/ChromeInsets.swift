@@ -67,7 +67,8 @@ struct CompactChromeInsets: ViewModifier {
 }
 
 /// Reports a screen's own scroll views to the chrome: a pushed screen has to do it itself, since
-/// a modifier above the navigation stack doesn't reach inside it.
+/// a modifier above the navigation stack doesn't reach inside it. The shell hands the chrome to the
+/// new screen as its path changes (`ShellState.chromeOwner`).
 struct CompactChromeScroll: ViewModifier {
     let isCompact: Bool
     let source: ChromeSource
@@ -77,7 +78,6 @@ struct CompactChromeScroll: ViewModifier {
         if isCompact {
             content
                 .chromeScrollSource(shell.chromeScroll, as: source)
-                .onAppear { shell.chromeScroll.reset() }
         } else {
             content
         }
