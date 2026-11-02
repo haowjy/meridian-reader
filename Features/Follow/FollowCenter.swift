@@ -166,7 +166,10 @@ final class FollowCenter {
             let state = folder.followState
             guard let contents = TableOfContents.again(page, as: state?.source) else { throw FollowError.noChapters }
             let seen = Set(state?.seen ?? [])
-            guard seen.isEmpty || contents.chapters.contains(where: { seen.contains($0.canonicalURL) })
+            // Only a whole list can be told from a different one by what it shares with `seen`; a
+            // feed or a blog's latest posts is a window that can move clear of it.
+            let kind = state?.kind ?? contents.kind
+            guard kind == .posts || seen.isEmpty || contents.chapters.contains(where: { seen.contains($0.canonicalURL) })
             else { throw FollowError.changedList }
             if try library.addNewChapters(from: contents, to: folder) > 0 { kick() }
             checkFailures[id] = nil

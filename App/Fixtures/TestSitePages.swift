@@ -105,8 +105,10 @@ enum TestSitePages {
             return "<item><title>\(titles[index])</title><link>reader-test://blog/post/\(slug(titles[index]))</link>"
                 + "<pubDate>\(formatter.string(from: day))</pubDate></item>"
         }
-        return "<?xml version=\"1.0\"?><rss version=\"2.0\"><channel><title>Harbour Notes</title>"
-            + "<link>reader-test://blog/</link>\(items.joined())</channel></rss>"
+        return "<?xml version=\"1.0\"?><rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\">"
+            + "<channel><title>Harbour Notes</title>"
+            + "<atom:link href=\"reader-test://blog/feed\" rel=\"self\" type=\"application/rss+xml\"/>"
+            + "<link>reader-test://blog</link>\(items.joined())</channel></rss>"
     }
 }
 #endif

@@ -171,6 +171,8 @@ final class URLPageFetcher {
       const ms = (s) => { const t = Date.parse(s); return isNaN(t) ? null : t; };
       const root = document.documentElement;
       const child = (el, name) => Array.from(el.children).find((c) => c.localName === name);
+      // RSS's own <link> (no namespace), not an <atom:link rel="self"> beside it.
+      const rssLink = (el) => Array.from(el.children).find((c) => c.localName === "link" && !c.namespaceURI);
       const absolute = (raw) => { try { return new URL(raw, document.baseURI).href; } catch (e) { return null; } };
       const web = /^(https?|reader-test):/;
       if (root && /^(rss|feed|rdf)$/i.test(root.localName)) {
@@ -179,13 +181,13 @@ final class URLPageFetcher {
         const atomLinks = (el) => Array.from(el.children).filter((c) => c.localName === "link" && c.getAttribute("href"));
         const alternate = (el) => { const all = atomLinks(el); return all.find((c) => (c.getAttribute("rel") || "alternate") === "alternate"); };
         const homeLink = alternate(channel);
-        const plain = child(channel, "link");
+        const plain = rssLink(channel);
         const home = homeLink ? homeLink.getAttribute("href") : (plain ? squeeze(plain.textContent) : null);
         const links = [];
         for (const entry of root.querySelectorAll("item,entry")) {
           const title = child(entry, "title");
           const atom = alternate(entry) || atomLinks(entry)[0];
-          const plainLink = child(entry, "link");
+          const plainLink = rssLink(entry);
           const guid = child(entry, "guid");
           const raw = atom ? atom.getAttribute("href")
             : (plainLink ? squeeze(plainLink.textContent) : (guid && web.test(squeeze(guid.textContent)) ? squeeze(guid.textContent) : null));

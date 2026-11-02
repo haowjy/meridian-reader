@@ -771,7 +771,7 @@ New Chapters* ("today 8:02 AM, 2 added"), **Check Now** (↻, the spinning downl
 table of contents is read again (the page or feed that was followed, and nothing else) and chapters
 it didn't list before go at the end of the folder, a blog's new posts on top;
 chapters left out in Review, and ones you deleted, stay out.
-No feeds and no notifications. Unfollowing stops the checks; every chapter added stays, and their
+No notifications. Unfollowing stops the checks; every chapter added stays, and their
 text is still fetched.
 
 **Rows** are `ListRow`s, compact and two lines for every kind (YouTube Music's rows). A folder

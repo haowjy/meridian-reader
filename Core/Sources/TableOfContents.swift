@@ -174,10 +174,15 @@ struct TableOfContents: Equatable, Sendable {
         guard case .page(_, let feeds, let canonical) = page.body, let url = feeds.first else { return nil }
         let document = try await fetch(url)
         guard case .feed(_, let home?) = document.body else { return nil }
-        let address = ArticleIdentity.canonicalURLString(from: home)
-        guard [page.url, canonical].compactMap({ $0 }).contains(where: { ArticleIdentity.canonicalURLString(from: $0) == address })
-        else { return nil }
+        guard [page.url, canonical].compactMap({ $0 }).contains(where: { sameHome($0, home) }) else { return nil }
         return feed(document, siteName: page.siteName)
+    }
+
+    /// The same address, tolerating "www." and a trailing "/" (a WordPress feed names its home
+    /// `https://example.com`, the page is `https://example.com/`).
+    private static func sameHome(_ a: URL, _ b: URL) -> Bool {
+        func path(_ url: URL) -> String { pathParts(url).joined(separator: "/") }
+        return host(of: a) == host(of: b) && path(a) == path(b)
     }
 
     private static func feed(_ document: LinkPage, siteName: String?) -> TableOfContents? {
@@ -202,8 +207,11 @@ struct TableOfContents: Equatable, Sendable {
             sameSite(link.url, page.url) && ArticleIdentity.canonicalURLString(from: link.url) != here
                 && !squeezed(link.text).isEmpty
         }
+        // A list holding a link to the page's own parent (← Contents, ← Previous, Next →) is the
+        // page's navigation, not what it lists.
+        let navigation = Set(candidates.filter { isAncestor($0.url, of: page.url) }.map(\.list))
         var best: (list: Int, score: Int)?
-        for (list, links) in Dictionary(grouping: candidates, by: \.list) {
+        for (list, links) in Dictionary(grouping: candidates, by: \.list) where !navigation.contains(list) {
             let signalled = links.filter { isChapterLike($0) || $0.date != nil }.count
             guard links.count >= 3, 2 * signalled >= links.count else { continue }
             let sharedShape = Dictionary(grouping: links, by: { shape(of: $0.url) }).values.map(\.count).max() ?? 0
@@ -254,11 +262,16 @@ struct TableOfContents: Equatable, Sendable {
     /// `/story/12/a-b`). The site's root is not one. That page is not followed further.
     private static func parentURL(of page: LinkPage) -> URL? {
         guard case .page(let links, _, _) = page.body else { return nil }
-        let own = page.url.pathComponents.filter { $0 != "/" }
         return links
-            .filter { sameSite($0.url, page.url) }
-            .map { (url: $0.url, parts: $0.url.pathComponents.filter { $0 != "/" }) }
-            .filter { !$0.parts.isEmpty && $0.parts.count < own.count && own.starts(with: $0.parts) }
-            .max { $0.parts.count < $1.parts.count }?.url
+            .filter { isAncestor($0.url, of: page.url) }
+            .max { pathParts($0.url).count < pathParts($1.url).count }?.url
+    }
+
+    private static func pathParts(_ url: URL) -> [String] { url.pathComponents.filter { $0 != "/" } }
+
+    /// `url` is on `page`'s site and its path is a non-empty proper prefix of the page's.
+    private static func isAncestor(_ url: URL, of page: URL) -> Bool {
+        let parts = pathParts(url), own = pathParts(page)
+        return sameSite(url, page) && !parts.isEmpty && parts.count < own.count && own.starts(with: parts)
     }
 }

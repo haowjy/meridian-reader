@@ -209,7 +209,7 @@ a serial site's promotions of its fictions) are not blocked.
 **Follow** (`FollowCenter`, `LibraryStore+Follow`): a story's table of contents
 (`TableOfContents.read`, through generic rules only, no site is named; the first that finds a list
 wins: the page's own list of links, the one with the most chapter-like or dated links on its site
-and at least half of its links of that kind, links sharing one path shape adding to its score;
+and at least half of its links of that kind, a list holding a link to the page's own parent (a chapter's ← Contents, ← Previous, Next →) left out as navigation, links sharing one path shape adding to its score;
 else, for a page with no list (a chapter, a post), the link on it whose path is the longest proper
 prefix of its own, read the same way and kept only as a list of chapters, one more fetch; else a feed the page advertises
 (RSS 2.0 or Atom, `<link rel="alternate">`), used only when the page is the feed's home (its
@@ -220,7 +220,7 @@ chapters, is *Posts*, newest first; a list that reads as chapters is *Chapters*,
 order; any other list is *Chapters*, in the page's order. The site's name is `og:site_name`, else
 the host without "www.". Every extra read goes through `FetchQueue`). What was followed (the page
 or the feed, and posts or chapters) is kept in `FollowState`, and a check reads that page again
-with no search for another; a read that lists none of the chapters seen fails the check) becomes a `series` folder of link pages, one per chapter kept in Review, in the
+with no search for another; a read of a chapter list that shares none of the chapters seen fails the check). A follow becomes a `series` folder of link pages, one per chapter kept in Review, in the
 story's order, with its state in `sourceStateData` (`FollowState`: following or not, the last
 check, the last chapters added, and every chapter address the contents have listed, kept or not).
 Review's preview of a chapter is not an out-of-sight fetch: it loads the chapter in sight, in the
