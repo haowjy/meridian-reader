@@ -138,9 +138,9 @@ struct BrowseStartView: View {
                             ReaderSurface(article: article, speech: speech, source: .browserReader, covered: isCovered,
                                           onEdgeSwipeBack: webStore.canGoBack ? goBack : nil,
                                           menu: holdMenu(actions),
-                                          // The page's Save, as its menu's: the page extracted and saved.
-                                          save: actions.readingSave(identifier: "readerSave", isBusy: shell.busy == .save,
-                                                                    isEnabled: actions.isSaved || (actions.canSave && !article.document.isEmpty)))
+                                          // The page's Save, as its menu's: the text on screen saved.
+                                          save: actions.readingSave(identifier: "readerSave",
+                                                                    isEnabled: actions.isSaved || actions.canSave))
                         }
                         .id(article.id)
                     }
@@ -199,8 +199,7 @@ struct BrowseStartView: View {
     private var webPage: URL? { webStore.currentURL.flatMap { $0.isWebOrTestPage ? $0 : nil } }
 
     private var bottomChrome: some View {
-        let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
-        return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical) { page in
+        pageLookup { page in
             let actions = pageActions(page)
             BrowserBottomChrome(
                 speech: speech,
@@ -332,8 +331,13 @@ struct BrowseStartView: View {
         }
     }
 
-    /// The Library's article for the page the browser shows (nil: not saved, or no page).
+    /// The Library's article for the page the browser shows (nil: not saved, or no page): in reader
+    /// mode the article on screen, by its key and address as Library Read finds its own, else the web
+    /// page by its address.
     private func pageLookup<Content: View>(@ViewBuilder _ content: @escaping (Article?) -> Content) -> some View {
+        if let article = shell.pageReader {
+            return ArticleLookup(key: article.id, canonicalURL: article.origin.canonicalURL, content: content)
+        }
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
         return ArticleLookup(key: canonical.map { ArticleIdentity.articleKey(canonicalURL: $0) }, canonicalURL: canonical, content: content)
     }
@@ -463,9 +467,14 @@ struct BrowseStartView: View {
 
     // MARK: - ⋯ menu
 
-    /// The page the browser shows, as every menu sees a page (`ArticleActions`): saved by extracting
-    /// it first (⋯ spins).
+    /// The page the browser shows, as every menu sees a page (`ArticleActions`): in reader mode the
+    /// article on screen, saved as shown (its 🔖, its ⋯ and the field's hold menu alike); else the web
+    /// page, saved by extracting it first (⋯ spins).
     private func pageActions(_ libraryPage: Article?) -> ArticleActions {
+        if let article = shell.pageReader {
+            return ArticleActions(article: libraryPage, readerArticle: article, library: library, shell: shell,
+                                  speech: speech, preparedAudio: preparedAudio, follow: follow)
+        }
         let loaded = ArticleActions.LoadedPage(canSave: hasPage && shell.busy == nil,
                                             save: { folder in run { try await $0.save(in: folder) } })
         return ArticleActions(article: libraryPage, url: webPage, loaded: webPage == nil ? nil : loaded, library: library,
@@ -491,7 +500,7 @@ struct BrowseStartView: View {
                              icon: showing ? Icons.readerShowing : Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
-        return MenuContext(item: webPage == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
+        return MenuContext(item: webPage == nil && shell.pageReader == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
                            tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader), isOnReadingPage: showing)
     }
 
