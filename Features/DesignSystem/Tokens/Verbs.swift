@@ -181,9 +181,9 @@ enum Verbs {
     /// (`LocalTTSCoordinator.voiceSummary`): "Voice: Default", "Voice: Kokoro".
     static func voiceRow(_ name: String) -> String { String(localized: "Voice: \(name)") }
     static let changeVoice = String(localized: "Change Voice")
-    /// Cellular prompt before Phonon / Kokoro model downloads.
+    /// The prompt before a large voice download on cellular or in Low Data Mode.
     static let downloadAnyway = String(localized: "Download")
-    static let waitForWiFi = String(localized: "Wait for Wi‑Fi")
+    static let notNow = String(localized: "Not Now")
     static let textSize = String(localized: "Text Size")
     static let listenDebug = String(localized: "Listen Debug")
     /// The reading pages' ▶ Listen once the page is what you hear: it only opens Listen.

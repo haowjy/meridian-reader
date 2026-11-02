@@ -1,8 +1,9 @@
 import Foundation
 import Observation
 
-/// Asks before Kokoro's model download (~163 MB) when the path is cellular or
-/// Low Data Mode. Wi‑Fi downloads start without a prompt.
+/// Asks before Kokoro's model download (~163 MB) on cellular or with Low Data Mode on, and says
+/// which. Wi‑Fi downloads start without a prompt. *Not Now* stops the download (the voice's row
+/// goes back to not downloaded); nothing waits for Wi‑Fi.
 /// Wired once from `RootView`; model stores call `confirmIfNeeded` before starting a transfer.
 @MainActor
 @Observable
@@ -12,12 +13,21 @@ final class LargeModelDownloadConsent {
     struct Prompt: Equatable {
         let engineName: String
         let bytes: Int64
+        let caution: NetworkPathStatus.LargeDownloadCaution
 
-        var title: String { String(localized: "Download on Cellular?") }
+        var title: String {
+            switch caution {
+            case .lowDataMode: String(localized: "Download in Low Data Mode?")
+            case .cellular: String(localized: "Download on Cellular?")
+            }
+        }
 
         var message: String {
-            let size = FileSizes.label(bytes)
-            return String(localized: "\(engineName) needs about \(size). You’re not on Wi‑Fi.")
+            let size = FileSizes.megabytes(bytes)
+            return switch caution {
+            case .lowDataMode: String(localized: "\(engineName) needs \(size). Low Data Mode is on.")
+            case .cellular: String(localized: "\(engineName) needs \(size). You’re not on Wi‑Fi.")
+            }
         }
     }
 
@@ -25,19 +35,18 @@ final class LargeModelDownloadConsent {
     private var waiters: [CheckedContinuation<Bool, Never>] = []
 
     /// Returns after the user allows (or when no prompt is needed). Throws `CancellationError`
-    /// when they choose Wait for Wi‑Fi. No-ops under XCTest so unit hosts never hang.
+    /// when they choose Not Now. No-ops under XCTest so unit hosts never hang.
     func confirmIfNeeded(engineName: String, bytes: Int64) async throws {
         #if DEBUG
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
         #endif
-        guard NetworkPathStatus.shared.shouldPromptForLargeDownload else { return }
-        let allowed = await request(Prompt(engineName: engineName, bytes: bytes))
+        guard let caution = NetworkPathStatus.shared.largeDownloadCaution else { return }
+        let allowed = await request(Prompt(engineName: engineName, bytes: bytes, caution: caution))
         if !allowed { throw CancellationError() }
     }
 
     func allow() { finish(true) }
-    func deferUntilWiFi() { finish(false) }
-
+    func decline() { finish(false) }
     private func request(_ prompt: Prompt) async -> Bool {
         await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
             waiters.append(cont)

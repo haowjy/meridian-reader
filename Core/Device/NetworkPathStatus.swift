@@ -22,14 +22,22 @@ final class NetworkPathStatus: @unchecked Sendable {
         monitor.start(queue: queue)
     }
 
-    /// True when a large download should ask before using the current path (cellular or Low Data Mode).
-    /// Wi‑Fi (and Ethernet) with Low Data Mode off does not prompt. Offline still returns false so
-    /// the download's own error surfaces.
-    var shouldPromptForLargeDownload: Bool {
+    /// Why a large download asks before using the current path.
+    enum LargeDownloadCaution: Equatable {
+        /// Low Data Mode is on (on Wi‑Fi or cellular): the user asked apps to use less data.
+        case lowDataMode
+        /// Cellular (or another expensive path, a hotspot).
+        case cellular
+    }
+
+    /// Why a large download should ask before using the current path; nil on Wi‑Fi (and
+    /// Ethernet) with Low Data Mode off. Offline is nil too, so the download's own error surfaces.
+    var largeDownloadCaution: LargeDownloadCaution? {
         lock.lock()
         let p = path
         lock.unlock()
-        guard p.status == .satisfied else { return false }
-        return p.isExpensive || p.isConstrained
+        guard p.status == .satisfied else { return nil }
+        if p.isConstrained { return .lowDataMode }
+        return p.isExpensive ? .cellular : nil
     }
 }

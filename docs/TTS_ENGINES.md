@@ -183,10 +183,12 @@ Files: `Features/Speech/Engines/Phonon/` (`PhononProvider`, `PhononHost`, `Phono
 ### Large model downloads
 
 `LargeModelDownloadConsent` guards Kokoro's ONNX model (~163 MB).
-On Wi-Fi (or Ethernet) with Low Data Mode off a download starts without a prompt. On cellular or
-with Low Data Mode on, an alert from `RootView` asks "Download on Cellular?" ("<engine> needs about
-<size>. You're not on Wi-Fi.") with *Download* or *Wait for Wi-Fi* (which cancels the download
-for now). Offline never prompts, so the download's own error shows.
+On Wi-Fi (or Ethernet) with Low Data Mode off a download starts without a prompt. With Low Data
+Mode on, an alert from `RootView` asks "Download in Low Data Mode?" ("<engine> needs <size>. Low
+Data Mode is on."); on cellular otherwise, "Download on Cellular?" ("<engine> needs <size>.
+You're not on Wi-Fi."). Its buttons are *Download* and *Not Now*, which stops the download (the
+voice's row goes back to not downloaded; nothing waits for Wi-Fi). Offline never prompts, so the
+download's own error shows.
 
 ## Text prep for speech
 

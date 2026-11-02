@@ -41,12 +41,12 @@ struct RootView: View {
             .alert(cellularDownload.prompt?.title ?? "",
                    isPresented: Binding(
                     get: { cellularDownload.prompt != nil },
-                    set: { if !$0 { cellularDownload.deferUntilWiFi() } }
+                    set: { if !$0 { cellularDownload.decline() } }
                    )) {
                 Button(Verbs.downloadAnyway) { cellularDownload.allow() }
                     .accessibilityIdentifier("cellularDownloadConfirm")
-                Button(Verbs.waitForWiFi, role: .cancel) { cellularDownload.deferUntilWiFi() }
-                    .accessibilityIdentifier("cellularDownloadWait")
+                Button(Verbs.notNow, role: .cancel) { cellularDownload.decline() }
+                    .accessibilityIdentifier("cellularDownloadNotNow")
             } message: {
                 if let prompt = cellularDownload.prompt {
                     Text(prompt.message)

@@ -151,4 +151,12 @@ enum FileSizes {
     static func label(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
+
+    /// A download's size in megabytes, as iOS's Voice screen writes it: "0.5 MB", "164 MB" (one
+    /// decimal under 10 MB, whole megabytes above).
+    static func megabytes(_ bytes: Int64) -> String {
+        let mb = Double(bytes) / 1_000_000
+        let number = mb.formatted(.number.precision(.fractionLength(mb < 10 ? 1 : 0)))
+        return String(localized: "\(number) MB")
+    }
 }
