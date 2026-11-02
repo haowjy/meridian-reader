@@ -1,19 +1,7 @@
 import SwiftUI
 
-/// What a ⋯ shows: the item's own menu (a page's `ArticleMenu` or a folder's `FolderMenu`;
-/// none on a screen with no item), then the screen's own rows ending in *Prepared Audio*, a
-/// divider, then the same tile buttons on every surface (C140). The ⋯ panel draws them; compact
-/// width's title lines and the Browser field's hold menu draw the same rows as a system menu (`blocks`):
-///
-///     [Settings]  [Library]  [History]  [Reader]
-///
-/// History is there on compact width only: regular width has the 🕘 button. Settings is there on
-/// regular width only: compact width has it in the chrome's pill. Library opens the Library. History opens the browser's visits. Reader
-/// (rightmost, the panel's focus point) varies by surface:
-///
-/// - browser:  open the current page in the Reader (greyed when not readable)
-/// - Library:  go to Now Playing (greyed when nothing is playing)
-/// - Browse Reader / Now Playing:  disabled (already in the reading view)
+/// The item's menu, then the screen's actions. Compact width draws system-menu sections;
+/// regular width keeps its navigation tiles. Registry groups travel with each `MenuRow`.
 struct MenuContext {
     var item: [MenuRow] = []
     var screen: [MenuRow]
@@ -25,16 +13,13 @@ struct MenuContext {
     /// screen's, then the tiles as rows, a section each.
     var blocks: [[MenuRow]] { [item, screen, tiles] }
 
-    /// A screen's own block, from `MenuRegistry` (C98): *Text Appearance*, *Sort*, *Reload* where they
-    /// apply, then *Prepared Audio*.
-    /// `custom` gives the rows only a screen can make (its *Sort*, *Reload*). Settings
-    /// is a tile (C140), not a list row.
+    /// The screen's registry rows. The caller supplies actions specific to its screen.
     @MainActor
     static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(),
                            shell: ShellState, custom: (MenuRegistry.Option) -> MenuRow? = { _ in nil }) -> [MenuRow] {
-        return MenuRegistry.rows(.screen, at: place, facts) { option in
+        MenuRegistry.rows(.screen, at: place, facts) { option in
             if let row = custom(option) { return row }
-            return MenuRow(id: "morePreparedAudio", title: Verbs.preparedAudio, icon: Icons.preparedAudio) { shell.present(.preparedAudio) }
+            return MenuRow(id: "moreHistory", title: Verbs.browsingHistory, icon: Icons.history) { shell.present(.history) }
         }
     }
 

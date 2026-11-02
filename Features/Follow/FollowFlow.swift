@@ -1,15 +1,14 @@
 import Foundation
 import Observation
 
-/// One use of the Follow sheet (`ShellSheet.follow`): from an address (the browser's page, or one
-/// pasted from a folder's ⋯) to the story's table of contents, then Review, then OK. The sheet
-/// draws whichever step it is on; the steps change only here.
+/// Add a Link and a known page’s Follow share one read, review and save flow.
 @MainActor
 @Observable
 final class FollowFlow: Identifiable {
     enum Step {
         /// A folder's ⋯: the story's address is asked for.
         case address
+        case saved
         /// Reading the table of contents at the address.
         case reading(URL)
         /// It couldn't be read, or listed no chapters.
@@ -23,6 +22,11 @@ final class FollowFlow: Identifiable {
     let id = UUID()
     /// Where the story's folder goes (nil: the Library's top level).
     let parentID: UUID?
+    let isAddingLink: Bool
+    private(set) var originalURL: URL?
+    private(set) var saveError: String?
+    private(set) var isSaving = false
+    @ObservationIgnored private let saveKnownPage: (() async -> Bool)?
     private(set) var step: Step
     /// The address field, on the address step.
     var address: String
@@ -35,7 +39,10 @@ final class FollowFlow: Identifiable {
     @ObservationIgnored private var reading: Task<Void, Never>?
 
     /// From the browser's page `url` (read at once), or from a folder (nil: its address is asked).
-    init(url: URL?, parentID: UUID?, center: FollowCenter) {
+    init(url: URL?, parentID: UUID?, center: FollowCenter, savePage: (() async -> Bool)? = nil) {
+        isAddingLink = url == nil
+        originalURL = url
+        saveKnownPage = savePage
         self.parentID = parentID
         self.center = center
         address = url?.absoluteString ?? ""
@@ -45,11 +52,10 @@ final class FollowFlow: Identifiable {
 
     /// The address field as an address: a scheme is added when it has none.
     var typedURL: URL? {
-        let text = address.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !text.contains(" ") else { return nil }
-        let withScheme = text.contains("://") ? text : "https://" + text
-        guard let url = URL(string: withScheme), url.host != nil else { return nil }
-        return url
+        #if DEBUG
+        if let url = URL(string: address), url.scheme == "reader-test", url.host != nil { return url }
+        #endif
+        return LibraryScreenState.linkURL(address)
     }
 
     // MARK: - Reading
@@ -57,6 +63,8 @@ final class FollowFlow: Identifiable {
     /// Reads the story `url` belongs to; a story followed already shows as that.
     func read(_ url: URL) {
         reading?.cancel()
+        originalURL = url
+        saveError = nil
         step = .reading(TableOfContents.contentsURL(for: url))
         reading = Task {
             do {
@@ -73,14 +81,29 @@ final class FollowFlow: Identifiable {
             } catch {
                 guard !Task.isCancelled else { return }
                 step = .failed(url, message: FollowCenter.message(for: error))
+                if isAddingLink { await savePage() }
             }
         }
     }
 
-    /// Back to the address step (a folder's ⋯, after a failed read).
-    func editAddress() {
-        reading?.cancel()
-        step = .address
+    /// Save the original page, never the contents URL a chapter resolved to. A failed
+    /// store write keeps the sheet and its input available for another attempt.
+    func savePage() async {
+        guard !isSaving, let url = originalURL else { return }
+        isSaving = true
+        defer { isSaving = false }
+        saveError = nil
+        if let saveKnownPage {
+            if await saveKnownPage() { step = .saved }
+            else { saveError = String(localized: "Couldn’t save. Try again.") }
+        } else {
+            do {
+                try center.library.saveLink(url, in: parentID.flatMap(center.library.folder(id:)))
+                step = .saved
+            } catch {
+                saveError = String(localized: "Couldn’t save. Try again.")
+            }
+        }
     }
 
     /// The sheet went away: nothing it started carries on.
@@ -108,7 +131,7 @@ final class FollowFlow: Identifiable {
         contents.chapters.filter(isKept)
     }
 
-    /// OK: the story's folder, made at once with the chapters kept, which start fetching.
+    /// The story's folder, made at once with the chapters kept, which start fetching.
     func follow(_ contents: TableOfContents, in parent: Folder?) throws -> Folder {
         try center.follow(contents, keeping: keptChapters(of: contents), in: parent)
     }

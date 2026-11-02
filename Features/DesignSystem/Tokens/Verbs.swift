@@ -36,8 +36,7 @@ import Foundation
 /// | Rename…, Edit Details… | `Icons.rename`, `Icons.editDetails` |
 /// | Delete Folder…, Delete Book… | `Icons.delete` |
 /// | Pause (a prepare), Prepare Again | `Icons.pause`, `Icons.reprepare` |
-/// | New Folder…, Import from…, Paste Text…, Add Link…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.paste`, `Icons.link`, `Icons.follow` |
-/// | Follow a Site (the empty screens' tile) | `Icons.follow` |
+/// | New Folder…, Import a File…, Paste Text…, Add a Link…, Follow… | `Icons.newFolder`, `Icons.importFile`, `Icons.paste`, `Icons.link`, `Icons.follow` |
 /// | Prepared Audio, Settings | `Icons.preparedAudio`, `Icons.settings` |
 enum Verbs {
     // MARK: A page
@@ -122,15 +121,12 @@ enum Verbs {
     // MARK: Screens
 
     static let newFolder = String(localized: "New Folder…")
-    static let importBook = String(localized: "Import from…")
+    static let importBook = String(localized: "Import a File…")
     static let pasteText = String(localized: "Paste Text…")
-    static let addLink = String(localized: "Add Link…")
+    static let addLink = String(localized: "Add a Link…")
     static let create = String(localized: "Add")
     /// A story's table of contents, read into a folder of chapters.
     static let follow = String(localized: "Follow…")
-    /// The empty screens' tile (`AddToLibraryTiles`): the Follow sheet, asking for an address. No
-    /// ellipsis: a tile names a way in, as its neighbours do (*Paste Text*, *Add a Link*).
-    static let followSite = String(localized: "Follow a Site")
     static let unfollow = String(localized: "Unfollow")
     static let followAgain = String(localized: "Follow Again")
     static let checkNow = String(localized: "Check Now")
@@ -148,7 +144,7 @@ enum Verbs {
     static let history = String(localized: "History")
     /// The browser's pages visited: its sheet's title and the buttons and menu rows that open it.
     static let browsingHistory = String(localized: "Browsing History")
-    static let removeFromBrowsingHistory = String(localized: "Remove from Browsing History")
+    static let removeFromBrowsingHistory = String(localized: "Remove from History")
     /// The start page's and the search layer's section of searches made, and its action.
     static let recentSearches = String(localized: "Recent Searches")
     /// The start page's sites with the most pages in History.

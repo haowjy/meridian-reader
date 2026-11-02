@@ -1,14 +1,7 @@
 import SwiftUI
 
-/// A prepare's menu: the one definition the Prepared Audio list's rows show from their ⋯ and their
-/// long press, the same rows in every section. Which options show and greyed or not is
-/// `MenuRegistry`'s (C98): *Prepare Again* (grey while queued), *Keep* (grey unless its audio is in
-/// another voice than prepared audio now use), *Remove Prepare(s)* (red). No *Pause* / *Resume*: the
-/// row's ↓ mark does that.
-///
-/// Every row is a page (C110): *Prepare Again* renders that page again, *Keep* keeps the voice of the
-/// prepare it came from, and *Remove Prepared Audio* (the row's swipe too) is the page's own, as in its
-/// menu (`PrepareCenter.deletePreparedAudio(of:)`). A folder's prepare is turned off on its screen.
+/// A prepared article's menu: Prepare Again, then Delete Audio. Audio made only by listening
+/// has Delete Audio alone, disabled while playback needs it. Both actions come from the registry.
 struct PrepareMenu: View {
     let item: PrepareArticles.Item
     let preparedAudio: PrepareCenter

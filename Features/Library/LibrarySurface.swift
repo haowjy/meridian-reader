@@ -24,7 +24,6 @@ struct LibrarySurface: View {
 
     private var screen: LibraryScreenState { chrome.screen }
     private var screenMenu: LibraryScreenMenu { chrome.screenMenu }
-    private var turningOff: Binding<Folder?> { chrome.turningOff }
     private var searchPrompt: String { chrome.searchPrompt }
 
     private var isRegular: Bool { sizeClass == .regular }
@@ -98,7 +97,6 @@ struct LibrarySurface: View {
                 BandToolbarButton(systemImage: Icons.history, label: Verbs.browsingHistory,
                                   identifier: "libraryHistory") { shell.present(.history) }
                 MoreMenuButton(id: "libraryMore") { screenMenu.menu(compact: false) }
-                    .turnOffPrepareQuestion(turningOff)
             }
             .tint(Palette.ink)
         }

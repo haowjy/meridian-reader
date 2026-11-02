@@ -299,7 +299,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   the middle tap leaves it, as in the in-place readers. It is Listen's own: the chrome
   underneath keeps its state. Voice, Save to Folder, ⋯ and the debug panel open over Listen and return to it.
 - **Listen with nothing to play** (nothing bound and nothing played before): the same cover, its grabber and
-  pull down, with *Nothing Playing*, "Choose an article or book to listen to." and the five tiles every empty
+  pull down, with *Nothing Playing*, "Choose an article or book to listen to." and the four tiles every empty
   screen has (`AddToLibraryTiles`, below), each closing Listen first. A pull from
   anywhere on it closes it. Listen that loses what it showed (the page removed from the Library) closes
   instead.
@@ -307,7 +307,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   Listen up (a followed story's chapter still waiting for its text plays once it is in, and Listen stays
   down); a reader's ▶ Listen does the same; a page shared from Safari opens in the Browser straight in
   reader view (once it has loaded and if it is readable; else the page itself), its ▶ Listen in the top group
-  there; *Paste Text…* saves, then opens the new article in Library Read; *Import from…* and a shared book
+  there; *Paste Text…* saves, then opens the new article in Library Read; *Import a File…* and a shared book
   file close the import sheet on the new book's screen.
 - **Reader mode on the Browser replaces the page in place** (like Safari Reader,
   `ReaderSurface`): the chrome never folds; it is expanded or full screen (a deliberate scroll down in Scroll
@@ -333,27 +333,19 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   with its scroll; the chrome is expanded or full screen as in the Browser's reader mode (never folded), ‹ (`libraryReaderBack`)
   or a left-edge swipe closes it, and there is no player card. Row 1 is `[‹][(lit reader icon) site][Listen]`, laid out as the
   Browser's reader mode (the icon's tap opens the live page in the Browser). The top group is the Browser
-  reader mode's, its ⋯ the Library's screen menu; its ▶ Listen starts the page. Nothing plays until then. Opening a saved page anywhere else on compact width
+  reader mode's, its ⋯ the article's menu; its ▶ Listen starts the page. Nothing plays until then. Opening a saved page anywhere else on compact width
   (Prepared Audio's rows) opens it here too. At regular width Read keeps opening the sheet.
   A search in the Library ends when Read opens, so the chrome shows the reader's row and not the keyboard form.
-- **⋯ is not in the chrome.** Each screen's menu keeps its rows and their order (`MenuContext`) and is a
-  system menu (`MenuRows`, `TitleMenuButton`), the panel's big buttons as its last section:
-  - the Library home: ⋯ at the end of the title's line (`libraryMore`); a folder's screen: ⋯ beside Edit in its
-    navigation bar; Library Read: the top group's ⋯ (and a press and hold on the field's reader icon), the page's
-    menu first (its *Save to Library* / *Remove from Library*, *Save to Folder…* / *Move to…* and *Follow…* group
-    leading), then the Library's. The Library's menu adds *New Folder…*,
-    *Import from…* and *Paste Text…* to its screen's rows, and *Browsing History* is among its last rows. *Paste
-    Text…*'s *Save* opens the new article in Library Read.
-  - Settings: ⋯ at the end of its title's line (`settingsMore`).
-  - Listen: the top group's ⋯ (`listenMore`, above).
-  - the Browser (page, start page, reader mode): a press and hold on the field's leading glyph (the reader
-    icon, or 🔍 where there is none, `addressMenu`); a tap on the reader icon still toggles reader mode. In
-    reader mode the top group's ⋯ opens the same menu.
-    Its rows: *Open in Reader* (or *Show Web Page*), *Listen* (Listen over the page you hear; another readable
-    page is extracted and plays, and Listen rises once it starts), then the page's menu (*Save to Library*,
-    *Save to Folder…*, *Follow…* first) and the screen's rows regular width's ⋯ shows (*Reload*, …), then
-    *Library* and *Browsing History*.
-  Compact width has no *Settings* row anywhere: the pill has it.
+- **⋯ is not in the chrome.** Compact menus use the registry's ordered groups and dividers
+  (`MenuRows`, `TitleMenuButton`; the complete lists are in `MENUS.md`).
+  - Library home and folder title ⋯: *Add a Link…*, *Import a File…*, *Paste Text…* —
+    *New Folder…* — *Sort ›*. Library Read's top-group ⋯ and field hold show only its article menu.
+  - Settings: ⋯ at the end of its title line (`settingsMore`).
+  - Listen: the top-group ⋯ shows its article menu, then *Play from a Paragraph*; Voice is on its card.
+  - Browser: hold the leading field glyph (`addressMenu`) or use the reader's top-group ⋯ for
+    the page menu, followed by *Browsing History*. Tap the reader glyph to toggle reader mode;
+    Reload stays in the address pill. No Listen, Voice, Library or Prepared Audio row is appended.
+  Prepared Audio is reached through Settings › Prepared Audio & Storage.
 - The field's and Listen's card's text grows with Dynamic Type up to *xxxLarge* inside
   the fixed pieces (larger clips or overlaps); every glyph offers the large content viewer. Every tap target is at least 44 pt.
 - **Overlays, never rows:** prepare progress and toasts, on the top piece's edge.
@@ -390,7 +382,7 @@ dock, whose toolbar has one role per slot on both surfaces:
 |---|---|---|
 | 1 | ‹ web back | ‹ up a level (dimmed at the home) |
 | 2 | › web forward | › (always dimmed: the Library has no forward) |
-| 3 | 🔖 save the article / remove it (held: *Save to Folder…*) | ＋ *New Folder…*, *Import from…* |
+| 3 | 🔖 save the article / remove it (held: *Save to Folder…*) | ＋ *New Folder…*, *Import a File…* |
 | 4 | 🕘 Browsing History | 🕘 Browsing History |
 | 5 | ⋯ | ⋯ |
 
@@ -421,7 +413,7 @@ the same spot. ⋯ is never replaced.
   pages visited, newest first, as Library rows (the site under a titled visit, none under an
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
   and long press are the article's menu ("Menus", below; on the Library's article for the address when
-  it has one), then *Remove from Browsing History*. Empty, it says *No Browsing History Yet*, "Pages you open show up here.", over the five tiles every empty screen has; each closes it first (*Browse the Web* to the Browser).
+  it has one), then *Remove from History*. Empty, it says *No Browsing History Yet*, "Pages you open show up here.", over the four tiles every empty screen has; each closes it first (*Browse the Web* to the Browser).
 - ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
   same-document history counts too). The web view's own edge swipes still work; over the in-place
   reader, a swipe from the left edge does what ‹ does.
@@ -449,7 +441,7 @@ the same spot. ⋯ is never replaced.
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
   the article's own menu (the same rows as everywhere the article's menu shows: "Menus", below; its
-  *Save to Library*, *Save to Folder…* and *Follow…* first), then *Reload, Prepared Audio, Settings*,
+  add, audio, item and remove groups), then the navigation tiles,
   then a row of big buttons **Library**, **Browsing History**, and **Reader** (rightmost, nearest the
   thumb, like Safari's All Tabs). The web page's *Save to Library* and *Save to Folder…* extract it first; in an open reader they save the text it shows.
   *Follow…* reads the story the article belongs to ("Follow a story", below). On the start page there
@@ -529,24 +521,19 @@ name, each row showing where it is below the folder (its site when it is in the 
 the search ends when you leave the folder. Each tab
 is one mixed list: folders and pages share a single list, with no section headings. The History tab is everything you opened or started (C104); the browser's
 *Browsing History* (🕘 on regular width, a row of the compact menus) is its pages visited. From the
-Library, 🕘 opens Browsing History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ shows as in any folder (C149); a folder header's More ends with *Delete Folder…* (*Delete Book…* on a book) alone at the bottom, after the create group. On
+Library, 🕘 opens Browsing History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ shows as in any folder (C149); a folder header's More ends with *Delete Folder…* (*Delete Book…* on a book) alone at the bottom. On
 History and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. Going to a place in the Library (Listen's ⋯ → *Go to …*, the title on Listen's card,
 an imported book) opens it on Library, where every place shows; Library
 comes back to the tab you left. Either way a page open in Library Read closes first, so the place
 asked for shows. The tab is remembered with the surface. On compact width the chrome's row 1 is the search
-field and the title line's ⋯ holds the creating rows, with *Browsing History* among its last rows ("Bottom chrome", above); on regular width the
-band and dock are the browser's: the search field and `[‹][›][＋][🕘][⋯]`. ＋ is the ⋯ panel's two creating rows, *New Folder…*
-(*New Folder…* in a folder) and *Import from…*, both made in the folder on screen (a book's too). Browser shows the browser as
-it was; Library there comes back to the same folder. The
-⋯ panel follows the screen on top (below): a folder's screen starts with the folder's own menu,
-then every screen has *Sort ›, New Folder…**, Import from…,
-Follow…, Prepared Audio, Settings*, and the big buttons **Library**, **Browsing History**, **Browser**; nothing in it acts on the page under the Library. Browsing History closes the Library first; Browser is the same
-as the chrome's Browser.
+field and the title line's ⋯ holds the create group, then Sort. On regular width the band and
+dock are the browser's: the search field and `[‹][›][＋][🕘][⋯]`. ＋ uses the same create group,
+into the folder on screen. The regular panel has Sort and its existing navigation tiles.
 
 ```
-Library                                ⋯   ⋯ on compact width: New Folder…, Import from…, Paste Text…, Add Link…, Sort, …
+Library                                ⋯   ⋯ on compact width: Add a Link…, Import a File…, Paste Text… — New Folder… — Sort
 Library  History
 ▣ Pride and Prejudice              ⋯   tap opens; its cover never changes (C102)
 ▣ Tide Tables                      ⋯
@@ -572,21 +559,19 @@ commas.
   Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove* (*Remove from History*). *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
   isn't in History. Every empty screen looks the same (`EmptyState`): a heading, one line under it, and
-  its ways in as tiles (`ActionTile`, laid out by `ActionTileGrid`), two to a row at one size, the
-  same height, a symbol over a label and only as tall as they need (85 pt at the default size), then one
-  across the full width, a row with its symbol beside its label, a one-line row's height (48 pt; at the
-  accessibility text sizes every tile is such a row, stacked, the full-width one still last), the first
+  its ways in as four tiles (`ActionTile`, laid out by `ActionTileGrid`), two to a row at one size,
+  the same height (85 pt at the default size), a symbol over a label. At accessibility text sizes
+  every tile takes a row of its own. The first is
   accent-tinted. It is centred in what is visible between the rows above it (a title and tabs, a folder's
   header) and the top of the chrome; at the default text size it fits there with the chrome expanded, and
   scrolls only at the larger sizes or in a half-height sheet on a small phone (*Nothing Prepared*,
   *No Browsing History Yet*), until the sheet is pulled up. An empty Library says
-  *Start Your Library*, "Articles you save show up here.", over five tiles, the
+  *Start Your Library*, "Articles you save show up here.", over four tiles, the
   same on every empty screen (`AddToLibraryTiles`; a folder's go into the folder, every other's into the top
-  level): *Browse the Web* (the Browser) and *Follow a Site* (the Follow sheet asking for a story's address,
-  into the top level even from a folder), *Import a File* (as *Import from…*) and *Paste Text* (as *Paste Text…*),
-  then *Add a Link* (as *Add Link…*) across the full width, each closing what is over the screen first (a sheet, Listen) and landing
-  where its result shows (the Browser, the Follow sheet, or the Library with the picker, editor or address field up); History says *No History*, "Articles you listen to show up here.",
-  over the same five. It keeps the last 50 started (`LibraryStore.recentLimit`); one played without saving
+  level): *Browse the Web* and *Add a Link*, then *Import a File* and *Paste Text*, in a 2×2 grid.
+  Each closes what is over the screen first and lands where its result shows (the Browser, or the
+  Library with the picker or input sheet up). History says *No History*, "Articles you listen to show up here.",
+  over the same four. It keeps the last 50 started (`LibraryStore.recentLimit`); one played without saving
   also leaves after 7 days unplayed (`pruneUnsaved`). Search with no match is the system's search view.
   Search filters the tab on screen: on
   Everything the Library's folders and pages across the tree, on
@@ -597,8 +582,8 @@ commas.
   bar's ▶ resumes what you last heard (compact width has Listen instead), and a folder row's ⋯ ›
   *Continue* resumes its own pages without opening it (D14). The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
-  top level: its ⋯ is *Sort ›* (the order of the pages in no folder: *Manual*, *Newest*, the
-  default, or *Title*), *New Folder…, Import from…, Paste Text…, Add Link…, Prepared Audio*.
+  top level: its ⋯ has the create group, then *Sort ›* (the order of pages in no folder:
+  *Manual*, *Newest*, the default, or *Title*).
 - **A folder** (`FolderScreen`, books and series included): a centred header (YouTube Music's
   album header), then subfolders first (by their order), then pages by the folder's sort. The
   header is the title and counts; a folder with details has its cover above them (below). Once
@@ -651,13 +636,12 @@ commas.
   selection into it, like Files' *New Folder with Items*) and *Remove*
   (🗑, ⋯'s slot) as symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
-  their delete is saved (*Cancel* keeps them selected). ⋯: the folder's own menu, then *Sort ›,
-  New Folder…, Import from…, Paste Text…, Add Link…, Prepared Audio*. Every ⋯ ends with *Prepared Audio,
-  Settings*; *Settings* is always the last row, just above the big buttons.
+  their delete is saved (*Cancel* keeps them selected). The title-line ⋯ has the create group, then Sort;
+  the header's More holds the folder's own actions.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
-  every empty screen has (`EmptyState`): *This Folder Is Empty*, "Articles you add show up here.", over the same five tiles as the Library's (they
-  add into the folder, except *Follow a Site*, whose story's folder goes at the Library's top level).
+  every empty screen has (`EmptyState`): *This Folder Is Empty*, "Articles you add show up here.", over the same four tiles as the Library's (they
+  add into the folder; a followed story’s folder goes at the Library’s top level).
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
   **Author**, a **Book** toggle under *Labels* (C149: on calls pages "chapters", off calls them
@@ -669,7 +653,7 @@ commas.
   row shows the cover in place of the folder symbol, and the author under the title until an
   article in it has played. Details change only the look: its sort, Edit, drags and drops are
   unchanged. Clearing the author and removing the cover brings back the plain header.
-- **Importing a book** (*Import from…*: ＋, the home's and a folder's ⋯, the empty Library's
+- **Importing a book** (*Import a File…*: ＋, the home's and a folder's ⋯, the empty Library's
   card) opens the Files picker for EPUBs and PDFs. The picked file is copied into the app and the import
   sheet (`BookImportSheet`, medium, grows to large) comes up at once: the cover, title, author,
   file and chapter count once read; a progress line ("Reading chapters… 4 / 9"); **Add to**, the
@@ -710,13 +694,20 @@ commas.
   (above), Follow reads a story's contents again and fetches its chapters, the Now Playing bar
   names it as the source of its chapters, and its finished chapters lose their audio (D7).
 
-**Follow a story**: *Follow…* in a reading page's menu (the browser's, Library Read's, Listen's) on a
-story's page (a Royal Road chapter leads to its story article), or the Library's ⋯ → *Follow…* (the home, or a folder, which the story's folder
-goes in), where you type or paste the story's address. Follow covers the screen:
+**Add a Link and Follow a story**: *Add a Link…* opens the shared input sheet at half height,
+with a grabber, the system ✕ at the leading edge, an inline title, an address capsule
+(`example.com/article`), help “An article, or a story’s chapter list to follow.” and a full-width
+**Add** button at the bottom, grey until the address is usable. The keyboard pushes it up.
+The link is filed into the folder on screen. Reading a story’s chapter list grows the same sheet
+to large and shows its review. Anything else, including a failed read, saves the original link;
+its text downloads on first play. A failed save keeps the sheet available to retry.
 
-1. *Finding the chapters…* with the spinning download arc and the address: one request, signed in as in the
-   browser. A page with no list of chapters, or a site that refuses, says so, with *Try Again*
-   and *Edit Address*; a story followed already offers *Open Folder*.
+A reading page’s *Follow…* starts reading its known address immediately and reaches the same
+review, with the same styling and actions. Story folders go at the Library’s top level.
+
+1. *Reading the page…* with the spinning download arc and the address. A failed read from a known
+   page offers *Try Again* and *Save This Page Only*. A story already followed offers *Open Folder*
+   and *Save This Page Only*.
 2. **Review**: a *Chapters 109* section header (how many are kept is on the button, *Follow 107
    Chapters*), *Select All*, then every chapter (its title,
    and its address shortened) with a box: tap the box to keep or leave it out (an author's note,
@@ -731,12 +722,24 @@ goes in), where you type or paste the story's address. Follow covers the screen:
    no ⋯ and no bar at the bottom: the page runs to the screen's foot. The page scrolls; a pull
    down on the header, or on the article while it is at its top, closes the preview; one that
    starts further down only scrolls, as in the Reader.
-3. **OK · Follow 107 Chapters** makes the folder at once (named for the story, its author as the
+3. **Follow 107 Chapters** makes the folder at once (named for the story, its author as the
    byline) with the chapters kept, as links, and opens it. Their text is fetched one at a time
    while the app is open, each waiting for the one before and a pause; slow replies lengthen
    the pause, and a site that asks to slow down (429), fails (5xx) or doesn't answer is backed off
    from a minute up to 30 minutes (TECHNICAL_SPEC.md, "Fetching an article out of sight"). Nothing is
    fetched while the app is in the background.
+
+The review’s inline title is the story’s name. Its bottom has the full-width **Follow N Chapters**
+button, then plain **Save This Page Only**, using the input sheet’s surface without a divider.
+Save This Page Only saves the original link from Add a Link, or the page through its normal Save
+path from Follow. It never removes an already saved page. The sheet closes only after a successful
+save; while saving its cancellation button and pull-to-dismiss are disabled. A chapter preview
+keeps review behind it and disables the outer sheet’s dismissal until the preview closes.
+
+*Paste Text…* uses the same input sheet: ✕, centred title, optional title capsule and rounded text
+editor, with full-width **Save** at the bottom, grey while the text is blank. It supports medium
+and large detents and preserves typed text when saving fails. New Folder and Rename remain alerts;
+Import a File remains the Files picker.
 
 The story's folder header has one line: *📡 Following* in the accent, then where it is, its parts
 set apart by space (never a separator), in secondary ink: *41 of 107 downloaded* (the Following
@@ -783,7 +786,7 @@ every row's trailing mark do (`RowMetrics`); a long press opens the same menu (t
 D11), and a long press that moves lifts the row into a drag (below). **Tapping an article
 row plays it** (replacing what plays; in a folder it carries on through the folder) and, on compact
 width, slides Listen up over the Library, except the
-article you hear, which opens Listen (a stray tap never pauses); a link page (*Add Link…*'s,
+article you hear, which opens Listen (a stray tap never pauses); a link page (*Add a Link…*'s,
 a story's chapter waiting for its text) is fetched first, its row showing the download arc and saying *Downloading…* (or why it
 couldn't be had), then plays, Listen staying down; a skipped page plays when tapped. *Read*, the menu's first row, opens
 it (the Reader; Listen for the page you hear; the browser for a link). **Tapping a folder
@@ -832,52 +835,27 @@ and rows in Edit don't lift. The list doesn't scroll by itself while a row is dr
 
 ### Menus
 
-**Which options each menu has, in what order, and when each is greyed or hidden is `MenuRegistry` (C98, C99); docs/MENUS.md lists them with the generated table. Where this section names a different set of rows, MENUS.md wins.**
+`MenuRegistry` defines each menu once, including its groups, order, applicability and disabled
+states. `MENUS.md` has the complete menu list and generated availability table. Groups run
+open/play, add, audio, item actions, remove, screen actions, with dividers. Labels come from
+`Verbs`: one action has one name, and an input sheet adds “…” to its tile's name.
 
-An item has one menu wherever it shows (decision C4): an article's (`ArticleMenu`), a folder's
-(`FolderMenu`, books and series too) and a prepare's (`PrepareMenu`). The same rows, in the same
-order, with the same names and symbols, in a row's ⋯ and its long press, a
-Browsing History visit, the Now Playing bar's long press, a folder header's *More* and the top of every ⋯
-panel that is about one item (the browser's page, the Reader's, Listen's, a folder's screen), with one
-difference: on a reading page (the browser's web page and reader mode, Library Read, Listen) the
-article's menu leads with *Save to Library* / *Remove from Library*, *Save to Folder…* / *Move to…* and
-*Follow…* as one group, the page keeping its 🔖 too. A list row's menu (a row's ⋯ and long press, the
-bar, History) leads with *Read*, its *Move to…* and *Remove from Library* in their places below, since
-a red row never leads a list row's menu.
-A place only hides a row that can never apply there or dims one that can't run now (DR-09); what
-a place adds of its own comes after, set apart by a divider (the ⋯ panel's screen rows and big
-buttons, the bar's *Stop Listening*, Browsing History's *Remove from Browsing History*). Rows that delete something
-are red everywhere.
+An article's Save/Remove and Save to Folder/Move are single toggling rows, placed in the group
+for their current face. Mark as Finished stays disabled until an article is saved. Read appears
+where the article is not already on screen. Voice appears in Library/History article rows and
+the Now Playing bar, or a book/story's row and header; Listen has it on its card. In-place readers
+have no Voice menu row. Browsing History visits offer their own Remove from History, with no
+second remove row for the Library's History tab.
 
-| An article's menu | Where it shows |
-|---|---|
-| *Read* / *Go to <place>* | *Read* (the Reader; Listen for the page you hear; the browser for a link or an address the Library hasn't) where the page isn't open; Listen has *Go to* its folder or the Library in its place; neither on the Reader or the browser |
-| *Play from Here* | an article in a folder, in a Library list |
-| *Prepare Audio* / *Remove Prepared Audio* (red) | a page out of the Library is saved first (C104); dimmed only on a browser page not yet loaded as a page |
-| *Save to Folder…* / *Move to…* | *Save to Folder…* out of the Library (the Move tree, titled *Save to Folder*, saves it there), *Move to…* in it; dimmed without text to save. Second on a reading page |
-| *Mark as Finished* / *Mark as Unfinished* | dimmed until it is saved |
-| *Mark All Above as Finished* | an article in a folder, in a Library list |
-| *Skip When Playing* / *Don’t Skip* | an article in a folder |
-| *Share* | an article with a web address |
-| *Select* | a folder screen's rows (Edit with that row selected) |
-| *Save to Library* / *Remove from Library* (red) | *Save to Library* dimmed without text to save. First on a reading page |
-| *Follow…* | a reading page's, for an article with a web address (one that can belong to a story), third; dimmed while the page is being extracted. It opens Follow on its address ("Follow a story", below) |
-| *Remove from History* (red) | an article out of the Library; dimmed while it isn't in History |
+The folder header's More contains only folder actions. Creation belongs to the title-line ⋯
+or ＋: Add a Link…, Import a File…, Paste Text…, then New Folder…. Library Read has no Library
+screen actions appended. Prepared Audio is reached only through Settings › Prepared Audio & Storage.
+Regular width retains its panels and navigation tiles.
 
-| A folder's menu | Where it shows |
-|---|---|
-| *Continue*, *Play from Start* | dimmed while none of its pages play |
-| *Prepare Audio* / *Stop Preparing Audio* | its Prepare toggle; *Prepare Audio* dimmed without pages, *Stop Preparing Audio* asks first |
-| *Remove Prepared Audio* (red) | dimmed while nothing in it is prepared or preparing |
-| *Move to…* | |
-| *Rename…*, *Edit Details…* | |
-| *Select* | a folder screen's rows |
-| *Delete Folder…* / *Delete Folder…* (red) | asks first |
-
-A toggle is one row showing the face for the item's state. *Remove Prepared Audio* takes the article out of
-every prepare and deletes its audio (it stays out of its folder's prepare, P8); a folder's
-*Remove Prepared Audio* does it for each of its pages. *Stop Preparing Audio* keeps what is prepared,
-so it isn't red. A prepare's menu is in "Prepared Audio", below.
+Remove Prepared Audio takes an article out of every prepare and deletes its audio (it stays out
+of its folder's prepare until requested again). A folder's Remove Prepared Audio does that for
+its articles. Stop Preparing Audio keeps what is prepared. Every removal that can fail preserves
+the row until its data change succeeds.
 
 **Prepared Audio** (decision D16): *Prepare Audio* on an article, a folder, a book or a followed story (a
 article's menu wherever it shows, a folder header's Prepare control, a folder's menu, beside its
@@ -919,9 +897,8 @@ Different Voice  1
    ( ↻ Prepare Again )
 ```
 
-**⋯ › Prepared Audio** (`PreparedAudioSheet`, every ⋯ panel: the browser's, the Library's on every screen,
-the Reader's, Listen's; medium, grows to large; also Settings › Prepared Audio & Storage ›
-Prepared Audio, pushed) lists one row per page (C110: a folder's pages each on their own row, never a folder total;
+**Settings › Prepared Audio & Storage › Prepared Audio** (`PreparedAudioSheet`, pushed inside
+Settings) lists one row per page (C110: a folder's pages each on their own row, never a folder total;
 line two its folder's name, or its site for an article in no folder; the status mark before it:
 `DownloadMark`, as everywhere: the spinning arc waiting, the ring filling while it renders, ●↓ once done), in sections shown only
 when they have rows (**Now**, **Waiting** in render order, then the ones below; a folder's own
@@ -935,11 +912,10 @@ it never plays). Every row is a Library row (`ListRow`: one title line, one deta
 as Settings › Voice does, never by the voice's name (*Default*, else its voice library, *Kokoro*:
 `LocalTTSCoordinator.voiceSummary`; From Listening rows too); its parts are set apart by space, never a dot. A row opens what was prepared
 (the Reader, or the Library at the folder). Its ⋯ and long press are the prepare's one menu,
-the same in every section (`PrepareMenu`): *Pause / Resume* (dimmed once done), *Prepare Again*
-(renders it again in its article's voice, C138; dimmed while queued) and *Remove Prepared Audio* on an article,
-*Remove Prepared Audio* on a folder (red: the same action as in the article's or folder's own menu,
-below). *Keep* is gone (C138): changing the voice in Settings no longer moves anything here; an
-article's own voice changes from its menu's *Voice: Default* (or *Voice: Kokoro*, …). Swipe left is *Delete*, the menu's *Delete Audio* (dimmed on a From Listening row while playback needs its audio).
+the same in every section (`PrepareMenu`): *Prepare Again* (renders it again in its article's
+voice; dimmed while queued), then *Delete Audio*. Audio made only by listening has Delete Audio
+alone. An article's voice changes from its menu's Voice row.
+Swipe left is *Delete*, the menu's *Delete Audio* (dimmed on a From Listening row while playback needs its audio).
 The list holds prepared audio of what is in the
 Library: removing an article from the Library, or deleting an article or folder, takes its prepare off
 the list too (a removed article's audio stays, ephemeral). On a device that can run neither
@@ -956,7 +932,7 @@ prepared), and nothing renders the article again until it is played or Prepare i
 page's, or the folder's, which lists the folder's pages afresh). A page
 that couldn't be fetched or rendered is counted ("2 couldn’t prepare"), and *Prepare Again* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
-nothing in it, it says *Nothing Prepared* (`EmptyState`), "Audio you prepare shows up here.", over the five tiles every empty screen has, each closing the sheet first.
+nothing in it, it says *Nothing Prepared* (`EmptyState`), "Audio you prepare shows up here.", over the four tiles every empty screen has, each closing the sheet first.
 
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…* (titled *Move to*) and every *Save
 to Folder…* (an article's menu out of the Library, 🔖 held; titled *Save to Folder*); the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋
@@ -1110,12 +1086,8 @@ synthesis").
 - 🔖 saves / unsaves (tap; filled = saved), or files the article (long-press → *Save to Folder…*,
   the Move tree: saved there, or moved there when already saved); it keeps the screen as it is,
   and playback too, except that unsaving the article you hear stops it.
-- **⋯** (slot 5, the browser's ⋯ spot; Listen's is the same): rows *Save / Remove from Library, Move to…* (dimmed until
-  the article is saved)*, Share, Prepare / Remove Prepared Audio* (dimmed until the article
-  is saved; *Remove Prepared Audio* while it prepared audio or is prepared, as its Library row's menu
-  shows)*, Prepared Audio, Settings*; big buttons
-  **Settings / Library / Listen** (compact width: **Library / Browsing History / Listen**). The
-  page's website is reachable through *Share*. Playback never stops.
+- **⋯** shows the article's registry menu; regular width adds its Settings / Library / Listen
+  tiles. Compact Library Read has only the article menu. The website is reachable through Share.
 - The text fills the page down to the screen's foot and runs under the header and the bottom
   band, which are drawn over it (the header on the article's colour, the band on its tinted bar
   material); its first line starts below the header and its last line scrolls clear of the band.
@@ -1211,9 +1183,8 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   surfaces. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
   (D4). A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", "Preparing the voice", the developer-only Debug chip) sit **above** the transport row so appearing text never pushes it.
-- **⋯**: the article's menu ("Menus", above) for the article you hear, with *Go to <name>* first (when
-  it plays from a folder or the Library), then *Prepared Audio, Settings*; big buttons
-  **Settings / Library / Listen**.
+- **⋯**: the article's menu for what you hear, with Go to its folder or the Library. Compact
+  width ends with Play from a Paragraph; regular width keeps its Settings / Library / Listen tiles.
 - A **prepare progress line** runs along the top edge of the bottom band while prepared audio run,
   as on the other surfaces, in the theme's accent.
 - **Scrubber** (sentence-precise; the track runs inside the band): fill = progress
@@ -1524,10 +1495,11 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Library (`LibrarySurface`): the home | the chrome's Browser (the sidebar's on iPad) | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder (a book or series too) (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
 | Move to…, Save to Folder… (`MoveTreeSheet`) | Cancel (grabber) | `.sheet`, medium/large |
-| Import from… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
+| Import a File… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
-| Follow (`FollowSheet`): ⋯ → *Follow…* | Cancel; OK opens the story's folder | `.fullScreenCover` (a card's own pull would take the preview's); a chapter's preview is a `Sheet` over it holding the chapter's article, pulled down to close (from its top) |
+| Add a Link / Follow (`FollowSheet`) | ✕; Follow N Chapters opens the story’s folder | `.sheet`, medium input / large review; chapter preview overlays it |
+| Paste Text (`PasteTextSheet`) | ✕ / Save at the bottom | `.sheet`, medium/large |
 | Following (`FollowingSheet`): a story's status line | Done | `.sheet`, medium and large |
 | Reader (`ReaderSheetScreen`), regular width: 📄, ⋯ → Reader, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface, pull the header down (compact width reads in place: `ReaderSurface`) |
 | Listen (`NowPlayingScreen`): the chrome's Listen, a reader's ▶ Listen, a Library row, the bar, the Reader of the playing article, crash resume | compact: none (pull down; VoiceOver: escape); regular: *⌄ <playing from>* pill, top left | compact: a `Sheet` that covers the screen and the chrome, pull down to close; regular: `Sheet` over everything, pull the header down |
@@ -1542,5 +1514,5 @@ The browser's own ‹ / › are web-history buttons (the web view also has its e
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
 - **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
-- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row says its voice as Settings › Voice does (*Default*, else its voice library; never the voice's name). Every row has *Delete Audio* (⋯ and long press; its swipe says *Delete*), which never deletes the article; on a From Listening row it is dimmed, swipe too, while playback needs that audio. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
+- **Prepared Audio list** (Settings › Prepared Audio & Storage): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row says its voice as Settings › Voice does (*Default*, else its voice library; never the voice's name). Every row has *Delete Audio* (⋯ and long press; its swipe says *Delete*), which never deletes the article; on a From Listening row it is dimmed, swipe too, while playback needs that audio. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
 - **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

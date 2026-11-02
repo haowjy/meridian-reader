@@ -84,7 +84,7 @@ struct TitleMenuButtonGallery: View {
                 TitleLine(title: "Library") {
                     TitleMenuButton(id: "preview", blocks: [[
                         MenuRow(id: "a", title: "New Folder…", icon: Icons.newFolder),
-                        MenuRow(id: "b", title: "Import from…", icon: Icons.importFile),
+                        MenuRow(id: "b", title: "Import a File…", icon: Icons.importFile),
                     ], [MenuRow(id: "c", title: "Sort", icon: Icons.sort)]])
                 }
             }

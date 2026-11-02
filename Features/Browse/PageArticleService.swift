@@ -76,16 +76,20 @@ struct PageArticleService {
     /// Folder…* once a place is picked in the Move tree): the folder, or no folder (nil, out of the
     /// folder it was in). ⋯ spins meanwhile. A page that can't be extracted throws; a save that
     /// can't be stored says so in a toast.
-    func save(in folder: Folder?) async throws {
+    func save(in folder: Folder?, expectedURL: URL?) async throws {
+        guard web.currentURL == expectedURL else {
+            throw ExtractionError.unavailable(reason: String(localized: "The page has changed. Open it again to save it."))
+        }
         shell.busy = .save
         defer { shell.busy = nil }
         var (article, url) = try await extract()
         if article.artwork == nil {
             article.artwork = await favicon(for: url)
         }
-        shell.attempt(String(localized: "Couldn’t save")) {
-            try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+        guard url == expectedURL, web.currentURL == expectedURL else {
+            throw ExtractionError.unavailable(reason: String(localized: "The page has changed. Open it again to save it."))
         }
+        try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
     }
 
     /// The page finished loading: add it to History with its icon.

@@ -346,7 +346,7 @@ Playing bar (`PlaybackFolder.isBookOrSeries`), its finished chapters lose their 
 
 **Open In / Share** (`IncomingOpen`, `SharedInbox`, `MeridianReaderShare`): the host declares
 `CFBundleDocumentTypes` for PDF and EPUB and the `meridian-reader` URL scheme. A file Open In
-calls `onOpenURL` with a file URL → `BookImportActions.importPicked` (same path as *Import from…*).
+calls `onOpenURL` with a file URL → `BookImportActions.importPicked` (same path as *Import a File…*).
 The Share Extension writes a web URL or a copied book file into the App Group inbox
 (`group.com.jimmyyao.MeridianReader` from `APP_GROUP` in project.yml, or `group.com.jimmyyao.MeridianReader.probe` when `BUNDLE_ID_SUFFIX` is set;
 both app and extension declare the groups in their entitlements) and opens
@@ -542,19 +542,39 @@ The library's item model is `Article` (it was `Page`), alongside `Folder`. Its s
 
 ## New Folder everywhere and the header disc (C122, C124)
 
-`MenuRegistry` has `.folderNewFolder` at `.header` and `.newFolder` at `.add` and the new `.edit` place. `LibraryEditBar` shows `.newFolder` in slot 3 when the registry offers it; `LibraryScreenState.makeFolder(in:with:)` keeps the selection in `NewFolder.items`, and the alert's OK files them into the made folder with `library.move(_:to:)`, then clears the selection. `Verbs.newFolderInside` is gone. `FolderHeader` plays with `PlayStateButton`'s `.disc(size: Control.prominent, glyph: Glyph.large)` (62, glyph 26); `CentredSidesLayout` puts each side control's 44 pt glyph middle on the disc's middle, with its caption hanging below.
+`MenuRegistry` offers New Folder in the create group at `.add` and `.edit`. `LibraryEditBar`
+uses the group at `.edit`; `LibraryScreenState.makeFolder(in:with:)` holds the selection in
+`NewFolder.items`, and the alert files it into the new folder before clearing the selection.
+`FolderHeader` plays with `PlayStateButton`'s `.disc(size: Control.prominent, glyph: Glyph.large)` (62, glyph 26); `CentredSidesLayout` puts each side control's 44 pt glyph middle on the disc's middle, with its caption hanging below.
 
 ## The create group (C126)
 
-`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds the one create group from `MenuRegistry` (`.newFolder`, `.importFile`, `.pasteText` at `.add` and `.edit`). ＋ uses it as `createRows`, `FolderMenu` at `.header` appends it as a second block (`.folderNewFolder` is gone), and `LibraryEditBar` slot 3 is a ＋ `Menu` with it at `.edit`, `filing` the selection. Follow… and Save from Website… left the group (C142): they are done from the browser.
+`LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds Add a Link, Import a File, Paste Text,
+then New Folder from `MenuRegistry` at `.add` and `.edit`. The compact title-line menu prepends
+these rows before Sort; ＋ shows the same rows, and Edit passes its selection for New Folder.
+The folder header's More does not append creation actions. `MenuRow.group` carries the registry's
+dividers through callers that flatten blocks, and `MenuRows` renders those groups as sections.
 
 ## One row height in Edit and out (C123)
 
 Library rows are one component, `ListRow`, in Edit and out; Edit only drops the ⋯ (`menu: nil`). Its height is a two-line row's (`RowMetrics`: the title's and the detail's line heights plus `Spacing.xs` above and below, 50.6 pt at the default text size), with or without the ⋯, whose 44 pt square reaches into that inset; every two-line row (a voice, an acknowledgement, a Follow chapter) is the same height, and one-line card rows are `RowMetrics.oneLineHeight` (`Control.bar`, 48 pt), the card list's row minimum.
 
+## Input sheets
+
+`InputSheet` in DesignSystem owns the native cancellation toolbar, inline title, content slot and
+bottom actions. `FollowSheet` and `PasteTextSheet` supply only feature content and actions. Both
+are presented by `ShellState.sheet`; no second presentation flag lives on the Library screen.
+`FollowFlow` owns address → reading → review (or saved / failed / already-followed), the original
+URL and chapter selection. Add a Link reads through `FollowCenter.readContents`; a failed read
+saves the original URL through `LibraryStore.saveLink` into its starting folder. Cancellation
+never triggers fallback. Review changes the selected detent to large without changing identity.
+A known-page Follow passes an async save callback from `ArticleActions`; browser extraction checks
+the expected page URL and propagates persistence failure before dismissal. Save This Page Only
+never toggles saved state off. The native cancellation button is disabled while a save commits.
+
 ## Paste Text (C127)
 
-*Paste Text…* opens `PasteTextSheet` (`LibraryScreenState.pasteText(into:)`, prefilled from `UIPasteboard.general.string` when `hasStrings`). *Save* calls `LibraryStore.saveText(title:text:in:)`: a new `.saved` article with no web address (`ArticleOrigin.book`, locator `text:<key>`, byline "Pasted text"), one `<p>` per line, its listen paragraphs built as any article's, at the end of the folder. A blank title becomes `LibraryStore.defaultTitle(for:)`: the first line up to its first sentence end, at most 80 characters. A first line that is the whole title (an untitled paste's first line with no sentence end inside it, or a line matching the typed title) is a heading and is left out of the text and paragraphs, as a web page's heading matching its title is; a one-line paste keeps its line.
+*Paste Text…* opens `PasteTextSheet` (`ShellSheet.pasteText`, prefilled from `UIPasteboard.general.string` when `hasStrings`). *Save* calls `LibraryStore.saveText(title:text:in:)`: a new `.saved` article with no web address (`ArticleOrigin.book`, locator `text:<key>`, byline "Pasted text"), one `<p>` per line, its listen paragraphs built as any article's, at the end of the folder. A blank title becomes `LibraryStore.defaultTitle(for:)`: the first line up to its first sentence end, at most 80 characters. A first line that is the whole title (an untitled paste's first line with no sentence end inside it, or a line matching the typed title) is a heading and is left out of the text and paragraphs, as a web page's heading matching its title is; a one-line paste keeps its line.
 
 ## Jump to Audio and full screen (C128)
 
@@ -592,5 +612,5 @@ table is in the decision log (C133).
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
 - **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
-- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row says its voice as Settings › Voice does (*Default*, else its voice library; never the voice's name). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
+- **Prepared Audio list** (Settings › Prepared Audio & Storage): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row says its voice as Settings › Voice does (*Default*, else its voice library; never the voice's name). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
 - **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

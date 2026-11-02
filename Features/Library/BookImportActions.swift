@@ -1,6 +1,6 @@
 import Foundation
 
-/// How an import starts: *Import from…* (the Library's ＋ and ⋯, the empty Library's card) opens
+/// How an import starts: *Import a File…* (the Library's ＋ and ⋯, the empty Library's card) opens
 /// the Files picker for EPUB and PDF, and the picked file is copied in and imported at once; a
 /// book prepared from an `.epub` link waits in the sheet for *Import*. Either way the import
 /// sheet shows it (`BookImportFlow`) and lands on the book's screen.

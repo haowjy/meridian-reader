@@ -41,17 +41,7 @@ struct FolderMenu: View {
     static let deleteRowID = "menuDeleteFolder"
 
     var body: some View {
-        if place == .header {
-            // More: the folder's rows, then the create group into this folder (C126), and
-            // Delete Folder alone at the bottom, as everywhere else it is the last row (C130).
-            let all = rows
-            let delete = all.filter { $0.id == Self.deleteRowID }
-            MenuRows(blocks: [all.filter { $0.id != Self.deleteRowID },
-                              LibraryCreateMenu(library: actions.library, shell: actions.shell,
-                                                screen: screen, folder: folder).rows, delete])
-        } else {
-            MenuRows(rows)
-        }
+        MenuRows(rows)
     }
 
     /// The folder's state as the registry reads it.

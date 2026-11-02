@@ -28,7 +28,6 @@ struct BrowseStartView: View {
     /// The Library's screen state, shared by its screens and the bottom chrome (which the shell owns).
     @State private var libraryScreen = LibraryScreenState()
     /// The Library ⋯'s *Stop Preparing* asked: the question shows by the ⋯.
-    @State private var turningOff: Folder?
     @AppStorage(LibraryTopLevel.sortKey) private var topLevelSort = LibraryTopLevel.defaultSort.rawValue
 
     private var webStore: WebViewStore { shell.web }
@@ -72,12 +71,10 @@ struct BrowseStartView: View {
             // Every surface's ⋯ menu: grows out of its button and covers it (Safari iOS 26), over
             // everything else (the library's navigation bar too).
             .overlay { menuOverlay }
-            .sheet(item: Binding(get: { shell.sheet.flatMap { $0.coversTheScreen ? nil : $0 } }, set: { shell.sheet = $0 })) {
+            .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) {
                 ShellSheetView(sheet: $0)
             }
-            .fullScreenCover(item: Binding(get: { shell.sheet.flatMap { $0.coversTheScreen ? $0 : nil } },
-                                           set: { shell.sheet = $0 })) { ShellSheetView(sheet: $0) }
-            // *Import from…*: the picked EPUB/PDF is copied in and imported (the import sheet).
+            // *Import a File…*: the picked EPUB/PDF is copied in and imported (the import sheet).
             .fileImporter(isPresented: Binding(get: { shell.isPickingBook }, set: { shell.isPickingBook = $0 }),
                           allowedContentTypes: [.epub, .pdf]) { result in
                 guard case .success(let url) = result else { return }
@@ -275,7 +272,6 @@ struct BrowseStartView: View {
                                                                 isEnabled: actions.isSaved || actions.canSave))
                     }
                         // *Stop Preparing* from its ⋯ asks here.
-                        .turnOffPrepareQuestion(chrome.turningOff)
                         .id(article.id)
                         .covered(shell.reader != nil || shell.isNowPlayingPresented)
                         .transition(.opacity)
@@ -319,7 +315,7 @@ struct BrowseStartView: View {
     private var libraryChrome: LibraryChrome {
         LibraryChrome(shell: shell, library: library, speech: speech, preparedAudio: preparedAudio, follow: follow,
                       screen: libraryScreen,
-                      topLevelSort: $topLevelSort, turningOff: $turningOff)
+                      topLevelSort: $topLevelSort)
     }
 
     /// The host for the browser's and the Library's chrome. The browser's depends on the page
@@ -479,49 +475,38 @@ struct BrowseStartView: View {
             return ArticleActions(article: libraryPage, readerArticle: article, library: library, shell: shell,
                                   speech: speech, preparedAudio: preparedAudio, follow: follow)
         }
-        let loaded = ArticleActions.LoadedPage(canSave: hasPage && shell.busy == nil,
-                                            save: { folder in run { try await $0.save(in: folder) } })
+        let saveURL = webPage
+        // A failure says why in the page's alert, as Open in Reader's does, and reaches the caller
+        // (Follow's *Save This Page Only* keeps its sheet up).
+        let loaded = ArticleActions.LoadedPage(canSave: hasPage && shell.busy == nil) { [page] folder in
+            do { try await page.save(in: folder, expectedURL: saveURL) } catch {
+                alertMessage = error.localizedDescription
+                throw error
+            }
+        }
         return ArticleActions(article: libraryPage, url: webPage, loaded: webPage == nil ? nil : loaded, library: library,
                            shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }
 
-    /// The browser's ⋯: the page's menu (`ArticleMenu`, its *Save*, *Save to Folder…* and *Follow…*
-    /// first) while a page is up, then *Reload*, *Prepared audio*, then the
-    /// tiles (`MenuContext.tiles`), the Reader's last.
+    /// Regular width keeps its panel's tiles; item actions come from the shared registry.
     private func menu(_ actions: ArticleActions) -> MenuContext {
-        var facts = MenuRegistry.Facts()
-        facts.hasWebPage = hasPage
-        // No *New Search*: a tap on the address field starts one (C98).
-        let screen = MenuContext.screenRows(at: .browser, facts: facts, shell: shell) { option in
-            switch option {
-            case .reload:
-                return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: reload)
-            default: return nil
-            }
-        }
         let showing = shell.pageReader != nil
         let reader = MenuRow(id: "moreReaderToggle", title: showing ? Verbs.showWebPage : Verbs.reader,
                              icon: showing ? Icons.readerShowing : Icons.reader,
                              availability: MenuAvailability(when: canOpenReader),
                              accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
-        return MenuContext(item: webPage == nil && shell.pageReader == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: screen,
+        return MenuContext(item: webPage == nil && shell.pageReader == nil ? [] : ArticleMenu(actions: actions, place: .browser).rows, screen: [],
                            tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader), isOnReadingPage: showing)
     }
 
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
 
     /// The compact Browser's menu, a press and hold on the field's leading glyph (the chrome has no ⋯):
-    /// *Open in Reader* (or *Show Web Page*) and *Listen*, then the rows regular width's ⋯ shows, in
-    /// its order, less its Reader tile (the first row here).
+    /// the page's menu while a page is up, then *Browsing History*. The glyph's tap opens the reader
+    /// mode and leaves it, Reload is in the field and Listen in the chrome, so none of them is a row.
     private func holdMenu(_ actions: ArticleActions) -> [[MenuRow]] {
-        let context = menu(actions)
-        let reader = context.tiles.last.map { tile in
-            MenuRow(id: tile.id, title: shell.pageReader != nil ? Verbs.showWebPage : Verbs.openInReader, icon: tile.icon,
-                    availability: tile.availability, action: tile.action)
-        }
-        let listen = MenuRow(id: "moreListenPage", title: Verbs.listen, icon: Icons.listen,
-                             availability: MenuAvailability(when: hasPage && webStore.isReaderable), action: listenAndShow)
-        return [[reader, listen].compactMap { $0 }, context.item, context.screen, Array(context.tiles.dropLast())]
+        let page = webPage == nil && shell.pageReader == nil ? [] : ArticleMenu(actions: actions, place: .browser).blocks
+        return page + [MenuContext.screenRows(at: .browser, shell: shell)]
     }
 
     // MARK: - Start page

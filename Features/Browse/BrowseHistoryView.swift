@@ -4,7 +4,7 @@ import SwiftUI
 /// the site's icon (or its letter tile), the title, then the site (not for an untitled visit,
 /// whose title line is already its site) and how long ago. Tap to open; ⋯ and the long press are
 /// the page's menu (`ArticleMenu`, on the Library's page for the address when it has one), then
-/// *Remove from Browsing History*.
+/// *Remove from History*.
 ///
 /// ```
 /// Browsing History                                  ( Done )
@@ -81,7 +81,7 @@ private struct HistoryRow: View {
     }
 }
 
-/// The page's menu, then Browsing History's own *Remove from Browsing History*.
+/// The page's menu, then Browsing History's own *Remove from History*.
 private struct VisitMenu: View {
     let visit: RecentVisit
     let actions: ArticleActions

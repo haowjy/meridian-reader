@@ -53,9 +53,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   the environment: the bottom bar acts on the selection, and
   `libraryDialogs` shows delete / rename / new folder once. The delete question is
   `FolderDeletePrompt` (unit-tested): one destructive choice, deleting with contents (no keep-contents choice, D18).
-- **One ⋯ for the Library surface.** `LibraryScreenMenu` builds the panel's `MenuContext` for the
-  screen on top: on a folder's screen the folder's own menu first (`FolderMenu.rows`), then the
-  screen's rows, the same on the home and a folder.
+- **The title-line ⋯ is the screen's menu**: Add a Link, Import a File, Paste Text, then New
+  Folder and Sort. The header's More holds only `FolderMenu`; Library Read holds only
+  `ArticleMenu`. `MenuRegistry` decides every section, carried through flat row lists by
+  `MenuRow.group`; entry points never filter or reorder the rows.
 - **Deletes, removes and Save go through `LibraryStore`'s audio journal** (`plan(.delete`,
   `.ephemeral` or `.saved, key:)`): the audio changes only after the save, and a failed save is
   rolled back. Work that waited acts on the article as it is when it runs. Save also moves audio
@@ -115,7 +116,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   component of plain values; `FolderScreen` fills it): the section header is already at the
   margin in a Library list, so the header adds no padding of its own. Its Prepare control's
   taps (prepare, or ask *Stop Preparing Audio* while the toggle is on) are `FolderScreen`'s
-  `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`, as the top of the screen's ⋯ is. The *Stop Preparing Audio*
+  `headerActions`; the ▶ is `playFolder`; *More* is `FolderMenu`. The *Stop Preparing Audio*
   question is one modifier, `turnOffPrepareQuestion`, attached by each control that asks it
   (a confirmation dialog points its iOS 26 popover at the view it is attached to): the header's
   Prepare control and *More* (`FolderHeader`'s `anchor` slot, behind each side control), a
@@ -158,3 +159,10 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   three at the accessibility sizes, with the thumbnail, status line and ⋯ on a line under it) and one
   status line, the second its site everywhere except in a book or series (`kind.isBookOrSeries`), whose header names the source; a folder you made mixes sites, so its rows keep theirs. Imported pages are standard page rows; folder sort remains
   the source chapter order until the user changes it.
+
+- **Input sheets belong to the shell.** `LibraryScreenState.addLink(into:shell:follow:)` opens the
+  shared Follow flow at its address step; Paste Text uses `ShellSheet.pasteText` with the destination
+  folder id. Both use DesignSystem’s `InputSheet`. A failed link or text save leaves the sheet open;
+  text saving returns success before dismissing. Add a Link reads before saving: a story goes to the
+  shared chapter review, everything else (including read errors) becomes a link in the folder on
+  screen. The empty-state choices are Browse the Web, Add a Link, Import a File and Paste Text, 2×2.

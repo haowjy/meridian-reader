@@ -22,6 +22,8 @@ struct ShellSheetView: View {
     @ViewBuilder
     private func content(_ sheet: ShellSheet) -> some View {
         switch sheet {
+        case .pasteText(let parentID):
+            PasteTextSheet(parentID: parentID)
         case .moveTo(let request):
             MoveTreeSheet(request: request)
         case .importBook(let flow):

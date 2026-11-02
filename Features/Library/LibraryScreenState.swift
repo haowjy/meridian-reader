@@ -33,14 +33,6 @@ final class LibraryScreenState {
     var renameText = ""
     var newFolder: NewFolder?
     var newFolderName = ""
-    /// *Paste Text…*'s sheet: the folder it saves into (`.some(nil)`: the top level).
-    var pastingText: Folder??
-    var pastedTitle = ""
-    var pastedText = ""
-    /// *Add Link…*'s alert: the folder it saves into (`.some(nil)`: the top level).
-    var addingLink: Folder??
-    var linkText = ""
-
     /// The row being dragged, from the moment it lifts (`libraryDrag`) until it is let go: the
     /// drop zone takes the drop only meanwhile (`libraryDropZone`).
     private(set) var dragging: LibraryItemID?
@@ -125,17 +117,15 @@ final class LibraryScreenState {
         newFolder = NewFolder(parent: parent, items: items)
     }
 
-    /// Opens *Paste Text…*, its editor holding the pasteboard's text if it has some (C127).
-    func pasteText(into folder: Folder?) {
-        pastedTitle = ""
-        pastedText = UIPasteboard.general.hasStrings ? UIPasteboard.general.string ?? "" : ""
-        pastingText = .some(folder)
+    func pasteText(into folder: Folder?, shell: ShellState) {
+        shell.present(.pasteText(folder?.id))
     }
 
-    /// Opens *Add Link…*, its field holding the pasteboard's address if it has one.
-    func addLink(into folder: Folder?) {
-        linkText = UIPasteboard.general.hasURLs ? UIPasteboard.general.url?.absoluteString ?? "" : ""
-        addingLink = .some(folder)
+    /// Add a Link starts the shared address and story-review sheet.
+    func addLink(into folder: Folder?, shell: ShellState, follow: FollowCenter) {
+        let flow = FollowFlow(url: nil, parentID: folder?.id, center: follow)
+        flow.address = UIPasteboard.general.hasURLs ? UIPasteboard.general.url?.absoluteString ?? "" : ""
+        shell.present(.follow(flow))
     }
 
     /// The typed address as a web address, or nil when it isn't one. A bare host and path
@@ -249,32 +239,7 @@ private struct LibraryDialogs: ViewModifier {
                     }
                 }
             }
-            .alert(Verbs.title(Verbs.addLink), isPresented: Binding(get: { state.addingLink != nil },
-                                                             set: { if !$0 { state.addingLink = nil } })) {
-                TextField(String(localized: "example.com/article"), text: $state.linkText)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("addLinkField")
-                Button(Verbs.cancel, role: .cancel) { state.addingLink = nil }
-                Button(Verbs.save) {
-                    if case .some(let folder) = state.addingLink, let url = LibraryScreenState.linkURL(state.linkText) {
-                        shell.attempt(String(localized: "Couldn’t save")) { try library.saveLink(url, in: folder) }
-                    }
-                    state.addingLink = nil
-                }
-                .disabled(LibraryScreenState.linkURL(state.linkText) == nil)
-            } message: {
-                Text("Its text downloads when you first play it.")
-            }
-            .sheet(isPresented: Binding(get: { state.pastingText != nil }, set: { if !$0 { state.pastingText = nil } })) {
-                PasteTextSheet(state: state) {
-                    guard case .some(let folder) = state.pastingText else { return }
-                    state.pastingText = nil
-                    LibraryActions(library: library, speech: speech, shell: shell, follow: follow)
-                        .savePastedText(title: state.pastedTitle, text: state.pastedText, in: folder)
-                }
-            }
+
     }
 
     private var deleting: Binding<Bool> {
@@ -311,41 +276,48 @@ private struct LibraryDialogs: ViewModifier {
 /// *Paste Text…* (C127): an optional title and the text, the pasteboard's when it held some.
 /// *Save* makes a new article of it in the folder on screen and opens it in Library Read.
 struct PasteTextSheet: View {
-    @Bindable var state: LibraryScreenState
-    let save: () -> Void
+    let parentID: UUID?
+    @State private var title = ""
+    @State private var text = UIPasteboard.general.hasStrings ? UIPasteboard.general.string ?? "" : ""
+    @Environment(LibraryStore.self) private var library
+    @Environment(ShellState.self) private var shell
+    @Environment(FollowCenter.self) private var follow
+    @Environment(\.speechController) private var speech
     @FocusState private var editing: Bool
 
-    private var isEmpty: Bool { state.pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var isEmpty: Bool { text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
-        NavigationStack {
+        InputSheet(title: Verbs.title(Verbs.pasteText), onCancel: { shell.sheet = nil }) {
             VStack(alignment: .leading, spacing: Spacing.s) {
-                TextField(String(localized: "Title (optional)"), text: $state.pastedTitle,
-                          prompt: Text(isEmpty ? String(localized: "Title (optional)") : LibraryStore.defaultTitle(for: state.pastedText)))
-                    .typeStyle(.row)
-                    .padding(Spacing.s)
-                    .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                TextField(String(localized: "Title (optional)"), text: $title,
+                          prompt: Text(isEmpty ? String(localized: "Title (optional)") : LibraryStore.defaultTitle(for: text)))
+                    .inputSheetField()
                     .accessibilityIdentifier("pasteTextTitle")
-                TextEditor(text: $state.pastedText)
+                TextEditor(text: $text)
                     .focused($editing)
+                    .typeStyle(.row)
                     .scrollContentBackground(.hidden)
-                    .padding(Spacing.xs)
-                    .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .padding(Spacing.s)
+                    .background(Palette.chrome, in: RoundedRectangle(cornerRadius: Radius.surface, style: .continuous))
                     .accessibilityIdentifier("pasteTextBody")
             }
-            .padding(Spacing.m)
-            .navigationTitle(Verbs.title(Verbs.pasteText))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(Verbs.cancel) { state.pastingText = nil }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(Verbs.save, action: save).disabled(isEmpty).accessibilityIdentifier("pasteTextSave")
-                }
-            }
-            .onAppear { if state.pastedText.isEmpty { editing = true } }
+            .padding(Spacing.pageMargin)
+            .onAppear { if isEmpty { editing = true } }
+        } actions: {
+            PillButton(Verbs.save, style: isEmpty ? .neutral : .filled, expands: true, action: save)
+                .disabled(isEmpty)
+                .accessibilityIdentifier("pasteTextSave")
         }
-        .presentationDragIndicator(.visible)
+        .presentationDetents([.medium, .large])
+        .sheetToastLayer()
+    }
+
+    private func save() {
+        let folder = parentID.flatMap(library.folder(id:))
+        if LibraryActions(library: library, speech: speech, shell: shell, follow: follow)
+            .savePastedText(title: title, text: text, in: folder) {
+            shell.sheet = nil
+        }
     }
 }

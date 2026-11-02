@@ -1,42 +1,25 @@
 import SwiftUI
 
-/// ⋯ → *Follow…* (`ShellSheet.follow`, covering the screen): from a story's address to a folder
-/// of its chapters.
-///
-/// ```
-/// ( Cancel )        The Copper Orchard
-/// Found 109 chapters   107 selected
-/// ☑ Select All
-/// ☑ 1. First Frost                                  ›
-///   …/chapter/900001/1-first-frost
-/// ☐ Author's Note: Hiatus                           ›   (left out: lighter)
-///   …/chapter/900002/authors-note
-/// A folder is made at once; the chapters' text is fetched one at a time.
-/// (            OK   Follow 107 Chapters            )
-/// ```
-///
-/// A folder's ⋯ asks for the address first; the browser's ⋯ reads its page's story at once.
-/// While the table of contents is read: a spinner and the address. A chapter row's box keeps or
-/// leaves out the chapter; the rest of the row opens its preview, the app's sheet rising over the
-/// list with the chapter's page (`FollowPreviewSheet`), which a pull down closes. OK makes the
-/// folder and opens it.
+/// One sheet from entering an address through reviewing its chapters. A known page’s
+/// Follow action starts reading immediately and uses the same review and save actions.
 struct FollowSheet: View {
-    let flow: FollowFlow
-
+    @Bindable var flow: FollowFlow
+    @State private var detent: PresentationDetent = .medium
+    @FocusState private var addressFocused: Bool
     @Environment(LibraryStore.self) private var library
     @Environment(ShellState.self) private var shell
 
     var body: some View {
-        NavigationStack {
+        InputSheet(title: title, isSaving: flow.isSaving, onCancel: { shell.sheet = nil }) {
             content
-                .navigationTitle(title)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "followCancel") {
-                        shell.sheet = nil
-                    }
-                }
+        } actions: {
+            if let error = flow.saveError {
+                Text(error).footnote().foregroundStyle(Palette.destructive)
+            }
+            actions.disabled(flow.isSaving)
         }
+        .presentationDetents([.medium, .large], selection: $detent)
+        .interactiveDismissDisabled(flow.previewed != nil || flow.isSaving)
         .overlay {
             if let chapter = flow.previewed {
                 FollowPreviewSheet(chapter: chapter, isKept: flow.isKept(chapter),
@@ -46,53 +29,101 @@ struct FollowSheet: View {
             }
         }
         .sheetToastLayer()
+        .onChange(of: isReview, initial: true) { _, review in
+            if review { addressFocused = false; detent = .large }
+        }
+        .onChange(of: isSaved, initial: true) { _, saved in
+            if saved { shell.sheet = nil }
+        }
         .onDisappear { flow.cancel() }
-        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("followSheet")
     }
 
+    private var isReview: Bool { if case .review = flow.step { true } else { false } }
+    private var isSaved: Bool { if case .saved = flow.step { true } else { false } }
     private var title: String {
         if case .review(let contents) = flow.step { return contents.title }
-        return String(localized: "Follow")
+        return flow.isAddingLink ? Verbs.title(Verbs.addLink) : String(localized: "Follow")
     }
 
-    @ViewBuilder
-    private var content: some View {
+    @ViewBuilder private var content: some View {
         switch flow.step {
         case .address:
-            FollowAddressStep(flow: flow)
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                TextField(String(localized: "example.com/article"), text: $flow.address)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.go)
+                    .focused($addressFocused)
+                    .onSubmit(read)
+                    .inputSheetField()
+                    .accessibilityIdentifier("addLinkField")
+                Text("An article, or a story’s chapter list to follow.").footnote()
+            }
+            .padding(Spacing.pageMargin)
+            .onAppear { addressFocused = true }
         case .reading(let url):
-            FollowMessage(symbol: nil, title: String(localized: "Finding the chapters…"),
+            FollowMessage(symbol: nil, title: String(localized: "Reading the page…"),
                           detail: ShellState.addressText(for: url))
                 .accessibilityIdentifier("followReading")
         case .failed(let url, let message):
-            FollowMessage(symbol: Icons.warning, title: message, detail: ShellState.addressText(for: url)) {
-                ActionButtonRow { fit in
-                    PillButton(String(localized: "Try Again"), systemImage: Icons.reload, expands: true, fit: fit) {
-                        flow.read(url)
-                    }
-                    .accessibilityIdentifier("followTryAgain")
-                    PillButton(String(localized: "Edit Address"), systemImage: Icons.rename, style: .neutral, fit: fit) {
-                        flow.editAddress()
-                    }
-                }
-            }
+            FollowMessage(symbol: Icons.warning, title: message, detail: ShellState.addressText(for: url))
         case .alreadyFollowing(let id):
             FollowMessage(symbol: Icons.follow, title: String(localized: "You already follow this story"),
-                          detail: library.folder(id: id)?.name ?? "") {
-                PillButton(String(localized: "Open Folder"), systemImage: Icons.folder, expands: true) { open(id) }
-                    .accessibilityIdentifier("followOpenExisting")
-            }
+                          detail: library.folder(id: id)?.name ?? "")
         case .review(let contents):
-            FollowReview(flow: flow, contents: contents) { follow(contents) }
+            FollowReview(flow: flow, contents: contents)
+        case .saved:
+            EmptyView()
         }
     }
 
-    // MARK: - Doing
+    @ViewBuilder private var actions: some View {
+        switch flow.step {
+        case .address:
+            PillButton(String(localized: "Add"), style: flow.typedURL == nil ? .neutral : .filled,
+                       expands: true, action: read)
+                .disabled(flow.typedURL == nil)
+                .accessibilityIdentifier("addLinkAdd")
+        case .review(let contents):
+            let count = flow.keptChapters(of: contents).count
+            PillButton(String(localized: "Follow \(count) Chapters"),
+                       style: count == 0 ? .neutral : .filled, expands: true) { follow(contents) }
+                .disabled(count == 0 || flow.isSaving)
+                .accessibilityIdentifier("followOK")
+            savePageButton
+        case .alreadyFollowing(let id):
+            PillButton(String(localized: "Open Folder"), expands: true) { open(id) }
+            savePageButton
+        case .failed(let url, _):
+            if !flow.isAddingLink {
+                PillButton(String(localized: "Try Again"), expands: true) { flow.read(url) }
+            }
+            savePageButton
+        case .reading, .saved:
+            EmptyView()
+        }
+    }
 
-    /// OK: the folder, made at once in the place the flow began, then shown.
+    private var savePageButton: some View {
+        Button(String(localized: "Save This Page Only")) {
+            Task { await flow.savePage() }
+        }
+        .typeStyle(.row)
+        .frame(minHeight: Control.tap)
+        .disabled(flow.isSaving)
+        .accessibilityIdentifier("followSavePage")
+    }
+
+    private func read() {
+        guard let url = flow.typedURL else { return }
+        addressFocused = false
+        flow.read(url)
+    }
+
     private func follow(_ contents: TableOfContents) {
-        let parent = flow.parentID.flatMap(library.folder(id:))
+        let parent: Folder? = flow.isAddingLink ? nil : flow.parentID.flatMap(library.folder(id:))
         guard let folder = shell.attempt(String(localized: "Couldn’t follow"), { try flow.follow(contents, in: parent) })
         else { return }
         shell.sheet = nil
@@ -107,61 +138,12 @@ struct FollowSheet: View {
     }
 }
 
-/// A folder's ⋯: the story's address, then *Read Contents*.
-private struct FollowAddressStep: View {
-    @Bindable var flow: FollowFlow
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        List {
-            Section {
-                TextField(String(localized: "royalroad.com/fiction/…"), text: $flow.address)
-                    .typeStyle(.row)
-                    .foregroundStyle(Palette.ink)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.go)
-                    .focused($focused)
-                    .onSubmit(read)
-                    .padding(.horizontal, Spacing.m)
-                    .frame(minHeight: Control.tap)
-                    .accessibilityIdentifier("followAddress")
-            } header: {
-                SectionHeader(title: String(localized: "Story Address"))
-                    .listHeader()
-            } footer: {
-                Text("The page that lists the story’s chapters, such as its Royal Road page.")
-                    .listFooter()
-            }
-            .listRowInsets(EdgeInsets())
-            .listCard()
-        }
-        .cardListStyle()
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            PillButton(String(localized: "Find Chapters"), systemImage: Icons.follow, expands: true, action: read)
-                .disabled(flow.typedURL == nil)
-                .padding(.horizontal, Spacing.pageMargin)
-                .padding(.vertical, Spacing.s)
-                .accessibilityIdentifier("followRead")
-        }
-        .onAppear { focused = true }
-    }
-
-    private func read() {
-        guard let url = flow.typedURL else { return }
-        flow.read(url)
-    }
-}
-
-/// Review: every chapter the table of contents lists, kept or left out, then OK.
+/// The chapter selection shared by Add a Link and a page’s Follow action.
 private struct FollowReview: View {
     let flow: FollowFlow
     let contents: TableOfContents
-    let onFollow: () -> Void
 
     var body: some View {
-        let keptCount = flow.keptChapters(of: contents).count
         List {
             Section {
                 selectAllRow
@@ -179,20 +161,6 @@ private struct FollowReview: View {
             .listCard()
         }
         .cardListStyle()
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("The chapters download one at a time while the app is open.")
-                    .footnote()
-                PillButton(Verbs.ok, detail: String(localized: "Follow \(keptCount) Chapters"),
-                           systemImage: Icons.follow, expands: true, action: onFollow)
-                    .disabled(keptCount == 0)
-                    .accessibilityIdentifier("followOK")
-            }
-            .padding(.horizontal, Spacing.pageMargin)
-            .padding(.vertical, Spacing.s)
-            .background(Palette.paper)
-            .overlay(alignment: .top) { Palette.hairline.frame(height: 1) }
-        }
     }
 
     private var selectAllRow: some View {
@@ -278,11 +246,10 @@ struct FollowCheckbox: View {
 
 /// A step that is a message: `DownloadMark`'s spinning arc (no symbol) or a symbol, a line, the address, and its
 /// buttons.
-private struct FollowMessage<Actions: View>: View {
+private struct FollowMessage: View {
     let symbol: String?
     let title: String
     let detail: String
-    @ViewBuilder var actions: Actions
 
     var body: some View {
         VStack(spacing: Spacing.s) {
@@ -303,17 +270,9 @@ private struct FollowMessage<Actions: View>: View {
                 .foregroundStyle(Palette.secondaryInk)
                 .lineLimit(2)
                 .truncationMode(.middle)
-            actions
-                .padding(.top, Spacing.s)
         }
         .padding(Spacing.pageMargin)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.paper)
-    }
-}
-
-extension FollowMessage where Actions == EmptyView {
-    init(symbol: String?, title: String, detail: String) {
-        self.init(symbol: symbol, title: title, detail: detail) { EmptyView() }
     }
 }

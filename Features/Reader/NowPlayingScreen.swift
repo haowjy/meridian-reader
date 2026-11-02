@@ -190,11 +190,14 @@ struct NowPlayingScreen: View {
     /// group first), each block a section, then Listen's own *Play from a Paragraph* (compact Listen
     /// has no top bar for ☝︎).
     private func menuBlocks(_ now: NowPlaying, _ actions: ArticleActions) -> [[MenuRow]] {
-        let jumpRow = MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump,
-                              availability: MenuAvailability(when: !speech.document.isEmpty)) {
-            withAnimation(Motion.snappy) { jumpMode.toggle() }
+        var facts = MenuRegistry.Facts()
+        facts.canJumpToParagraph = !speech.document.isEmpty
+        let screen = MenuContext.screenRows(at: .nowPlaying, facts: facts, shell: shell) { _ in
+            MenuRow(id: "listenJump", title: Verbs.playFromParagraph, icon: Icons.jump) {
+                withAnimation(Motion.snappy) { jumpMode.toggle() }
+            }
         }
-        return ArticleMenu(actions: actions, place: .nowPlaying(actions.goTo(now))).blocks + [[jumpRow]]
+        return ArticleMenu(actions: actions, place: .nowPlaying(actions.goTo(now))).blocks + [screen]
     }
 
     /// The integrated bottom band: title + Voice (trailing), scrub, notes, transport — all flat on

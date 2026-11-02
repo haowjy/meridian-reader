@@ -1,24 +1,18 @@
 import SwiftUI
 
-/// The ⋯ for the Library screen on top (the home or a folder): the screen's rows, the same on
-/// both (`MenuRegistry`, C98): *Sort*, *Prepared Audio*, then the tiles (`MenuContext.tiles`). The surface's ＋ shows the same
-/// creating rows (`createRows`), acting on the screen on top (`topFolder`). Nothing in it acts on
-/// the browser's page.
+/// The Library screen's menu: the create group followed by Sort on compact width;
+/// regular width keeps its separate ＋ and navigation tiles.
 @MainActor
 struct LibraryScreenMenu {
     let library: LibraryStore
     let speech: SpeechController
     let shell: ShellState
-    let preparedAudio: PrepareCenter
+    let follow: FollowCenter
     let screen: LibraryScreenState
     /// The pushed screen on top (nil: the home).
     let top: LibraryRoute?
     /// The top level's page sort (`LibraryTopLevel.sortKey`), which the home's Sort sets.
     let topLevelSort: Binding<String>
-    /// A folder moved from its own screen: show it where it went.
-    let showMoved: (Folder) -> Void
-    /// *Stop Preparing*: the surface asks `turnOffPrepareQuestion` by the ⋯.
-    let onTurnOffPrepare: (Folder) -> Void
 
     /// The folder whose screen is on top (nil: the home). New folders and imported books go in
     /// it (a book or series too), or at the top level from the home.
@@ -29,9 +23,7 @@ struct LibraryScreenMenu {
         }
     }
 
-    /// The screen's rows (C98, C100): *Sort ›*,
-    /// *Prepared Audio*; then `[Settings][Library][Reader]` (`[Library][Browsing History][Reader]` on compact width). Reader opens Now Playing when audio
-    /// is playing, greyed otherwise.
+    /// Compact width keeps navigation in the chrome; regular width keeps the panel's tiles.
     func menu(compact: Bool) -> MenuContext {
         let folder = topFolder
         let screenRows = MenuContext.screenRows(at: folder == nil ? .libraryHome : .folderScreen, facts: MenuRegistry.Facts(),
@@ -42,12 +34,13 @@ struct LibraryScreenMenu {
                              availability: MenuAvailability(when: speech.nowPlaying != nil)) { [shell] in
             shell.showNowPlaying()
         }
-        return MenuContext(screen: screenRows, tiles: MenuContext.tiles(shell, compact: compact, last: reader))
+        return MenuContext(screen: compact ? createRows + screenRows : screenRows,
+                           tiles: compact ? [] : MenuContext.tiles(shell, compact: false, last: reader))
     }
 
     /// ＋: the create group (`LibraryCreateMenu`) into the screen on top.
     var createRows: [MenuRow] {
-        LibraryCreateMenu(library: library, shell: shell, screen: screen, folder: topFolder).rows
+        LibraryCreateMenu(library: library, shell: shell, follow: follow, screen: screen, folder: topFolder).rows
     }
 
     /// *Sort*: the folder's page sort, or on the home the top level's.
@@ -67,14 +60,13 @@ struct LibraryScreenMenu {
     }
 }
 
-/// The one create group (C126): *New Folder…*, *Import from…*, *Paste Text…*, into `folder` (nil:
-/// the top level). The Library's ＋ (home and folder), a folder header's *More* and Edit's bar all
-/// show it (`MenuRegistry`, places `.add` and `.edit`); it is hidden whole in an imported EPUB or
-/// followed story. In Edit (`filing`), *New Folder…* files the selection into the new folder.
+/// The shared create group: Add a Link, Import a File, Paste Text, then New Folder.
+/// In Edit, New Folder files the selected items into it.
 @MainActor
 struct LibraryCreateMenu {
     let library: LibraryStore
     let shell: ShellState
+    let follow: FollowCenter
     let screen: LibraryScreenState
     let folder: Folder?
     var place: MenuRegistry.Place = .add
@@ -94,12 +86,12 @@ struct LibraryCreateMenu {
                     BookImportActions(library: library, shell: shell).pickBook(into: folder)
                 }
             case .addLink:
-                return MenuRow(id: "moreAddLink", title: Verbs.addLink, icon: Icons.link) { [screen] in
-                    screen.addLink(into: folder)
+                return MenuRow(id: "moreAddLink", title: Verbs.addLink, icon: Icons.link) { [screen, shell, follow] in
+                    screen.addLink(into: folder, shell: shell, follow: follow)
                 }
             default:
-                return MenuRow(id: "morePasteText", title: Verbs.pasteText, icon: Icons.paste) { [screen] in
-                    screen.pasteText(into: folder)
+                return MenuRow(id: "morePasteText", title: Verbs.pasteText, icon: Icons.paste) { [screen, shell] in
+                    screen.pasteText(into: folder, shell: shell)
                 }
             }
         }

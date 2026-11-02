@@ -23,10 +23,17 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching an article out of sight" and 
   switch decides audio. The chapter keeps its key, title and place.
 - **A story is `FolderKind.series` with a `FollowState`.** The waiting-chapter rule is one
   property, `Article.isWaitingChapter`; playback stops before such a chapter (`ChapterAdvance`).
-  `play` and `status(of:)` take any link page (*Add Link…*'s too): ▶ fetches it, then plays; only a
+  `play` and `status(of:)` take any link page (*Add a Link…*'s too): ▶ fetches it, then plays; only a
   story's chapters are fetched by the loop or show *Waiting*.
-- **Follow covers the screen** (`ShellSheet.coversTheScreen`): inside a card sheet the system's
-  pan takes the preview `Sheet`'s pull down.
+- **One input and review sheet.** Add a Link and a known page’s Follow use `FollowFlow` and
+  `FollowSheet`; `InputSheet` owns only the common framing. Add a Link starts at medium, reads
+  through `FollowCenter`, and grows to large for the shared chapter review. A non-story or failed
+  read saves the original URL with `LibraryStore.saveLink`, into the folder on screen. The story’s
+  folder stays at the top level. Cancelling a contents read never saves; cancellation is disabled while a requested save commits. A failed store write leaves the sheet
+  available to retry. A known page’s Save This Page Only uses `ArticleActions`’ save path and waits
+  for browser extraction and persistence before closing; it never toggles an already saved page off.
+- **Preview and sheet gestures.** Follow is a system sheet. Interactive sheet dismissal is disabled
+  while its chapter preview is open, so the preview’s own pull can close it without losing review.
 - **The preview is the chapter's page in Browse's `WebView`** with its own
   `WebViewStore(staysOnPage: true)`: links, forms and back / forward to another address, and new
   windows, are cancelled; the article's own load, redirects, script navigations and anything back to

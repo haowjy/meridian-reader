@@ -76,8 +76,8 @@ changing the shell code.
   overlay (`MorphMenu.swift`) and the components. This folder keeps what knows about the app:
   `ShellState`, the ⋯ panel (`MenuContext`, drawn by `MoreMenuPanel` where a ⋯ grows a panel, and as a
   system menu by `MenuRows(blocks: context.blocks)` on compact title lines: the item's rows from its
-  one menu definition, `ArticleMenu` / `FolderMenu`, then the screen's rows ending in `tail`, then
-  the big buttons; the panel draws `MenuRow`s and knows no surface), the Now Playing bar on a
+  one menu definition, `ArticleMenu` / `FolderMenu`, then the screen's rows; regular width keeps
+  the navigation tiles; the panel draws `MenuRow`s and knows no surface), the Now Playing bar on a
   surface (`NowPlayingBarView`, whose long press is the article's menu then *Stop Listening*).
 - **The ⋯ morph menu measures its focus point** through a preference and places the panel from it.
   Ignore focus changes under 0.5 pt (`MorphMenu.isNewFocus`): pixel rounding of the placement

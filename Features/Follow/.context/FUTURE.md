@@ -20,7 +20,7 @@
      - **the site's name in notices:** `og:site_name`, which `URLPageFetcher` can read with the
        author meta, falling back to the host without "www.".
      - **text and previews:** the copy, placeholders and previews that name Royal Road or use
-       `royalroad.com` addresses (FollowSheet's field and help, AddressLabel, HeaderCards,
+       `royalroad.com` addresses (AddressLabel, HeaderCards,
        FollowStatus, FollowingSheet and the preview sheet's comments) switch to `example.com`, as
        AGENTS.md requires.
      - **verification:** an offline synthetic fixture shaped like that site (story page with a
@@ -28,7 +28,7 @@
        then a live check on the owner's phone.
 
   On screen:
-  - name it "Follow a Site" (it is *Follow…* today);
+  - keep Add a Link as the address entry and a known page’s *Follow…* as the direct entry;
   - the review says *Posts* or *Chapters* for what it found;
   - a blog lists newest first, a serial in order.
 

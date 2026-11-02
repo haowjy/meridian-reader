@@ -187,7 +187,7 @@ final class FollowCenter {
 
     // MARK: - Fetching chapters
 
-    /// ▶ on a link page (*Add Link…*'s, a chapter waiting for its text): it is fetched now, ahead of
+    /// ▶ on a link page (*Add a Link…*'s, a chapter waiting for its text): it is fetched now, ahead of
     /// background work (a failure this launch is forgotten), then plays, unless something else has
     /// started by then.
     func play(_ article: Article) {

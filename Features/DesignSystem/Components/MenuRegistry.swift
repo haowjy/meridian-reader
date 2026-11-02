@@ -1,15 +1,13 @@
 import Foundation
 
-/// Every menu option in the app, each defined once (C98, docs/MENUS.md; a page's *Save* and *Move*
-/// have one spec for the reading pages and one for the lists, since they sit apart). An option says where it
-/// can ever apply (its item kind, the places it shows in, and `applies`, a fact of the item that
-/// no state change in that place undoes) and when it can run now (`enabled`). Outside where it
-/// applies it is hidden; where it applies but can't run now it is greyed out (DR-09 as refined
-/// by C98: grey when some other state could make it usable there, hidden when nothing could).
-/// Every menu (a row's ⋯ and long press, a folder header's *More*, the ⋯ panels, the Prepared Audio
-/// rows, the Now Playing bar, History) is assembled from here by kind and place; the renderer
-/// only adds each option's title, symbol and action (`MenuRegistry.rows`). Pure values, so the
-/// table test (`MenuRegistryTests`) checks every kind × place × state.
+/// One name per action: the tile's name, plus “…” when it opens an input sheet (`Verbs`).
+/// Groups always run open/play, add, audio, item actions, remove, screen actions, separated by
+/// dividers. A menu never repeats a control already on that screen. Prepared Audio is reached
+/// only through Settings; Voice belongs where audio plays or can be prepared, never an in-place
+/// reading page. The explicit save group remains available on reading pages beside their bookmark.
+///
+/// Every menu is assembled here by kind and place; its renderer only supplies labels, symbols
+/// and actions. Hide an option only where it can never apply; disable it when it cannot run now.
 enum MenuRegistry {
     /// What a menu is for.
     enum Kind: String, CaseIterable { case article, folder, prepare, screen }
@@ -53,7 +51,7 @@ enum MenuRegistry {
         // A prepare
         case reprepare, removePrepare
         // A screen's own rows
-        case newFolder, importFile, pasteText, addLink, sort, reload, preparedAudio, settings
+        case newFolder, importFile, pasteText, addLink, sort, browsingHistory, playFromParagraph
         // The Prepared Audio list's own ⋯ (C135)
         case deleteAllPrepared, clearListeningAudio
     }
@@ -95,7 +93,7 @@ enum MenuRegistry {
         var hasPrepared = false
         var hasListeningAudio = false
         // A screen
-        var hasWebPage = false
+        var canJumpToParagraph = false
     }
 
     struct Spec {
@@ -105,10 +103,8 @@ enum MenuRegistry {
         let places: Set<Place>
         /// A sub-option: shows inside this option's submenu.
         var parent: Option?
-        /// Its block: blocks run in order (-1, a page's save group, first), set apart by dividers.
+        /// Its group, in display order, set apart by dividers.
         var block = 0
-        /// Its block where it differs from `block`.
-        var blockAt: [Place: Int] = [:]
         /// The item can ever take it (false: hidden).
         var applies: (Facts) -> Bool = { _ in true }
         /// It can run now (false: greyed out).
@@ -127,88 +123,77 @@ enum MenuRegistry {
     }
 
     private static let articlePlaces: Set<Place> = [.row, .bar, .history, .reader, .nowPlaying, .browser]
-    /// Listen's ⋯ keeps to where the page is and its lists: Voice is on its card, and Prepare,
-    /// Playback and Remove from Recent are left out of it.
-    private static let articlePlacesButListen = articlePlaces.subtracting([.nowPlaying])
-    /// Where a page isn't on screen: *Read* shows there.
     private static let articleListPlaces: Set<Place> = [.row, .bar, .history]
-    /// The reading pages (the Browser's web page and reader, Library Read, Listen): the page is on
-    /// screen, and *Save*, *Save to Folder…* and *Follow…* lead its menu.
-    private static let readingPlaces = articlePlaces.subtracting(articleListPlaces)
+    private static let readingPlaces: Set<Place> = [.reader, .nowPlaying, .browser]
+    private static let audioPlaces: Set<Place> = [.row, .bar, .reader, .browser]
+    private static let playbackPlaces: Set<Place> = [.row, .bar, .reader]
     private static let saveEnabled: (Facts) -> Bool = { !$0.offersSave || $0.canSave }
     private static let folderPlaces: Set<Place> = [.row, .header]
-    private static let panelPlaces: Set<Place> = [.libraryHome, .folderScreen, .browser, .reader]
 
     static let specs: [Spec] = [
-        // A page. On a reading page its first group is *Save to Library* / *Remove from Library*,
-        // *Save to Folder…* / *Move to…*, *Follow…* (the page keeps its 🔖 too). A list row's menu
-        // leads with *Read* and keeps *Save* / *Remove from Library* near its end: a destructive
-        // row never leads a list row's menu. The row's tap plays it; Edit is on screen.
-        Spec(option: .save, kind: .article, places: readingPlaces, block: -1,
-             enabled: saveEnabled, greyIf: "nothing to save yet"),
-        Spec(option: .move, kind: .article, places: readingPlaces, block: -1,
-             enabled: saveEnabled, greyIf: "nothing to save yet"),
-        Spec(option: .follow, kind: .article, places: readingPlaces, block: -1, applies: { $0.followable },
-             enabled: { $0.canFollow }, hiddenIf: "no web address (it can't belong to a story)",
-             greyIf: "the page is being extracted"),
-        Spec(option: .read, kind: .article, places: articleListPlaces, enabled: { $0.hasTarget }, greyIf: "no page or address"),
-        Spec(option: .goTo, kind: .article, places: [.nowPlaying], enabled: { $0.goToEnabled }, greyIf: "nowhere to go"),
-        Spec(option: .prepare, kind: .article, places: articlePlacesButListen, enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "nothing to save yet (downloading saves it, C104)"),
-        // C138: the voice it speaks in (its book's for a chapter); picking one remakes its audio.
-        Spec(option: .voice, kind: .article, places: articlePlacesButListen, applies: { $0.hasPage },
-             hiddenIf: "no page (a page in the browser only)"),
-        Spec(option: .move, kind: .article, places: articleListPlaces, enabled: saveEnabled, greyIf: "nothing to save yet"),
-        Spec(option: .finished, kind: .article, places: articlePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),
-        // Chapter-only and rare: one submenu, only for a page in a folder.
-        Spec(option: .playback, kind: .article, places: articlePlacesButListen, applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "neither row inside can run"),
+        Spec(option: .read, kind: .article, places: articleListPlaces,
+             enabled: { $0.hasTarget }, greyIf: "no page or address"),
+        Spec(option: .save, kind: .article, places: articlePlaces, block: 1,
+             applies: { $0.offersSave }, enabled: saveEnabled, hiddenIf: "already saved", greyIf: "nothing to save yet"),
+        Spec(option: .move, kind: .article, places: articlePlaces, block: 1,
+             applies: { $0.offersSave }, enabled: saveEnabled, hiddenIf: "already saved", greyIf: "nothing to save yet"),
+        Spec(option: .follow, kind: .article, places: readingPlaces, block: 1, applies: { $0.followable },
+             enabled: { $0.canFollow }, hiddenIf: "no web address", greyIf: "the page is being extracted"),
+        Spec(option: .prepare, kind: .article, places: audioPlaces, block: 2,
+             enabled: { $0.inLibrary || ($0.hasPage && $0.canSave) }, greyIf: "no extracted article to prepare"),
+        Spec(option: .voice, kind: .article, places: [.row, .bar], block: 2, applies: { $0.hasPage },
+             hiddenIf: "no page"),
+        Spec(option: .goTo, kind: .article, places: [.nowPlaying], block: 2,
+             enabled: { $0.goToEnabled }, greyIf: "nowhere to go"),
+        Spec(option: .move, kind: .article, places: articlePlaces, block: 3,
+             applies: { !$0.offersSave }, enabled: saveEnabled, hiddenIf: "not saved", greyIf: "nothing to save yet"),
+        Spec(option: .finished, kind: .article, places: articlePlaces.subtracting([.history]), block: 3,
+             enabled: { $0.isSaved }, greyIf: "not saved"),
+        Spec(option: .playback, kind: .article, places: playbackPlaces, block: 3,
+             applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "neither row inside can run"),
         Spec(option: .markAllAbove, kind: .article, places: [.row], parent: .playback,
-             applies: { $0.inFolder }, enabled: { $0.isSaved }, hiddenIf: "not in a folder; outside a list row", greyIf: "not saved"),
-        Spec(option: .skip, kind: .article, places: articlePlacesButListen, parent: .playback,
+             applies: { $0.inFolder }, enabled: { $0.isSaved }, hiddenIf: "not in a folder", greyIf: "not saved"),
+        Spec(option: .skip, kind: .article, places: playbackPlaces, parent: .playback,
              applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "not saved and not a waiting chapter"),
-        Spec(option: .share, kind: .article, places: articlePlaces, blockAt: [.nowPlaying: 1], applies: { $0.hasShareURL },
-             hiddenIf: "no web address"),
-        Spec(option: .save, kind: .article, places: articleListPlaces, enabled: saveEnabled, greyIf: "nothing to save yet"),
-        Spec(option: .removeFromRecent, kind: .article, places: articlePlacesButListen,
-             applies: { !$0.inLibrary }, enabled: { $0.inRecent }, hiddenIf: "in the Library", greyIf: "not in Recent"),
-        Spec(option: .stopListening, kind: .article, places: [.bar], block: 1, enabled: { $0.isLoaded }, greyIf: "nothing loaded"),
-        Spec(option: .removeFromHistory, kind: .article, places: [.history], block: 1),
+        Spec(option: .share, kind: .article, places: articlePlaces, block: 3,
+             applies: { $0.hasShareURL }, hiddenIf: "no web address"),
+        Spec(option: .save, kind: .article, places: articlePlaces, block: 4,
+             applies: { !$0.offersSave }, enabled: saveEnabled, hiddenIf: "not saved", greyIf: "nothing to save yet"),
+        Spec(option: .removeFromRecent, kind: .article, places: [.row, .bar], block: 4,
+             applies: { !$0.inLibrary }, enabled: { $0.inRecent }, hiddenIf: "in the Library", greyIf: "not in History"),
+        Spec(option: .removeFromHistory, kind: .article, places: [.history], block: 4),
+        Spec(option: .stopListening, kind: .article, places: [.bar], block: 5,
+             enabled: { $0.isLoaded }, greyIf: "nothing loaded"),
 
-        // A folder. Its row's tap opens it; its header has ▶ and Prepare beside *More*.
         Spec(option: .continueFolder, kind: .folder, places: [.row], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
         Spec(option: .playFromStart, kind: .folder, places: [.header], enabled: { $0.hasArticlesToPlay }, greyIf: "nothing in it plays"),
-        // One row: Prepare, Stop Preparing while on, Remove Prepared Audio once all is prepared.
-        Spec(option: .folderPrepare, kind: .folder, places: [.row],
+        Spec(option: .folderPrepare, kind: .folder, places: [.row], block: 2,
              enabled: { $0.prepareIsOn || $0.hasPreparedAudio || $0.hasArticles }, greyIf: "empty, nothing downloaded, toggle off"),
-        Spec(option: .removePreparedAudio, kind: .folder, places: [.header], enabled: { $0.hasPreparedAudio }, greyIf: "nothing downloaded or downloading"),
-        Spec(option: .folderVoice, kind: .folder, places: folderPlaces, applies: { $0.isBookOrSeries },
-             hiddenIf: "a plain folder (each article keeps its own voice)"),
-        Spec(option: .folderMove, kind: .folder, places: folderPlaces),
-        Spec(option: .editDetails, kind: .folder, places: folderPlaces),
-        Spec(option: .deleteFolder, kind: .folder, places: folderPlaces),
+        Spec(option: .removePreparedAudio, kind: .folder, places: [.header], block: 2,
+             enabled: { $0.hasPreparedAudio }, greyIf: "nothing downloaded or downloading"),
+        Spec(option: .folderVoice, kind: .folder, places: folderPlaces, block: 2,
+             applies: { $0.isBookOrSeries }, hiddenIf: "a plain folder (each article keeps its own voice)"),
+        Spec(option: .folderMove, kind: .folder, places: folderPlaces, block: 3),
+        Spec(option: .editDetails, kind: .folder, places: folderPlaces, block: 3),
+        Spec(option: .deleteFolder, kind: .folder, places: folderPlaces, block: 4),
 
-        // A prepare. Its ↓ mark pauses and resumes.
         Spec(option: .reprepare, kind: .prepare, places: [.preparedAudio], applies: { !$0.isListeningAudio },
              enabled: { !$0.isQueued }, hiddenIf: "audio from listening", greyIf: "still preparing"),
-        Spec(option: .removePrepare, kind: .prepare, places: [.preparedAudio], enabled: { !$0.audioInUse },
-             greyIf: "audio from listening that playback needs now"),
+        Spec(option: .removePrepare, kind: .prepare, places: [.preparedAudio], block: 4,
+             enabled: { !$0.audioInUse }, greyIf: "audio from listening that playback needs now"),
 
-        // A screen's own rows (＋ has New Folder and Import Book; the address field starts a search).
-        // ＋ makes things in the screen on top; the ⋯ panels keep only Sort, Reload and the tail.
-        // The one create group (C126): ＋ (home and folder), a folder header's More and Edit's
-        // bar show it, into the folder on screen; Edit's New Folder files the selection in it.
-        Spec(option: .newFolder, kind: .screen, places: [.add, .edit]),
+        Spec(option: .addLink, kind: .screen, places: [.add, .edit]),
         Spec(option: .importFile, kind: .screen, places: [.add, .edit]),
         Spec(option: .pasteText, kind: .screen, places: [.add, .edit]),
-        Spec(option: .addLink, kind: .screen, places: [.add, .edit]),
-        Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen]),
-        Spec(option: .reload, kind: .screen, places: [.browser], enabled: { $0.hasWebPage }, greyIf: "no page up"),
-        Spec(option: .preparedAudio, kind: .screen, places: panelPlaces),
-        // The Prepared Audio list's ⋯: each only while its section has rows.
+        Spec(option: .newFolder, kind: .screen, places: [.add, .edit], block: 1),
+        Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen], block: 2),
+        Spec(option: .browsingHistory, kind: .screen, places: [.browser], block: 5),
+        Spec(option: .playFromParagraph, kind: .screen, places: [.nowPlaying], block: 5,
+             enabled: { $0.canJumpToParagraph }, greyIf: "no text loaded"),
         Spec(option: .deleteAllPrepared, kind: .screen, places: [.preparedAudio], applies: { $0.hasPrepared },
              hiddenIf: "nothing prepared"),
         Spec(option: .clearListeningAudio, kind: .screen, places: [.preparedAudio], applies: { $0.hasListeningAudio },
              hiddenIf: "no audio from listening"),
-        // Settings is a tile in every ⋯ panel (C140), not a list row.
     ]
 
     /// The options a `kind` menu shows at `place` for `facts`, in order, with their submenus.
@@ -219,7 +204,7 @@ enum MenuRegistry {
             if specs.contains(where: { $0.parent == spec.option }) && children.isEmpty { return nil }
             let enabled = spec.enabled(facts) && (children.isEmpty || children.contains { $0.availability == .enabled })
             return Entry(option: spec.option, availability: enabled ? .enabled : .disabled, children: children,
-                         block: spec.blockAt[place] ?? spec.block)
+                         block: spec.block)
         }
         return specs.filter { $0.parent == nil }.compactMap(entry)
     }

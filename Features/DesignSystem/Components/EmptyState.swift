@@ -111,15 +111,15 @@ struct ListRoomReader: ViewModifier {
 struct EmptyStateGallery: View {
     var body: some View {
         PreviewGallery {
-            // The app's empty screens all show these five (`AddToLibraryTiles`).
-            PreviewState("four tiles and a wide one") {
+            // The app's empty screens all show these four (`AddToLibraryTiles`).
+            PreviewState("four tiles") {
                 EmptyState("Start Your Library", description: "Articles you save show up here.") {
                     ActionTileGrid(tiles: [
                         ActionTile(title: "Browse the Web", symbol: Icons.browser, prominent: true) {},
-                        ActionTile(title: Verbs.followSite, symbol: Icons.follow) {},
+                        ActionTile(title: "Add a Link", symbol: Icons.link) {},
                         ActionTile(title: "Import a File", symbol: Icons.importFile) {},
                         ActionTile(title: "Paste Text", symbol: Icons.paste) {},
-                    ], wide: ActionTile(title: "Add a Link", symbol: Icons.link) {})
+                    ])
                 }
             }
         }

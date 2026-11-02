@@ -2,7 +2,7 @@ import SwiftUI
 
 /// What the Library's rows, headers and Edit's bar do, in one place: open a page (the
 /// Reader, Now Playing when it is what you hear, the browser for a link), play a page or a book
-/// (a link page, *Add Link…*'s or a followed story's chapter still waiting for its text, is
+/// (a link page, *Add a Link…*'s or a followed story's chapter still waiting for its text, is
 /// fetched first, then plays: `FollowCenter.play`),
 /// mark and remove pages, delete folders, file things with the Move tree. Opening never plays;
 /// a row's tap plays and slides Listen up (`tap`), and nothing else that plays navigates. Each edit is one save: one that can't be saved changes nothing
@@ -51,11 +51,13 @@ struct LibraryActions {
 
     /// *Paste Text…*'s *Save*: a new article in `folder` (nil: the top level), opened in Library
     /// Read (`read`). One that can't be saved opens nothing; a toast says so.
-    func savePastedText(title: String, text: String, in folder: Folder?) {
+    @discardableResult
+    func savePastedText(title: String, text: String, in folder: Folder?) -> Bool {
         guard let article = shell.attempt(String(localized: "Couldn’t save"), {
             try library.saveText(title: title, text: text, in: folder)
-        }) else { return }
+        }) else { return false }
         read(article)
+        return true
     }
 
     /// What its ▶ shows: the session's state when it is what you hear; otherwise a link waiting

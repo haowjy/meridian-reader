@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 /// the Share Extension, and a drain of the App Group inbox whenever the app becomes active.
 ///
 /// - http(s) → Browse (`ShellState.navigate`); one the Share Extension sent opens in reader view
-/// - PDF / EPUB file → same path as Library *Import from…* (`BookImportActions.importPicked`)
+/// - PDF / EPUB file → same path as Library *Import a File…* (`BookImportActions.importPicked`)
 /// - `meridian-reader://inbox` → drain `SharedInbox` (URLs and files the Share Extension wrote)
 @MainActor
 enum IncomingOpen {

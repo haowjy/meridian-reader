@@ -32,7 +32,7 @@ struct ArticleActions {
         /// It can be extracted now (a page is up and nothing else is extracting it).
         var canSave: Bool
         /// Extracts the page and saves it into the folder (nil: the top level).
-        var save: (Folder?) -> Void
+        var save: (Folder?) async throws -> Void
     }
 
     /// `url` nil: the article's address, else the page's.
@@ -141,7 +141,11 @@ struct ArticleActions {
     /// to (a chapter leads to its story) into a new folder at the top level.
     func followStory() {
         guard let storyURL else { return }
-        shell.present(.follow(FollowFlow(url: storyURL, parentID: nil, center: follow)))
+        shell.present(.follow(FollowFlow(url: storyURL, parentID: nil, center: follow) {
+            // The browser's page says why it couldn't in its own alert.
+            if let loaded { return (try? await loaded.save(nil)) != nil }
+            return save(.keep)
+        }))
     }
 
     /// *Prepare* / *Remove Prepared Audio*: *Remove Prepared Audio* takes the page out of every prepare and
@@ -175,7 +179,7 @@ struct ArticleActions {
     @discardableResult
     private func save(_ placement: SavePlacement) -> Bool {
         if let loaded {
-            loaded.save(placement.folder)
+            Task { try? await loaded.save(placement.folder) }
             return true
         }
         guard let readerArticle = textToSave else { return false }

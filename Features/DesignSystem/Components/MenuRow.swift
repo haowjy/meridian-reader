@@ -13,6 +13,8 @@ struct MenuRow: Identifiable {
     let title: String
     /// nil: a submenu's choice drawn as its title alone (a Sort choice not picked).
     let icon: String?
+    /// The registry group; renderers preserve its dividers even when rows are passed as one list.
+    var group = 0
     var isDestructive = false
     var availability: MenuAvailability = .enabled
     /// A submenu (the ⋯ panel's *Sort*): its rows open instead of an action.
@@ -72,7 +74,14 @@ struct MenuRows: View {
     }
 
     var body: some View {
-        let shown = blocks.map { $0.filter(\.isShown) }.filter { !$0.isEmpty }
+        let shown = blocks.flatMap { rows -> [[MenuRow]] in
+            var groups: [[MenuRow]] = []
+            for row in rows where row.isShown {
+                if groups.last?.last?.group == row.group { groups[groups.count - 1].append(row) }
+                else { groups.append([row]) }
+            }
+            return groups
+        }
         ForEach(shown.indices, id: \.self) { index in
             Section {
                 ForEach(shown[index]) { row in
@@ -110,6 +119,7 @@ extension MenuRegistry {
             func make(_ entry: Entry) -> MenuRow {
                 var made = row(entry.option)
                 made.availability = entry.availability
+                made.group = entry.block
                 made.submenu = entry.children.map(make)
                 return made
             }

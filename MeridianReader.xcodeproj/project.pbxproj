@@ -141,6 +141,7 @@
 		51F32EB70EAB338E06515A0A /* ReaderScrubMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = B508C89829FFE771EED158CB /* ReaderScrubMap.swift */; };
 		524E4E25A949E9A3303D5DDE /* ArtworkTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A594681F0B9CA492DB04B7 /* ArtworkTile.swift */; };
 		52A2988B95F190D0F9F1E490 /* KokoroONNXSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A263A5A1D4CA9DB9E427C532 /* KokoroONNXSession.swift */; };
+		5337D9BC40424617A002A29B /* InputSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68D253DE5BEAF61E7F0CA5BE /* InputSheet.swift */; };
 		54480C94DD8D197E120E5BC3 /* ReadabilityArticleExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCEE4FCAA0459906D024D845 /* ReadabilityArticleExtractor.swift */; };
 		559A1D7A0A7A9ECB80671E30 /* WordCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC78D1653080C1E2861B17D /* WordCount.swift */; };
 		55DF05592ED6602524A70482 /* NetworkPathStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E2E9B127AE05533C254268B /* NetworkPathStatus.swift */; };
@@ -660,6 +661,7 @@
 		67C551BCE36AF08C31098A2F /* voice-preview-phonon-everly.m4a */ = {isa = PBXFileReference; path = "voice-preview-phonon-everly.m4a"; sourceTree = "<group>"; };
 		67CECE34E814BE0393381EBC /* KokoroONNXSessionSlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroONNXSessionSlot.swift; sourceTree = "<group>"; };
 		682666EF50F78342348B3DDD /* KokoroAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroAssets.swift; sourceTree = "<group>"; };
+		68D253DE5BEAF61E7F0CA5BE /* InputSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputSheet.swift; sourceTree = "<group>"; };
 		69101B36563BEFB062F50A18 /* ChunkEdgeTrim.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChunkEdgeTrim.swift; sourceTree = "<group>"; };
 		6970BD8955C30076F8369C10 /* ReadabilityRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadabilityRunner.swift; sourceTree = "<group>"; };
 		6AD95ECDE18AE225C63B8EA8 /* CoverThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverThumbnail.swift; sourceTree = "<group>"; };
@@ -1045,6 +1047,7 @@
 				EB6288CC82005F3C9626F13E /* FolderHeader.swift */,
 				EEE65F69DF0679D0DE992A79 /* HeaderCards.swift */,
 				55C217D0D987907488261F23 /* IconButton.swift */,
+				68D253DE5BEAF61E7F0CA5BE /* InputSheet.swift */,
 				314EDF2D242E06532C574191 /* ListRow.swift */,
 				1D0254143FCE34E762D2EF88 /* MenuAvailability.swift */,
 				A6699FCCDCEC663DF47C259B /* MenuRegistry.swift */,
@@ -2147,6 +2150,7 @@
 				3EE53127B3A478C2AC4B96C9 /* IconButton.swift in Sources */,
 				A92EB4520F9BF357820D7EE9 /* Icons.swift in Sources */,
 				3739C914286A5F47CA5BB528 /* IncomingOpen.swift in Sources */,
+				5337D9BC40424617A002A29B /* InputSheet.swift in Sources */,
 				30FE1274A959C14CC79255F0 /* KokoroAssets.swift in Sources */,
 				F382E01BC0388D44B1F4A784 /* KokoroCPUHost.swift in Sources */,
 				7B33601C873ABCC777F8F71B /* KokoroCPUInputs.swift in Sources */,
