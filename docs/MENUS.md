@@ -16,7 +16,7 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 ## The menus (C98)
 
-- **Page** (row ⋯ and long press, Now Playing bar, Browsing History, Reader, Library Read, Listen, browser): first, as its own group everywhere, Save to Library / Remove from Library, Save to Folder… / Move to…, Follow… (only for a page with a web address, which can belong to a story; greyed while the page is being extracted; it opens the Follow sheet on the page's address); then Read (from the Library: in place, no destination switch), Prepare / Remove Prepared Audio, Voice: <Default or library> (C138), Mark as Finished, Playback › (Mark All Above as Finished in a list row, Skip When Playing; a page in a folder only), Share, Remove from History (the Library's History tab; out of the Library). The reading pages keep their 🔖 as well. The bar adds Stop Listening, a Browsing History visit adds its own Remove from Browsing History, and Listen has Go to <folder> instead of Read. Listen (`nowPlaying`) keeps to the save group, then Go to, Mark as Finished, then Share in a block of its own: Voice is on its card, and Prepare, Voice, Playback and Remove from Recent are left out.
+- **Page** (row ⋯ and long press, Now Playing bar, Browsing History, Reader, Library Read, Listen, browser). On a reading page (`reader`, `nowPlaying`, `browser`: the Browser's web page and reader mode, Library Read, Listen) the first group is Save to Library / Remove from Library, Save to Folder… / Move to…, Follow… (only for a page with a web address, which can belong to a story; greyed while the page is being extracted; it opens the Follow sheet on the page's address); the page keeps its 🔖 as well. In a list (`row`, `bar`, `history`) there is no Follow… and the menu leads with Read (from the Library: in place, no destination switch), then Prepare / Remove Prepared Audio, Voice: <Default or library> (C138), Move to… / Save to Folder…, Mark as Finished, Playback › (Mark All Above as Finished in a list row, Skip When Playing; a page in a folder only), Share, Save / Remove from Library, Remove from History (the Library's History tab; out of the Library): a red row never leads a list row's menu, as in iOS. The bar adds Stop Listening, a Browsing History visit adds its own Remove from Browsing History, and Listen has Go to <folder> instead of Read. Listen (`nowPlaying`) keeps to the save group, then Go to, Mark as Finished, then Share in a block of its own: Voice is on its card, and Prepare, Voice, Playback and Remove from Recent are left out.
 - **Folder** row (an imported EPUB or followed story is a folder too, the same menu: C100): Continue, Prepare / Stop Preparing / Remove Prepared Audio (one row by state), Voice: <Default or library> (a book or series only, C138), Move to…, Edit Details… (holds the name), Delete Folder… (Delete Book… on a book).
 - **Folder header More**: Play from Start, Remove Prepared Audio, Voice: <Default or library> (a book or series), Move to…, Edit Details…, Delete Folder… (Delete Book… on a book), then the create group into this folder (C126).
 - **Library home ⋯**: Sort ›, Prepared Audio, then [Settings][Library][Listen]; on compact width (the title line's ⋯, a system menu) the create group first, then Sort ›, Prepared Audio, Library, Browsing History, Listen (no Settings: the chrome's pill has it; regular width has 🕘). Listen opens Listen when audio is playing, greyed otherwise. Library opens the Library home (already there: harmless).
@@ -40,33 +40,31 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| save | never | nothing to save yet |
-| move | never | nothing to save yet |
-| follow | no web address (it can't belong to a story) | the page is being extracted |
 | read | never | no page or address |
 | prepare | never | nothing to save yet (downloading saves it, C104) |
 | voice | no page (a page in the browser only) | never |
+| move | never | nothing to save yet |
 | finished | never | not saved |
 | playback | not in a folder | neither row inside can run |
 | playback › markAllAbove | not in a folder; outside a list row | not saved |
 | playback › skip | not in a folder | not saved and not a waiting chapter |
 | share | no web address | never |
+| save | never | nothing to save yet |
 | removeFromRecent | in the Library | not in Recent |
 
 ### article at bar
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| save | never | nothing to save yet |
-| move | never | nothing to save yet |
-| follow | no web address (it can't belong to a story) | the page is being extracted |
 | read | never | no page or address |
 | prepare | never | nothing to save yet (downloading saves it, C104) |
 | voice | no page (a page in the browser only) | never |
+| move | never | nothing to save yet |
 | finished | never | not saved |
 | playback | not in a folder | neither row inside can run |
 | playback › skip | not in a folder | not saved and not a waiting chapter |
 | share | no web address | never |
+| save | never | nothing to save yet |
 | removeFromRecent | in the Library | not in Recent |
 | stopListening | never | nothing loaded |
 
@@ -74,16 +72,15 @@ Every menu is assembled from the registry by kind and place (`MenuRegistry.rows`
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
-| save | never | nothing to save yet |
-| move | never | nothing to save yet |
-| follow | no web address (it can't belong to a story) | the page is being extracted |
 | read | never | no page or address |
 | prepare | never | nothing to save yet (downloading saves it, C104) |
 | voice | no page (a page in the browser only) | never |
+| move | never | nothing to save yet |
 | finished | never | not saved |
 | playback | not in a folder | neither row inside can run |
 | playback › skip | not in a folder | not saved and not a waiting chapter |
 | share | no web address | never |
+| save | never | nothing to save yet |
 | removeFromRecent | in the Library | not in Recent |
 | removeFromHistory | never | never |
 

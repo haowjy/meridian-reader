@@ -710,7 +710,7 @@ commas.
   (above), Follow reads a story's contents again and fetches its chapters, the Now Playing bar
   names it as the source of its chapters, and its finished chapters lose their audio (D7).
 
-**Follow a story**: *Follow…* in a page's menu (the browser's, a reading page's ⋯, a row's) on a
+**Follow a story**: *Follow…* in a reading page's menu (the browser's, Library Read's, Listen's) on a
 story's page (a Royal Road chapter leads to its story article), or the Library's ⋯ → *Follow…* (the home, or a folder, which the story's folder
 goes in), where you type or paste the story's address. Follow covers the screen:
 
@@ -785,8 +785,8 @@ row plays it** (replacing what plays; in a folder it carries on through the fold
 width, slides Listen up over the Library, except the
 article you hear, which opens Listen (a stray tap never pauses); a link page (*Add Link…*'s,
 a story's chapter waiting for its text) is fetched first, its row showing the download arc and saying *Downloading…* (or why it
-couldn't be had), then plays, Listen staying down; a skipped page plays when tapped. *Read*, the first row after the
-menu's save group, opens it (the Reader; Listen for the page you hear; the browser for a link). **Tapping a folder
+couldn't be had), then plays, Listen staying down; a skipped page plays when tapped. *Read*, the menu's first row, opens
+it (the Reader; Listen for the page you hear; the browser for a link). **Tapping a folder
 row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own row, named in one word as iOS's swipes are (no noun, no ellipsis; the
 menu keeps the full label): an article's *Remove* (*Remove from Library*, or *Remove from History*),
 which takes its row out of every list once it is saved, and leaves it, with a toast, when it can't
@@ -838,7 +838,12 @@ An item has one menu wherever it shows (decision C4): an article's (`ArticleMenu
 (`FolderMenu`, books and series too) and a prepare's (`PrepareMenu`). The same rows, in the same
 order, with the same names and symbols, in a row's ⋯ and its long press, a
 Browsing History visit, the Now Playing bar's long press, a folder header's *More* and the top of every ⋯
-panel that is about one item (the browser's page, the Reader's, Listen's, a folder's screen).
+panel that is about one item (the browser's page, the Reader's, Listen's, a folder's screen), with one
+difference: on a reading page (the browser's web page and reader mode, Library Read, Listen) the
+article's menu leads with *Save to Library* / *Remove from Library*, *Save to Folder…* / *Move to…* and
+*Follow…* as one group, the page keeping its 🔖 too. A list row's menu (a row's ⋯ and long press, the
+bar, History) leads with *Read*, its *Move to…* and *Remove from Library* in their places below, since
+a red row never leads a list row's menu.
 A place only hides a row that can never apply there or dims one that can't run now (DR-09); what
 a place adds of its own comes after, set apart by a divider (the ⋯ panel's screen rows and big
 buttons, the bar's *Stop Listening*, Browsing History's *Remove from Browsing History*). Rows that delete something
@@ -846,17 +851,17 @@ are red everywhere.
 
 | An article's menu | Where it shows |
 |---|---|
-| *Save to Library* / *Remove from Library* (red) | first, everywhere, with the next two as one group; *Save to Library* dimmed without text to save. The reading pages keep their 🔖 too |
-| *Save to Folder…* / *Move to…* | *Save to Folder…* out of the Library (the Move tree, titled *Save to Folder*, saves it there), *Move to…* in it |
-| *Follow…* | an article with a web address (one that can belong to a story); dimmed while the page is being extracted. It opens Follow on its address ("Follow a story", below) |
 | *Read* / *Go to <place>* | *Read* (the Reader; Listen for the page you hear; the browser for a link or an address the Library hasn't) where the page isn't open; Listen has *Go to* its folder or the Library in its place; neither on the Reader or the browser |
 | *Play from Here* | an article in a folder, in a Library list |
 | *Prepare Audio* / *Remove Prepared Audio* (red) | a page out of the Library is saved first (C104); dimmed only on a browser page not yet loaded as a page |
+| *Save to Folder…* / *Move to…* | *Save to Folder…* out of the Library (the Move tree, titled *Save to Folder*, saves it there), *Move to…* in it; dimmed without text to save. Second on a reading page |
 | *Mark as Finished* / *Mark as Unfinished* | dimmed until it is saved |
 | *Mark All Above as Finished* | an article in a folder, in a Library list |
 | *Skip When Playing* / *Don’t Skip* | an article in a folder |
 | *Share* | an article with a web address |
 | *Select* | a folder screen's rows (Edit with that row selected) |
+| *Save to Library* / *Remove from Library* (red) | *Save to Library* dimmed without text to save. First on a reading page |
+| *Follow…* | a reading page's, for an article with a web address (one that can belong to a story), third; dimmed while the page is being extracted. It opens Follow on its address ("Follow a story", below) |
 | *Remove from History* (red) | an article out of the Library; dimmed while it isn't in History |
 
 | A folder's menu | Where it shows |

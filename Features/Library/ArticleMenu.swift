@@ -4,7 +4,7 @@ import SwiftUI
 /// row's ⋯ and long press (`MenuRows`, through this view) and as the item block of the ⋯ panel
 /// (`rows`). Which options show where, in what order and greyed or not is `MenuRegistry`'s
 /// (docs/MENUS.md: *Save* / *Remove from Library*, *Save to Folder…* / *Move to…* and *Follow…* lead
-/// it everywhere); this gives each its title, symbol and action. Built only when the menu opens:
+/// it on a reading page; a list row's leads with *Read*); this gives each its title, symbol and action. Built only when the menu opens:
 /// rows pass this view, never its `rows`, so nothing here runs on a row's redraw.
 struct ArticleMenu: View {
     /// Where the menu opens.

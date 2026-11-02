@@ -1,6 +1,7 @@
 import Foundation
 
-/// Every menu option in the app, each defined once (C98, docs/MENUS.md). An option says where it
+/// Every menu option in the app, each defined once (C98, docs/MENUS.md; a page's *Save* and *Move*
+/// have one spec for the reading pages and one for the lists, since they sit apart). An option says where it
 /// can ever apply (its item kind, the places it shows in, and `applies`, a fact of the item that
 /// no state change in that place undoes) and when it can run now (`enabled`). Outside where it
 /// applies it is hidden; where it applies but can't run now it is greyed out (DR-09 as refined
@@ -41,7 +42,7 @@ enum MenuRegistry {
         case edit
     }
 
-    /// Every option, in menu order within its kind.
+    /// Every option of a kind (menu order is `specs`' order).
     enum Option: String, CaseIterable {
         // A page
         case save, move, follow, read, goTo, prepare, voice, finished, playback, markAllAbove, skip, share,
@@ -131,18 +132,23 @@ enum MenuRegistry {
     private static let articlePlacesButListen = articlePlaces.subtracting([.nowPlaying])
     /// Where a page isn't on screen: *Read* shows there.
     private static let articleListPlaces: Set<Place> = [.row, .bar, .history]
+    /// The reading pages (the Browser's web page and reader, Library Read, Listen): the page is on
+    /// screen, and *Save*, *Save to Folder…* and *Follow…* lead its menu.
+    private static let readingPlaces = articlePlaces.subtracting(articleListPlaces)
+    private static let saveEnabled: (Facts) -> Bool = { !$0.offersSave || $0.canSave }
     private static let folderPlaces: Set<Place> = [.row, .header]
     private static let panelPlaces: Set<Place> = [.libraryHome, .folderScreen, .browser, .reader]
 
     static let specs: [Spec] = [
-        // A page. Its first group, everywhere its menu shows: *Save to Library* / *Remove from
-        // Library*, *Save to Folder…* / *Move to…*, *Follow…* (the reading pages keep their 🔖 too).
-        // The row's tap plays it; Edit is on screen.
-        Spec(option: .save, kind: .article, places: articlePlaces, block: -1,
-             enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
-        Spec(option: .move, kind: .article, places: articlePlaces, block: -1,
-             enabled: { !$0.offersSave || $0.canSave }, greyIf: "nothing to save yet"),
-        Spec(option: .follow, kind: .article, places: articlePlaces, block: -1, applies: { $0.followable },
+        // A page. On a reading page its first group is *Save to Library* / *Remove from Library*,
+        // *Save to Folder…* / *Move to…*, *Follow…* (the page keeps its 🔖 too). A list row's menu
+        // leads with *Read* and keeps *Save* / *Remove from Library* near its end: a destructive
+        // row never leads a list row's menu. The row's tap plays it; Edit is on screen.
+        Spec(option: .save, kind: .article, places: readingPlaces, block: -1,
+             enabled: saveEnabled, greyIf: "nothing to save yet"),
+        Spec(option: .move, kind: .article, places: readingPlaces, block: -1,
+             enabled: saveEnabled, greyIf: "nothing to save yet"),
+        Spec(option: .follow, kind: .article, places: readingPlaces, block: -1, applies: { $0.followable },
              enabled: { $0.canFollow }, hiddenIf: "no web address (it can't belong to a story)",
              greyIf: "the page is being extracted"),
         Spec(option: .read, kind: .article, places: articleListPlaces, enabled: { $0.hasTarget }, greyIf: "no page or address"),
@@ -151,6 +157,7 @@ enum MenuRegistry {
         // C138: the voice it speaks in (its book's for a chapter); picking one remakes its audio.
         Spec(option: .voice, kind: .article, places: articlePlacesButListen, applies: { $0.hasPage },
              hiddenIf: "no page (a page in the browser only)"),
+        Spec(option: .move, kind: .article, places: articleListPlaces, enabled: saveEnabled, greyIf: "nothing to save yet"),
         Spec(option: .finished, kind: .article, places: articlePlaces, enabled: { $0.isSaved }, greyIf: "not saved"),
         // Chapter-only and rare: one submenu, only for a page in a folder.
         Spec(option: .playback, kind: .article, places: articlePlacesButListen, applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "neither row inside can run"),
@@ -160,6 +167,7 @@ enum MenuRegistry {
              applies: { $0.inFolder }, enabled: { $0.canPlay }, hiddenIf: "not in a folder", greyIf: "not saved and not a waiting chapter"),
         Spec(option: .share, kind: .article, places: articlePlaces, blockAt: [.nowPlaying: 1], applies: { $0.hasShareURL },
              hiddenIf: "no web address"),
+        Spec(option: .save, kind: .article, places: articleListPlaces, enabled: saveEnabled, greyIf: "nothing to save yet"),
         Spec(option: .removeFromRecent, kind: .article, places: articlePlacesButListen,
              applies: { !$0.inLibrary }, enabled: { $0.inRecent }, hiddenIf: "in the Library", greyIf: "not in Recent"),
         Spec(option: .stopListening, kind: .article, places: [.bar], block: 1, enabled: { $0.isLoaded }, greyIf: "nothing loaded"),
@@ -233,7 +241,4 @@ enum MenuRegistry {
         }
         return text
     }
-
-    /// The spec of `option`.
-    static func spec(_ option: Option) -> Spec { specs.first { $0.option == option }! }
 }
