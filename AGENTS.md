@@ -62,7 +62,7 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   empty library and the stored settings cleared, as on a fresh install), `-selectEngine local.kokoro` (or
   `local.phonon`, `test.voice`). The seeds add to that: `-seedDemoArticle` (`-seedDemoPlainText`,
   `-seedPlayedPages N`), `-seedDemoBook` (a demo book; `-seedDemoBookPlace N` puts it part-way,
-  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedHistory` (visits on three sites in the browser's History, for the start page's Frequently Visited). Other options:
+  `-chainDemoChapters` plays it), `-seedDemoFolders`, `-seedMarketingLibrary` (the App Store screenshots' library, `App/Fixtures/MarketingContent.swift`: four folders, six essays, *Pride and Prejudice* chapters 1–3 as a book at the top level, "A City in the Rain" the newest page, so `-listenDemo`, `-openDemoInBrowseReader` and `-readDemoInLibrary` open it; with `-selectEngine local.phonon -prepareFolder "City Walks"` its audio renders in the real voice), `-seedHistory` (visits on three sites in the browser's History, for the start page's Frequently Visited). Other options:
   `-importTestEPUB` (*Import Book…* takes a synthetic EPUB instead of the Files picker;
   `-playTestEPUB` imports it at launch and plays it), `-browseTestPages` (offline `reader-test://`
   pages; page one links to an article with no title and to a story to follow, `-testStoryChapters N` lengthens its contents and

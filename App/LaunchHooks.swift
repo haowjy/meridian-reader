@@ -35,6 +35,7 @@ enum LaunchHooks {
         if let demo = options.demoArticle { seedDemoArticle(demo, in: library) }
         if options.seedsDemoBook { seedDemoBook(in: library, place: options.demoBookPlace) }
         if options.seedsDemoFolders { seedDemoFolders(in: library) }
+        if options.seedsMarketingLibrary { seedMarketingLibrary(in: library) }
         if options.bigFolderArticles > 0 { seedBigFolder(articles: options.bigFolderArticles, in: library) }
     }
 
@@ -83,6 +84,54 @@ enum LaunchHooks {
         _ = save("Index Funds", slug: "index", in: finance)
         yield?.lastPlayedAt = .now.addingTimeInterval(-3600)
         library.commit("demo folders seed")
+    }
+
+    /// `-seedMarketingLibrary`: `MarketingContent`'s folders, the essays in them and the book at the top
+    /// level, saved and imported as the app does them. Added dates are backdated (no store write
+    /// does that) so the hero essay is the newest and the rest trail it by days; a place is set on
+    /// "The Patient Work of Moss" (paragraph 2, played three hours back) and the book (chapter I
+    /// finished, chapter II at its third paragraph, played an hour back).
+    static func seedMarketingLibrary(in library: LibraryStore) {
+        let hero = Date.now.addingTimeInterval(-2 * 3600)
+        func daysBefore(_ days: Int) -> Date { hero.addingTimeInterval(-86_400 * Double(days)) }
+        var folders: [String: Folder] = [:]
+        for name in MarketingContent.folders {
+            folders[name] = try? library.makeFolder(name: name, in: nil)
+        }
+
+        let book = MarketingContent.book
+        let chapters = book.chapters.enumerated().map { index, chapter in
+            let plain = chapter.paragraphs.joined(separator: "\n\n")
+            return ArticleContent(ref: ArticleRef(key: UUID(), locator: .book(EPUBLocator(href: "chapter-\(index).xhtml", anchor: .fileStart)),
+                                                  ordinal: index, skipsInPlayback: false),
+                                  title: chapter.title, bodyHTML: chapter.paragraphs.map { "<p>\($0)</p>" }.joined(separator: "\n"),
+                                  plainText: plain, excerpt: String(plain.prefix(140)))
+        }
+        let details = FolderDetails(kind: .book, title: book.title, byline: book.author, sourceIdentifier: "debug.marketing-book")
+        if let bookFolder = try? library.addBook(details, chapters: chapters, in: nil) {
+            let pages = library.articles(in: bookFolder, sort: .manual)
+            for page in pages { page.addedAt = daysBefore(9) }
+            try? library.setFinished([pages[0]], true)
+            pages[1].positionParagraph = 2
+            pages[1].lastPlayedAt = .now.addingTimeInterval(-3600)
+            bookFolder.currentArticleKey = pages[1].key
+        }
+
+        for essay in MarketingContent.essays {
+            let extracted = ExtractedArticle(title: essay.title, siteName: essay.site,
+                                             cleanedHTML: essay.paragraphs.map { "<p>\($0)</p>" }.joined(separator: "\n"),
+                                             plainText: essay.paragraphs.joined(separator: "\n\n"),
+                                             excerpt: String(essay.paragraphs[0].prefix(140)))
+            let isMoss = essay.title == "The Patient Work of Moss"
+            var page = ReaderArticle(id: UUID(), url: URL(string: essay.address)!, extracted: extracted)
+            page.sourceLabel = essay.site
+            let saved = try? library.save(page,
+                                          placement: essay.folder.flatMap { folders[$0] }.map(SavePlacement.folder) ?? .keep,
+                                          playhead: isMoss ? 2 : nil)
+            saved?.addedAt = daysBefore(essay.daysBeforeHero)
+            if isMoss { saved?.lastPlayedAt = .now.addingTimeInterval(-3 * 3600) }
+        }
+        library.commit("marketing library seed")
     }
 
     /// After the migrations, before crash resume: bake, History, and where the app starts.
@@ -512,7 +561,8 @@ enum LaunchHooks {
     }
 
     /// `-openDemoInBrowseReader` (with `-seedDemoArticle`): the newest saved article as the Browser's
-    /// reader mode (the Reader sheet on regular width), without needing the network. Once the browser's
+    /// reader mode (the Reader sheet on regular width; on compact width the Browser is shown first, so a
+    /// remembered Library doesn't hide it), without needing the network. Once the browser's
     /// first page (`-browseTestPages`) has loaded, which would otherwise end the reader mode.
     static func openNewestInReader(in library: LibraryStore, shell: ShellState) async {
         try? await Task.sleep(for: .seconds(2))
@@ -527,6 +577,7 @@ enum LaunchHooks {
             article.trustedParagraphs = document.paragraphs
         }
         if shell.isCompact {
+            shell.showBrowser()
             shell.openPageReader(article, requestedAt: shell.pageReaderEpoch)
         } else {
             shell.openReader(article)
