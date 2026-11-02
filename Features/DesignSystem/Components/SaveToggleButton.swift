@@ -39,7 +39,7 @@ struct SaveToggleButton: View {
         .buttonStyle(GlyphButtonStyle())
         .confirmationDialog(Verbs.removeFromLibraryQuestion, isPresented: $confirmingRemove,
                             titleVisibility: .visible) {
-            Button(Verbs.removeFromLibrary, role: .destructive, action: onToggle)
+            Button(Verbs.remove, role: .destructive, action: onToggle)
         } message: {
             Text("Its audio and place are kept. If it’s playing, it stops.")
         }
