@@ -18,19 +18,18 @@ extension View {
     /// card-row policy: no row sets a height of its own; the List's minimum and `SymbolRow`'s
     /// (`rowMinimum`, which grows with the text) are this one value.
     ///
-    /// `underTitleLine`: the list's first section is the screen's title line (the Library home, Settings
-    /// in place), which is its top bar, at the top of the safe area; otherwise the list is under a
-    /// system bar, and its first content starts `Spacing.belowTopBar` under that bar's buttons.
-    func cardListStyle(underTitleLine: Bool = false) -> some View {
+    /// The first content starts `Spacing.belowTopBar` under the top bar's buttons. A list that opens with
+    /// a header (a section header, a title line, a folder's header) gets that from the List itself: its
+    /// header's text sits there under a system bar. A list that opens with a bare card (`startsWithCard`)
+    /// would get the List's own 35 pt top margin instead, so it sets its own.
+    func cardListStyle(startsWithCard: Bool = false) -> some View {
         let minimum = Control.bar
         return listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
             .contentMargins(.horizontal, Spacing.pageMargin, for: .scrollContent)
             .listSectionSpacing(Spacing.m)
-            // The list's own top margin (35 pt in iOS 26) replaced: its first content `belowTopBar` under
-            // the system bar's buttons.
-            .contentMargins(.top, underTitleLine ? 0 : Spacing.belowTopBar - Spacing.systemBarFoot, for: .scrollContent)
+            .contentMargins(.top, startsWithCard ? Spacing.belowTopBar - Spacing.systemBarFoot : 0, for: .scrollContent)
             .environment(\.defaultMinListRowHeight, minimum)
             .environment(\.rowMinimum, minimum)
     }
@@ -58,11 +57,13 @@ extension View {
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: Spacing.xxs, trailing: 0))
     }
 
-    /// A section that is only a header (a screen's title line, a folder's header): what follows starts
-    /// `Spacing.m` under it, the gap between cards, which is also `Spacing.belowTopBar` under a title
-    /// line. The header keeps `listHeader`'s `Spacing.xxs` below it, so the section spacing is the rest.
-    func headerOnlySection() -> some View {
-        listSectionSpacing(Spacing.m - Spacing.xxs)
+    /// A section that is only a header (a screen's title line, a folder's header). A card after it starts
+    /// `Spacing.m` under it, the gap between cards (and `Spacing.belowTopBar`): the header keeps
+    /// `listHeader`'s `Spacing.xxs` below it, so the section spacing is the rest. A section header after it
+    /// carries its own room above its text, as a list's first header does under a system bar, so the
+    /// spacing is `Spacing.xxs` (`followedByHeader`).
+    func headerOnlySection(followedByHeader: Bool = false) -> some View {
+        listSectionSpacing(followedByHeader ? Spacing.xxs : Spacing.m - Spacing.xxs)
     }
 
     /// A note under a card: a footnote in line with the card, `Spacing.xs` below it.

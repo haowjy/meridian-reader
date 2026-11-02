@@ -98,7 +98,7 @@ struct MoveTreeList: View {
             }
             .listCard()
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
         .newFolderAlert(isPresented: $naming, name: $newName,
                         message: newParent.map { "It goes inside “\($0.name)”, and this goes into it." }
                             ?? "It goes at the top level, and this goes into it.") {

@@ -108,7 +108,7 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settingsTitle")
                     .listHeader()
                 }
-                .headerOnlySection()
+                .headerOnlySection(followedByHeader: true)
             }
             ListeningSettingsSection(speech: speech)
             appearanceAndReadingSection
@@ -126,7 +126,7 @@ struct SettingsView: View {
                 .listRowBackground(Color.clear)
             }
         }
-        .cardListStyle(underTitleLine: inPlace)
+        .cardListStyle()
         .accessibilityIdentifier("settingsList")
     }
 
@@ -267,7 +267,7 @@ private struct AppearanceSettingsPage: View {
             }
             .listCard()
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
         .navigationTitle(String(localized: "Appearance"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -288,7 +288,7 @@ private struct ReadingSettingsPage: View {
             }
             .listCard()
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
         .navigationTitle(String(localized: "Reading"))
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("settingsReadingPage")

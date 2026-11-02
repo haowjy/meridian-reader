@@ -33,7 +33,7 @@ struct AcknowledgementsView: View {
             }
             .listCard()
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
         .navigationTitle(String(localized: "Acknowledgements"))
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("acknowledgementsList")

@@ -58,7 +58,7 @@ struct SpeedPage: View {
             }
             .listCard()
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
         .navigationTitle(Verbs.speed)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -94,7 +94,7 @@ struct VoicePage: View {
                 Task { await localTTS.chooseDefault(selection) }
             }
         }
-        .cardListStyle()
+        .cardListStyle(startsWithCard: true)
         .environment(\.editMode, .constant(editing ? .active : .inactive))
         .navigationTitle(Verbs.voice)
         .navigationBarTitleDisplayMode(.inline)

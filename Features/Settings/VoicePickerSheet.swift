@@ -43,7 +43,7 @@ struct VoicePickerSheet: View {
                     ) { pick($0, change: change) }
                 }
             }
-            .cardListStyle()
+            .cardListStyle(startsWithCard: true)
             .navigationTitle(Verbs.voice)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

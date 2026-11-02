@@ -90,7 +90,7 @@ struct LibraryHomeView: View {
                     .listRowBackground(Color.clear)
             }
         }
-        .cardListStyle(underTitleLine: true)
+        .cardListStyle()
         .statusBarBacking()
         .environment(\.libraryScreenKey, isFiltered ? .filtered(under: nil) : .home)
         .animation(Motion.standard, value: articles.map(\.listenKey))
