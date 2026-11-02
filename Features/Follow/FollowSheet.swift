@@ -200,7 +200,7 @@ private struct FollowReview: View {
         let symbol = kept == contents.chapters.count ? Icons.included : kept == 0 ? Icons.excluded : Icons.partlyIncluded
         return Button { flow.toggleAll(in: contents) } label: {
             SymbolRow(String(localized: "Select All")) { FollowCheckbox(symbol: symbol) } trailing: { EmptyView() }
-                .padding(.horizontal, Spacing.m)
+                .padding(.horizontal, RowMetrics.edgeInset)
         }
         .buttonStyle(.plain)
         .accessibilityValue(kept == contents.chapters.count ? "All" : kept == 0 ? "None" : "Some")
@@ -209,38 +209,28 @@ private struct FollowReview: View {
 }
 
 /// A chapter in Review: its box (keep or leave out), then its title and address, which open its
-/// preview. Two controls in a `SymbolRow`'s shape: the box in its leading column, at its height.
+/// preview. Two controls in one row's geometry (`RowColumns`, a two-line `rowHeight`, as Select All's
+/// `SymbolRow` and every two-line row): the box in the leading column, the rest after it.
 private struct FollowChapterRow: View {
     let chapter: TableOfContents.Chapter
     let isKept: Bool
     let onToggle: () -> Void
     let onOpen: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
-        HStack(spacing: 0) {
-            Button(action: onToggle) {
-                FollowCheckbox(symbol: isKept ? Icons.included : Icons.excluded)
-                    .frame(width: Glyph.slot)
-                    .padding(.leading, Spacing.m)
-                    .padding(.trailing, Spacing.s)
-                    .frame(minHeight: Control.tap)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(chapter.title)
-            .accessibilityValue(isKept ? "Selected" : "Not selected")
-            .accessibilityIdentifier("followChapterBox")
+        RowColumns(leading: checkbox, leadingIsControl: true) {
             Button(action: onOpen) {
-                HStack(spacing: Spacing.s) {
+                HStack(spacing: RowMetrics.columnGap) {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(chapter.title)
                             .typeStyle(.row)
                             .foregroundStyle(isKept ? Palette.ink : Palette.tertiaryInk)
-                            .lineLimit(1)
-                        Text(FollowText.shortAddress(chapter.url))
+                            .lineLimit(RowMetrics.titleLines(dynamicTypeSize))
+                        // The address keeps both ends: the story's place and the chapter's.
+                        DetailLine(parts: [DetailPart(FollowText.shortAddress(chapter.url), isLit: true)], wraps: false)
                             .typeStyle(.caption)
-                            .foregroundStyle(Palette.accent)
-                            .lineLimit(1)
                             .truncationMode(.middle)
                     }
                     Spacer(minLength: 0)
@@ -248,9 +238,7 @@ private struct FollowChapterRow: View {
                         .disclosureSymbol()
                         .foregroundStyle(Palette.tertiaryInk)
                 }
-                .padding(.trailing, Spacing.m)
-                .padding(.vertical, Spacing.xxs)
-                .frame(minHeight: Control.tap)
+                .frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -258,6 +246,21 @@ private struct FollowChapterRow: View {
             .accessibilityHint("Shows a preview")
             .accessibilityIdentifier("followChapter")
         }
+        .padding(.horizontal, RowMetrics.edgeInset)
+        .rowHeight(lines: 2)
+    }
+
+    /// The box, tapped across the column and the row's height.
+    private var checkbox: some View {
+        Button(action: onToggle) {
+            FollowCheckbox(symbol: isKept ? Icons.included : Icons.excluded)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(chapter.title)
+        .accessibilityValue(isKept ? "Selected" : "Not selected")
+        .accessibilityIdentifier("followChapterBox")
     }
 }
 

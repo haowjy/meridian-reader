@@ -12,17 +12,20 @@ import SwiftUI
 ///     example.org
 /// ```
 ///
-/// The column is `Glyph.slot` wide. The row's minimum is `rowMinimum`: `Control.bar` on a card list
-/// (`cardListStyle`, the one card-row policy), `Control.tap` elsewhere (the ⋯ panel, the search
-/// suggestions); both grow with the text up to `Control.maxTextGrowth`. Without a leading view (`symbol` nil)
-/// the text starts at the row's edge: a card's rows either all lead with a symbol or none does.
-/// The row adds no horizontal padding (its list or panel has its own) and no tap: the caller
-/// wraps it in a `Button`, `NavigationLink` or `Toggle`. On the reading page it takes the
-/// theme's ink.
+/// Its geometry is `RowMetrics`: the leading column (`RowColumns`), a one- or two-line height
+/// (`rowHeight(lines:)`; `reservesDetail` keeps line two's room while it has nothing to say, so the
+/// row never changes height), the title's lines. `rowMinimum` is a one-line row's height:
+/// `Control.bar` on a card list (`cardListStyle`), `Control.tap` elsewhere (the ⋯ panel, the search
+/// suggestions). Without a leading view (`symbol` nil) the text starts at the row's edge: a card's
+/// rows either all lead with a symbol or none does. The row adds no horizontal padding (its list or
+/// panel has its own) and no tap: the caller wraps it in a `Button`, `NavigationLink` or `Toggle`.
+/// On the reading page it takes the theme's ink.
 struct SymbolRow<Leading: View, Trailing: View>: View {
     let title: String
     /// Line two: its parts, set apart by space (`DetailLine`), never joined with a separator.
     var details: [DetailPart] = []
+    /// Line two's room is kept while `details` is empty (a row whose second line comes and goes).
+    var reservesDetail = false
     /// The title's and the symbol's colour (nil: ink): the accent for *New Folder*, red for
     /// *Unfollow*.
     var ink: Color?
@@ -31,25 +34,14 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
 
     @Environment(\.readingPalette) private var reading
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.rowMinimum) private var minimum
-    @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.slot
-    /// How much the row type has grown (1 at the default size).
-    @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var growth: CGFloat = 1
 
     var body: some View {
-        HStack(spacing: Spacing.s) {
-            if let leading {
-                leading
-                    .glyphSize(Glyph.regular)
-                    .frame(width: Control.grown(scaledColumn, from: Glyph.slot))
-                    .accessibilityHidden(true)
-            }
-            HStack(spacing: Spacing.s) {
+        RowColumns(leading: leading) {
+            HStack(spacing: RowMetrics.columnGap) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title)
                         .typeStyle(.row)
-                        // Whole labels at Accessibility sizes (C130): two lines there, one otherwise.
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                        .lineLimit(RowMetrics.titleLines(dynamicTypeSize))
                     if !details.isEmpty {
                         DetailLine(parts: details)
                             .typeStyle(.caption)
@@ -59,36 +51,32 @@ struct SymbolRow<Leading: View, Trailing: View>: View {
                 Spacer(minLength: 0)
                 trailing
             }
-            // Clear of the separators when two lines outgrow the minimum: a card adds no inset
-            // of its own (`listCard`).
-            .padding(.vertical, Spacing.xs)
-            // The separator under the row starts at the title, as in every list.
-            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         }
         .foregroundStyle(ink ?? reading?.ink ?? Palette.ink)
-        .frame(minHeight: Control.grown(minimum * growth, from: minimum))
+        .rowHeight(lines: details.isEmpty && !reservesDetail ? 1 : 2)
         .contentShape(Rectangle())
     }
 }
 
 extension SymbolRow where Leading == Image {
     /// A row led by an SF Symbol (nil: no leading column).
-    init(_ title: String, subtitle: DetailPart? = nil, symbol: String?, ink: Color? = nil,
+    init(_ title: String, subtitle: DetailPart? = nil, reservesDetail: Bool = false, symbol: String?, ink: Color? = nil,
          @ViewBuilder trailing: () -> Trailing) {
-        self.init(title, details: subtitle.map { [$0] } ?? [], symbol: symbol, ink: ink, trailing: trailing)
+        self.init(title, details: subtitle.map { [$0] } ?? [], reservesDetail: reservesDetail, symbol: symbol, ink: ink,
+                  trailing: trailing)
     }
 
     /// A row whose second line has several parts ("Apache-2.0   Runs Kokoro’s voices").
-    init(_ title: String, details: [DetailPart], symbol: String?, ink: Color? = nil,
+    init(_ title: String, details: [DetailPart], reservesDetail: Bool = false, symbol: String?, ink: Color? = nil,
          @ViewBuilder trailing: () -> Trailing) {
-        self.init(title: title, details: details, ink: ink, leading: symbol.map { Image(systemName: $0) },
+        self.init(title: title, details: details, reservesDetail: reservesDetail, ink: ink, leading: symbol.map { Image(systemName: $0) },
                   trailing: trailing)
     }
 }
 
 extension SymbolRow where Leading == Image, Trailing == EmptyView {
-    init(_ title: String, subtitle: DetailPart? = nil, symbol: String?, ink: Color? = nil) {
-        self.init(title, subtitle: subtitle, symbol: symbol, ink: ink) { EmptyView() }
+    init(_ title: String, subtitle: DetailPart? = nil, reservesDetail: Bool = false, symbol: String?, ink: Color? = nil) {
+        self.init(title, subtitle: subtitle, reservesDetail: reservesDetail, symbol: symbol, ink: ink) { EmptyView() }
     }
 }
 
@@ -105,11 +93,11 @@ extension SymbolRow {
 struct SymbolRowSeparator: View {
     var leadingInset: CGFloat = 0
 
-    @ScaledMetric(relativeTo: .body) private var scaledColumn = Glyph.slot
+    @ScaledMetric(relativeTo: .body) private var scaledColumn = RowMetrics.symbolColumn
 
     var body: some View {
         Divider()
-            .padding(.leading, leadingInset + Control.grown(scaledColumn, from: Glyph.slot) + Spacing.s)
+            .padding(.leading, leadingInset + Control.grown(scaledColumn, from: RowMetrics.symbolColumn) + RowMetrics.columnGap)
     }
 }
 

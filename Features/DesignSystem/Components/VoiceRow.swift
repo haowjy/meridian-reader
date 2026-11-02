@@ -81,7 +81,7 @@ struct VoiceRow: View {
             }
             previewButton
             Button(action: onPick) {
-                SymbolRow(name, subtitle: detail, symbol: nil)
+                SymbolRow(name, subtitle: detail, reservesDetail: true, symbol: nil)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier(accessibilityID)
@@ -91,9 +91,13 @@ struct VoiceRow: View {
                 removeButton(onRemove)
             } else if hasMark {
                 trailing
-                    .frame(minWidth: Control.tap, minHeight: Control.tap)
+                    .frame(width: RowMetrics.accessorySlot, height: RowMetrics.accessorySlot)
             }
         }
+        // The trailing mark in every row's accessory slot (`RowMetrics`): its glyph ends where the card's
+        // text does.
+        .listRowInsets(EdgeInsets(top: 0, leading: RowMetrics.edgeInset, bottom: 0,
+                                  trailing: hasMark && !revealed ? RowMetrics.accessoryTrailing : RowMetrics.edgeInset))
     }
 
     /// Edit's ⊖: shows (or hides) *Remove*, as iOS's delete control. The row stays in the list

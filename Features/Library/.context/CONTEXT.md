@@ -87,8 +87,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **A folder row's link sits behind the row** (`LibraryFolderRow`): a `NavigationLink` as the
   row's content gets the List's own disclosure, at its own x. Behind the row the List draws
   none, a tap still follows it (and Edit's selection still takes the tap), and the row's ⋯
-  (a `Menu`, which takes its own taps) stays centred on the toolbar's ⋯ slot
-  (`ListRow.trailingColumnPadding`).
+  (a `Menu`, which takes its own taps) stays in the row's accessory slot (`RowMetrics`).
 - **One menu definition per item kind** (decision C4): `ArticleMenu` and `FolderMenu` are each one
   ordered `[MenuRow]` (`rows`), and every way to that item's menu renders it: as a view
   (`MenuRows`) in a row's ⋯ and `.contextMenu`, the folder header's *More*, a

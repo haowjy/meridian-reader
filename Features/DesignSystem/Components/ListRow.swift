@@ -31,10 +31,10 @@ import SwiftUI
 ///
 /// Its prepare (`prepare`) shows on the row itself, never as a button: preparing dims the
 /// small ↓ filling before line two (grey while paused; C102), prepared puts a accent filled ↓ before the second
-/// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is centred on the
-/// toolbar's ⋯ slot like the Now Playing bar's ⏸; a row with a control of its own (a prepare's
-/// pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
-/// whatever leads it.
+/// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is in the row's accessory slot
+/// (`RowMetrics`: its glyph ends where every card's text does); a row with a control of its own (a
+/// prepare's pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
+/// whatever leads it. Its height is a two-line row's (`RowMetrics`), in Edit and out (C123).
 ///
 /// A folder row under a dragged row that it takes (`isDropTarget`) is washed and outlined in the
 /// accent, with a selection tick as it lights up.
@@ -92,18 +92,12 @@ struct ListRow: View {
     /// browser visits, the Prepared Audio list).
     var showsListening = true
 
-    /// The content's least height, `Control.tap` (the ⋯'s square) at the default text size, so a row
-    /// is one height in Edit and out (C123); larger text grows the row through its content, and the
-    /// minimum only up to `Control.maxTextGrowth`.
-    @ScaledMetric(relativeTo: .callout) private var scaledMinHeight = Control.tap
     /// Space between the second line's parts: `Spacing.s`, growing with the caption.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var partSpacing = Spacing.s
     /// The two text lines' heights, scaled like their text: a page's thumbnail matches them.
     @ScaledMetric(relativeTo: TypeStyle.row.relativeTo) private var titleLineHeight = TypeStyle.row.lineHeight
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var captionLineHeight = TypeStyle.caption.lineHeight
     @Environment(\.dynamicTypeSize) private var typeSize
-    /// The row's width, for the trailing column's place (`trailingColumnPadding`).
-    @State private var width: CGFloat = 0
 
     var body: some View {
         Group {
@@ -111,7 +105,7 @@ struct ListRow: View {
                 accessibilityLayout
             } else {
                 HStack(spacing: Spacing.s) {
-                    HStack(spacing: Spacing.s) {
+                    HStack(spacing: RowMetrics.columnGap) {
                         leading
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 0) {
@@ -129,12 +123,10 @@ struct ListRow: View {
             }
         }
         .background { if menu == nil { menuAnchor } }
-        .padding(.leading, Spacing.m)
-        .padding(.trailing, (menu != nil || editHandle != nil) ? Self.trailingColumnPadding(rowWidth: width) : Spacing.m)
-        // One height in Edit and out (C123): the ⋯'s square is the content's minimum, so a row
-        // doesn't shrink when Edit takes its ⋯ away; 52 pt with the padding.
-        .frame(minHeight: Control.grown(scaledMinHeight, from: Control.tap))
-        .padding(.vertical, Spacing.xxs)
+        .padding(.leading, RowMetrics.edgeInset)
+        .padding(.trailing, (menu != nil || editHandle != nil) ? RowMetrics.accessoryTrailing : RowMetrics.edgeInset)
+        // A page's row is two lines in Edit and out (C123).
+        .rowHeight(lines: 2)
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
         .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) { insertionLine }
@@ -144,7 +136,6 @@ struct ListRow: View {
         .animation(Motion.standard, value: prepare)
         .sensoryFeedback(.selection, trigger: isDropTarget) { _, isTarget in isTarget }
         .sensoryFeedback(.selection, trigger: insertionEdge) { _, edge in edge != nil }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if $0 != width { width = $0 } }
         .accessibilityElement(children: .contain)
     }
 
@@ -154,7 +145,7 @@ struct ListRow: View {
     private var accessibilityLayout: some View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
             titleText
-                .lineLimit(3)
+                .lineLimit(RowMetrics.stackedTitleLines)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             HStack(spacing: Spacing.s) {
@@ -166,7 +157,6 @@ struct ListRow: View {
                 trailingControls
             }
         }
-        .padding(.vertical, Spacing.xs)
     }
 
     /// The title is the row's one VoiceOver element, its status the value (the rest is hidden); the
@@ -188,32 +178,25 @@ struct ListRow: View {
         }
         if let accessory {
             accessory
-                .frame(width: Control.tap, height: Control.tap)
+                .rowAccessorySlot()
         }
         if let menu {
             Menu { menu } label: {
                 Image(systemName: Icons.more)
                     .glyphSize(Glyph.regular, weight: .semibold)
                     .foregroundStyle(Palette.secondaryInk)
-                    .frame(width: Control.tap, height: Control.tap)
+                    .frame(width: RowMetrics.accessorySlot, height: RowMetrics.accessorySlot)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
+            .padding(.vertical, -RowMetrics.verticalInset)
             .accessibilityLabel(Verbs.more)
             .accessibilityIdentifier("rowMore")
             .background { menuAnchor }
         } else if let editHandle {
             editHandle
+                .padding(.vertical, -RowMetrics.verticalInset)
         }
-    }
-
-    /// Trailing padding that centres the 44 pt trailing column on the toolbar's ⋯ slot, for a
-    /// row `rowWidth` wide in a list at the page margin: the toolbar row is wider by the
-    /// difference between the page and band margins on each side.
-    static func trailingColumnPadding(rowWidth: CGFloat) -> CGFloat {
-        guard rowWidth > 0 else { return Spacing.xxs }
-        let inset = Spacing.pageMargin - Spacing.bandMargin
-        return max(0, NowPlayingBar.trailingPadding(rowWidth: rowWidth + 2 * inset) - inset)
     }
 
     /// The accent wash and outline of a drop target, inset so the outline clears the card's
@@ -242,8 +225,8 @@ struct ListRow: View {
                     .frame(height: Glyph.stroke)
             }
             // The ring just before the title, the line from the title's leading edge on.
-            .padding(.leading, Spacing.m - Spacing.xs + (typeSize.isAccessibilitySize ? 0 : thumbnailSide + Spacing.s))
-            .padding(.trailing, Spacing.m)
+            .padding(.leading, RowMetrics.edgeInset - Spacing.xs + (typeSize.isAccessibilitySize ? 0 : thumbnailSide + RowMetrics.columnGap))
+            .padding(.trailing, RowMetrics.edgeInset)
             // Centred on the edge, half in this row and half in its neighbour's gap.
             .offset(y: (insertionEdge == .bottom ? 1 : -1) * Spacing.xs / 2)
             .allowsHitTesting(false)
