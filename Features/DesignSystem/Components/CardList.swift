@@ -66,7 +66,10 @@ extension View {
         listSectionSpacing(followedByHeader ? Spacing.xxs : Spacing.m - Spacing.xxs)
     }
 
-    /// A note under a card: a footnote in line with the card, `Spacing.xs` below it.
+    /// A note under a card: a footnote in line with the card, `Spacing.xs` below it. One line of it sits
+    /// about 2 pt lower than a wrapped note: the List gives a header or footer a minimum height
+    /// (`defaultMinListHeaderHeight`, footers included) and centres one shorter than that. Setting the
+    /// minimum to 0 would line them up but moves every section header too.
     func listFooter() -> some View {
         footnote()
             .textCase(nil)
