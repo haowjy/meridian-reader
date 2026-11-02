@@ -473,13 +473,12 @@ struct BrowseStartView: View {
                            shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }
 
-    /// Regular width keeps its panel's tiles; item actions come from the shared registry.
+    /// Regular width keeps its menu's navigation rows; item actions come from the shared registry.
     private func menu(_ actions: ArticleActions) -> MenuContext {
         let showing = shell.pageReader != nil
         let reader = MenuRow(id: "moreReaderToggle", title: showing ? Verbs.showWebPage : Verbs.reader,
                              icon: showing ? Icons.readerShowing : Icons.reader,
-                             availability: MenuAvailability(when: canOpenReader),
-                             accessibilityHint: showing ? nil : Verbs.openInReader) { run { try await $0.openInReader(inPlace: !isRegular) } }
+                             availability: MenuAvailability(when: canOpenReader)) { run { try await $0.openInReader(inPlace: !isRegular) } }
         return MenuContext(item: ArticleMenu(actions: actions, place: .browser).rows, screen: [],
                            tiles: MenuContext.tiles(shell, compact: !isRegular, last: reader))
     }

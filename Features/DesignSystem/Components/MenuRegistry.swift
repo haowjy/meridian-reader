@@ -20,11 +20,11 @@ enum MenuRegistry {
         case bar
         /// A History visit.
         case history
-        /// The Reader's ⋯ panel.
+        /// The Reader's ⋯ menu.
         case reader
-        /// Listen's ⋯ (compact width: the player card's system menu; regular width: its band's ⋯ panel).
+        /// Listen's ⋯ (compact width: the player card's system menu; regular width: its band's ⋯ menu).
         case nowPlaying
-        /// The browser's ⋯ panel.
+        /// The browser's ⋯ menu.
         case browser
         /// A folder header's *More*.
         case header
@@ -32,7 +32,7 @@ enum MenuRegistry {
         case libraryHome
         /// A folder screen's title ⋯ (compact width): the create group, then Sort.
         case folderScreen
-        /// The Library's ⋯ panel at regular width (the home or a folder's screen), beside its own ＋.
+        /// The Library's ⋯ menu at regular width (the home or a folder's screen), beside its own ＋.
         case libraryPanel
         /// A Prepared Audio list row.
         case preparedAudio

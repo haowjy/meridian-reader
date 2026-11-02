@@ -37,7 +37,7 @@ Save/Save to Folder become Remove from Library/Move to… in their corresponding
 | Menu | Rows |
 |---|---|
 | Library or folder screen title ⋯ | Add a Link… · Import a File… · Paste Text… — New Folder… — Sort › |
-| Library ⋯ panel (regular width, beside its own ＋) | Sort › — the navigation tiles |
+| Library ⋯ menu (regular width, beside its own ＋) | Sort › — Settings · Listen (the Library row is left out: you are there) |
 | ＋ and Edit's ＋ | Add a Link… · Import a File… · Paste Text… — New Folder… |
 | Folder header More | Play from Start — Remove Prepared Audio · Voice — Move to… · Edit Details… — Delete Folder… |
 | Folder row | Continue — Prepare Audio · Voice — Move to… · Edit Details… — Delete Folder… |

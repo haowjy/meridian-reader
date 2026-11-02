@@ -23,7 +23,7 @@ struct LibraryScreenMenu {
         }
     }
 
-    /// The title ⋯ (compact width: the create group, then Sort, no ＋ beside it) or the ⋯ panel
+    /// The title ⋯ (compact width: the create group, then Sort, no ＋ beside it) or the ⋯ menu
     /// (regular width: Sort and the navigation tiles; the create group is its ＋). Which rows each
     /// place has is the registry's.
     func menu(compact: Bool) -> MenuContext {

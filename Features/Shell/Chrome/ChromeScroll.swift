@@ -98,7 +98,7 @@ final class ChromeScroll {
     /// An in-place reader's full screen: the chrome, the reader's top group and the status bar are
     /// gone. False unless the policy is `.reads`.
     private(set) var fullScreen = false
-    /// The keyboard or the ⋯ panel is up: scrolling moves nothing.
+    /// The keyboard is up: scrolling moves nothing.
     var isLocked = false
     /// What is drawn, by step: 0 two rows, 1 one row, 2 the bubble (nearest end of `displayed`), so
     /// what keeps clear of the chrome moves a step at a time with it (`ChromeMetrics.clearance(step:home:)`).

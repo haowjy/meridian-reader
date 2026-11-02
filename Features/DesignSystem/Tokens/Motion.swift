@@ -4,11 +4,11 @@ import SwiftUI
 /// every animation can be interrupted and retargeted (springs, not fixed-duration curves).
 ///
 /// Reduce Motion: anything that would move, slide, scale or blur only cross-fades instead
-/// (`AnyTransition.slideAndFade(from:reduceMotion:)`, `.sheet(reduceMotion:)`, the ⋯ morph, a
+/// (`AnyTransition.slideAndFade(from:reduceMotion:)`, `.sheet(reduceMotion:)`, a
 /// committed pull-down). Gestures still follow the finger; that is direct manipulation, not
 /// animation.
 enum Motion {
-    /// Surfaces: the sheets, the ⋯ menu morph, Now Playing following the audio.
+    /// Surfaces: the sheets, Now Playing following the audio.
     static let standard = Animation.spring(response: standardResponse, dampingFraction: 1 - standardBounce)
     /// `standard` as UIKit spring parameters (`UIView.animate(springDuration:bounce:)`), for what
     /// SwiftUI can't animate: a web view's scroll offset.

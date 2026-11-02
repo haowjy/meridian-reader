@@ -59,7 +59,7 @@ private struct BottomChromeBandBackground: ViewModifier {
 ///
 /// Each item sits in the slot it names with `.toolbarSlot(_:)`; an item without one sits at its
 /// position in the row. A slot nothing names stays empty, so a row with fewer items never slides
-/// them along, and ⋯ (`.toolbarSlot(BottomToolbarLayout.moreSlot)`) grows the morph menu from the
+/// them along, and ⋯ (`.toolbarSlot(BottomToolbarLayout.moreSlot)`) opens the system menu from the
 /// same spot everywhere.
 struct BottomToolbarLayout: Layout {
     static let slotCount = 5

@@ -561,7 +561,7 @@ uses the group at `.edit`; `LibraryScreenState.makeFolder(in:with:)` holds the s
 `LibraryCreateMenu` (`LibraryScreenMenu.swift`) builds Add a Link, Import a File, Paste Text,
 then New Folder from `MenuRegistry` at `.add` and `.edit`. The compact title-line menu is the
 registry's `.libraryHome` / `.folderScreen` place, which holds these rows before Sort; regular
-width's ⋯ panel is `.libraryPanel` (Sort only, beside its ＋). Edit passes its selection for New
+width's ⋯ menu is `.libraryPanel` (Sort only, beside its ＋). Edit passes its selection for New
 Folder. `MenuContext.screenRows` builds *Browsing History* and takes every other screen row from
 its caller; a place showing an option its screen has no row for stops with a precondition failure
 rather than drawing a wrong row.
@@ -574,7 +574,7 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 
 ## Input sheets
 
-`InputSheet` in DesignSystem owns the ✕ (`SheetBarButton`'s close form, the system's close button), inline title, content slot and
+`InputSheet` in DesignSystem owns the ✕ (the system's close button), inline title, content slot and
 bottom actions. `FollowSheet` and `PasteTextSheet` supply only feature content and actions. Both
 are presented by `ShellState.sheet`; no second presentation flag lives on the Library screen.
 `FollowFlow` owns address → reading → review (or saved / failed / already-followed), the original

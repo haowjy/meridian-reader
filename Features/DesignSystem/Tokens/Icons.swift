@@ -7,7 +7,7 @@ import SwiftUI
 ///
 /// Size and weight come from where a symbol sits, not from here: `toolbarIconFrame()` (a toolbar
 /// slot), `fieldControlFrame()` (a round control in a field capsule or a sheet's top bar),
-/// `PillSymbol` (before a pill's title), the ⋯ panel's rows and tiles.
+/// `PillSymbol` (before a pill's title), the ⋯ menu's rows and tiles.
 enum Icons {
     // MARK: Moving around
 
@@ -159,7 +159,7 @@ enum Icons {
 
     // MARK: Settings and reading
 
-    /// Settings (the last row of every ⋯ panel).
+    /// Settings (the last row of every ⋯ menu).
     static let settings = "gearshape"
     /// Aa: how the page reads (the reading theme, font, size and spacing panel).
     static let textAppearance = "textformat.size"

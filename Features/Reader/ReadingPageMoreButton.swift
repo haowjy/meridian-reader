@@ -11,11 +11,17 @@ struct ReadingPageMoreButton: View {
     @Environment(FollowCenter.self) private var follow
     @Environment(PrepareCenter.self) private var preparedAudio
 
+    private func blocks() -> [[MenuRow]] {
+        ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
+                                       preparedAudio: preparedAudio, follow: follow).blocks
+    }
+
     var body: some View {
-        let menu = ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
-                                                  preparedAudio: preparedAudio, follow: follow)
-        TitleMenuButton(id: id, blocks: menu.blocks) {
+        TitleMenuButton(id: id, blocks: blocks()) {
             Image(systemName: Icons.more).toolbarIconFrame()
         }
+        #if DEBUG
+        .onAppear { MenuProbeState.shared.offerPageMenu(blocks) }
+        #endif
     }
 }

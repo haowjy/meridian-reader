@@ -67,6 +67,9 @@ struct ReaderSurface: View {
         .overlay(alignment: .leading) { edgeSwipe }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("inPlaceReader")
+        #if DEBUG
+        .onAppear { MenuProbeState.shared.offerPageMenu { [menu] in menu } }
+        #endif
         .task(id: WarmKey(id: article.id, count: article.document.count)) { listen.warmUp() }
         #if DEBUG
         .task {

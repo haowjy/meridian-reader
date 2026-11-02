@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The shared frame for typed input and its review: ✕ (`SheetBarButton`'s close form), an inline
+/// The shared frame for typed input and its review: ✕ (the system's close button), an inline
 /// title, content and bottom actions. Feature state and saving stay with the caller; ✕ is always
 /// usable, and the caller cancels whatever is under way when the sheet goes.
 struct InputSheet<Content: View, Actions: View>: View {
@@ -24,11 +24,22 @@ struct InputSheet<Content: View, Actions: View>: View {
                 .navigationTitle(title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    SheetBarButton(Verbs.cancel, isClose: true, placement: .cancellationAction,
-                                   identifier: "inputSheetCancel", action: onCancel)
+                    ToolbarItem(placement: .cancellationAction) { closeButton }
                 }
         }
         .presentationDragIndicator(.visible)
+    }
+
+    private var closeButton: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                Button(role: .close, action: onCancel)
+            } else {
+                Button(action: onCancel) { Image(systemName: Icons.close) }
+            }
+        }
+        .accessibilityLabel(Verbs.cancel)
+        .accessibilityIdentifier("inputSheetCancel")
     }
 }
 

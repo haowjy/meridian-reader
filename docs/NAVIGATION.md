@@ -1355,7 +1355,7 @@ control for control.
 
 **Settings** (`SettingsView`) is a `NavigationStack` of cards on paper: on compact width the chrome
 pill's third destination, in place under the chrome; on regular width a sheet opened from the last row
-of every ⋯ panel and the sidebar's bottom row (titled *Settings*, *Done* closes it). Every list of cards in the app (the Library and its
+of every ⋯ menu and the sidebar's bottom row (titled *Settings*, *Done* closes it). Every list of cards in the app (the Library and its
 folders, History, Settings and its pages, a Voice picker, Follow, Following, the Move tree, Folder
 Details, Book Import, Prepared Audio) has the same rows: at least 48 pt at the default text size
 (`Control.bar`, the system Settings' proportions, set once by `cardListStyle`: no row sets its own; a two-line row grows to its content), 16 pt
@@ -1433,7 +1433,7 @@ a symbol. Top to bottom:
 
 Debug tools are hidden in normal use: Settings › Developer (Listen debug, Fake extraction
 failure, Listen Debug Panel), the listen bar's Debug pill / bake overlay, and long-press ▶︎ →
-Listen debug panel. No ⋯ panel has a Debug row. The entry points that open the full panel
+Listen debug panel. No ⋯ menu has a Debug row. The entry points that open the full panel
 present the shell's `ShellSheet.listenDebug` (the Debug pill toggles the bake overlay): the one
 sheet, or over Settings when it is up (`ShellState.overSheet`), which stays when it closes.
 They show only with **developer options** on (`DeveloperSettings`, UserDefaults `reader.developerOptions`): off by

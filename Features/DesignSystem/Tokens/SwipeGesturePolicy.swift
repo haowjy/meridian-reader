@@ -5,7 +5,7 @@ enum SwipeGestureDirection {
     case right
 }
 
-/// How the app's drags pick an axis and when a release commits: the sheets' and the ⋯ panel's
+/// How the app's drags pick an axis and when a release commits: the sheets' and the ⋯ menu's
 /// pull-down, the bottom band's pull that lowers the keyboard, the Now Playing bar's swipe up and
 /// the listen controller's sideways swipe between paragraphs.
 enum SwipeGesturePolicy {

@@ -508,7 +508,7 @@ final class ChromeTests: XCTestCase {
         chrome.isLocked = true
         chrome.anchor(at: 10, from: .library)
         scroll(chrome, to: [80])
-        XCTAssertEqual(chrome.progress, 0, "keyboard or ⋯ panel up")
+        XCTAssertEqual(chrome.progress, 0, "keyboard up")
         chrome.isLocked = false
         let first = ChromeOwner(source: .libraryReader, screen: 1)
         chrome.hand(to: first)

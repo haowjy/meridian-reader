@@ -8,15 +8,28 @@ import SwiftData
 @MainActor @Observable
 final class MenuProbeState {
     static let shared = MenuProbeState()
-    var context: MenuContext?
+    var blocks: [[MenuRow]]?
+    /// `-openPageMenu`: the first reading page shown offers its ⋯ menu (`offerPageMenu`).
+    var wantsPageMenu = false
+
+    /// A reading page's ⋯ blocks, the same `MenuRows` input its own ⋯ draws, shown 3 s after the
+    /// page appears; only the first page offered while `-openPageMenu` is on.
+    func offerPageMenu(_ make: @escaping @MainActor () -> [[MenuRow]]) {
+        guard wantsPageMenu else { return }
+        wantsPageMenu = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            blocks = make()
+        }
+    }
 }
 
 struct MenuProbePanel: View {
     @State private var state = MenuProbeState.shared
 
     var body: some View {
-        if let context = state.context {
-            List { MenuRows(blocks: context.blocks) }
+        if let blocks = state.blocks {
+            List { MenuRows(blocks: blocks) }
                 .frame(width: 320, height: 560)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.card))
                 .shadow(radius: 12)
@@ -99,7 +112,7 @@ enum MenuProbe {
         let rows = context.item + context.screen + context.tiles
         ListenTimingLog.log("menu_probe", ["name": name,
                             "rows": rows.map { "\($0.group):\($0.title):\($0.availability)" }.joined(separator: " | ")], console: true)
-        MenuProbeState.shared.context = context
+        MenuProbeState.shared.blocks = context.blocks
     }
 
     private static func missing(_ name: String, _ reason: String) {

@@ -255,6 +255,7 @@
 		9A2F757F275DD8D64079D463 /* RegularLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCD1E4E2F24E227CF978B58 /* RegularLayout.swift */; };
 		9A762A67DD12DE6EAED92801 /* ListenDebugPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7A14C91D4840D6F1622E30C /* ListenDebugPanel.swift */; };
 		9ABD40C5DFE19D7C8D4A1FDA /* AddressField.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0345CFD2DBF0433D5DFFDE5 /* AddressField.swift */; };
+		9AF8F48A49FC3C3C8214352E /* SheetBarButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8219B5D12CFFCA0C1F8AD0A /* SheetBarButton.swift */; };
 		9B184CAA1E1BCA267B8028AC /* PendingBakeJobStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 086D54ABDA02E06184CA31DB /* PendingBakeJobStore.swift */; };
 		9B237A975337B1CE4292A3FD /* GlobalSynthQueue+Jobs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52855C3FAA1F254E9AA301BF /* GlobalSynthQueue+Jobs.swift */; };
 		9C70F59501663D1BB0653CA0 /* voice-preview-phonon-easton.m4a in Resources */ = {isa = PBXBuildFile; fileRef = AC395F02636196CA8E5B4494 /* voice-preview-phonon-easton.m4a */; };
@@ -930,6 +931,7 @@
 		F7755AAF6221CB2EBD33E209 /* LibraryMigrationReceipt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryMigrationReceipt.swift; sourceTree = "<group>"; };
 		F7836312F95307ABA39A3258 /* ReaderNormalize.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ReaderNormalize.js; sourceTree = "<group>"; };
 		F7A594681F0B9CA492DB04B7 /* ArtworkTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkTile.swift; sourceTree = "<group>"; };
+		F8219B5D12CFFCA0C1F8AD0A /* SheetBarButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetBarButton.swift; sourceTree = "<group>"; };
 		F85E717D6ACF6CAA91D564E5 /* IncomingOpen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingOpen.swift; sourceTree = "<group>"; };
 		F8957B1294EDBC3C3D77F382 /* WholeWordsText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WholeWordsText.swift; sourceTree = "<group>"; };
 		F8CA18AF411C685E3212B464 /* SearchSessionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSessionOverlay.swift; sourceTree = "<group>"; };
@@ -1074,6 +1076,7 @@
 				4A7C03D4520A1482F385C1C1 /* SectionHeader.swift */,
 				7582FBFBEBBDBFF2DFA493DB /* SegmentedTabs.swift */,
 				58A64466059BA1017F1DE3DC /* Sheet.swift */,
+				F8219B5D12CFFCA0C1F8AD0A /* SheetBarButton.swift */,
 				1F968C0F18E9D51BBA4E89AD /* SheetPullHandoff.swift */,
 				56AF658C568943F2692AAF95 /* SheetPullPan.swift */,
 				124893343B0FE2C3040D7289 /* SymbolRow.swift */,
@@ -2333,6 +2336,7 @@
 				0CAA56B8AFE1312DE7A9BE8C /* SettingsView.swift in Sources */,
 				B71BF71C4B55EF7F7F393D01 /* SharedInbox.swift in Sources */,
 				0727841C55A970070F764F49 /* Sheet.swift in Sources */,
+				9AF8F48A49FC3C3C8214352E /* SheetBarButton.swift in Sources */,
 				1466BE2F35AC652D1490CD1D /* SheetPullHandoff.swift in Sources */,
 				D9618A2D259EF19F71AE2AA0 /* SheetPullPan.swift in Sources */,
 				B511D153A8F41D29AB51D844 /* ShellSheetView.swift in Sources */,

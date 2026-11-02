@@ -137,56 +137,6 @@ struct PillSymbol: View {
     }
 }
 
-/// A sheet's *Done*, *Cancel* or *Save* in its navigation bar: a plain `Button` the system styles
-/// (glass on iOS 26), so every sheet's buttons look like the system's. This type owns the
-/// identifier and placement rule.
-///
-/// With a `systemImage` it is the system's close button, `title` its VoiceOver label: an input
-/// sheet's ✕ (`InputSheet`).
-///
-/// ```
-/// ( Cancel )            Edit Details             ( Save )
-/// ( ✕ )                  Add a Link
-/// ```
-struct SheetBarButton: ToolbarContent {
-    let placement: ToolbarItemPlacement
-    let title: String
-    /// The close button in place of the title (the symbol is the system's).
-    var isClose = false
-    let identifier: String
-    var isDisabled = false
-    let action: () -> Void
-
-    init(_ title: String, isClose: Bool = false, placement: ToolbarItemPlacement, identifier: String,
-         isDisabled: Bool = false, action: @escaping () -> Void) {
-        self.title = title
-        self.isClose = isClose
-        self.placement = placement
-        self.identifier = identifier
-        self.isDisabled = isDisabled
-        self.action = action
-    }
-
-    var body: some ToolbarContent {
-        ToolbarItem(placement: placement) {
-            button
-                .disabled(isDisabled)
-                .accessibilityIdentifier(identifier)
-        }
-    }
-
-    @ViewBuilder
-    private var button: some View {
-        if !isClose {
-            Button(title, action: action)
-        } else if #available(iOS 26.0, *) {
-            Button(role: .close, action: action).accessibilityLabel(title)
-        } else {
-            Button(action: action) { Image(systemName: Icons.close) }.accessibilityLabel(title)
-        }
-    }
-}
-
 /// Pressed: the pill (or the transport disc) dims a little, like a system button.
 struct PillPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
@@ -221,41 +171,4 @@ struct PillButtonGallery: View {
 #Preview("PillButton · dark", traits: .sizeThatFitsLayout) { PillButtonGallery().previewVariant(.dark) }
 #Preview("PillButton · AX5", traits: .sizeThatFitsLayout) { PillButtonGallery().previewVariant(.largestText) }
 
-struct SheetBarButtonGallery: View {
-    var body: some View {
-        NavigationStack {
-            List { Text("Rows") }
-                .cardListStyle()
-                .navigationTitle("Edit Details")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    SheetBarButton(Verbs.cancel, placement: .cancellationAction, identifier: "previewCancel") {}
-                    SheetBarButton("Save", placement: .confirmationAction, identifier: "previewSave") {}
-                }
-        }
-    }
-}
-
-/// The icon form, as an input sheet's ✕.
-struct SheetBarIconGallery: View {
-    var body: some View {
-        NavigationStack {
-            List { Text("Rows") }
-                .cardListStyle()
-                .navigationTitle("Add a Link")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    SheetBarButton(Verbs.cancel, isClose: true, placement: .cancellationAction,
-                                   identifier: "previewClose") {}
-                }
-        }
-    }
-}
-
-#Preview("SheetBarButton · light") { SheetBarButtonGallery().previewVariant(.light) }
-#Preview("SheetBarButton · dark") { SheetBarButtonGallery().previewVariant(.dark) }
-#Preview("SheetBarButton · AX5") { SheetBarButtonGallery().previewVariant(.largestText) }
-#Preview("SheetBarButton icon · light") { SheetBarIconGallery().previewVariant(.light) }
-#Preview("SheetBarButton icon · dark") { SheetBarIconGallery().previewVariant(.dark) }
-#Preview("SheetBarButton icon · AX5") { SheetBarIconGallery().previewVariant(.largestText) }
 #endif

@@ -56,7 +56,7 @@ struct BrowserBottomChrome: View {
     // MARK: - Toolbar
 
     /// `[‹][›][🔖][🕘][⋯]`, slot for slot the Library's `[‹][›][＋][🕘][⋯]`. Reader is the icon in
-    /// the address field and the ⋯ panel's focus button; a new search is a tap on the field.
+    /// the address field and the ⋯ menu's Reader row; a new search is a tap on the field.
     private var toolbar: some View {
         BottomToolbarLayout {
             BandToolbarButton(systemImage: Icons.back, label: Verbs.back,
