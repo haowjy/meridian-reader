@@ -72,9 +72,9 @@ Meridian Reader Works", and Listen up on it, paused (see *The welcome article* b
 
 | ID | Requirement |
 |----|-------------|
-| W1 | A fresh install (nothing ever kept, visited or filed) adds "How Meridian Reader Works" at the top of the Library, as an ordinary saved article, and opens Listen on it paused: no autoplay, no welcome sheet. It is the page last played, so the chrome's Listen button and the iPad dock offer it until something else plays. An upgrade, or any later launch, adds nothing. |
+| W1 | A fresh install (nothing ever kept, visited or filed) adds "How Meridian Reader Works" at the top of the Library, as an ordinary saved article, and opens Listen on it paused: no autoplay, no welcome sheet (Listen stays down when the launch came with a Share, an Open In, an import or a sheet to show). It is the page last played, so the chrome's Listen button and the iPad dock offer it until something else plays. An upgrade, or any later launch, adds nothing. |
 | W2 | Its audio is recorded in the built-in default voice (Zoey) and ships in the app: it plays at once, offline, and counts as prepared. The article keeps that voice whatever Settings says; its *Voice* changes it like any article's. |
-| W3 | ⋯ › Help (every ⋯ with navigation rows, and the compact Library's) and Settings › About › *How Meridian Reader Works* open it in Listen, paused; deleted or removed, it comes back first, with its audio. |
+| W3 | ⋯ › Help (every ⋯ with navigation rows, and the compact Library's) and Settings › About › *How Meridian Reader Works* open it in Listen, paused; deleted or removed, it comes back first, with its audio (only when it speaks the built-in default voice it was recorded in). While another page plays or is paused, they open it in Library Read instead, as a Library row does, and playback goes on. |
 
 ## Listening
 

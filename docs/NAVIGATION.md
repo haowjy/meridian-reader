@@ -384,7 +384,9 @@ upgrade adds nothing; the done flag is UserDefaults `welcome.installed`, which `
 The article belongs to the built-in default voice (Zoey) whatever Settings says; its *Voice* changes
 it. **Help** (the last row before Listen in every ⋯ block that has navigation rows, and alone in the
 compact Library's) and Settings › About › *How Meridian Reader Works* open it in Listen, paused, adding it back first,
-with its audio, if it was deleted or removed. A recording that doesn't match (the text edited,
+with its audio (when it speaks Zoey), if it was deleted or removed; while another page plays or is paused they open it
+in Library Read instead, as a Library row does, and playback goes on. A first launch that arrives with
+somewhere to go (`ShellState.hasSomewhereToGo`: Share, Open In, an import, a sheet) adds it without Listen. A recording that doesn't match (the text edited,
 Phonon's model revision changed) is dropped on install and the article renders live;
 `tools/record-welcome-audio.sh` records it again.
 

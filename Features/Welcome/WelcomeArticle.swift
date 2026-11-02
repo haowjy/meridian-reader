@@ -26,32 +26,40 @@ struct WelcomeArticle {
 
     /// The first launch of a fresh install: the article is added at the top of the Library as the
     /// page last played, so the chrome's Listen button and the iPad dock offer it until something
-    /// else plays, and Listen opens on it paused. An upgrade (a library already in use) and every
-    /// later launch add nothing. `withAudio: false` is the recording's (`-recordWelcome`): the
-    /// audio is rendered live, to be bundled.
-    func addOnFreshInstall(withAudio: Bool = true) {
+    /// else plays, and Listen opens on it paused, unless the launch arrived with somewhere to go
+    /// (`ShellState.hasSomewhereToGo`: a Share, an Open In, an import). An upgrade (a library
+    /// already in use) and every later launch add nothing.
+    func addOnFreshInstall() {
         guard !defaults.bool(forKey: Self.installedKey) else { return }
         defaults.set(true, forKey: Self.installedKey)
-        guard library.isUntouched, let article = ensure(withAudio: withAudio) else { return }
-        article.lastPlayedAt = .now
-        library.commit("welcome")
-        bindPaused(article)
+        guard library.isUntouched, let article = ensure() else { return }
+        library.recordPlaybackStarted(article)
+        if !shell.hasSomewhereToGo { bindPaused(article) }
     }
 
-    /// ⋯ › Help and Settings › About: Listen, paused, on the article, added again first when it
-    /// was deleted or removed. Listen, so the article is read to you, as on first launch.
+    /// ⋯ › Help and Settings › About: the article, added again first when it was deleted or
+    /// removed. Listen, paused, so it is read to you, as on first launch; but while another page
+    /// plays or is paused, Library Read, as a Library row opens it: Help never takes over what
+    /// you are hearing.
     func open() {
-        guard let article = ensure(withAudio: true) else { return }
+        guard let article = ensure() else { return }
         shell.sheet = nil // Settings' or History's sheet on regular width: Listen rises under system sheets
-        bindPaused(article)
+        if let now = speech.nowPlaying, now.articleKey != Self.key, now.phase == .playing || now.phase == .paused {
+            shell.hideNowPlaying()
+            shell.openSaved(article.listenKey, in: library)
+        } else {
+            bindPaused(article)
+        }
     }
 
+    #if DEBUG
     /// `-recordWelcome`: the article in the Library and its audio prepared in its voice, ready to
     /// copy out of the cache (`tools/record-welcome-audio.sh`).
     func record() {
-        guard let article = ensure(withAudio: false) else { return }
+        guard let (article, _) = addedToLibrary() else { return }
         _ = preparedAudio.prepare(article)
     }
+    #endif
 
     // MARK: - Pieces
 
@@ -62,18 +70,26 @@ struct WelcomeArticle {
         shell.showNowPlaying()
     }
 
-    /// The article in the Library with its voice, and (`withAudio`) its audio there and prepared.
-    private func ensure(withAudio: Bool) -> Article? {
-        if let article = library.article(key: Self.key), article.isInLibrary { return article }
+    /// The article in the Library, with its bundled audio installed and prepared when it was
+    /// just added back in the voice the audio is in.
+    private func ensure() -> Article? {
+        guard let (article, added) = addedToLibrary() else { return nil }
+        if let spoken = added, spoken == tts.builtInDefaultSelection, installAudio(of: article, voice: spoken) {
+            _ = preparedAudio.prepare(article)
+        }
+        return article
+    }
+
+    /// The article in the Library with its voice locked. `voice` is the one it speaks in, nil when
+    /// it was in the Library already.
+    private func addedToLibrary() -> (article: Article, voice: VoiceSelection?)? {
+        if let article = library.article(key: Self.key), article.isInLibrary { return (article, nil) }
         guard let (title, body) = Self.bundledText() else { return nil }
         do {
-            let article = try library.saveText(title: title, text: body, in: nil, key: Self.key, atTop: true)
-            article.byline = String(localized: "Meridian Reader")
-            library.commit("welcome")
-            let voice = tts.builtInDefaultSelection
-            library.lockVoice(ofKey: Self.key, to: voice.stored)
-            if withAudio, installAudio(of: article, voice: voice) { _ = preparedAudio.prepare(article) }
-            return article
+            let article = try library.saveText(title: title, text: body, in: nil, key: Self.key, atTop: true,
+                                               byline: String(localized: "Meridian Reader"))
+            let held = library.lockVoice(ofKey: Self.key, to: tts.builtInDefaultSelection.stored)
+            return (article, VoiceSelection(stored: held))
         } catch {
             return nil
         }
@@ -103,15 +119,21 @@ struct WelcomeArticle {
               recorded.engineID == voice.engine.rawValue, recorded.voiceID == cacheVoice else { return false }
         let fileManager = FileManager.default
         let target = cache.directory(for: Self.key)
+        // Copied beside, then renamed into place: a kill mid-copy leaves no half-installed folder
+        // behind the done flag.
+        let staging = cache.root.appendingPathComponent(".welcome-install", isDirectory: true)
         do {
+            try? fileManager.removeItem(at: staging)
+            try fileManager.copyItem(at: source, to: staging)
             try? fileManager.removeItem(at: target)
-            try fileManager.copyItem(at: source, to: target)
+            try fileManager.moveItem(at: staging, to: target)
             cache.dropIndex(for: Self.key)
             try cache.reconcile(articleID: Self.key, paragraphs: article.listenDocument().paragraphs)
             try cache.markSaved(cacheKey: Self.key)
             cache.bumpContentRevision()
             return true
         } catch {
+            try? fileManager.removeItem(at: staging)
             try? cache.deleteAudio(for: Self.key)
             return false
         }

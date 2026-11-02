@@ -48,12 +48,14 @@ enum AppLaunch {
 
     /// A fresh install gets the welcome article, with Listen open on it paused (`WelcomeArticle`).
     /// After crash resume, which has nothing to resume then: an install that has played before has
-    /// pages, so it adds nothing. `-recordWelcome` adds it without its audio instead, to record it.
+    /// pages, so it adds nothing. `-recordWelcome` adds it without its audio instead, to record it;
+    /// `-skipWelcome` adds nothing, for probes that need the empty start.
     private static func addWelcomeOnFreshInstall(library: LibraryStore, speech: SpeechController, shell: ShellState,
                                                  preparedAudio: PrepareCenter) {
         let welcome = WelcomeArticle(library: library, speech: speech, preparedAudio: preparedAudio, shell: shell)
         #if DEBUG
         if LaunchOptions.current.recordsWelcome { return welcome.record() }
+        if LaunchOptions.current.skipsWelcome { return }
         #endif
         welcome.addOnFreshInstall()
     }

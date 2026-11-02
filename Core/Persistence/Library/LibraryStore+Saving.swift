@@ -45,9 +45,10 @@ extension LibraryStore {
     /// `key`: the page's key when it must be a known one (a bundled article whose audio ships
     /// with the app, `WelcomeArticle`); a page already holding it comes back into the Library as
     /// it is, text and position kept. `atTop`: it goes before the folder's first page, not after
-    /// its last.
+    /// its last. `byline` is a new page's; a page already holding `key` keeps its own.
     @discardableResult
-    func saveText(title: String, text: String, in folder: Folder?, key: UUID = UUID(), atTop: Bool = false) throws -> Article {
+    func saveText(title: String, text: String, in folder: Folder?, key: UUID = UUID(), atTop: Bool = false,
+                  byline: String = String(localized: "Pasted text")) throws -> Article {
         let plain = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         var blocks = plain.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         let typed = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -67,7 +68,7 @@ extension LibraryStore {
                 }
                 return existing
             }
-            let article = Article(key: key, title: name, byline: String(localized: "Pasted text"), urlString: nil,
+            let article = Article(key: key, title: name, byline: byline, urlString: nil,
                                   contentState: .saved, addedAt: now(), sortKey: sortKey)
             article.givenTitle = name
             article.locator = "text:\(key.uuidString)"

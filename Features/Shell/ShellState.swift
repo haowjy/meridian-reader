@@ -285,6 +285,13 @@ final class ShellState {
     /// The Reader's article, when it is open.
     var readerArticle: ReaderArticle? { reader?.article }
 
+    /// The launch (or the user) already has the screen going somewhere: the Reader or a sheet is up,
+    /// or the browser holds a page asked for (a Share, an Open In; an import's sheet is a sheet).
+    /// What a first launch's Listen must not cover.
+    var hasSomewhereToGo: Bool {
+        reader != nil || sheet != nil || libraryReader != nil || web.currentURL != nil
+    }
+
     var isBrowsing: Bool {
         if case .browse = surface { true } else { false }
     }
