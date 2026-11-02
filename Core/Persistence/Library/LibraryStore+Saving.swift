@@ -4,16 +4,17 @@ import SwiftData
 /// Saving a page that isn't a web page's extraction: a page played without saving filed into the
 /// Library, an address saved as a link, and pasted text.
 extension LibraryStore {
-    /// *Save from Website…* and *Paste* of an address (C126): the page for `url` saved in `folder`
-    /// (nil: the top level), at its end. One the library has already moves there and is saved;
-    /// a new one is a link page, whose text is fetched when it first plays or prepared audio.
+    /// Add a Link (C126): the page for `url` saved in `folder` (nil: the top level), at its end. One
+    /// already in the Library stays in its folder (a followed story's chapter stays in its story);
+    /// one the library has outside it (played without saving) goes in; a new one is a link page,
+    /// whose text is fetched when it first plays or prepared audio.
     @discardableResult
     func saveLink(_ url: URL, in folder: Folder?) throws -> Article {
         let existing = article(url: url)
         let saved = try edit("save link") { () -> Article in
             if let existing {
-                if existing.addedAt == nil || existing.folder !== folder {
-                    existing.addedAt = existing.addedAt ?? now()
+                if existing.addedAt == nil {
+                    existing.addedAt = now()
                     existing.removedAt = nil
                     existing.sortKey = nextSortKey(in: folder)
                     existing.setFolder(folder)

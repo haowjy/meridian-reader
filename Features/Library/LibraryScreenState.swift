@@ -123,7 +123,7 @@ final class LibraryScreenState {
 
     /// Add a Link starts the shared address and story-review sheet.
     func addLink(into folder: Folder?, shell: ShellState, follow: FollowCenter) {
-        let flow = FollowFlow(url: nil, parentID: folder?.id, center: follow)
+        let flow = FollowFlow(url: nil, linkFolderID: folder?.id, center: follow)
         flow.address = UIPasteboard.general.hasURLs ? UIPasteboard.general.url?.absoluteString ?? "" : ""
         shell.present(.follow(flow))
     }

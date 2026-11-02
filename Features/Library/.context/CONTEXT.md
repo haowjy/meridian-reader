@@ -165,4 +165,4 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   folder id. Both use DesignSystem’s `InputSheet`. A failed link or text save leaves the sheet open;
   text saving returns success before dismissing. Add a Link reads before saving: a story goes to the
   shared chapter review, everything else (including read errors) becomes a link in the folder on
-  screen. The empty-state choices are Browse the Web, Add a Link, Import a File and Paste Text, 2×2.
+  screen; an address already in the Library stays in its folder. The empty-state choices are Browse the Web, Add a Link, Import a File and Paste Text, 2×2.

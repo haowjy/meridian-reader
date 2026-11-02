@@ -476,14 +476,12 @@ struct BrowseStartView: View {
                                   speech: speech, preparedAudio: preparedAudio, follow: follow)
         }
         let saveURL = webPage
-        // A failure says why in the page's alert, as Open in Reader's does, and reaches the caller
-        // (Follow's *Save This Page Only* keeps its sheet up).
-        let loaded = ArticleActions.LoadedPage(canSave: hasPage && shell.busy == nil) { [page] folder in
-            do { try await page.save(in: folder, expectedURL: saveURL) } catch {
-                alertMessage = error.localizedDescription
-                throw error
-            }
-        }
+        // A menu's or 🔖's failure says why in the page's alert, as Open in Reader's does; Follow's
+        // *Save This Page Only* puts it in its own sheet instead.
+        let loaded = ArticleActions.LoadedPage(
+            canSave: hasPage && shell.busy == nil,
+            save: { [page] placement in try await page.save(placement, expectedURL: saveURL) },
+            reportFailure: { alertMessage = $0.localizedDescription })
         return ArticleActions(article: libraryPage, url: webPage, loaded: webPage == nil ? nil : loaded, library: library,
                            shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }

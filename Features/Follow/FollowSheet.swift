@@ -10,7 +10,9 @@ struct FollowSheet: View {
     @Environment(ShellState.self) private var shell
 
     var body: some View {
-        InputSheet(title: title, isSaving: flow.isSaving, onCancel: { shell.sheet = nil }) {
+        // ✕ stays usable while a save runs: closing the sheet cancels it (`FollowFlow.cancel`), so
+        // a browser page whose extraction hangs never holds the sheet up.
+        InputSheet(title: title, onCancel: { shell.sheet = nil }) {
             content
         } actions: {
             if let error = flow.saveError {
@@ -18,8 +20,15 @@ struct FollowSheet: View {
             }
             actions.disabled(flow.isSaving)
         }
-        .presentationDetents([.medium, .large], selection: $detent)
-        .interactiveDismissDisabled(flow.previewed != nil || flow.isSaving)
+        // While a chapter preview is up the card holds at large and can't be pulled away. The preview
+        // is the app's own sheet (`Sheet`) drawn inside this card, closed by its own pull; with a
+        // second detent the card's drag would take that pull and shrink the card to medium under
+        // the preview instead of closing it.
+        .presentationDetents(flow.previewed == nil ? [.medium, .large] : [.large], selection: $detent)
+        .interactiveDismissDisabled(flow.previewed != nil)
+        .onChange(of: flow.previewed != nil) { _, previewing in
+            if previewing { detent = .large }
+        }
         .overlay {
             if let chapter = flow.previewed {
                 FollowPreviewSheet(chapter: chapter, isKept: flow.isKept(chapter),
@@ -33,7 +42,11 @@ struct FollowSheet: View {
             if review { addressFocused = false; detent = .large }
         }
         .onChange(of: isSaved, initial: true) { _, saved in
-            if saved { shell.sheet = nil }
+            guard saved else { return }
+            shell.sheet = nil
+            if flow.wasInLibrary {
+                shell.showToast(ShellToast(message: String(localized: "Already in your Library"), systemImage: Icons.library))
+            }
         }
         .onDisappear { flow.cancel() }
         .accessibilityIdentifier("followSheet")
@@ -107,9 +120,7 @@ struct FollowSheet: View {
     }
 
     private var savePageButton: some View {
-        Button(String(localized: "Save This Page Only")) {
-            Task { await flow.savePage() }
-        }
+        Button(String(localized: "Save This Page Only"), action: flow.savePage)
         .typeStyle(.row)
         .frame(minHeight: Control.tap)
         .disabled(flow.isSaving)
@@ -123,8 +134,7 @@ struct FollowSheet: View {
     }
 
     private func follow(_ contents: TableOfContents) {
-        let parent: Folder? = flow.isAddingLink ? nil : flow.parentID.flatMap(library.folder(id:))
-        guard let folder = shell.attempt(String(localized: "Couldn’t follow"), { try flow.follow(contents, in: parent) })
+        guard let folder = shell.attempt(String(localized: "Couldn’t follow"), { try flow.follow(contents) })
         else { return }
         shell.sheet = nil
         shell.showLibrary(at: library.path(to: folder))

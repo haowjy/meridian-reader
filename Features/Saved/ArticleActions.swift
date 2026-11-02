@@ -31,8 +31,10 @@ struct ArticleActions {
     struct LoadedPage {
         /// It can be extracted now (a page is up and nothing else is extracting it).
         var canSave: Bool
-        /// Extracts the page and saves it into the folder (nil: the top level).
-        var save: (Folder?) async throws -> Void
+        /// Extracts the page and saves it where `SavePlacement` says; throws why it couldn't.
+        var save: (SavePlacement) async throws -> Void
+        /// A menu's or 🔖's save failed: the page says why (the browser's alert).
+        var reportFailure: (Error) -> Void
     }
 
     /// `url` nil: the article's address, else the page's.
@@ -138,13 +140,17 @@ struct ArticleActions {
     }
 
     /// *Follow…*: the Follow sheet over the page's address, which reads the story the page belongs
-    /// to (a chapter leads to its story) into a new folder at the top level.
+    /// to (a chapter leads to its story) into a new folder at the top level. Its *Save This Page
+    /// Only* saves the page where the Library keeps it (never moving it) and throws why it
+    /// couldn't, for the sheet's error line: an alert or toast under the sheet would go unseen.
     func followStory() {
         guard let storyURL else { return }
-        shell.present(.follow(FollowFlow(url: storyURL, parentID: nil, center: follow) {
-            // The browser's page says why it couldn't in its own alert.
-            if let loaded { return (try? await loaded.save(nil)) != nil }
-            return save(.keep)
+        shell.present(.follow(FollowFlow(url: storyURL, center: follow) { [self] in
+            if let loaded {
+                try await loaded.save(.keep)
+            } else {
+                try saveText(.keep)
+            }
         }))
     }
 
@@ -174,12 +180,13 @@ struct ArticleActions {
 
     /// Saves the page through the one save path (`.keep`: where the Library has it, else the top
     /// level; `.folder`: picked in the Move tree); false once a toast has said it couldn't. The
-    /// browser's page is extracted first and reports its own failure. A save under an older
-    /// page's key gives the Reader showing the article that key.
+    /// browser's page is extracted first and reports its own failure.
     @discardableResult
     private func save(_ placement: SavePlacement) -> Bool {
         if let loaded {
-            Task { try? await loaded.save(placement.folder) }
+            Task {
+                do { try await loaded.save(placement) } catch { loaded.reportFailure(error) }
+            }
             return true
         }
         guard let readerArticle = textToSave else { return false }
@@ -188,11 +195,15 @@ struct ArticleActions {
            let saved = library.savedArticle(key: readerArticle.id, canonicalURL: readerArticle.origin.canonicalURL) {
             return shell.attempt(String(localized: "Couldn’t move")) { try library.move([.article(saved)], to: folder) } != nil
         }
-        guard let key = shell.attempt(String(localized: "Couldn’t save"), {
-            try ArticleSaveCoordinator(library: library, speech: speech).save(readerArticle, placement: placement)
-        }) else { return false }
+        return shell.attempt(String(localized: "Couldn’t save")) { try saveText(placement) } != nil
+    }
+
+    /// The page's text saved through `ArticleSaveCoordinator`; throws when there is none or the
+    /// store refuses. A save under an older page's key gives the Reader showing the article that key.
+    private func saveText(_ placement: SavePlacement) throws {
+        guard let readerArticle = textToSave else { throw ExtractionError.emptyContent }
+        let key = try ArticleSaveCoordinator(library: library, speech: speech).save(readerArticle, placement: placement)
         if key != readerArticle.id { shell.updateReader(id: readerArticle.id) { $0.id = key } }
-        return true
     }
 
     /// The text Save stores: the article on screen, else the page's own (its listen blocks when

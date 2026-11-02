@@ -695,12 +695,14 @@ commas.
   names it as the source of its chapters, and its finished chapters lose their audio (D7).
 
 **Add a Link and Follow a story**: *Add a Link…* opens the shared input sheet at half height,
-with a grabber, the system ✕ at the leading edge, an inline title, an address capsule
+with a grabber, ✕ at the leading edge, an inline title, an address capsule
 (`example.com/article`), help “An article, or a story’s chapter list to follow.” and a full-width
 **Add** button at the bottom, grey until the address is usable. The keyboard pushes it up.
 The link is filed into the folder on screen. Reading a story’s chapter list grows the same sheet
 to large and shows its review. Anything else, including a failed read, saves the original link;
-its text downloads on first play. A failed save keeps the sheet available to retry.
+its text downloads on first play. An address the Library has already is never moved (a followed
+story's chapter stays in its story): the sheet closes and a toast says *Already in your Library*.
+A failed save keeps the sheet available to retry.
 
 A reading page’s *Follow…* starts reading its known address immediately and reaches the same
 review, with the same styling and actions. Story folders go at the Library’s top level.
@@ -732,9 +734,12 @@ review, with the same styling and actions. Story folders go at the Library’s t
 The review’s inline title is the story’s name. Its bottom has the full-width **Follow N Chapters**
 button, then plain **Save This Page Only**, using the input sheet’s surface without a divider.
 Save This Page Only saves the original link from Add a Link, or the page through its normal Save
-path from Follow. It never removes an already saved page. The sheet closes only after a successful
-save; while saving its cancellation button and pull-to-dismiss are disabled. A chapter preview
-keeps review behind it and disables the outer sheet’s dismissal until the preview closes.
+path from Follow, where the Library keeps it. It never removes an already saved page and never
+moves one. The sheet closes only after a successful save; a failed one says why in the sheet's
+error line (the page changed, nothing to read on it). ✕ and a pull stay usable while it saves and
+cancel the save: nothing is stored. A chapter preview keeps review behind it, holds the sheet at
+large and disables its dismissal until the preview closes, so a pull on the preview closes only
+the preview.
 
 *Paste Text…* uses the same input sheet: ✕, centred title, optional title capsule and rounded text
 editor, with full-width **Save** at the bottom, grey while the text is blank. It supports medium
@@ -1498,7 +1503,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Import a File… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
-| Add a Link / Follow (`FollowSheet`) | ✕; Follow N Chapters opens the story’s folder | `.sheet`, medium input / large review; chapter preview overlays it |
+| Add a Link / Follow (`FollowSheet`) | ✕ (cancels a save under way); Follow N Chapters opens the story’s folder | `.sheet`, medium input / large review; chapter preview overlays it, the sheet held at large |
 | Paste Text (`PasteTextSheet`) | ✕ / Save at the bottom | `.sheet`, medium/large |
 | Following (`FollowingSheet`): a story's status line | Done | `.sheet`, medium and large |
 | Reader (`ReaderSheetScreen`), regular width: 📄, ⋯ → Reader, a Library row or card | *‹ Browser* / *‹ Library* pill, top left | `Sheet` over the surface, pull the header down (compact width reads in place: `ReaderSurface`) |

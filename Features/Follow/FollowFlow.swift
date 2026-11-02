@@ -6,8 +6,9 @@ import Observation
 @Observable
 final class FollowFlow: Identifiable {
     enum Step {
-        /// A folder's ⋯: the story's address is asked for.
+        /// Add a Link: the address is asked for.
         case address
+        /// The page is saved (or was in the Library already): the sheet closes.
         case saved
         /// Reading the table of contents at the address.
         case reading(URL)
@@ -20,13 +21,18 @@ final class FollowFlow: Identifiable {
     }
 
     let id = UUID()
-    /// Where the story's folder goes (nil: the Library's top level).
-    let parentID: UUID?
+    /// The folder Add a Link saves a plain link into (nil: the top level). A followed story's
+    /// folder always goes to the top level.
+    let linkFolderID: UUID?
     let isAddingLink: Bool
     private(set) var originalURL: URL?
     private(set) var saveError: String?
     private(set) var isSaving = false
-    @ObservationIgnored private let saveKnownPage: (() async -> Bool)?
+    /// Add a Link's address was in the Library already: it stayed where it was, and nothing was saved.
+    private(set) var wasInLibrary = false
+    /// A known page's save (the browser's extracts the page first, so it can take a while). It
+    /// throws to say why it couldn't, and stores nothing once cancelled.
+    @ObservationIgnored private let saveKnownPage: (() async throws -> Void)?
     private(set) var step: Step
     /// The address field, on the address step.
     var address: String
@@ -37,13 +43,15 @@ final class FollowFlow: Identifiable {
 
     @ObservationIgnored private let center: FollowCenter
     @ObservationIgnored private var reading: Task<Void, Never>?
+    @ObservationIgnored private var saving: Task<Void, Never>?
 
-    /// From the browser's page `url` (read at once), or from a folder (nil: its address is asked).
-    init(url: URL?, parentID: UUID?, center: FollowCenter, savePage: (() async -> Bool)? = nil) {
+    /// A known page's *Follow…* (`url`, read at once, saved by `savePage`), or Add a Link (`url` nil:
+    /// the address is asked, a plain link saved into `linkFolderID`).
+    init(url: URL?, linkFolderID: UUID? = nil, center: FollowCenter, savePage: (() async throws -> Void)? = nil) {
         isAddingLink = url == nil
         originalURL = url
         saveKnownPage = savePage
-        self.parentID = parentID
+        self.linkFolderID = linkFolderID
         self.center = center
         address = url?.absoluteString ?? ""
         step = .address
@@ -81,34 +89,51 @@ final class FollowFlow: Identifiable {
             } catch {
                 guard !Task.isCancelled else { return }
                 step = .failed(url, message: FollowCenter.message(for: error))
-                if isAddingLink { await savePage() }
+                if isAddingLink { savePage() }
             }
         }
     }
 
-    /// Save the original page, never the contents URL a chapter resolved to. A failed
-    /// store write keeps the sheet and its input available for another attempt.
-    func savePage() async {
+    /// *Save This Page Only* (and Add a Link's save once the read fails): the original page, never
+    /// the contents URL a chapter resolved to. It never moves a page the Library has: Add a Link's
+    /// address already there stays in its folder (`wasInLibrary`), and a known page saves where
+    /// the Library keeps it. A failed save keeps the sheet up with its reason, for another try.
+    func savePage() {
         guard !isSaving, let url = originalURL else { return }
         isSaving = true
-        defer { isSaving = false }
         saveError = nil
-        if let saveKnownPage {
-            if await saveKnownPage() { step = .saved }
-            else { saveError = String(localized: "Couldn’t save. Try again.") }
-        } else {
+        saving = Task {
+            defer { isSaving = false }
             do {
-                try center.library.saveLink(url, in: parentID.flatMap(center.library.folder(id:)))
+                if let saveKnownPage {
+                    try await saveKnownPage()
+                } else if center.library.article(url: url)?.isInLibrary == true {
+                    wasInLibrary = true
+                } else {
+                    try center.library.saveLink(url, in: linkFolderID.flatMap(center.library.folder(id:)))
+                }
+                guard !Task.isCancelled else { return }
                 step = .saved
+            } catch is CancellationError {
+                return
             } catch {
-                saveError = String(localized: "Couldn’t save. Try again.")
+                guard !Task.isCancelled else { return }
+                saveError = Self.message(for: error)
             }
         }
     }
 
-    /// The sheet went away: nothing it started carries on.
+    /// Why a save failed, in the sheet's error line: the page's own reason (it changed, nothing to
+    /// read on it), else a store failure's plain line.
+    private static func message(for error: Error) -> String {
+        (error as? LocalizedError)?.errorDescription ?? String(localized: "Couldn’t save. Try again.")
+    }
+
+    /// The sheet went away (✕, a pull): nothing it started carries on, and a save under way
+    /// stores nothing.
     func cancel() {
         reading?.cancel()
+        saving?.cancel()
     }
 
     // MARK: - Review
@@ -131,9 +156,10 @@ final class FollowFlow: Identifiable {
         contents.chapters.filter(isKept)
     }
 
-    /// The story's folder, made at once with the chapters kept, which start fetching.
-    func follow(_ contents: TableOfContents, in parent: Folder?) throws -> Folder {
-        try center.follow(contents, keeping: keptChapters(of: contents), in: parent)
+    /// The story's folder, made at once at the Library's top level with the chapters kept, which
+    /// start fetching.
+    func follow(_ contents: TableOfContents) throws -> Folder {
+        try center.follow(contents, keeping: keptChapters(of: contents), in: nil)
     }
 
     // MARK: - Preview

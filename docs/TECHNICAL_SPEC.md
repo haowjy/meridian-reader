@@ -565,16 +565,21 @@ Library rows are one component, `ListRow`, in Edit and out; Edit only drops the 
 
 ## Input sheets
 
-`InputSheet` in DesignSystem owns the native cancellation toolbar, inline title, content slot and
+`InputSheet` in DesignSystem owns the ✕ (`SheetBarButton`'s icon form), inline title, content slot and
 bottom actions. `FollowSheet` and `PasteTextSheet` supply only feature content and actions. Both
 are presented by `ShellState.sheet`; no second presentation flag lives on the Library screen.
 `FollowFlow` owns address → reading → review (or saved / failed / already-followed), the original
 URL and chapter selection. Add a Link reads through `FollowCenter.readContents`; a failed read
-saves the original URL through `LibraryStore.saveLink` into its starting folder. Cancellation
-never triggers fallback. Review changes the selected detent to large without changing identity.
-A known-page Follow passes an async save callback from `ArticleActions`; browser extraction checks
-the expected page URL and propagates persistence failure before dismissal. Save This Page Only
-never toggles saved state off. The native cancellation button is disabled while a save commits.
+saves the original URL through `LibraryStore.saveLink` into its starting folder, unless the
+Library has the page already: it stays in its folder and a toast says *Already in your Library*
+(`saveLink` never moves a page in the Library either). Cancellation never triggers fallback.
+Review changes the selected detent to large without changing identity; while a chapter preview
+is up the sheet's only detent is large, so the preview's own pull is the only pull. A known-page
+Follow passes a throwing async save from `ArticleActions`, at `SavePlacement.keep` (a page the
+Library has stays where it is); its error's own description shows in the sheet's error line.
+Browser extraction checks the expected page URL and stores nothing once its task is cancelled.
+Save This Page Only never toggles saved state off. ✕ stays usable while a save runs and cancels
+it (`FollowFlow.cancel`).
 
 ## Paste Text (C127)
 

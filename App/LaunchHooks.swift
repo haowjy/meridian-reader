@@ -478,7 +478,7 @@ enum LaunchHooks {
                 if case .folder(let id) = $0 { return id }
                 return nil
             }
-            let flow = FollowFlow(url: nil, parentID: parentID, center: follow)
+            let flow = FollowFlow(url: nil, linkFolderID: parentID, center: follow)
             flow.address = options.addLinkText ?? ""
             shell.present(.follow(flow))
             if options.submitsAddLink, let url = flow.typedURL { flow.read(url) }
@@ -487,9 +487,13 @@ enum LaunchHooks {
                     for _ in 0..<50 {
                         try? await Task.sleep(for: .milliseconds(200))
                         guard shell.sheet == .follow(flow) else { return }
+                        if case .alreadyFollowing = flow.step, action == "save" {
+                            flow.savePage()
+                            return
+                        }
                         if case .review(let contents) = flow.step {
                             switch action {
-                            case "save": await flow.savePage()
+                            case "save": flow.savePage()
                             case "preview":
                                 if let chapter = contents.chapters.first { flow.showPreview(of: chapter) }
                             case "cancel": shell.sheet = nil

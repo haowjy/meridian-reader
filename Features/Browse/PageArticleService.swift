@@ -72,11 +72,11 @@ struct PageArticleService {
         return .started(article)
     }
 
-    /// The browser's page saved (`ArticleActions.LoadedPage.save`: *Save to Library*, or *Save to
-    /// Folder…* once a place is picked in the Move tree): the folder, or no folder (nil, out of the
-    /// folder it was in). ⋯ spins meanwhile. A page that can't be extracted throws; a save that
-    /// can't be stored says so in a toast.
-    func save(in folder: Folder?, expectedURL: URL?) async throws {
+    /// The browser's page saved (`ArticleActions.LoadedPage.save`: *Save to Library* and Follow's
+    /// *Save This Page Only* keep a page the Library has where it is; *Save to Folder…* files it in
+    /// the folder picked in the Move tree). ⋯ spins meanwhile. It throws when the page can't be
+    /// extracted or stored, and stores nothing once its task is cancelled (Follow's ✕).
+    func save(_ placement: SavePlacement, expectedURL: URL?) async throws {
         guard web.currentURL == expectedURL else {
             throw ExtractionError.unavailable(reason: String(localized: "The page has changed. Open it again to save it."))
         }
@@ -89,7 +89,8 @@ struct PageArticleService {
         guard url == expectedURL, web.currentURL == expectedURL else {
             throw ExtractionError.unavailable(reason: String(localized: "The page has changed. Open it again to save it."))
         }
-        try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: .folder(folder))
+        try Task.checkCancellation()
+        try ArticleSaveCoordinator(library: library, speech: speech).save(article, placement: placement)
     }
 
     /// The page finished loading: add it to History with its icon.
