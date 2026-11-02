@@ -96,7 +96,7 @@ struct ListenDebugPanel: View {
                         // One row, newest line first: a row per line would take the card's
                         // minimum row height each.
                         Text(ListenDebugLog.shared.lines.reversed().joined(separator: "\n"))
-                            .font(.system(.caption2, design: .monospaced))
+                            .typeStyle(.caption, design: .monospaced)
                             .textSelection(.enabled)
                             .padding(.vertical, Spacing.xs)
                     }
@@ -133,7 +133,7 @@ struct ListenDebugPanel: View {
             Text(title)
             Spacer()
             Text(value)
-                .font(.body.monospacedDigit())
+                .typeStyle(.row).monospacedDigit()
                 .foregroundStyle(Palette.secondaryInk)
                 .multilineTextAlignment(.trailing)
         }
@@ -151,19 +151,19 @@ struct BakeDebugOverlay: View {
     @State private var snapshot: ListenDebugSnapshot?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            HStack(spacing: Spacing.xs) {
                 Text("Bake debug")
-                    .font(.caption.weight(.semibold))
+                    .typeStyle(.caption, weight: .semibold)
                 Spacer(minLength: 0)
                 Button("Full") { onOpenFull() }
-                    .font(.caption2.weight(.semibold))
+                    .typeStyle(.caption, weight: .semibold)
                     .accessibilityIdentifier("bakeDebugOpenFull")
                 Button {
                     developer.showBakeDebugOverlay = false
                 } label: {
                     Image(systemName: Icons.close)
-                        .font(.body)
+                        .typeStyle(.row)
                         .foregroundStyle(Palette.secondaryInk)
                 }
                 .buttonStyle(.plain)
@@ -173,14 +173,14 @@ struct BakeDebugOverlay: View {
 
             ScrollView {
                 Text(overlayText)
-                    .font(.system(.caption2, design: .monospaced))
+                    .typeStyle(.caption, design: .monospaced)
                     .foregroundStyle(Palette.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
             }
             .frame(maxHeight: 140)
         }
-        .padding(10)
+        .padding(Spacing.s)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)

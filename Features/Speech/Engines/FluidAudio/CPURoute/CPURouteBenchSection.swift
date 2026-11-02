@@ -18,18 +18,18 @@ struct CPURouteBenchSection: View {
             .disabled(!store.isInstalled || bench.isRunning || bench.soakRunning)
             .accessibilityIdentifier("cpuBenchRun")
             Text(bench.status)
-                .font(.caption)
+                .typeStyle(.caption)
                 .foregroundStyle(Palette.secondaryInk)
             ForEach(bench.rows) { row in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(row.label).font(.caption.weight(.semibold))
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(row.label).typeStyle(.caption, weight: .semibold)
                     if let err = row.error {
-                        Text(err).font(.caption2).foregroundStyle(Palette.destructive)
+                        Text(err).typeStyle(.caption).foregroundStyle(Palette.destructive)
                     } else {
                         Text(String(format: "501: %.2f×  190: %.2f×  load %d ms  cold %d ms", row.x501, row.x190, row.loadMs, row.coldMs))
-                            .font(.system(.caption2, design: .monospaced))
+                            .typeStyle(.caption, design: .monospaced)
                         Text(String(format: "CPU %.2f s/audio-s  peak %.0f MB  %@", row.cpuPerAudio501, row.peakMB, row.thermal))
-                            .font(.system(.caption2, design: .monospaced))
+                            .typeStyle(.caption, design: .monospaced)
                             .foregroundStyle(Palette.secondaryInk)
                     }
                 }
@@ -49,7 +49,7 @@ struct CPURouteBenchSection: View {
             Stepper("Soak length: \(bench.soakMinutes) min", value: $bench.soakMinutes, in: 1...120)
                 .disabled(bench.soakRunning)
             Text(bench.soakStatus)
-                .font(.system(.caption2, design: .monospaced))
+                .typeStyle(.caption, design: .monospaced)
                 .foregroundStyle(Palette.secondaryInk)
         } header: {
             SectionHeader(title: "CPU Route Benchmark").listHeader()
@@ -67,10 +67,10 @@ struct CPURouteBenchSection: View {
             Button("Download CPU model (163 MB)") { store.download() }
                 .accessibilityIdentifier("cpuBenchDownload")
         case let .downloading(fraction, written, total):
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 ProgressView(value: fraction)
                 Text("\(FileSizes.label(written)) / \(FileSizes.label(total))")
-                    .font(.caption2.monospacedDigit())
+                    .typeStyle(.caption).monospacedDigit()
                     .foregroundStyle(Palette.secondaryInk)
             }
             Button("Cancel download", role: .destructive) { store.cancel() }
@@ -83,7 +83,7 @@ struct CPURouteBenchSection: View {
                 .disabled(bench.isRunning || bench.soakRunning)
                 .accessibilityIdentifier("cpuBenchDeleteModel")
         case let .failed(message):
-            Text(message).font(.caption).foregroundStyle(Palette.destructive)
+            Text(message).typeStyle(.caption).foregroundStyle(Palette.destructive)
             Button("Retry download (163 MB)") { store.download() }
                 .accessibilityIdentifier("cpuBenchDownload")
         }
