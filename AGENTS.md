@@ -216,4 +216,4 @@ release. The release workflow (`docs/RELEASE.md`) validates the notes file exist
 Directory-scoped working notes live next to the code in `<dir>/.context/CONTEXT.md` (deferred
 items in `<dir>/.context/FUTURE.md`); read them before changing that directory:
 `Features/Speech/.context/`, `Features/Shell/.context/`, `Features/Library/.context/`,
-`Features/PreparedAudio/.context/`, `Features/Follow/.context/`, and `Core/Persistence/.context/` (deferred items only).
+`Features/PreparedAudio/.context/`, `Features/Follow/.context/`, and, for deferred items only, `Features/Reader/.context/` and `Core/Persistence/.context/`.

@@ -1,0 +1,3 @@
+# Reader: deferred
+
+- **Listen's text is blank for about 4 s on the first launch after an iPad Simulator boots.** Seen on the iPad Pro 13-inch Simulator, with or without the welcome article: `-resetLibrary -skipWelcome -seedDemoArticle -listenDemo` straight after `simctl boot`, screenshot at 4 s. The title bar and player show, the text area is empty, and the text appears by 6 s; a launch after `simctl bootstatus -b` shows text from 3 s. Likely cause: the web view's first load is slow while the Simulator's web content process starts cold. Not checked on a device. Next step: log when `HTMLReadingView` reports its first load, then compare a cold launch on an iPad.
