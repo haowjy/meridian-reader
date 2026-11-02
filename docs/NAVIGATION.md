@@ -765,8 +765,8 @@ fixed-width column at the row's trailing edge, just before the ⋯, so the rings
 (line two "Finished"; no ✓), and still or moving accent bars while it plays or is paused (the row
 tinted, "Playing" or "Paused" in the accent); every time at the playback speed.
 
-The row's only control is **⋯** at its trailing edge, centred on the toolbar's ⋯ slot as the
-bar's ⏸ is; a long press opens the same menu (the item's one menu, "Menus" below; decision
+The row's only control is **⋯** at its trailing edge, its glyph ending where the card's text and
+every row's trailing mark do (`RowMetrics`); a long press opens the same menu (the item's one menu, "Menus" below; decision
 D11), and a long press that moves lifts the row into a drag (below). **Tapping an article
 row plays it** (replacing what plays; in a folder it carries on through the folder) and, on compact
 width, slides Listen up over the Library, except the

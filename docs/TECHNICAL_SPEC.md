@@ -550,7 +550,7 @@ The library's item model is `Article` (it was `Page`), alongside `Folder`. Its s
 
 ## One row height in Edit and out (C123)
 
-Library rows are one component, `ListRow`, in Edit and out; Edit only drops the ⋯ (`menu: nil`). Its content is at least the ⋯'s 44 pt square (`Control.tap`), with or without the ⋯, and `Spacing.xxs` above and below, so a row is 52 pt either way at the default text size, over the card list's 48 pt minimum.
+Library rows are one component, `ListRow`, in Edit and out; Edit only drops the ⋯ (`menu: nil`). Its height is a two-line row's (`RowMetrics`: the title's and the detail's line heights plus `Spacing.xs` above and below, 50.6 pt at the default text size), with or without the ⋯, whose 44 pt square reaches into that inset; every two-line row (a voice, an acknowledgement, a Follow chapter) is the same height, and one-line card rows are `Control.bar` (48 pt).
 
 ## Paste Text (C127)
 
