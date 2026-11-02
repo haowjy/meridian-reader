@@ -59,10 +59,12 @@ final class FollowCenter {
         var failed = 0
 
         /// The first chapter being fetched (or retried): its number among the pages that play,
-        /// which counts an author's note too, and its title (nil: it has none).
+        /// which counts an author's note too, its title (nil: it has none) and its address (its
+        /// site is the one that backs off).
         struct Fetching: Equatable {
             var number: Int
             var title: String?
+            var url: URL?
         }
     }
 
@@ -131,11 +133,14 @@ final class FollowCenter {
 
     // MARK: - Following
 
-    /// The story `url` belongs to, read from its table of contents (`TableOfContents.contentsURL`):
-    /// one request, ahead of background work.
+    /// What the page at `url` lists to follow (`TableOfContents.read`): its list of links, the
+    /// story or blog page it belongs to, or the feed it is the home of. Each page is one request,
+    /// ahead of background work.
     func readContents(of url: URL) async throws -> TableOfContents {
-        let article = try await queue.links(of: TableOfContents.contentsURL(for: url), priority: .user)
-        guard let contents = TableOfContents.read(article) else { throw FollowError.noChapters }
+        let page = try await queue.links(of: url, priority: .user)
+        guard let contents = try await TableOfContents.read(page, fetch: { [queue] in
+            try await queue.links(of: $0, priority: .user)
+        }) else { throw FollowError.noChapters }
         return contents
     }
 
@@ -147,18 +152,25 @@ final class FollowCenter {
         return folder
     }
 
-    /// *Check Now*, and the daily check: reads the story's table of contents again and adds the
-    /// chapters it hasn't listed before at the end.
+    /// *Check Now*, and the daily check: reads what was followed again (`TableOfContents.again`: the
+    /// same page or feed, no search for another) and adds the entries it hasn't listed before. A
+    /// page that lists none of the ones seen is a different list, not new chapters: the check fails.
     func check(_ folder: Folder, priority: FetchQueue.Priority = .user) async {
         let id = folder.id
         guard let url = folder.contentsURL, !checking.contains(id) else { return }
         checking.insert(id)
         defer { checking.remove(id) }
         do {
-            guard let contents = TableOfContents.read(try await queue.links(of: url, priority: priority)) else {
-                throw FollowError.noChapters
-            }
+            let page = try await queue.links(of: url, priority: priority)
             guard let folder = library.folder(id: id) else { return }
+            let state = folder.followState
+            guard let contents = TableOfContents.again(page, as: state?.source) else { throw FollowError.noChapters }
+            let seen = Set(state?.seen ?? [])
+            // Only a whole list can be told from a different one by what it shares with `seen`; a
+            // feed or a blog's latest posts is a window that can move clear of it.
+            let kind = state?.kind ?? contents.kind
+            guard kind == .posts || seen.isEmpty || contents.chapters.contains(where: { seen.contains($0.canonicalURL) })
+            else { throw FollowError.changedList }
             if try library.addNewChapters(from: contents, to: folder) > 0 { kick() }
             checkFailures[id] = nil
         } catch is CancellationError {
@@ -319,7 +331,7 @@ final class FollowCenter {
             case .fetching?, .retrying?:
                 progress.toFetch += 1
                 if progress.fetching == nil {
-                    progress.fetching = Progress.Fetching(number: progress.chapters, title: article.givenTitle)
+                    progress.fetching = Progress.Fetching(number: progress.chapters, title: article.givenTitle, url: article.url)
                 }
             case .waiting?: progress.toFetch += 1
             case .failed?: progress.failed += 1
@@ -340,17 +352,22 @@ final class FollowCenter {
 
     enum FollowError: LocalizedError {
         case noChapters
+        /// A check found a list with none of the chapters it already knew.
+        case changedList
 
         var errorDescription: String? {
-            String(localized: "No list of chapters on this page")
+            switch self {
+            case .noChapters: String(localized: "No list of chapters on this page")
+            case .changedList: String(localized: "The page lists something else now")
+            }
         }
     }
 
     /// What a failed fetch or check says.
     static func message(for error: Error) -> String {
         switch error {
-        case FollowError.noChapters:
-            return FollowError.noChapters.localizedDescription
+        case let error as FollowError:
+            return error.localizedDescription
         case URLPageFetcher.FetchError.status(let code, _):
             return code == 429 ? String(localized: "The site asked to slow down")
                 : code == 404 || code == 410 ? String(localized: "The page isn’t there")

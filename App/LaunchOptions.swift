@@ -64,6 +64,9 @@ struct LaunchOptions: Equatable {
     /// `-testStoryChapters N`: the offline story's table of contents (`reader-test://story/toc`)
     /// lists N chapters (8 without it), so a check finds new ones on a later launch.
     var testStoryChapters = 8
+    /// `-testBlogPosts N`: the offline blog (`reader-test://blog/`) lists N posts, newest last in
+    /// the title list (4 without it), so a check finds new ones on a later launch.
+    var testBlogPosts = 4
     /// `-testStoryThrottles`: the offline story's chapter 6 doesn't load the first time it is
     /// asked for in a launch (a site not answering), for Follow's back-off.
     var testStoryThrottles = false
@@ -185,7 +188,7 @@ struct LaunchOptions: Equatable {
     var submitsAddLink = false
     /// `-openMenu <name>`: the named production menu in the screenshot panel.
     var opensMenu: String?
-    /// `-linkReviewAction save|preview|cancel`: an action once the offline review is ready.
+    /// `-linkReviewAction follow|save|preview|cancel`: an action once the offline review is ready.
     var linkReviewAction: String?
     /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
     /// load at launch; its voice is the default for new articles.
@@ -229,6 +232,7 @@ struct LaunchOptions: Equatable {
         opensSettings = flags.contains("-openSettings") || settingsSearch != nil || settingsPage != nil
         servesTestPages = flags.contains("-browseTestPages")
         testStoryChapters = value(after: "-testStoryChapters").flatMap(Int.init) ?? testStoryChapters
+        testBlogPosts = value(after: "-testBlogPosts").flatMap(Int.init) ?? testBlogPosts
         testStoryThrottles = flags.contains("-testStoryThrottles")
         seedsHistory = flags.contains("-seedHistory")
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()

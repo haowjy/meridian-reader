@@ -696,10 +696,11 @@ commas.
 
 **Add a Link and Follow a story**: *Add a Link…* opens the shared input sheet at half height,
 with a grabber, ✕ at the leading edge, an inline title, an address capsule
-(`example.com/article`), help “An article, or a story’s chapter list to follow.” and a full-width
+(`example.com/article`), help “An article, or a blog or story to follow.” and a full-width
 **Add** button at the bottom, grey until the address is usable. The keyboard pushes it up.
-The link is filed into the folder on screen. Reading a story’s chapter list grows the same sheet
-to large and shows its review. Anything else, including a failed read, saves the original link;
+The link is filed into the folder on screen. Reading a page that lists something to follow (a story's chapters, a blog's posts, found from
+its own list of links, from the story page a chapter links back to, or from its RSS
+or Atom feed when the page is the blog's own home; no site is special) grows the same sheet to large and shows its review. Anything else, including a failed read, saves the original link;
 its text downloads on first play. An address the Library has already is never moved (a followed
 story's chapter stays in its story): the sheet closes and a toast says *Already in your Library*.
 A failed save keeps the sheet available to retry.
@@ -710,8 +711,9 @@ review, with the same styling and actions. Story folders go at the Library’s t
 1. *Reading the page…* with the spinning download arc and the address. A failed read from a known
    page offers *Try Again* and *Save This Page Only*. A story already followed offers *Open Folder*
    and *Save This Page Only*.
-2. **Review**: a *Chapters 109* section header (how many are kept is on the button, *Follow 107
-   Chapters*), *Select All*, then every chapter (its title,
+2. **Review**: a *Chapters 109* section header (*Posts 20* for a blog or a feed, newest first, a
+   serial's chapters in order; how many are kept is on the button, *Follow 107
+   Chapters* or *Follow 18 Posts*), *Select All*, then every chapter or post (its title,
    and its address shortened) with a box: tap the box to keep or leave it out (an author's note,
    a Q&A). Tapping the rest of the row opens its **preview**, the app's own sheet rising over the
    list with the chapter's real page in the browser's web view (signed in as in the browser). Its
@@ -753,7 +755,7 @@ checks for new chapters), or *checked today 8:02 AM   2 new*. While chapters cou
 launch, their count comes right after *Following*: *📡 Following   1 chapter couldn’t load
 41 of 107 downloaded*; a line too long for the screen wraps rather than losing its end. While its site
 is backed off, a notice in the caution colour names the chapter that waits by its title (*the
-next chapter* when it has none): *Royal Road asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52,
+next chapter* when it has none): *Example Press asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52,
 more slowly.*, or *Example.com isn’t answering. Trying “Chapter 42: Low Tide” again in 1:52.* A
 chapter waiting for its text shows the spinning download arc before its second line, which says
 *Downloading…*, *Trying again in 1:52* or *Waiting* (no arc, only why, once it couldn't be had) (it is tried again at the next launch); tapping it fetches it next and then plays it.
@@ -766,9 +768,10 @@ Tapping the line opens **Following**: where it is read from, *Last Checked*, *Ne
 ring after it while chapters are fetched), *Last
 New Chapters* ("today 8:02 AM, 2 added"), **Check Now** (↻, the spinning download arc while it reads; a failed check says why) and
 **Unfollow** (or *Follow Again*). About once a day while the app is in front, the story's whole
-table of contents is read again and chapters it didn't list before go at the end of the folder;
+table of contents is read again (the page or feed that was followed, and nothing else) and chapters
+it didn't list before go at the end of the folder, a blog's new posts on top;
 chapters left out in Review, and ones you deleted, stay out.
-No feeds and no notifications. Unfollowing stops the checks; every chapter added stays, and their
+No notifications. Unfollowing stops the checks; every chapter added stays, and their
 text is still fetched.
 
 **Rows** are `ListRow`s, compact and two lines for every kind (YouTube Music's rows). A folder

@@ -15,6 +15,13 @@ struct FollowState: Codable, Equatable {
     /// Review: a check adds only the ones not in it, so an unchecked chapter stays skipped and one
     /// you deleted doesn't come back.
     var seen: [String] = []
+    /// The site's name in notices; nil from before it was kept.
+    var siteName: String?
+    /// What the contents are read from, and whether they are posts (newest first, new ones on
+    /// top) or chapters; nil from before they were kept (`TableOfContents.again` and the next
+    /// read fill them in).
+    var source: TableOfContents.Source?
+    var kind: TableOfContents.Kind?
 }
 
 extension Folder {
@@ -26,6 +33,12 @@ extension Folder {
 
     /// The story's table of contents.
     var contentsURL: URL? { sourceURLString.flatMap(URL.init(string:)) }
+
+    /// The story's site, as its notices name it; `url`, one of its pages, names it by its host when
+    /// the site gave no name.
+    func siteName(for url: URL) -> String {
+        followState?.siteName ?? TableOfContents.host(of: url)
+    }
 }
 
 /// Following a story (Follow): a folder (`FolderKind.series`) made from its table of contents,
@@ -58,25 +71,38 @@ extension LibraryStore {
             folder.sourceURLString = contents.url.absoluteString
             folder.sourceIdentifier = ArticleIdentity.canonicalURLString(from: contents.url)
             context.insert(folder)
-            var state = FollowState(lastCheckedAt: now())
+            var state = FollowState(lastCheckedAt: now(), siteName: contents.siteName, source: contents.source, kind: contents.kind)
             state.seen = contents.chapters.map(\.canonicalURL)
             setFollowState(state, of: folder)
-            for chapter in kept { addChapter(chapter, to: folder, byline: contents.byline) }
+            for chapter in kept { addChapter(chapter, to: folder, byline: contents.byline, sortKey: nextSortKey(in: folder)) }
             log("follow \(folder.sourceIdentifier ?? "-"): \(kept.count) of \(contents.chapters.count) chapters")
             return folder
         }
     }
 
-    /// A check read the story's table of contents again (`contents`): chapters it hasn't listed
-    /// before go at the end of the folder, in the story's order. Returns how many.
+    /// A check read the story's table of contents again (`contents`): entries it hasn't listed
+    /// before go at the end of the folder in the story's order, or, in a *Posts* folder, on top in
+    /// the feed's order (newest first). Returns how many.
     @discardableResult
     func addNewChapters(from contents: TableOfContents, to folder: Folder) throws -> Int {
         guard var state = folder.followState else { return 0 }
         let seen = Set(state.seen)
         let new = contents.chapters.filter { !seen.contains($0.canonicalURL) }
+        let kind = state.kind ?? contents.kind
         try edit("check story") {
-            for chapter in new { addChapter(chapter, to: folder, byline: folder.byline) }
+            if kind == .posts {
+                let first = firstSortKey(in: folder)
+                for (index, chapter) in new.enumerated() {
+                    addChapter(chapter, to: folder, byline: folder.byline, sortKey: first - Double(new.count - index))
+                }
+            } else {
+                for chapter in new { addChapter(chapter, to: folder, byline: folder.byline, sortKey: nextSortKey(in: folder)) }
+            }
             state.seen += new.map(\.canonicalURL)
+            // A feed names no site of its own, so a name kept at Follow stays; a follow from before it was kept gets one.
+            state.siteName = state.siteName ?? contents.siteName
+            state.source = state.source ?? contents.source
+            state.kind = kind
             // One instant for both: the status line says "2 new" only while they are equal.
             let checked = now()
             state.lastCheckedAt = checked
@@ -120,24 +146,24 @@ extension LibraryStore {
         if article.isInLibrary, let key = article.key { plan(.saved, key: key) }
     }
 
-    /// One chapter at the end of `folder`. An address the library has already stays one page: one
+    /// One chapter in `folder` at `sortKey`. An address the library has already stays one page: one
     /// you filed in a folder stays there; one loose at the top level (saved to try the story) or
     /// out of the Library (played without saving, removed) comes into the story, so the story has
     /// every chapter.
-    private func addChapter(_ chapter: TableOfContents.Chapter, to folder: Folder, byline: String?) {
+    private func addChapter(_ chapter: TableOfContents.Chapter, to folder: Folder, byline: String?, sortKey: Double) {
         if let existing = article(canonicalURL: chapter.canonicalURL) {
             guard existing.folder == nil else { return }
             if existing.addedAt == nil {
                 existing.addedAt = now()
                 if existing.isSaved, let key = existing.key { plan(.saved, key: key) }
             }
-            existing.sortKey = nextSortKey(in: folder)
+            existing.sortKey = sortKey
             existing.setFolder(folder)
             return
         }
         let article = Article(key: ArticleIdentity.articleKey(canonicalURL: chapter.canonicalURL), title: chapter.title,
                         byline: byline ?? chapter.url.host ?? "", urlString: chapter.url.absoluteString,
-                        contentState: .link, addedAt: now(), sortKey: nextSortKey(in: folder))
+                        contentState: .link, addedAt: now(), sortKey: sortKey)
         context.insert(article)
         article.setFolder(folder)
     }

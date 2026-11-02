@@ -119,51 +119,118 @@ final class URLPageFetcher {
 
     // MARK: - Links
 
-    /// What `linksScript` returns.
+    /// What `linksScript` returns: a feed document (`isFeed`) or a page.
     private struct ReadLinks: Decodable {
         struct Link: Decodable {
             var href: String
             var text: String
             var list: Int
+            /// Milliseconds since 1970.
+            var date: Double?
         }
 
         var title: String?
         var heading: String?
         var author: String?
+        var siteName: String?
+        var isFeed: Bool
+        /// A page's advertised feeds.
+        var feeds: [String]?
+        var canonical: String?
+        /// A feed's site address.
+        var home: String?
         var links: [Link]
 
         func page(at url: URL) -> LinkPage {
-            LinkPage(url: url, title: title, heading: heading, author: author,
-                     links: links.compactMap { link in
-                         URL(string: link.href).map { LinkPage.Link(url: $0, text: link.text, list: link.list) }
-                     })
+            let links = links.compactMap { link in
+                URL(string: link.href).map {
+                    LinkPage.Link(url: $0, text: link.text, list: link.list,
+                                  date: link.date.map { Date(timeIntervalSince1970: $0 / 1000) })
+                }
+            }
+            let body: LinkPage.Body = isFeed
+                ? .feed(entries: links, home: home.flatMap(URL.init(string:)))
+                : .page(links: links, feeds: (feeds ?? []).compactMap(URL.init(string:)),
+                        canonical: canonical.flatMap(URL.init(string:)))
+            return LinkPage(url: url, title: title, heading: heading, author: author, siteName: siteName, body: body)
         }
     }
 
-    /// Every link with its text and the list it sits in (its nearest `ol`, `ul`, `table`, `nav` or
-    /// `dl`, else its parent's parent, numbered in page order), the first heading, and the author
-    /// (a story header's profile link, as Royal Road has, or a meta tag). The app's own script: it
-    /// runs with the page's scripts off.
+    /// Every link with its text, the list it sits in (its nearest `ol`, `ul`, `table`, `nav` or
+    /// `dl`, else its parent's parent, numbered in page order) and the date of its row (a
+    /// `<time datetime>` in the link or its `li`, `tr` or, for a heading's link, `article`); links in an `aside` or a
+    /// `footer` (related posts, site links) are left out. Also the first heading; the author (a
+    /// meta tag, `rel=author`); the site's name (`og:site_name`); the page's canonical address;
+    /// and the feeds the page advertises (`<link rel="alternate">` of an RSS or Atom type, comment
+    /// feeds left out). A feed document itself (`rss`, `feed`, `rdf:RDF`) comes back as `isFeed`,
+    /// its entries as the links (title, address, date), the channel's title as the heading and the
+    /// site it is the feed of as `home`. The app's own script: it runs with the page's scripts off.
     private static let linksScript = """
     (() => {
       const squeeze = (t) => (t || "").replace(/\\s+/g, " ").trim();
+      const ms = (s) => { const t = Date.parse(s); return isNaN(t) ? null : t; };
+      const root = document.documentElement;
+      const child = (el, name) => Array.from(el.children).find((c) => c.localName === name);
+      // RSS's own <link> (RSS 1.0 gives it a namespace), not an <atom:link rel="self"> beside it.
+      const rssLink = (el) => Array.from(el.children).find((c) => c.localName === "link" && c.namespaceURI !== "http://www.w3.org/2005/Atom");
+      const absolute = (raw) => { try { return new URL(raw, document.baseURI).href; } catch (e) { return null; } };
+      const web = /^(https?|reader-test):/;
+      if (root && /^(rss|feed|rdf)$/i.test(root.localName)) {
+        const channel = child(root, "channel") || root;
+        const channelTitle = child(channel, "title");
+        const atomLinks = (el) => Array.from(el.children).filter((c) => c.localName === "link" && c.getAttribute("href"));
+        const alternate = (el) => { const all = atomLinks(el); return all.find((c) => (c.getAttribute("rel") || "alternate") === "alternate"); };
+        const homeLink = alternate(channel);
+        const plain = rssLink(channel);
+        const home = homeLink ? homeLink.getAttribute("href") : (plain ? squeeze(plain.textContent) : null);
+        const links = [];
+        for (const entry of root.querySelectorAll("item,entry")) {
+          const title = child(entry, "title");
+          const atom = alternate(entry) || atomLinks(entry)[0];
+          const plainLink = rssLink(entry);
+          const guid = child(entry, "guid");
+          const raw = atom ? atom.getAttribute("href")
+            : (plainLink ? squeeze(plainLink.textContent) : (guid && web.test(squeeze(guid.textContent)) ? squeeze(guid.textContent) : null));
+          const date = ["pubDate", "published", "updated", "date"].map((n) => child(entry, n)).find((d) => d);
+          const href = raw ? absolute(raw) : null;
+          if (href && web.test(href) && title) {
+            const text = title.getAttribute("type") === "html"
+              ? new DOMParser().parseFromString(title.textContent, "text/html").body.textContent : title.textContent;
+            links.push({ href, text: squeeze(text), list: 0, date: date ? ms(date.textContent) : null });
+          }
+        }
+        return JSON.stringify({ title: null, heading: channelTitle ? squeeze(channelTitle.textContent) : null,
+                                author: null, siteName: null, isFeed: true, home: home ? absolute(home) : null, links });
+      }
       const lists = new Map();
       const listOf = (a) => {
         const el = a.closest("ol,ul,table,nav,dl") || (a.parentElement && a.parentElement.parentElement) || document.body;
         if (!lists.has(el)) lists.set(el, lists.size);
         return lists.get(el);
       };
+      const dateOf = (a) => {
+        // An article's own links are not dated by it; only its heading's link is.
+        const row = a.closest("li,tr") || (a.closest("h1,h2,h3,h4,h5,h6") && a.closest("article"));
+        const time = a.querySelector("time[datetime]") || (row && row.querySelector("time[datetime]"));
+        return time ? ms(time.getAttribute("datetime")) : null;
+      };
       const links = [];
       for (const a of document.querySelectorAll("a[href]")) {
-        if (!/^(https?|reader-test):/.test(a.href)) continue;
-        links.push({ href: a.href, text: squeeze(a.innerText || a.textContent), list: listOf(a) });
+        if (!web.test(a.href) || a.closest("aside,footer")) continue;
+        links.push({ href: a.href, text: squeeze(a.innerText || a.textContent), list: listOf(a), date: dateOf(a) });
       }
       const h1 = document.querySelector("h1");
-      const meta = document.querySelector('meta[name="author"],meta[property="books:author"],meta[property="article:author"]');
-      const profile = document.querySelector('.fic-header a[href*="/profile/"]');
-      const author = profile ? squeeze(profile.textContent) : (meta ? squeeze(meta.content) : null);
+      const byline = document.querySelector('meta[name="author"],meta[property="books:author"],meta[property="article:author"]');
+      const rel = document.querySelector('a[rel~="author"],[itemprop="author"]');
+      const author = byline ? squeeze(byline.content) : (rel ? squeeze(rel.textContent) : null);
+      const site = document.querySelector('meta[property="og:site_name"]');
+      const canonical = document.querySelector('link[rel~="canonical"][href]');
+      const feeds = Array.from(document.querySelectorAll('link[rel~="alternate"][href]'))
+        .filter((l) => /^application\\/(rss|atom)\\+xml/i.test(l.type) && !/comment/i.test(l.title))
+        .map((l) => l.href);
       return JSON.stringify({ title: document.title || null, heading: h1 ? squeeze(h1.textContent) : null,
-                              author: author || null, links });
+                              author: author || null, siteName: site ? squeeze(site.content) || null : null,
+                              isFeed: false, feeds, canonical: canonical ? canonical.href : null, links });
     })()
     """
 

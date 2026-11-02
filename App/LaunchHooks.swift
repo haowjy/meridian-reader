@@ -494,6 +494,7 @@ enum LaunchHooks {
                         if case .review(let contents) = flow.step {
                             switch action {
                             case "save": flow.savePage()
+                            case "follow": _ = try? flow.follow(contents)
                             case "preview":
                                 if let chapter = contents.chapters.first { flow.showPreview(of: chapter) }
                             case "cancel": shell.sheet = nil

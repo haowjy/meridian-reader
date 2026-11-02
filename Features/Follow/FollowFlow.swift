@@ -12,11 +12,11 @@ final class FollowFlow: Identifiable {
         case saved
         /// Reading the table of contents at the address.
         case reading(URL)
-        /// It couldn't be read, or listed no chapters.
+        /// It couldn't be read, or listed nothing to follow.
         case failed(URL, message: String)
         /// The story is followed already, in this folder.
         case alreadyFollowing(UUID)
-        /// Its chapters, to keep or leave out.
+        /// Its chapters or posts, to keep or leave out.
         case review(TableOfContents)
     }
 
@@ -68,12 +68,12 @@ final class FollowFlow: Identifiable {
 
     // MARK: - Reading
 
-    /// Reads the story `url` belongs to; a story followed already shows as that.
+    /// Reads what `url` lists to follow; a story followed already shows as that.
     func read(_ url: URL) {
         reading?.cancel()
         originalURL = url
         saveError = nil
-        step = .reading(TableOfContents.contentsURL(for: url))
+        step = .reading(url)
         reading = Task {
             do {
                 let contents = try await center.readContents(of: url)

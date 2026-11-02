@@ -8,7 +8,7 @@ import SwiftUI
 /// ```
 /// 📡 Following   3 of 107 downloaded ◔ ›
 /// 📡 Following   1 chapter couldn’t load   41 of 107 downloaded ◔ ›
-/// ⏳ Royal Road asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52, more slowly.
+/// ⏳ Example Press asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52, more slowly.
 /// 📡 Following   checked today 8:02 AM   2 new ›
 /// ```
 struct FollowStatus: View {
@@ -25,11 +25,11 @@ struct FollowStatus: View {
             HeaderLink(symbol: Icons.follow, parts: parts(progress), mark: mark(progress), identifier: "followStatus") {
                 shell.present(.following(folder.id))
             }
-            if let next = progress.fetching, let url = folder.contentsURL,
+            if let next = progress.fetching, let url = next.url,
                let backOff = follow.queue.backOff(of: FetchQueue.site(of: url)) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     NoticeCard(symbol: Icons.waiting,
-                               text: FollowText.backOffNotice(site: TableOfContents.siteName(of: url), status: backOff.status,
+                               text: FollowText.backOffNotice(site: folder.siteName(for: url), status: backOff.status,
                                                               chapter: next, wait: backOff.until.timeIntervalSince(context.date)),
                                identifier: "followBackOff")
                 }
@@ -82,7 +82,7 @@ extension FollowCenter.ChapterStatus {
 }
 
 /// Follow's words, in one place: addresses shortened, times, and what a chapter waiting for its
-/// text says in its row (a site's name is its contents reader's, `TableOfContents.siteName`).
+/// text says in its row (a site's name is `Folder.siteName(for:)`).
 @MainActor
 enum FollowText {
     /// "…/chapter/900001/1-first-frost": the address's last three parts, or its host and

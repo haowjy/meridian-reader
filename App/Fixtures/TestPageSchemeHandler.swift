@@ -24,6 +24,8 @@ import WebKit
 ///   - `chapter-N`, `note`: the chapters (a chapter links to the next). With
 ///     `-testStoryThrottles`, `chapter-6` doesn't load the first time in a launch (a site not
 ///     answering), so Follow backs off.
+/// - **`serial`**, **`blog`**: a serial's story and chapter pages, and a blog with an RSS feed, for Follow's
+///   generic rules (`TestSitePages`).
 ///
 /// An unknown name is page one.
 final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
@@ -42,9 +44,10 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
             urlSchemeTask.didFailWithError(URLError(.timedOut))
             return
         }
-        let html = url.host == "story" ? Self.storyPage(url.lastPathComponent) : Self.page(url.lastPathComponent)
-        let data = Data(html.utf8)
-        let response = URLResponse(url: url, mimeType: "text/html", expectedContentLength: data.count, textEncodingName: "utf-8")
+        let reply = TestSitePages.reply(for: url)
+            ?? ((url.host == "story" ? Self.storyPage(url.lastPathComponent) : Self.page(url.lastPathComponent)), "text/html")
+        let data = Data(reply.0.utf8)
+        let response = URLResponse(url: url, mimeType: reply.1, expectedContentLength: data.count, textEncodingName: "utf-8")
         urlSchemeTask.didReceive(response)
         urlSchemeTask.didReceive(data)
         urlSchemeTask.didFinish()
@@ -110,6 +113,8 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
             body = "<p><a href=\"reader-test://pages/two\" \(link)>Next page</a></p>"
                 + "<p><a href=\"reader-test://pages/three\" \(link)>Third page</a></p>"
                 + "<p><a href=\"reader-test://story/toc\" \(link)>A story to follow</a></p>"
+                + "<p><a href=\"reader-test://serial/story/40512/the-copper-orchard/chapter/900003/windfall\" \(link)>A serial's chapter</a></p>"
+                + "<p><a href=\"reader-test://blog/\" \(link)>A blog with a feed</a></p>"
                 + "<p><a href=\"reader-test://pages/thin\" \(link)>Thin page</a></p>"
                 + "<p><a href=\"reader-test://pages/untitled\" \(link)>A page with no title</a></p>"
                 + "<p><a href=\"reader-test://pages/popup\" \(link)>A page with a bottom popup</a></p>"
@@ -173,7 +178,7 @@ final class TestPageSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     /// `title` nil: no `<title>` and no heading.
-    private static func document(title: String?, body: String, meta: String = "") -> String {
+    static func document(title: String?, body: String, meta: String = "") -> String {
         """
         <html><head><meta name="viewport" content="width=device-width">\(title.map { "<title>\($0)</title>" } ?? "")\(meta)</head>
         <body style="font: 20px -apple-system; padding: 24px">\(title.map { "<h1>\($0)</h1>" } ?? "")\(body)</body></html>
