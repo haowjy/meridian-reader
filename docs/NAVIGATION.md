@@ -580,7 +580,7 @@ commas.
   header) and the top of the chrome; at the default text size it fits there with the chrome expanded, and
   scrolls only at the larger sizes or in a half-height sheet on a small phone (*Nothing Prepared*,
   *No Browsing History Yet*), until the sheet is pulled up. An empty Library says
-  *Start Your Library*, "Save from the web, a file, text or a link, or follow a site.", over five tiles, the
+  *Start Your Library*, "Articles you save show up here.", over five tiles, the
   same on every empty screen (`AddToLibraryTiles`; a folder's go into the folder, every other's into the top
   level): *Browse the Web* (the Browser) and *Follow a Site* (the Follow sheet asking for a story's address,
   into the top level even from a folder), *Import a File* (as *Import from…*) and *Paste Text* (as *Paste Text…*),
@@ -656,8 +656,7 @@ commas.
   Settings*; *Settings* is always the last row, just above the big buttons.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
-  every empty screen has (`EmptyState`): *This Folder Is Empty*, *Move articles here, or save them
-  here from the Reader's 🔖* (the toolbar's symbol), over the same five tiles as the Library's (they
+  every empty screen has (`EmptyState`): *This Folder Is Empty*, "Articles you add show up here.", over the same five tiles as the Library's (they
   add into the folder, except *Follow a Site*, whose story's folder goes at the Library's top level).
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
@@ -957,8 +956,7 @@ prepared), and nothing renders the article again until it is played or Prepare i
 page's, or the folder's, which lists the folder's pages afresh). A page
 that couldn't be fetched or rendered is counted ("2 couldn’t prepare"), and *Prepare Again* tries
 again. The list is kept on the device (`Downloads.json`) and goes on after a relaunch. With
-nothing in it, it says *Nothing Prepared* (`EmptyState`): prepare an article from its ⋯, or a
-folder or a book from its screen's ↓, over the five tiles every empty screen has, each closing the sheet first.
+nothing in it, it says *Nothing Prepared* (`EmptyState`), "Audio you prepare shows up here.", over the five tiles every empty screen has, each closing the sheet first.
 
 **The Move tree** (`MoveTreeSheet`): one sheet for *Move to…* (titled *Move to*) and every *Save
 to Folder…* (an article's menu out of the Library, 🔖 held; titled *Save to Folder*); the import sheet's *Add to* pushes the same list inside it. The whole tree as one indented list (medium, grows to large): *＋

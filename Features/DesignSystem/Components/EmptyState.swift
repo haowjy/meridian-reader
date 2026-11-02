@@ -113,7 +113,7 @@ struct EmptyStateGallery: View {
         PreviewGallery {
             // The app's empty screens all show these five (`AddToLibraryTiles`).
             PreviewState("four tiles and a wide one") {
-                EmptyState("Start Your Library", description: "Save from the web, a file, text or a link, or follow a site.") {
+                EmptyState("Start Your Library", description: "Articles you save show up here.") {
                     ActionTileGrid(tiles: [
                         ActionTile(title: "Browse the Web", symbol: Icons.browser, prominent: true) {},
                         ActionTile(title: Verbs.followSite, symbol: Icons.follow) {},

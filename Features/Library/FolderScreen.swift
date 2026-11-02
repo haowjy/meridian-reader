@@ -220,7 +220,7 @@ private struct FolderContentsList: View {
                 // Every empty list says so the same way (`EmptyState`), under the folder's header.
                 Section {
                     EmptyState(String(localized: "This Folder Is Empty"),
-                               description: Text("Move articles here, or save them here from the Reader’s \(Text.symbol(Icons.save)).")) {
+                               description: Text("Articles you add show up here.")) {
                         AddToLibraryTiles(folder: folder)
                     }
                     .accessibilityIdentifier("folderEmpty")

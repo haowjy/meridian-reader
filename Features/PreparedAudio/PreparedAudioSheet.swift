@@ -74,7 +74,7 @@ struct PreparedAudioList: View {
             if overview.isEmpty && listening.isEmpty {
                 Section {
                     EmptyState(String(localized: "Nothing Prepared"),
-                               description: Text("Prepare audio from an article’s \(Text.symbol(Icons.more)) or a folder’s \(Text.symbol(Icons.prepare)), and it plays offline.")) {
+                               description: Text("Audio you prepare shows up here.")) {
                         AddToLibraryTiles(folder: nil)
                     }
                     .accessibilityIdentifier("downloadsEmpty")
