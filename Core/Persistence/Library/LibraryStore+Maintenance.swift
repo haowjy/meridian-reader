@@ -132,3 +132,13 @@ extension LibraryStore {
         return articles.first { $0.key.map(target.matches) == true }
     }
 }
+
+extension LibraryStore {
+    /// Nothing has ever been kept or visited: no page (a removed or unsaved one counts), no folder
+    /// and no browsing history. What a first launch of the app looks like.
+    var isUntouched: Bool {
+        ((try? context.fetchCount(FetchDescriptor<Article>())) ?? 1) == 0
+            && ((try? context.fetchCount(FetchDescriptor<Folder>())) ?? 1) == 0
+            && ((try? context.fetchCount(FetchDescriptor<RecentVisit>())) ?? 1) == 0
+    }
+}

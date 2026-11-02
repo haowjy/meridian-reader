@@ -24,6 +24,7 @@ enum LaunchHooks {
             + AppAppearance.storedKeys + ReadingAppearance.storedKeys + LibraryTopLevel.storedKeys
             + RecentSearches.storedKeys + SearchSuggestions.storedKeys + ContentBlocker.storedKeys + SurfaceMemoryStore.storedKeys
             + DeveloperSettings.storedKeys + WhatsNewStore.storedKeys
+            + WelcomeArticle.storedKeys
         for key in keys { defaults.removeObject(forKey: key) }
         preparedAudio.save([])
     }

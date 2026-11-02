@@ -38,7 +38,7 @@ struct LibraryScreenMenu {
             shell.showNowPlaying()
         }
         return MenuContext(screen: screenRows,
-                           tiles: compact ? [] : MenuContext.tiles(shell, compact: false, last: reader))
+                           tiles: compact ? [MenuContext.help(shell)] : MenuContext.tiles(shell, compact: false, last: reader))
     }
 
     /// ＋: the create group (`LibraryCreateMenu`) into the screen on top.

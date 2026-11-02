@@ -12,13 +12,14 @@ the screens look and move: `NAVIGATION.md`. How it is built: `TECHNICAL_SPEC.md`
 | **Browser** | A start page (Frequently Visited, Recent Searches) or a web page, with one bottom bar (address field + toolbar). |
 | **Reader** | A sheet for reading any page, over the browser or the Library, with its own Listen. |
 | **Listen** | A sheet over everything for what you hear, in the Reader's reading theme and type: the text following the audio (the spoken paragraph highlighted, every paragraph in full ink), and the player's controls. |
-| **Settings** | ⋯ › Settings, the last row of every ⋯ menu (the sidebar's bottom row on iPad): Listening (voice, speed), Appearance (System / Light / Dark, five app colours) and Reading (theme, font, size, spacing, Scroll / Pages; the same as Aa) as pages, Browsing (Block Ads), Prepared Audio & Storage, About (Privacy Policy, Support, Acknowledgements), and Developer (developer options only). |
+| **Settings** | ⋯ › Settings, the last row of every ⋯ menu (the sidebar's bottom row on iPad): Listening (voice, speed), Appearance (System / Light / Dark, five app colours) and Reading (theme, font, size, spacing, Scroll / Pages; the same as Aa) as pages, Browsing (Block Ads), Prepared Audio & Storage, About (How Meridian Reader Works, Privacy Policy, Support, Acknowledgements), and Developer (developer options only). |
 | **Now Playing bar** | What you hear, in the Reader's band while another page plays, from the first play until *Stop Listening* (long-press: the page's menu, then *Stop Listening*) or the page is removed from the Library (its menu's *Remove from Library*, or anywhere else), deleted, or revised by a book's *Replace*; it keeps a finished page with ▶. Tap or swipe up → Listen. Elsewhere on compact width the chrome's Listen button does its job; on regular width the clustered dock does. |
 
 On iPad (regular width) the surfaces sit beside a sidebar; see *iPad* below.
 
 The app reopens on the surface you left: the Library at the folder you were in, or the browser on
-its last article (reloaded). A fresh install opens the Library.
+its last article (reloaded). A fresh install opens the Library with one article in it, "How
+Meridian Reader Works", and Listen up on it, paused (see *The welcome article* below).
 
 ## Browser
 
@@ -66,6 +67,14 @@ its last article (reloaded). A fresh install opens the Library.
 | S9 | Search in the Library covers titles, sites, folder names and authors across the tree (begun on a folder's screen, under that folder, and the field names it), and offers *Search the web*. |
 | S10 | *Import a File…* (the Library's ＋ and ⋯, the empty Library) imports a DRM-free EPUB or a text PDF picked in Files, or an `.epub` link the browser downloads (asked first), as a book: one folder with one page per chapter (PDF: one chapter per text page; no OCR). EPUB front matter is skipped in playback. The import shows its progress, can be cancelled (keeping nothing), and files the book in *Add to* (the folder it started from, else the Library), which can change while it runs; it then opens the book. One import runs at a time. Copy-protected, password-protected, fixed-layout, too-large and unreadable files are refused with a one-line reason. A book already in the Library asks *Replace* (same folder, its order kept, places kept where chapters match; chapters moved elsewhere are found and updated where they are, new ones go after the chapter before them) or *Cancel*. |
 | S12 | *Follow…* (a page’s menu on a story’s page) or *Add a Link…* (a typed address) reads the story's table of contents (any site's list of chapter or post links, the story page a chapter links back to, or the page's RSS or Atom feed, used only on the site's home page) into Review, *Chapters* in order or *Posts* newest first: every entry with a box, *Select All*, and a preview of a chapter on tapping its row. Follow N Chapters makes the story’s folder at once with the chapters kept, as links, whose text is then fetched while the app is open, strictly one at a time with a pause, backing off when the site asks to slow down or doesn't answer (a notice in the folder's header names the chapter that waits, by its title), with one status line in the folder's header, which also counts chapters that couldn't load. ▶ on a chapter still waiting fetches it first, then plays it; playing through the story stops before a chapter not fetched yet. About once a day while the app is in use the contents are read again and new chapters go at the end, a blog’s new posts on top (left-out ones stay out). The Following sheet shows the last and next check and the fetch progress, with *Check Now* and *Unfollow* (the chapters stay). Add a Link uses the shared half-height input sheet and grows to the same large review as Follow: system ✕, story title, chapter list, full-width Follow N Chapters and plain Save This Page Only. A non-story or failed read saves the original link into the folder on screen, downloading its text on first play. Failed saves retain the input. No notifications. |
+
+## The welcome article
+
+| ID | Requirement |
+|----|-------------|
+| W1 | A fresh install (nothing ever kept, visited or filed) adds "How Meridian Reader Works" at the top of the Library, as an ordinary saved article, and opens Listen on it paused: no autoplay, no welcome sheet. It is the page last played, so the chrome's Listen button and the iPad dock offer it until something else plays. An upgrade, or any later launch, adds nothing. |
+| W2 | Its audio is recorded in the built-in default voice (Zoey) and ships in the app: it plays at once, offline, and counts as prepared. The article keeps that voice whatever Settings says; its *Voice* changes it like any article's. |
+| W3 | ⋯ › Help (every ⋯ with navigation rows, and the compact Library's) and Settings › About › *How Meridian Reader Works* open it in Listen, paused; deleted or removed, it comes back first, with its audio. |
 
 ## Listening
 

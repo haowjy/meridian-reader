@@ -59,7 +59,12 @@ struct ReaderApp: App {
         _library = State(initialValue: library)
         let follow = AppComposition.makeFollow(library: library)
         _follow = State(initialValue: follow)
-        _preparedAudio = State(initialValue: AppComposition.makePreparedAudio(library: library, follow: follow))
+        let preparedAudio = AppComposition.makePreparedAudio(library: library, follow: follow)
+        _preparedAudio = State(initialValue: preparedAudio)
+        let speech = speechController, shell = shell
+        shell.openWelcome = {
+            WelcomeArticle(library: library, speech: speech, preparedAudio: preparedAudio, shell: shell).open()
+        }
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
         AppComposition.runLaunchMaintenance(library: library)

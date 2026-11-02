@@ -140,6 +140,9 @@ enum Verbs {
     /// The ⋯ menu's last rows and the screens they open.
     static let preparedAudio = String(localized: "Prepared Audio")
     static let settings = String(localized: "Settings")
+    /// ⋯ › Help, and Settings › About's row: the bundled article that explains the app.
+    static let help = String(localized: "Help")
+    static let howItWorks = String(localized: "How Meridian Reader Works")
     /// The Library's tab of pages played or opened and not kept (C100).
     static let history = String(localized: "History")
     /// The browser's pages visited: its sheet's title and the buttons and menu rows that open it.

@@ -248,6 +248,10 @@ final class ShellState {
     /// Whether a target is what you hear (the playback session answers).
     private let isHearing: (ListenTarget) -> Bool
 
+    /// ⋯ › Help and Settings › About: opens the welcome article (`WelcomeArticle.open`), wired
+    /// where the library exists (`ReaderApp`).
+    var openWelcome: () -> Void = {}
+
     /// Where the surface is remembered (nil: not remembered, as in unit tests).
     private let memory: SurfaceMemoryStore?
     /// The browser page to reload at launch (`restoreAtLaunch`).

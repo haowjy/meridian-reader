@@ -38,11 +38,24 @@ enum AppLaunch {
         #endif
 
         resumeAfterCrash(library: library, speech: speech, shell: shell)
+        if let preparedAudio { addWelcomeOnFreshInstall(library: library, speech: speech, shell: shell, preparedAudio: preparedAudio) }
 
         #if DEBUG
         await LaunchHooks.runAfterLaunch(.current, library: library, speech: speech, shell: shell, follow: follow,
                                            preparedAudio: preparedAudio)
         #endif
+    }
+
+    /// A fresh install gets the welcome article, with Listen open on it paused (`WelcomeArticle`).
+    /// After crash resume, which has nothing to resume then: an install that has played before has
+    /// pages, so it adds nothing. `-recordWelcome` adds it without its audio instead, to record it.
+    private static func addWelcomeOnFreshInstall(library: LibraryStore, speech: SpeechController, shell: ShellState,
+                                                 preparedAudio: PrepareCenter) {
+        let welcome = WelcomeArticle(library: library, speech: speech, preparedAudio: preparedAudio, shell: shell)
+        #if DEBUG
+        if LaunchOptions.current.recordsWelcome { return welcome.record() }
+        #endif
+        welcome.addOnFreshInstall()
     }
 
     /// The library's launch maintenance, then the end of the render queue's launch hold: it

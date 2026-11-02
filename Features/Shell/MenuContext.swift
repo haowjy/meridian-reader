@@ -26,7 +26,7 @@ struct MenuContext {
     }
 
     /// The navigation rows `[Settings][Library][last]` on regular width, `[Library][Browsing History][last]`
-    /// on compact (`compact`); `last` is the surface's own focus row, nil where it can never apply (Listen
+    /// on compact (`compact`), then *Help*; `last` is the surface's own focus row, nil where it can never apply (Listen
     /// on a reading page). Every ⋯ menu uses these same rows in this order (C140). Compact width has
     /// Settings in the chrome's pill and no 🕘 button, so its menus drop *Settings* and add *Browsing
     /// History* before `last`. The Library row is left out on the Library, where it would do nothing.
@@ -42,6 +42,13 @@ struct MenuContext {
         if compact {
             rows.append(MenuRow(id: "moreHistory", title: Verbs.browsingHistory, icon: Icons.history) { shell.present(.history) })
         }
-        return rows + [last].compactMap { $0 }
+        return rows + [help(shell)] + [last].compactMap { $0 }
+    }
+
+    /// *Help*: the welcome article, Listen paused on it. In every `tiles`, and alone in the
+    /// compact Library's, which has no other.
+    @MainActor
+    static func help(_ shell: ShellState) -> MenuRow {
+        MenuRow(id: "moreHelp", title: Verbs.help, icon: Icons.help) { shell.openWelcome() }
     }
 }

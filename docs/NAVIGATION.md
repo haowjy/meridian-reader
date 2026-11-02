@@ -368,10 +368,25 @@ below).
 
 **The app reopens on the surface you left** (decision D10): the Library at the folder you were in
 (`ShellState.libraryPath`, folders that no longer exist dropped), or the browser on its last page,
-reloaded. A fresh install opens the Library. Kept on the device in UserDefaults
+reloaded. A fresh install opens the Library with Listen up, paused, on the welcome article (below). Kept on the device in UserDefaults
 `shell.lastSurface` (`SurfaceMemory`). Reopened on the Library, the browser's last page loads the
 first time you go there, and stays remembered until then, across relaunches. `-uiTesting` launches
 start on the browser unless `-restoreSurface`.
+
+**The welcome article** (`WelcomeArticle`, `Resources/Welcome/`). "How Meridian Reader Works" is an
+ordinary saved article whose text and recorded audio ship in the app. Its key is fixed, so the
+bundled audio lands in its cache directory. On a fresh install, the first launch adds it at the top of the Library, copies
+its audio in (it counts as prepared), dates it as last played (so the chrome's Listen button and
+the iPad dock offer it until something else plays) and opens Listen on it, paused, with ▶ showing:
+no autoplay, no separate welcome sheet. "Fresh" is a library that has never held a page or a folder or a
+visit (`LibraryStore.isUntouched`) on the one launch of a build that has this, so an
+upgrade adds nothing; the done flag is UserDefaults `welcome.installed`, which `-resetLibrary` clears.
+The article belongs to the built-in default voice (Zoey) whatever Settings says; its *Voice* changes
+it. **Help** (the last row before Listen in every ⋯ block that has navigation rows, and alone in the
+compact Library's) and Settings › About › *How Meridian Reader Works* open it in Listen, paused, adding it back first,
+with its audio, if it was deleted or removed. A recording that doesn't match (the text edited,
+Phonon's model revision changed) is dropped on install and the article renders live;
+`tools/record-welcome-audio.sh` records it again.
 
 **Regular width: one band on both surfaces** (`SurfaceBand`, decisions D22 and D23): the field
 (the address field on the browser, *Search Library*, or the tab or folder it searches, on the
@@ -1422,7 +1437,7 @@ a symbol. Top to bottom:
 - **Prepared Audio & Storage**: *Prepared Audio ›* (the Prepared Audio list), the size of the
   prepared audio, the size of the audio kept from listening, and the **version row** (a 2 s
   long-press toggles developer options, below).
-- **About**: *Privacy Policy* and *Support* (open the project's web pages) and *Acknowledgements ›*
+- **About**: *How Meridian Reader Works* (the welcome article, below), *Privacy Policy* and *Support* (open the project's web pages) and *Acknowledgements ›*
   (`AcknowledgementsView`: FluidAudio, Kokoro, Phonon / Gradium, ONNX Runtime, ZIPFoundation,
   Mozilla Readability).
 - **Developer** (developer options only): *Listen Debug*, *Fake Extraction Failure* (every

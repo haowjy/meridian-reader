@@ -326,10 +326,11 @@ extension LibraryStore {
         return last + 1
     }
 
-    /// The sort key of the first page of `folder` (0 when it is empty): new pages go before it at
-    /// whole keys below.
-    func firstSortKey(in folder: Folder) -> Double {
-        var descriptor = LibraryQueries.articles(inFolder: folder.id)
+    /// The sort key of the first page of `folder` (nil: among the pages in no folder; 0 when it is
+    /// empty): new pages go before it at whole keys below.
+    func firstSortKey(in folder: Folder?) -> Double {
+        var descriptor = folder.map { LibraryQueries.articles(inFolder: $0.id) }
+            ?? FetchDescriptor(predicate: #Predicate<Article> { $0.folderID == nil })
         descriptor.sortBy = [SortDescriptor(\Article.sortKey)]
         descriptor.fetchLimit = 1
         return (try? context.fetch(descriptor).first?.sortKey) ?? 0
