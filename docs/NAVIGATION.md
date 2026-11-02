@@ -451,7 +451,7 @@ the same spot. ⋯ is never replaced.
   the article's own menu (the same rows as everywhere the article's menu shows: "Menus", below; its
   *Save to Library*, *Save to Folder…* and *Follow…* first), then *Reload, Prepared Audio, Settings*,
   then a row of big buttons **Library**, **Browsing History**, and **Reader** (rightmost, nearest the
-  thumb, like Safari's All Tabs). The page's *Save to Library* and *Save to Folder…* extract it first.
+  thumb, like Safari's All Tabs). The web page's *Save to Library* and *Save to Folder…* extract it first; in an open reader they save the text it shows.
   *Follow…* reads the story the article belongs to ("Follow a story", below). On the start page there
   is no page, so no page rows; *Reload* and the Reader toggle show dimmed; the Reader toggle is dimmed on pages that
   aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, Browsing History, the Move tree)

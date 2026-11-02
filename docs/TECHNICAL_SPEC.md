@@ -148,7 +148,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
 
 ## Extraction
 
-1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and Save take a snapshot of
+1. The browser keeps a live `WKWebView` (`WebViewStore`). Reader mode and the web page's Save take a snapshot of
    the article's visible DOM (`PageSnapshot`: `ReaderVisibleSnapshot.js` drops short invisible text
    such as anti-copy lines).
    When WebKit ends the view's content process (a crash, or memory taken), the view's delegate
@@ -164,7 +164,7 @@ Tests/      the few unit tests (MeridianReaderTests); Tests/Fakes builds a libra
    `ReaderNormalize.js` on the result in the same web view, so every piece of readable text sits
    in a listen block (loose text in a `<div>`, lines between `<br><br>`, the lead-in of a list
    item or quote holding blocks). The browser's page reaches the Reader, 🎧 and Save as a
-   `SingleWebPageSource`: one page in no folder, its content normalized like every source's.
+   `SingleWebPageSource` (Save in an open reader stores the text it shows, without extracting again): one page in no folder, its content normalized like every source's.
 3. The address bar's reader icon and the ⋯ Reader toggle use the same
    `isProbablyReaderable` check, run after each load and same-document URL change.
 

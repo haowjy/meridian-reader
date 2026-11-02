@@ -131,7 +131,7 @@ struct BrowseStartView: View {
                         startPage
                     }
 
-                    if let article = shell.pageReader, !isRegular {
+                    if let article = shownReader {
                         // Its ⋯ is the menu a press and hold on the field's reader icon opens.
                         pageLookup { page in
                             let actions = pageActions(page)
@@ -334,8 +334,12 @@ struct BrowseStartView: View {
     /// The Library's article for the page the browser shows (nil: not saved, or no page): in reader
     /// mode the article on screen, by its key and address as Library Read finds its own, else the web
     /// page by its address.
+    /// The reader-mode article on screen: compact width only (regular width shows the web page under
+    /// a kept reader, so its Save and lookup are the web page's).
+    private var shownReader: ReaderArticle? { isRegular ? nil : shell.pageReader }
+
     private func pageLookup<Content: View>(@ViewBuilder _ content: @escaping (Article?) -> Content) -> some View {
-        if let article = shell.pageReader {
+        if let article = shownReader {
             return ArticleLookup(key: article.id, canonicalURL: article.origin.canonicalURL, content: content)
         }
         let canonical = webPage.map(ArticleIdentity.canonicalURLString(from:))
@@ -471,7 +475,7 @@ struct BrowseStartView: View {
     /// article on screen, saved as shown (its 🔖, its ⋯ and the field's hold menu alike); else the web
     /// page, saved by extracting it first (⋯ spins).
     private func pageActions(_ libraryPage: Article?) -> ArticleActions {
-        if let article = shell.pageReader {
+        if let article = shownReader {
             return ArticleActions(article: libraryPage, readerArticle: article, library: library, shell: shell,
                                   speech: speech, preparedAudio: preparedAudio, follow: follow)
         }
