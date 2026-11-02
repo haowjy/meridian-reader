@@ -699,8 +699,8 @@ with a grabber, ✕ at the leading edge, an inline title, an address capsule
 (`example.com/article`), help “An article, or a blog or story to follow.” and a full-width
 **Add** button at the bottom, grey until the address is usable. The keyboard pushes it up.
 The link is filed into the folder on screen. Reading a page that lists something to follow (a story's chapters, a blog's posts, found from
-its own list of links, from the story or blog page a chapter or post links back to, or from its RSS
-or Atom feed; no site is special) grows the same sheet to large and shows its review. Anything else, including a failed read, saves the original link;
+its own list of links, from the story page a chapter links back to, or from its RSS
+or Atom feed when the page is the blog's own home; no site is special) grows the same sheet to large and shows its review. Anything else, including a failed read, saves the original link;
 its text downloads on first play. An address the Library has already is never moved (a followed
 story's chapter stays in its story): the sheet closes and a toast says *Already in your Library*.
 A failed save keeps the sheet available to retry.
@@ -768,7 +768,8 @@ Tapping the line opens **Following**: where it is read from, *Last Checked*, *Ne
 ring after it while chapters are fetched), *Last
 New Chapters* ("today 8:02 AM, 2 added"), **Check Now** (↻, the spinning download arc while it reads; a failed check says why) and
 **Unfollow** (or *Follow Again*). About once a day while the app is in front, the story's whole
-table of contents is read again and chapters it didn't list before go at the end of the folder;
+table of contents is read again (the page or feed that was followed, and nothing else) and chapters
+it didn't list before go at the end of the folder, a blog's new posts on top;
 chapters left out in Review, and ones you deleted, stay out.
 No feeds and no notifications. Unfollowing stops the checks; every chapter added stays, and their
 text is still fetched.

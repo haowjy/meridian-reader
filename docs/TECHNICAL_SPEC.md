@@ -211,12 +211,16 @@ a serial site's promotions of its fictions) are not blocked.
 wins: the page's own list of links, the one with the most chapter-like or dated links on its site
 and at least half of its links of that kind, links sharing one path shape adding to its score;
 else, for a page with no list (a chapter, a post), the link on it whose path is the longest proper
-prefix of its own, read the same way, one more fetch; else a feed, the page's own or the first it
-advertises (RSS 2.0 or Atom, `<link rel="alternate">`), read by the fetcher's links script. A feed
-is last because it is a window of the latest entries and a page's list is whole. A feed, or a list
-whose dates run newest first, is *Posts*, newest first; any other list is *Chapters*, in the
-page's order. The site's name is `og:site_name`, else the host without "www.", kept in
-`FollowState.siteName`. Every extra read goes through `FetchQueue`) becomes a `series` folder of link pages, one per chapter kept in Review, in the
+prefix of its own, read the same way and kept only as a list of chapters, one more fetch; else a feed the page advertises
+(RSS 2.0 or Atom, `<link rel="alternate">`), used only when the page is the feed's home (its
+channel link is the page's address), so an article on a site with a feed is not that feed; links in
+an `aside` or `footer` are not read. A feed is last because it is a window of the latest entries
+and a page's list is whole. A feed, or a dated list running newest first that does not read as
+chapters, is *Posts*, newest first; a list that reads as chapters is *Chapters*, in the story's
+order; any other list is *Chapters*, in the page's order. The site's name is `og:site_name`, else
+the host without "www.". Every extra read goes through `FetchQueue`). What was followed (the page
+or the feed, and posts or chapters) is kept in `FollowState`, and a check reads that page again
+with no search for another; a read that lists none of the chapters seen fails the check) becomes a `series` folder of link pages, one per chapter kept in Review, in the
 story's order, with its state in `sourceStateData` (`FollowState`: following or not, the last
 check, the last chapters added, and every chapter address the contents have listed, kept or not).
 Review's preview of a chapter is not an out-of-sight fetch: it loads the chapter in sight, in the

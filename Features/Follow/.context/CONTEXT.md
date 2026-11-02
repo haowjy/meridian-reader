@@ -15,19 +15,27 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching an article out of sight" and 
 - **`fill` dedupes by article key**: a second caller waits for the fetch in flight. A transient
   failure (429, 5xx, no answer: `FetchQueue.outcome`) is retried after the site's back-off, four
   times; anything else (404, an article with nothing to read) fails at once.
-- **Generic rules, no site rules.** `TableOfContents.readers` (Core/Sources) is three
-  `ContentsReader`s, first that finds a list wins: the page's list of links (`Generic`), the page a
-  chapter or post links back to (`Parent`: the link whose path is the longest proper prefix of the
-  page's own, never the root; one more fetch), a feed (`Feed`, the page's own or advertised).
-  Don't add a rule for one host; nothing in Features checks one. **Feed is last on purpose**: a
-  serial's feed holds only its last ten chapters and its chapter pages advertise it, so a feed first
-  lists 10 of 109 chapters. The list gate (at least half the list's links chapter-like or dated)
-  keeps a blog's archive, or an author's "3 Fictions / 0 Posts" links, from passing as a chapter
-  list. *Posts* = a feed or a dated list running newest first; else *Chapters*. The contents URL
-  stored on the folder is the page or feed the list was read from; a check reads it again through
-  the same rules. The site name is `og:site_name` or the host, kept in `FollowState.siteName`.
-  Dates come from `<time datetime>` (a page whose script fills it in is undated).
-  New posts of a *Posts* folder still go at its end, like chapters (see FUTURE).
+- **Generic rules, no site rules.** `TableOfContents.read` (Core/Sources) is straight-line code,
+  first that finds a list wins: the page's list of links (a feed document's own entries when the
+  page is one), the page a chapter or post links back to (the link whose path is the longest proper
+  prefix of the page's own, never the root; one more fetch; kept only if its list reads as
+  *Chapters*, so an article under `/news/…` is not taken for the news index), an advertised feed. Don't add a rule for one host; nothing in Features checks one. A feed is
+  **last on purpose** (a serial's feed holds only its last ten chapters and its chapter pages
+  advertise it) and **used only from its home** (its channel link is the page): an article on a news
+  site that advertises a feed saves as a link. `LinkPage.Body` keeps a page and a feed apart, so
+  the list rule never reads a feed document. The list gate (at least half the list's links
+  chapter-like or dated) keeps a blog's archive, or an author's "3 Fictions / 0 Posts" links, from
+  passing as a chapter list; the links script leaves out `aside` and `footer` links, so "Related"
+  lists don't pass. *Chapters* if most links read as chapters (reversed to story order when the
+  dates run newest first by most adjacent pairs); else a dated newest-first list or a feed is
+  *Posts*; else *Chapters* in page order.
+- **A check reads what was followed, nothing else.** `FollowState` keeps the `source` (list or
+  feed) and `kind` beside `siteName` (JSON, optional, so no migration; absent from before: a feed
+  document is a feed, else a list, and chapters unless the read says posts). `FollowCenter.check`
+  fetches the stored URL only and uses `TableOfContents.again`: a page that no longer lists
+  throws `noChapters`, and a list sharing no address with a non-empty `seen` throws `changedList`,
+  rather than adding a different list. New entries of a *Posts* folder go on top in feed order
+  (`LibraryStore.firstSortKey`), others at the end.
 - **Text lands in place, nothing renders** (`LibraryStore.storeFetchedText`): the folder's Prepare
   switch decides audio. The chapter keeps its key, title and place.
 - **A story is `FolderKind.series` with a `FollowState`.** The waiting-chapter rule is one
@@ -59,6 +67,7 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching an article out of sight" and 
 - **Probes**: `-browseTestPages` page one links to `reader-test://story/toc`, to a chapter of a
   serial shaped like a serial site (`reader-test://serial/story/40512/the-copper-orchard`: chapters
   table, chapters linking back, none listing) and to a blog with an RSS feed (`reader-test://blog/`);
-  both in `App/Fixtures/TestSitePages.swift`. Add a Link with `-addLinkText … -submitAddLink`; `-testStoryChapters N`
+  both in `App/Fixtures/TestSitePages.swift`; `-testBlogPosts N` lengthens the blog's feed and index
+  (a check then finds new posts). Add a Link with `-addLinkText … -submitAddLink`; `-testStoryChapters N`
   lengthens it (a check then finds new chapters); `-testStoryThrottles` makes chapter 6 fail once.
   A custom scheme's reply carries no HTTP status, so a real 429 is checked against a live site.

@@ -11,11 +11,16 @@ import Foundation
 ///   page, previous and next links, and no list of their own: *Follow…* from one finds the story.
 /// - **`blog`** ("Harbour Notes"): the index `reader-test://blog/` advertises an RSS feed
 ///   (`/feed.xml`, newest first, in RFC 822 dates) and a comments feed, which is left out. Posts
-///   are `/post/<slug>`.
+///   are `/post/<slug>`; each has a "Related" aside of dated links, which are no list to follow.
 enum TestSitePages {
     private static let chapterTitles = ["First Frost", "The Orchard Gate", "Windfall", "Cider Season", "Grafting",
                                         "The Blight", "Hard Winter", "Thaw"]
-    private static let postTitles = ["Mending the Slipway", "Notes on a Neap Tide", "The Gull Census", "A Quiet Week"]
+    /// Oldest first; the blog lists the first `-testBlogPosts` of them, newest first.
+    private static let allPostTitles = ["A Quiet Week", "The Gull Census", "Notes on a Neap Tide", "Mending the Slipway",
+                                        "Rope Walk", "Low Water Supper", "The Winter Mooring", "Spring Paint"]
+    private static var postTitles: [String] {
+        Array(allPostTitles.prefix(max(1, min(LaunchOptions.current.testBlogPosts, allPostTitles.count)))).reversed()
+    }
 
     /// The reply for `url` on `serial` or `blog`: its HTML or XML and the MIME type.
     static func reply(for url: URL) -> (body: String, mime: String)? {
@@ -71,12 +76,16 @@ enum TestSitePages {
         let meta = "<meta property=\"og:site_name\" content=\"Harbour Notes\">"
             + "<link rel=\"alternate\" type=\"application/rss+xml\" title=\"Comments\" href=\"reader-test://blog/comments.xml\">"
             + "<link rel=\"alternate\" type=\"application/rss+xml\" title=\"Harbour Notes\" href=\"reader-test://blog/feed.xml\">"
+        let related = allPostTitles.prefix(3).enumerated().map { index, title in
+            "<li><a href=\"reader-test://blog/post/\(slug(title))\">\(title)</a> <time datetime=\"2024-0\(index + 1)-10T09:00:00Z\">March</time></li>"
+        }
         if path.count == 2, path[0] == "post", let index = postTitles.firstIndex(where: { slug($0) == path[1] }) {
             let text = "The slipway had gone soft at the seaward end, and it took three of us and a borrowed jack to lift the cradle clear. "
             return TestPageSchemeHandler.document(
                 title: postTitles[index],
                 body: "<p><a href=\"reader-test://blog/\">Harbour Notes</a></p>"
-                    + (1...5).map { "<p>Paragraph \($0). " + String(repeating: text, count: 3) + "</p>" }.joined(),
+                    + (1...5).map { "<p>Paragraph \($0). " + String(repeating: text, count: 3) + "</p>" }.joined()
+                    + "<aside><h2>Related</h2><ul>\(related.joined())</ul></aside>",
                 meta: meta)
         }
         let list = postTitles.map { "<li><a href=\"reader-test://blog/post/\(slug($0))\">\($0)</a></li>" }
@@ -85,10 +94,16 @@ enum TestSitePages {
 
     /// The feed, newest first.
     private static var feed: String {
-        let days = ["Mon, 04 Nov 2024", "Mon, 28 Oct 2024", "Mon, 21 Oct 2024", "Mon, 14 Oct 2024"]
-        let items = postTitles.indices.map { index in
-            "<item><title>\(postTitles[index])</title><link>reader-test://blog/post/\(slug(postTitles[index]))</link>"
-                + "<pubDate>\(days[index]) 09:00:00 GMT</pubDate></item>"
+        let titles = postTitles
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+        // Weekly, from Mon 14 Oct 2024: the oldest post first in `allPostTitles`.
+        let items = titles.indices.map { index in
+            let day = Date(timeIntervalSince1970: 1_728_896_400 + Double(titles.count - 1 - index) * 7 * 86_400)
+            return "<item><title>\(titles[index])</title><link>reader-test://blog/post/\(slug(titles[index]))</link>"
+                + "<pubDate>\(formatter.string(from: day))</pubDate></item>"
         }
         return "<?xml version=\"1.0\"?><rss version=\"2.0\"><channel><title>Harbour Notes</title>"
             + "<link>reader-test://blog/</link>\(items.joined())</channel></rss>"
