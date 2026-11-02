@@ -289,8 +289,9 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   its tap area 44 pt), floats in the middle 12 pt above the card (above
   the home indicator's strip in full screen) and brings the text back to the spoken sentence; while the text follows the audio, or once the article has finished, it isn't there.
   The top group's ⋯ (`listenMore`) is a system menu, a section per
-  group: *Play from a Paragraph*; *Go to <folder or Library>*, *Save to Folder…*,
-  *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place). There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the
+  group: *Save to Library* / *Remove from Library*, *Save to Folder…* / *Move to…*, *Follow…*;
+  *Go to <folder or Library>*, *Mark as Finished*; *Share* (`MenuRegistry`'s `nowPlaying` place);
+  then Listen's own *Play from a Paragraph*. There is no sleep timer. **Full screen** is a tap in the middle of the text, in and out: the
   card slides off, the status bar hides and Listen stops being a sheet: the gap at its top, its rounded
   corners and the dim above it go (`Motion.standard`), and the page covers the screen, its text from the
   status bar's foot to the screen's, where its end now scrolls; a ▶ / ⏸ (and *Jump to Audio*, when the text is away) floats for as long as full screen lasts; neither fades on its own. The text on
