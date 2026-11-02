@@ -59,6 +59,9 @@ struct ArticleActions {
     /// *Remove from Library*, *Move to…* and *Prepare*.
     var isInLibrary: Bool { article?.isInLibrary == true }
     var shareURL: URL? { url.flatMap { $0.isWeb ? $0 : nil } }
+    /// The web address *Follow…* reads the page's story from; nil for a page that can't belong to
+    /// one (pasted text, an imported book's chapter).
+    var storyURL: URL? { url.flatMap { $0.isWebOrTestPage ? $0 : nil } }
     /// The article's own page, for ⋯ → Website (any loadable page URL, not just http(s)).
     var websiteURL: URL? {
         guard let url, url.scheme != nil, url.host?.isEmpty == false else { return nil }
@@ -132,6 +135,13 @@ struct ArticleActions {
         shell.present(.moveTo(MoveRequest(title: Verbs.title(Verbs.saveToFolder), current: nil) { [self] folder in
             save(.folder(folder))
         }))
+    }
+
+    /// *Follow…*: the Follow sheet over the page's address, which reads the story the page belongs
+    /// to (a chapter leads to its story) into a new folder at the top level.
+    func followStory() {
+        guard let storyURL else { return }
+        shell.present(.follow(FollowFlow(url: storyURL, parentID: nil, center: follow)))
     }
 
     /// *Prepare* / *Remove Prepared Audio*: *Remove Prepared Audio* takes the page out of every prepare and

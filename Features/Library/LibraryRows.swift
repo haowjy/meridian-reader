@@ -10,7 +10,7 @@ import SwiftUI
 ///
 /// Tapping the row plays it (`LibraryActions.play`; a link is fetched first), except the page you
 /// hear, which opens Now Playing, so a stray tap never pauses it. Its only control is ⋯ (`ArticleMenu`), the same menu as
-/// its long press (decision D11), whose first row, *Read*, opens it. Its prepare shows on the
+/// its long press (decision D11), whose *Read* (after its save group) opens it. Its prepare shows on the
 /// row (`PrepareCenter.state(of:)`): its `DownloadMark` before line two, the ring filling while it
 /// prepares, ●↓ once prepared. Swipe left removes it from the Library, and from every list it shows in
 /// (`LibraryQueries`). A page in the Library lifts into a drag from the long press, to be filed in

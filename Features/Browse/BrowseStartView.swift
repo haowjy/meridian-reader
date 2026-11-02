@@ -271,7 +271,7 @@ struct BrowseStartView: View {
                                                      speech: speech, preparedAudio: preparedAudio, follow: follow)
                         ReaderSurface(article: article, speech: speech, source: .libraryReader,
                                       covered: shell.reader != nil || shell.isNowPlayingPresented,
-                                      onEdgeSwipeBack: shell.closeLibraryReader, menu: chrome.compactMenu.blocks,
+                                      onEdgeSwipeBack: shell.closeLibraryReader, menu: chrome.readingMenu(article),
                                       save: actions.readingSave(identifier: "readerSave",
                                                                 isEnabled: actions.isSaved || actions.canSave))
                     }
@@ -318,7 +318,8 @@ struct BrowseStartView: View {
     // MARK: - Compact bottom chrome
 
     private var libraryChrome: LibraryChrome {
-        LibraryChrome(shell: shell, library: library, speech: speech, preparedAudio: preparedAudio, screen: libraryScreen,
+        LibraryChrome(shell: shell, library: library, speech: speech, preparedAudio: preparedAudio, follow: follow,
+                      screen: libraryScreen,
                       topLevelSort: $topLevelSort, turningOff: $turningOff)
     }
 
@@ -471,21 +472,15 @@ struct BrowseStartView: View {
                            shell: shell, speech: speech, preparedAudio: preparedAudio, follow: follow)
     }
 
-    /// The browser's ⋯: the page's menu (`ArticleMenu`) while a page is up, then *New Search*,
-    /// *Follow…*, *Reload*, *Prepared audio*, then the
+    /// The browser's ⋯: the page's menu (`ArticleMenu`, its *Save*, *Save to Folder…* and *Follow…*
+    /// first) while a page is up, then *Reload*, *Prepared audio*, then the
     /// tiles (`MenuContext.tiles`), the Reader's last.
     private func menu(_ actions: ArticleActions) -> MenuContext {
         var facts = MenuRegistry.Facts()
-        facts.canFollow = webStore.currentURL?.isWebOrTestPage == true
         facts.hasWebPage = hasPage
         // No *New Search*: a tap on the address field starts one (C98).
         let screen = MenuContext.screenRows(at: .browser, facts: facts, shell: shell) { option in
             switch option {
-            case .follow:
-                return MenuRow(id: "moreFollow", title: Verbs.follow, icon: Icons.follow) {
-                    guard let url = webStore.currentURL else { return }
-                    shell.present(.follow(FollowFlow(url: url, parentID: nil, center: follow)))
-                }
             case .reload:
                 return MenuRow(id: "moreReload", title: Verbs.reload, icon: Icons.reload, action: reload)
             default: return nil

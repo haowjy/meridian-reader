@@ -3,7 +3,8 @@ import SwiftUI
 /// A page's menu: the one definition every way to a page's menu renders (decisions C4, C98), as a
 /// row's ⋯ and long press (`MenuRows`, through this view) and as the item block of the ⋯ panel
 /// (`rows`). Which options show where, in what order and greyed or not is `MenuRegistry`'s
-/// (docs/MENUS.md); this gives each its title, symbol and action. Built only when the menu opens:
+/// (docs/MENUS.md: *Save* / *Remove from Library*, *Save to Folder…* / *Move to…* and *Follow…* lead
+/// it everywhere); this gives each its title, symbol and action. Built only when the menu opens:
 /// rows pass this view, never its `rows`, so nothing here runs on a row's redraw.
 struct ArticleMenu: View {
     /// Where the menu opens.
@@ -64,6 +65,8 @@ struct ArticleMenu: View {
         facts.canPlay = actions.isSaved || article?.isLink == true
         facts.hasShareURL = actions.shareURL != nil
         facts.inRecent = !facts.inLibrary && article.map(LibraryQueries.isInRecent) == true
+        facts.followable = actions.storyURL != nil
+        facts.canFollow = actions.shell.busy == nil
         if case .nowPlaying(let goTo) = place { facts.goToEnabled = goTo.availability == .enabled }
         if case .bar(let onStop) = place { facts.isLoaded = onStop != nil }
         return facts
@@ -117,6 +120,8 @@ struct ArticleMenu: View {
                            icon: skips ? Icons.includeInPlayback : Icons.skipInPlayback) {
                 if let article { library.toggleSkipsInPlayback(article) }
             }
+        case .follow:
+            return MenuRow(id: "menuFollow", title: Verbs.follow, icon: Icons.follow, action: actions.followStory)
         case .share:
             return MenuRow(id: "menuShare", title: Verbs.share, icon: Icons.share, action: actions.share)
         case .save:

@@ -25,9 +25,9 @@ struct MenuContext {
     /// screen's, then the tiles as rows, a section each.
     var blocks: [[MenuRow]] { [item, screen, tiles] }
 
-    /// A screen's own block, from `MenuRegistry` (C98): *Text Appearance*, *Sort*, *Follow…*, *Reload* where they
+    /// A screen's own block, from `MenuRegistry` (C98): *Text Appearance*, *Sort*, *Reload* where they
     /// apply, then *Prepared Audio*.
-    /// `custom` gives the rows only a screen can make (its *Sort*, *Follow…*, *Reload*). Settings
+    /// `custom` gives the rows only a screen can make (its *Sort*, *Reload*). Settings
     /// is a tile (C140), not a list row.
     @MainActor
     static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(),

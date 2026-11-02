@@ -10,6 +10,7 @@ struct LibraryChrome {
     let library: LibraryStore
     let speech: SpeechController
     let preparedAudio: PrepareCenter
+    let follow: FollowCenter
     let screen: LibraryScreenState
     let topLevelSort: Binding<String>
     /// *Stop Preparing* asked from the ⋯: the question shows by it.
@@ -39,6 +40,16 @@ struct LibraryChrome {
         return menu
     }
 
+    /// Library Read's menu (its top group's ⋯ and a press and hold on the field's reader icon): the
+    /// page's own menu (`ArticleMenu` where the page is open, its *Save* group first), then the
+    /// Library's rows (`compactMenu`).
+    func readingMenu(_ article: ReaderArticle) -> [[MenuRow]] {
+        let page = library.article(key: article.id, canonicalURL: article.origin.canonicalURL)
+        let actions = ArticleActions(article: page, readerArticle: article, library: library, shell: shell,
+                                     speech: speech, preparedAudio: preparedAudio, follow: follow)
+        return ArticleMenu(actions: actions, place: .open).blocks + compactMenu.blocks
+    }
+
     /// What the folded chrome's bubble names: the folder on top, else the home's tab (Library, History).
     /// Library Read never folds.
     var bubbleTitle: String {
@@ -62,7 +73,7 @@ struct LibraryChrome {
             field: { focus in
                 // Reading a page in place: the lit reader icon and the page's site, as the Browser's reader mode field.
                 if let article = shell.libraryReader {
-                    return AnyView(LibraryReaderField(article: article, menu: compactMenu.blocks,
+                    return AnyView(LibraryReaderField(article: article, menu: readingMenu(article),
                                                       openPage: article.origin.url.map { url in { shell.openWebsite(url) } }))
                 }
                 return AnyView(SearchField(text: Binding(get: { search.text }, set: { search.text = $0 }), prompt: searchPrompt,

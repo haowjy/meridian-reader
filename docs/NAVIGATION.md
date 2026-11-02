@@ -338,7 +338,9 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
 - **⋯ is not in the chrome.** Each screen's menu keeps its rows and their order (`MenuContext`) and is a
   system menu (`MenuRows`, `TitleMenuButton`), the panel's big buttons as its last section:
   - the Library home: ⋯ at the end of the title's line (`libraryMore`); a folder's screen: ⋯ beside Edit in its
-    navigation bar; Library Read: the top group's ⋯ (and a press and hold on the field's reader icon). The Library's menu adds *New Folder…*,
+    navigation bar; Library Read: the top group's ⋯ (and a press and hold on the field's reader icon), the page's
+    menu first (its *Save to Library* / *Remove from Library*, *Save to Folder…* / *Move to…* and *Follow…* group
+    leading), then the Library's. The Library's menu adds *New Folder…*,
     *Import from…* and *Paste Text…* to its screen's rows, and *Browsing History* is among its last rows. *Paste
     Text…*'s *Save* opens the new article in Library Read.
   - Settings: ⋯ at the end of its title's line (`settingsMore`).
@@ -347,8 +349,9 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
     icon, or 🔍 where there is none, `addressMenu`); a tap on the reader icon still toggles reader mode. In
     reader mode the top group's ⋯ opens the same menu.
     Its rows: *Open in Reader* (or *Show Web Page*), *Listen* (Listen over the page you hear; another readable
-    page is extracted and plays, and Listen rises once it starts), then the page's menu and the screen's rows
-    regular width's ⋯ shows (*Save to Folder…*, *Follow…*, *Reload*, …), then *Library* and *Browsing History*.
+    page is extracted and plays, and Listen rises once it starts), then the page's menu (*Save to Library*,
+    *Save to Folder…*, *Follow…* first) and the screen's rows regular width's ⋯ shows (*Reload*, …), then
+    *Library* and *Browsing History*.
   Compact width has no *Settings* row anywhere: the pill has it.
 - The field's and Listen's card's text grows with Dynamic Type up to *xxxLarge* inside
   the fixed pieces (larger clips or overlaps); every glyph offers the large content viewer. Every tap target is at least 44 pt.
@@ -444,12 +447,12 @@ the same spot. ⋯ is never replaced.
   (tap: pause); jade with still bars when it is loaded and paused (tap: resume). It never
   navigates.
 - **⋯** opens a Safari-style menu panel that grows out of the button (covers the ⋯, no arrow):
-  the article's own menu (the same rows as everywhere the article's menu shows: "Menus", below), then
-  *New Search, Follow…, Reload, Prepared Audio, Settings*, then a row of big buttons **Library**,
-  **Browsing History**, and **Reader** (rightmost, nearest the thumb, like Safari's All Tabs). The page's
-  *Save to Library* and *Save to Folder…* extract it first. *Follow…* reads the story the article
-  belongs to ("Follow a story", below). On the start page there is no page, so no page rows;
-  *Follow…*, *Reload* and the Reader toggle show dimmed; the Reader toggle is dimmed on pages that
+  the article's own menu (the same rows as everywhere the article's menu shows: "Menus", below; its
+  *Save to Library*, *Save to Folder…* and *Follow…* first), then *Reload, Prepared Audio, Settings*,
+  then a row of big buttons **Library**, **Browsing History**, and **Reader** (rightmost, nearest the
+  thumb, like Safari's All Tabs). The page's *Save to Library* and *Save to Folder…* extract it first.
+  *Follow…* reads the story the article belongs to ("Follow a story", below). On the start page there
+  is no page, so no page rows; *Reload* and the Reader toggle show dimmed; the Reader toggle is dimmed on pages that
   aren't readable too, and on a readable page tapping it switches into reader mode. Actions that present something (Share, Settings, Browsing History, the Move tree)
   run after the panel has closed.
 - **The ⋯ panel** (`MorphMenuOverlay`: one overlay for the browser toolbar ⋯, the library
@@ -707,8 +710,8 @@ commas.
   (above), Follow reads a story's contents again and fetches its chapters, the Now Playing bar
   names it as the source of its chapters, and its finished chapters lose their audio (D7).
 
-**Follow a story**: the browser's ⋯ → *Follow…* on a story's page (a Royal Road chapter leads to
-its story article), or the Library's ⋯ → *Follow…* (the home, or a folder, which the story's folder
+**Follow a story**: *Follow…* in a page's menu (the browser's, a reading page's ⋯, a row's) on a
+story's page (a Royal Road chapter leads to its story article), or the Library's ⋯ → *Follow…* (the home, or a folder, which the story's folder
 goes in), where you type or paste the story's address. Follow covers the screen:
 
 1. *Finding the chapters…* with the spinning download arc and the address: one request, signed in as in the
@@ -782,8 +785,8 @@ row plays it** (replacing what plays; in a folder it carries on through the fold
 width, slides Listen up over the Library, except the
 article you hear, which opens Listen (a stray tap never pauses); a link page (*Add Link…*'s,
 a story's chapter waiting for its text) is fetched first, its row showing the download arc and saying *Downloading…* (or why it
-couldn't be had), then plays, Listen staying down; a skipped page plays when tapped. *Read*, the menu's first row, opens
-it (the Reader; Listen for the page you hear; the browser for a link). **Tapping a folder
+couldn't be had), then plays, Listen staying down; a skipped page plays when tapped. *Read*, the first row after the
+menu's save group, opens it (the Reader; Listen for the page you hear; the browser for a link). **Tapping a folder
 row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own last row,
 by its name: an article's *Remove from Library* (or *Remove from History*), which takes its row out of
 every list once it is saved, and leaves it, with a toast, when it can't be; a folder's *Delete
@@ -843,16 +846,17 @@ are red everywhere.
 
 | An article's menu | Where it shows |
 |---|---|
+| *Save to Library* / *Remove from Library* (red) | first, everywhere, with the next two as one group; *Save to Library* dimmed without text to save. The reading pages keep their 🔖 too |
+| *Save to Folder…* / *Move to…* | *Save to Folder…* out of the Library (the Move tree, titled *Save to Folder*, saves it there), *Move to…* in it |
+| *Follow…* | an article with a web address (one that can belong to a story); dimmed while the page is being extracted. It opens Follow on its address ("Follow a story", below) |
 | *Read* / *Go to <place>* | *Read* (the Reader; Listen for the page you hear; the browser for a link or an address the Library hasn't) where the page isn't open; Listen has *Go to* its folder or the Library in its place; neither on the Reader or the browser |
 | *Play from Here* | an article in a folder, in a Library list |
 | *Prepare Audio* / *Remove Prepared Audio* (red) | a page out of the Library is saved first (C104); dimmed only on a browser page not yet loaded as a page |
-| *Move to…* / *Save to Folder…* | *Save to Folder…* out of the Library (the Move tree, titled *Save to Folder*, saves it there), *Move to…* in it |
 | *Mark as Finished* / *Mark as Unfinished* | dimmed until it is saved |
 | *Mark All Above as Finished* | an article in a folder, in a Library list |
 | *Skip When Playing* / *Don’t Skip* | an article in a folder |
 | *Share* | an article with a web address |
 | *Select* | a folder screen's rows (Edit with that row selected) |
-| *Save to Library* / *Remove from Library* (red) | *Save to Library* dimmed without text to save |
 | *Remove from History* (red) | an article out of the Library; dimmed while it isn't in History |
 
 | A folder's menu | Where it shows |
