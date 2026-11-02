@@ -110,12 +110,12 @@ enum LaunchHooks {
     private struct InjectedSaveFailure: Error {}
 
     /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-openSettings`, `-downloadVoice`,
-    /// `-openVoicePicker`, `-openLibraryFolder`, `-tapListen`
+    /// `-openVoicePicker`, `-openLibraryFolder`, `-prepareFolder`, `-tapListen`
     /// (`-tapListenWhen`), `-tapLibraryRow`,
     /// `-pasteText`, `-importBook`, `-listenDemo`, `-playTestEPUB`, `-chainDemoChapters`,
     /// `-switchDestinationAndBack`.
     static func runAfterLaunch(_ options: LaunchOptions, library: LibraryStore, speech: SpeechController,
-                               shell: ShellState, follow: FollowCenter?) async {
+                               shell: ShellState, follow: FollowCenter?, preparedAudio: PrepareCenter?) async {
         if options.opensDemoInReader { await openNewestInReader(in: library, shell: shell) }
         if options.opensSettings { await openSettings(options, shell: shell) }
         if let voice = options.downloadsVoice { downloadVoice(voice, options, tts: speech.localTTS) }
@@ -134,6 +134,11 @@ enum LaunchHooks {
             try? await Task.sleep(for: .seconds(1))
             let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
             if let folder = folders.first(where: { $0.name == name }) { shell.showLibrary(at: library.path(to: folder)) }
+        }
+        if let name = options.preparesFolder, let preparedAudio {
+            try? await Task.sleep(for: .seconds(1))
+            let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
+            if let folder = folders.first(where: { $0.name == name }) { _ = preparedAudio.prepare(folder) }
         }
 
         if options.tapsListen || options.tapsListenWhenFullScreen {

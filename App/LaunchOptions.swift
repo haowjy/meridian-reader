@@ -46,6 +46,9 @@ struct LaunchOptions: Equatable {
     /// `-openLibraryFolder <name>`: once launched, the Library on the first folder named `<name>`
     /// (`-seedDemoFolders`' "Demo Finance"), as a tap on its row does.
     var opensLibraryFolder: String?
+    /// `-prepareFolder <name>`: once launched, the first folder named `<name>` prepared, as its
+    /// header's Prepare does (prepare marks for probes; with `-testVoice` it renders offline).
+    var preparesFolder: String?
     /// `-openSettings`: once launched, what a tap on the pill's Settings does. `-searchSettings <text>`:
     /// then Search Settings holds the text. `-openSettingsPage <page>` (`voice`, `appearance`, …): then
     /// that page is pushed.
@@ -208,6 +211,7 @@ struct LaunchOptions: Equatable {
         switchesDestinationAndBack = value(after: "-switchDestinationAndBack")
         opensLibrary = flags.contains("-openLibrary")
         opensLibraryFolder = value(after: "-openLibraryFolder")
+        preparesFolder = value(after: "-prepareFolder")
         settingsSearch = value(after: "-searchSettings")
         settingsPage = value(after: "-openSettingsPage").flatMap(SettingsRoute.init(rawValue:))
         opensSettings = flags.contains("-openSettings") || settingsSearch != nil || settingsPage != nil
