@@ -41,8 +41,8 @@ final class NetworkPathStatus: @unchecked Sendable {
 
     /// Why a large download should ask before using the current path; nil on Wi‑Fi (and
     /// Ethernet) with Low Data Mode off. Offline is nil too, so the download's own error surfaces.
-    /// Waits for the monitor's first update, up to `timeout`; a path still unknown then asks
-    /// (`unknown`).
+    /// Waits for the monitor's first update, up to `timeout` (a cancelled caller stops waiting at
+    /// once); a path still unknown then asks (`unknown`).
     func largeDownloadCaution(timeout: Duration = .seconds(1)) async -> LargeDownloadCaution? {
         if let path = currentPath { return Self.caution(of: path) }
         await firstUpdate(timeout: timeout)
@@ -56,26 +56,31 @@ final class NetworkPathStatus: @unchecked Sendable {
         return path
     }
 
-    /// Returns at the monitor's first update (at once when it came), or after `timeout`.
+    /// Returns at the monitor's first update (at once when it came), after `timeout`, or when the
+    /// caller is cancelled.
     private func firstUpdate(timeout: Duration) async {
-        await withCheckedContinuation { (waiter: CheckedContinuation<Void, Never>) in
-            lock.lock()
-            if path != nil {
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (waiter: CheckedContinuation<Void, Never>) in
+                lock.lock()
+                if path != nil || Task.isCancelled {
+                    lock.unlock()
+                    waiter.resume()
+                    return
+                }
+                waiters[id] = waiter
                 lock.unlock()
-                waiter.resume()
-                return
+                let (seconds, attoseconds) = timeout.components
+                queue.asyncAfter(deadline: .now() + Double(seconds) + Double(attoseconds) / 1e18) { [weak self] in
+                    self?.resumeWaiter(id)
+                }
             }
-            let id = UUID()
-            waiters[id] = waiter
-            lock.unlock()
-            let (seconds, attoseconds) = timeout.components
-            queue.asyncAfter(deadline: .now() + Double(seconds) + Double(attoseconds) / 1e18) { [weak self] in
-                self?.resumeWaiter(id)
-            }
+        } onCancel: {
+            resumeWaiter(id)
         }
     }
 
-    /// A waiter's timeout: resumes it unless the update already did.
+    /// A waiter's timeout or cancel: resumes it unless the update (or the other) already did.
     private func resumeWaiter(_ id: UUID) {
         lock.lock()
         let waiter = waiters.removeValue(forKey: id)

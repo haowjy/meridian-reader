@@ -29,8 +29,7 @@ extension FluidAudioProvider {
     /// `voice`'s transfer (`KokoroTransfers`): the frontend, the pack, then the model, whose
     /// progress is the row's ring. A host load or render downloading the same voice is the same
     /// transfer.
-    func download(_ voice: String, for id: SpeechEngineID,
-                  progress: @escaping @MainActor (Double?) -> Void) async throws {
+    func download(_ voice: String, for id: SpeechEngineID) async throws {
         guard id == .kokoro, downloadSize(of: voice, for: id) != nil else { return }
         #if DEBUG
         let work: KokoroTransfers.Work = if let simulation {
@@ -66,6 +65,11 @@ extension FluidAudioProvider {
 
     func remove(_ voice: String, for id: SpeechEngineID) throws {
         guard let removal = removal(of: voice, for: id) else { return }
+        defer {
+            // What the row shows is now its files, for every voice the model took with it too.
+            let gone = removal.removesEngine ? Self.kokoroDescriptor.allVoices.map(\.id) : [voice]
+            for each in gone { KokoroTransfers.shared.clearFailure(each) }
+        }
         #if DEBUG
         if let simulation {
             simulation.remove(voice, engine: removal.removesEngine)

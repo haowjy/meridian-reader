@@ -25,13 +25,13 @@ protocol SpeechEngineProvider: AnyObject {
     /// not those its library's voices share; measured, not assumed. nil when unknown. The Voice
     /// picker's second line for a voice on the device.
     func installedSize(of voice: String, for id: SpeechEngineID) -> Int64?
-    /// Download everything `voice` needs (no-op when it is on the device). Files only: no engine
-    /// loads. `progress` gets the fraction once the size is known, nil while it starts or checks.
-    /// Throws `CancellationError` when the task is cancelled or the large-download prompt declined.
-    func download(_ voice: String, for id: SpeechEngineID,
-                  progress: @escaping @MainActor (Double?) -> Void) async throws
-    /// A download of `voice`'s files in flight, whoever started it (a pick, or playback's engine
-    /// load or render); nil when none is. Observable, so the picker's rows follow it.
+    /// Download everything `voice` needs (no-op when it is on the device), as `voice`'s one transfer
+    /// (joining it when one runs). Files only: no engine loads. Its progress and failure are
+    /// `transfer(of:for:)`'s. Throws `CancellationError` when stopped (the task cancelled,
+    /// `stopTransfer`, or the large-download prompt declined).
+    func download(_ voice: String, for id: SpeechEngineID) async throws
+    /// `voice`'s transfer: running, or failed last time; nil when neither. Observable, so the
+    /// picker's rows follow it.
     func transfer(of voice: String, for id: SpeechEngineID) -> VoiceTransfer?
     /// Stop `voice`'s download in flight: everyone waiting on it stops waiting, playback included.
     func stopTransfer(of voice: String, for id: SpeechEngineID)
@@ -61,8 +61,7 @@ extension SpeechEngineProvider {
     var retiredEngines: [RetiredEngine] { [] }
     func downloadSize(of voice: String, for id: SpeechEngineID) -> Int64? { nil }
     func installedSize(of voice: String, for id: SpeechEngineID) -> Int64? { nil }
-    func download(_ voice: String, for id: SpeechEngineID,
-                  progress: @escaping @MainActor (Double?) -> Void) async throws {}
+    func download(_ voice: String, for id: SpeechEngineID) async throws {}
     func transfer(of voice: String, for id: SpeechEngineID) -> VoiceTransfer? { nil }
     func stopTransfer(of voice: String, for id: SpeechEngineID) {}
     func removal(of voice: String, for id: SpeechEngineID) -> VoiceRemoval? { nil }
@@ -171,9 +170,8 @@ final class EngineRegistry {
         byID[id]?.1.installedSize(of: voice, for: id)
     }
 
-    func download(_ voice: String, for id: SpeechEngineID,
-                  progress: @escaping @MainActor (Double?) -> Void) async throws {
-        try await byID[id]?.1.download(voice, for: id, progress: progress)
+    func download(_ voice: String, for id: SpeechEngineID) async throws {
+        try await byID[id]?.1.download(voice, for: id)
     }
 
     func transfer(of voice: String, for id: SpeechEngineID) -> VoiceTransfer? {
@@ -217,8 +215,11 @@ struct VoiceRemoval: Equatable {
     let removesEngine: Bool
 }
 
-/// A voice's download in flight (`SpeechEngineProvider.transfer(of:for:)`).
-struct VoiceTransfer: Equatable {
-    /// How far, once the size is known; nil while it starts or checks.
-    let fraction: Double?
+/// A voice's download as its library's transfers know it, whoever started it: a pick, or
+/// playback's engine load or render (`SpeechEngineProvider.transfer(of:for:)`).
+enum VoiceTransfer: Equatable {
+    /// In flight: how far once the size is known; nil while it starts, asks or checks.
+    case running(fraction: Double?)
+    /// The last one failed (not a stop); the next try, or the voice's files changing, clears it.
+    case failed
 }

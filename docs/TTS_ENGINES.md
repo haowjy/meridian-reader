@@ -84,10 +84,14 @@ chunk (playback pauses there with Retry), and `LocalPCMWriter` writes non-finite
   it: a pick, the host's load, or a render in a voice whose pack isn't on the device
   (`LocalSynthHost.prepareVoice`, before the crash marker, so a removed pack downloads again
   rather than failing the render). The picker shows each on its voice's row and stops it there
-  (`transfer(of:for:)`, `stopTransfer`); the model is one download all of them share, so a stop
-  stops it for every voice and load waiting on it. A transfer stopped while its last step
-  finished (the model's check ignores a stop) still counts as stopped: the files stay, nothing
-  is selected. Removing a voice deletes its
+  (`transfer(of:for:)`, `stopTransfer`). A transfer's whole life is `KokoroTransfers`': its
+  stages (the large-download question among them), progress, stop and end, which happens once
+  for everyone waiting; a failure (not a stop) stays on the row whoever started it, until the next
+  try or a removal. A stop ends it at once, whatever stage it is in; work that finishes after (the
+  model's check ignores a stop) leaves its files, and nothing is selected. The model is one
+  download all of them share (`KokoroONNXModelStore.ensureInstalled`, the CPU route benchmark's
+  *Download* included), so a stop stops it for every voice and load waiting on it; each model
+  download has its own id, so a stopped one's late URLSession callback never settles the retry. Removing a voice deletes its
   pack; Heart's ships in the app, so Heart is removable only as the last voice on the device,
   which deletes the model (Kokoro then downloads again for any voice).
 - Voices (`KokoroVoiceCatalog`): `af_heart` (Heart, default), `af_bella`, `bf_emma`, `am_puck`,
@@ -202,7 +206,9 @@ Mode on, an alert from `RootView` asks "Download in Low Data Mode?" ("<engine> n
 Data Mode is on."); on cellular otherwise, "Download on Cellular?" ("<engine> needs <size>.
 You're not on Wi-Fi."). It waits for the network monitor's first update (started at launch) up
 to a second; a path still unknown asks too ("Download Kokoro?"). Its buttons are *Download* and *Not Now*, which stops the download (the
-voice's row goes back to not downloaded; nothing waits for Wi-Fi). Offline never prompts, so the
+voice's row goes back to not downloaded; nothing waits for Wi-Fi). Asking is a stage of the
+transfer: a stop during the network wait or while the question shows ends that wait, and the
+question goes once nobody waits on it. Offline never prompts, so the
 download's own error shows.
 
 ## Text prep for speech
