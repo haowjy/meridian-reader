@@ -107,7 +107,8 @@ enum LaunchHooks {
                                   title: chapter.title, bodyHTML: chapter.paragraphs.map { "<p>\($0)</p>" }.joined(separator: "\n"),
                                   plainText: plain, excerpt: String(plain.prefix(140)))
         }
-        let details = FolderDetails(kind: .book, title: book.title, byline: book.author, sourceIdentifier: "debug.marketing-book")
+        let details = FolderDetails(kind: .book, title: book.title, byline: book.author, cover: MarketingContent.bookCover(),
+                                    sourceIdentifier: "debug.marketing-book")
         if let bookFolder = try? library.addBook(details, chapters: chapters, in: nil) {
             let pages = library.articles(in: bookFolder, sort: .manual)
             for page in pages { page.addedAt = daysBefore(9) }
@@ -142,6 +143,7 @@ enum LaunchHooks {
         if options.servesTestPages, !options.restoresSurface, let url = URL(string: "reader-test://pages/one") {
             shell.navigate(to: url)
         }
+        if let address = options.opensAddress { shell.navigate(to: address) }
         if options.opensLibrary { shell.openLibrary() }
         if options.failsLibrarySaves { library.saveContext = { _ in throw InjectedSaveFailure() } }
     }
