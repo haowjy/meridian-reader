@@ -1,5 +1,5 @@
 // Serializes the live page without short text the reader can't actually see.
-// Anti-copy injections (e.g. Royal Road's "this story is on Amazon without permission"
+// Anti-copy injections (a site's "this story is on Amazon without permission"
 // spans hidden by a random CSS class) disappear from the saved article and from speech.
 // Large hidden regions are kept: they're usually collapsed UI (mobile Wikipedia sections),
 // not injected text.

@@ -7,7 +7,7 @@ import SwiftUI
 ///
 /// ```
 ///                 Following                    ( Done )
-/// royalroad.com/fiction/40512
+/// example.com/story/40512
 /// Last checked                       today 8:02 AM
 /// Next check                      tomorrow 8:02 AM
 /// Chapter Text                    109 of 109 fetched

@@ -176,6 +176,7 @@ enum Verbs {
     static let `import` = String(localized: "Import")
     /// A book's or story's chapter list (the import sheet's, Follow's review).
     static let chapters = String(localized: "Chapters")
+    static let posts = String(localized: "Posts")
     /// A folder's name field (New Folder, Rename, Edit Details).
     static let name = String(localized: "Name")
     /// Settings' appearance and reading themes.

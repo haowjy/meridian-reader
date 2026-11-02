@@ -15,6 +15,8 @@ struct FollowState: Codable, Equatable {
     /// Review: a check adds only the ones not in it, so an unchecked chapter stays skipped and one
     /// you deleted doesn't come back.
     var seen: [String] = []
+    /// The site's name in notices (`TableOfContents.siteName`); nil from before it was kept.
+    var siteName: String?
 }
 
 extension Folder {
@@ -26,6 +28,11 @@ extension Folder {
 
     /// The story's table of contents.
     var contentsURL: URL? { sourceURLString.flatMap(URL.init(string:)) }
+
+    /// The story's site, as its notices name it.
+    var siteName: String? {
+        followState?.siteName ?? contentsURL.map(TableOfContents.siteName(of:))
+    }
 }
 
 /// Following a story (Follow): a folder (`FolderKind.series`) made from its table of contents,
@@ -58,7 +65,7 @@ extension LibraryStore {
             folder.sourceURLString = contents.url.absoluteString
             folder.sourceIdentifier = ArticleIdentity.canonicalURLString(from: contents.url)
             context.insert(folder)
-            var state = FollowState(lastCheckedAt: now())
+            var state = FollowState(lastCheckedAt: now(), siteName: contents.siteName)
             state.seen = contents.chapters.map(\.canonicalURL)
             setFollowState(state, of: folder)
             for chapter in kept { addChapter(chapter, to: folder, byline: contents.byline) }

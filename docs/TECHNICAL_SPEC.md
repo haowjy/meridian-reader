@@ -204,13 +204,19 @@ provider is `BundledRuleList`: a bundled WebKit content-blocker list
 host and its subdomains, the page itself too, so a link through an ad host doesn't open). It is compiled once into WebKit's rule-list store under an identifier
 carrying the JSON's hash: a launch looks it up (an edited list compiles anew and the older ones are
 removed). A site's own ads (served from its own host, such as
-Royal Road's promotions of its fictions) are not blocked.
+a serial site's promotions of its fictions) are not blocked.
 
 **Follow** (`FollowCenter`, `LibraryStore+Follow`): a story's table of contents
-(`TableOfContents.read`, through an ordered list of readers, the first that matches an address
-reading it: Royal Road's story article by its chapters table, any other site by the list with the
-most chapter-like links on its own site; a Royal Road chapter's address leads to its story article;
-each reader also names its site) becomes a `series` folder of link pages, one per chapter kept in Review, in the
+(`TableOfContents.read`, through generic rules only, no site is named; the first that finds a list
+wins: the page's own list of links, the one with the most chapter-like or dated links on its site
+and at least half of its links of that kind, links sharing one path shape adding to its score;
+else, for a page with no list (a chapter, a post), the link on it whose path is the longest proper
+prefix of its own, read the same way, one more fetch; else a feed, the page's own or the first it
+advertises (RSS 2.0 or Atom, `<link rel="alternate">`), read by the fetcher's links script. A feed
+is last because it is a window of the latest entries and a page's list is whole. A feed, or a list
+whose dates run newest first, is *Posts*, newest first; any other list is *Chapters*, in the
+page's order. The site's name is `og:site_name`, else the host without "www.", kept in
+`FollowState.siteName`. Every extra read goes through `FetchQueue`) becomes a `series` folder of link pages, one per chapter kept in Review, in the
 story's order, with its state in `sourceStateData` (`FollowState`: following or not, the last
 check, the last chapters added, and every chapter address the contents have listed, kept or not).
 Review's preview of a chapter is not an out-of-sight fetch: it loads the chapter in sight, in the

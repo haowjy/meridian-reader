@@ -72,7 +72,7 @@ struct FollowSheet: View {
                     .onSubmit(read)
                     .inputSheetField()
                     .accessibilityIdentifier("addLinkField")
-                Text("An article, or a story’s chapter list to follow.").footnote()
+                Text("An article, or a blog or story to follow.").footnote()
             }
             .padding(Spacing.pageMargin)
             .onAppear { addressFocused = true }
@@ -101,7 +101,7 @@ struct FollowSheet: View {
                 .accessibilityIdentifier("addLinkAdd")
         case .review(let contents):
             let count = flow.keptChapters(of: contents).count
-            PillButton(String(localized: "Follow \(count) Chapters"),
+            PillButton(contents.kind == .posts ? String(localized: "Follow \(count) Posts") : String(localized: "Follow \(count) Chapters"),
                        style: count == 0 ? .neutral : .filled, expands: true) { follow(contents) }
                 .disabled(count == 0 || flow.isSaving)
                 .accessibilityIdentifier("followOK")
@@ -163,7 +163,7 @@ private struct FollowReview: View {
                 }
             } header: {
                 // How many it found; how many are kept is on Follow's button.
-                SectionHeader(title: Verbs.chapters, count: contents.chapters.count)
+                SectionHeader(title: contents.kind == .posts ? Verbs.posts : Verbs.chapters, count: contents.chapters.count)
                     .listHeader()
                     .accessibilityIdentifier("followFound")
             }

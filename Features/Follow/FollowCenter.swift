@@ -131,11 +131,18 @@ final class FollowCenter {
 
     // MARK: - Following
 
-    /// The story `url` belongs to, read from its table of contents (`TableOfContents.contentsURL`):
-    /// one request, ahead of background work.
+    /// What the page at `url` lists to follow (`TableOfContents.read`): its feed, its list of
+    /// links, or the story or blog page it belongs to. Each page is one request, ahead of
+    /// background work.
     func readContents(of url: URL) async throws -> TableOfContents {
-        let article = try await queue.links(of: TableOfContents.contentsURL(for: url), priority: .user)
-        guard let contents = TableOfContents.read(article) else { throw FollowError.noChapters }
+        try await read(url, priority: .user)
+    }
+
+    private func read(_ url: URL, priority: FetchQueue.Priority) async throws -> TableOfContents {
+        let page = try await queue.links(of: url, priority: priority)
+        guard let contents = try await TableOfContents.read(page, fetch: { [queue] in
+            try await queue.links(of: $0, priority: priority)
+        }) else { throw FollowError.noChapters }
         return contents
     }
 
@@ -155,9 +162,7 @@ final class FollowCenter {
         checking.insert(id)
         defer { checking.remove(id) }
         do {
-            guard let contents = TableOfContents.read(try await queue.links(of: url, priority: priority)) else {
-                throw FollowError.noChapters
-            }
+            let contents = try await read(url, priority: priority)
             guard let folder = library.folder(id: id) else { return }
             if try library.addNewChapters(from: contents, to: folder) > 0 { kick() }
             checkFailures[id] = nil

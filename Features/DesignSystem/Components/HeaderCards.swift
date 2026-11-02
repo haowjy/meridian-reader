@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A short notice in a header, in the caution colour on its wash: something is held up and will
-/// carry on by itself ("Royal Road asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52,
+/// carry on by itself ("Example Press asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52,
 /// more slowly.").
 struct NoticeCard: View {
     let symbol: String
@@ -100,7 +100,7 @@ struct HeaderCardsGallery: View {
             }
             PreviewState("notice") {
                 NoticeCard(symbol: Icons.waiting,
-                           text: "Royal Road asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52, more slowly.")
+                           text: "Example Press asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52, more slowly.")
             }
         }
     }
