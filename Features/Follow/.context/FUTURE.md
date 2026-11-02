@@ -8,7 +8,23 @@
      order. Add it as a `ContentsReader` in `TableOfContents.readers`, ahead of the others.
   2. **The page's list of links** (today's `Generic`), scored on more than chapter words: dates,
      and links that repeat one shape.
-  3. **Site rules** (`RoyalRoad`) only where those two fail.
+  3. **No site rules.** The owner wants the Royal Road code gone ("hopefully our generic thing
+     can follow Royal Road"). Delete `TableOfContents.RoyalRoad` and make the generic path cover it:
+     - **from a chapter to its index:** when the page has no list of chapters, follow the link on it
+       whose path is the longest proper prefix of the page's own path. Royal Road's chapter
+       `/fiction/<id>/<slug>/chapter/<n>/…` links to `/fiction/<id>/<slug>`; a blog post links to
+       its blog. That is at most one extra fetch, through `FetchQueue`.
+     - **the list:** today's scoring already prefers Royal Road's chapters table (numbered titles,
+       each row's date links to the same chapter, deduped).
+     - **the site's name in notices:** `og:site_name`, which `URLPageFetcher` can read with the
+       author meta, falling back to the host without "www.".
+     - **text and previews:** the copy, placeholders and previews that name Royal Road or use
+       `royalroad.com` addresses (FollowSheet's field and help, AddressLabel, HeaderCards,
+       FollowStatus, FollowingSheet and the preview sheet's comments) switch to `example.com`, as
+       AGENTS.md requires.
+     - **verification:** an offline synthetic fixture shaped like that site (story page with a
+       chapters table, chapter pages with the prefix link), added to the `reader-test://` pages,
+       then a live check on the owner's phone.
 
   On screen:
   - name it "Follow a Site" (it is *Follow…* today);
