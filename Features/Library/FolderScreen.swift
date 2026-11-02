@@ -333,6 +333,7 @@ private struct FolderSearchResults: View {
                     .lineLimit(2)
                     .listHeader()
             }
+            .headerOnlySection()
             if folders.isEmpty && articles.isEmpty {
                 ContentUnavailableView.search(text: text)
                     .listRowBackground(Color.clear)

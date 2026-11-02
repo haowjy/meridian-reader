@@ -38,6 +38,7 @@ struct BookImportSheet: View {
                     header
                         .listHeader()
                 }
+                .headerOnlySection(followedByHeader: true)
                 Section {
                     destinationRow
                         .listRowInsets(EdgeInsets())

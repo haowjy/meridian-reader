@@ -50,6 +50,7 @@ struct FolderDetailsSheet: View {
                     coverPreview
                         .listHeader()
                 }
+                .headerOnlySection(followedByHeader: true)
                 field(Verbs.name, text: $name, prompt: Verbs.name, id: "detailsName")
                 field(String(localized: "Author"), text: $byline, prompt: String(localized: "Optional"), id: "detailsAuthor")
                 Section {
