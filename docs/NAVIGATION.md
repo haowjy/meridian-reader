@@ -648,8 +648,8 @@ commas.
   The screen's name shows once, in its header; the navigation bar shows it only once the header
   has scrolled under the bar. An empty folder's header has no counts; under it the empty view
   every empty screen has (`EmptyState`): *This Folder Is Empty*, *Move articles here, or save them
-  here from the Reader's 🔖* (the toolbar's symbol), over the same five tiles as the Library's (into
-  the folder).
+  here from the Reader's 🔖* (the toolbar's symbol), over the same five tiles as the Library's (they
+  add into the folder, except *Follow a Site*, whose story's folder goes at the Library's top level).
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
   **Author**, a **Book** toggle under *Labels* (C149: on calls pages "chapters", off calls them
