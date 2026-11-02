@@ -161,6 +161,8 @@ enum Icons {
 
     /// Settings (the last row of every ⋯ menu).
     static let settings = "gearshape"
+    /// ⋯ › Help.
+    static let help = "questionmark.circle"
     /// Aa: how the page reads (the reading theme, font, size and spacing panel).
     static let textAppearance = "textformat.size"
     static let textSmaller = "textformat.size.smaller"

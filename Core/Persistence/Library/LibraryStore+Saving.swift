@@ -41,8 +41,12 @@ extension LibraryStore {
     /// typed title) is its heading, not text: it is left out of the paragraphs, as a web page's
     /// heading matching its title is. A one-line paste keeps its line, and a title cut from a
     /// longer first line (`defaultTitle`) leaves that line in.
+    ///
+    /// `key`: the page's key when it must be a known one (a bundled article whose audio ships
+    /// with the app, `WelcomeArticle`).
     @discardableResult
-    func saveText(title: String, text: String, in folder: Folder?) throws -> Article {
+    func saveText(title: String, text: String, in folder: Folder?, key: UUID = UUID(),
+                  byline: String = String(localized: "Pasted text")) throws -> Article {
         let plain = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         var blocks = plain.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         let typed = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -52,8 +56,7 @@ extension LibraryStore {
         let html = blocks.map { "<p>" + Self.escapedHTML($0) + "</p>" }.joined(separator: "\n")
         let paragraphs = Article.buildListenDocument(plainText: body, cleanedHTML: html, title: nil).paragraphs
         let saved = try edit("paste text") { () -> Article in
-            let key = UUID()
-            let article = Article(key: key, title: name, byline: String(localized: "Pasted text"), urlString: nil,
+            let article = Article(key: key, title: name, byline: byline, urlString: nil,
                                   contentState: .saved, addedAt: now(), sortKey: nextSortKey(in: folder))
             article.givenTitle = name
             article.locator = "text:\(key.uuidString)"
@@ -86,7 +89,7 @@ extension LibraryStore {
     }
 
     /// *Prepare* on a page played without saving saves it first (C104), into the Library's top
-    /// level; a page in the Library stays where it is.
+    /// level; a page in the Library stays where it is. Audio it has is saved with it.
     func saveUnsaved(_ article: Article) throws {
         guard article.addedAt == nil else { return }
         try edit("save to download") {
@@ -94,5 +97,6 @@ extension LibraryStore {
             article.removedAt = nil
             article.sortKey = nextSortKey(in: nil)
         }
+        if let key = article.key { plan(.saved, key: key) }
     }
 }

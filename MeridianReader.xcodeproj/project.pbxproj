@@ -96,6 +96,7 @@
 		337F7F3CFCD9DF58FAAB2EE3 /* ListenDebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EEEFBCA169A8890D08A345D /* ListenDebugLog.swift */; };
 		33B8C7BE30E0AB530B1AABA6 /* LibraryChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9BEF8413875F70C81CA396F /* LibraryChrome.swift */; };
 		34C3CE41E60701F47155E513 /* LibraryStoreConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 819BB093F87F477A1727BD97 /* LibraryStoreConfiguration.swift */; };
+		355DC2857A94C685003606F1 /* WelcomeArticle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7713A0FCEACC0017BCBD07D1 /* WelcomeArticle.swift */; };
 		367B6C948B8879493CC354C8 /* onnxruntime in Frameworks */ = {isa = PBXBuildFile; productRef = 43F56C6DC227D61B06528C9D /* onnxruntime */; };
 		36D6D488D5C3926AD1F33BF1 /* GlobalSynthQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13C569C67B9A84615D623816 /* GlobalSynthQueue.swift */; };
 		3739C914286A5F47CA5BB528 /* IncomingOpen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F85E717D6ACF6CAA91D564E5 /* IncomingOpen.swift */; };
@@ -251,6 +252,7 @@
 		971AB9B299FFB0C7E0B03254 /* voice-preview-phonon-fairy-godmother.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7D635061D9A995099B59B391 /* voice-preview-phonon-fairy-godmother.m4a */; };
 		975BE4ECFFE04F0261927CE7 /* PrepareMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFA3D83C38E3E655B61CC609 /* PrepareMenu.swift */; };
 		9781AEF9BFEA9D3D963D1E66 /* EPUBSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A563020CF55E8F6F40E88CC /* EPUBSource.swift */; };
+		992D6186FAFF0252FFFD0F9E /* Welcome in Resources */ = {isa = PBXBuildFile; fileRef = 00DA113C9774982944990EC2 /* Welcome */; };
 		99E2F08B11E8FCCD2A612704 /* VoiceSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D424D7C28771A64E4AEDC7C8 /* VoiceSelectionTests.swift */; };
 		9A2F757F275DD8D64079D463 /* RegularLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCD1E4E2F24E227CF978B58 /* RegularLayout.swift */; };
 		9A762A67DD12DE6EAED92801 /* ListenDebugPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7A14C91D4840D6F1622E30C /* ListenDebugPanel.swift */; };
@@ -495,6 +497,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		00DA113C9774982944990EC2 /* Welcome */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Welcome; path = Resources/Welcome; sourceTree = SOURCE_ROOT; };
 		018916255AA2B0A81B60304C /* ChromeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeScreen.swift; sourceTree = "<group>"; };
 		0192CD856C23B05D5DAC8758 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		01E5B85DA00F5782169B11B9 /* ActionButtonRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButtonRow.swift; sourceTree = "<group>"; };
@@ -695,6 +698,7 @@
 		760ADC276A4146F0BE3E2294 /* FolderMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderMenu.swift; sourceTree = "<group>"; };
 		7644E922E66B4898420E2EF6 /* LocalSynthHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSynthHost.swift; sourceTree = "<group>"; };
 		76FF0104EA63047B33D471A9 /* ScrubTrack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrubTrack.swift; sourceTree = "<group>"; };
+		7713A0FCEACC0017BCBD07D1 /* WelcomeArticle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeArticle.swift; sourceTree = "<group>"; };
 		7747EB1EFD6E7EE92D3A4BEB /* voice-preview-phonon-lottie.m4a */ = {isa = PBXFileReference; path = "voice-preview-phonon-lottie.m4a"; sourceTree = "<group>"; };
 		79643CA611C084BF59345F8B /* ReaderBookChapter.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ReaderBookChapter.js; sourceTree = "<group>"; };
 		79B8BA0B6863E4BA50B98AE0 /* Readability.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Readability.js; sourceTree = "<group>"; };
@@ -1032,6 +1036,14 @@
 				94719A7F10D0D0FD27E78E03 /* MeridianReaderTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		24DBA661B6677EAB2C180A7C /* Welcome */ = {
+			isa = PBXGroup;
+			children = (
+				7713A0FCEACC0017BCBD07D1 /* WelcomeArticle.swift */,
+			);
+			path = Welcome;
 			sourceTree = "<group>";
 		};
 		263E8711B39CE851D81FF7B5 /* Components */ = {
@@ -1610,6 +1622,7 @@
 				BFCE8B8E23165C8D1A97CB65 /* Settings */,
 				E9873708DA103DDC9A3C709F /* Shell */,
 				D437B79218D913415F8C6467 /* Speech */,
+				24DBA661B6677EAB2C180A7C /* Welcome */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -1821,6 +1834,7 @@
 				C29CB09F87A80051A2AF2A37 /* KokoroHeteronyms.json */,
 				16A0A1AF3F6CF7C446E33915 /* PhononBundle */,
 				0192CD856C23B05D5DAC8758 /* PrivacyInfo.xcprivacy */,
+				00DA113C9774982944990EC2 /* Welcome */,
 				E448BC1C87B367F2AEF205BC /* WhatsNew.json */,
 				59AC1D40EF0A3B42B8353977 /* ContentBlocking */,
 				D4AF9C5ADEC7DCA2F16770B9 /* Kokoro */,
@@ -1966,6 +1980,7 @@
 				56A9B24B71667DDC048B44FF /* ReaderBookChapter.js in Resources */,
 				B564F8E06084688334141A5E /* ReaderNormalize.js in Resources */,
 				66C52251A276E277D1E579A5 /* ReaderVisibleSnapshot.js in Resources */,
+				992D6186FAFF0252FFFD0F9E /* Welcome in Resources */,
 				E7D5B8A528CA3979CA19DF14 /* WhatsNew.json in Resources */,
 				1687E6E361AFCF72579BC87D /* af_heart.bin in Resources */,
 				FD752217B44C49D52808AAC8 /* voice-preview-kokoro-af_bella.m4a in Resources */,
@@ -2394,6 +2409,7 @@
 				F81E851B6DC2671AA32A47AD /* VoiceSelectionList.swift in Sources */,
 				BF21488EE0F85F1570FBEB20 /* WebView.swift in Sources */,
 				F54D5899663AC4F1733CDA75 /* WebViewStore.swift in Sources */,
+				355DC2857A94C685003606F1 /* WelcomeArticle.swift in Sources */,
 				DCAD70A71A26F9323E74154C /* WhatsNewSheet.swift in Sources */,
 				F47C553412CD28CB1ACD36CA /* WhatsNewStore.swift in Sources */,
 				F2DC2F08AFC22DD344DA0677 /* WholeWordsText.swift in Sources */,

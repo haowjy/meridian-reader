@@ -48,9 +48,15 @@ targets:
           - Brand/**
           - PhononBundle
           - PhononBundle/**
+          - Welcome
+          - Welcome/**
       # Phonon's model bundle, copied as one folder (its .mlpackage files must not be compiled by
       # Xcode). Git-ignored, ~170 MB: tools/fetch-phonon-bundle.sh puts it there; the build fails without it.
       - path: Resources/PhononBundle
+        type: folder
+        buildPhase: resources
+      # The welcome article's text and recorded audio, as one folder (its CAFs keep their names).
+      - path: Resources/Welcome
         type: folder
         buildPhase: resources
     dependencies:

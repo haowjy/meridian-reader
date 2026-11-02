@@ -458,6 +458,34 @@ extension ArticleAudioCache {
                       for: cacheKey)
     }
 
+    /// Installs a recording (a folder holding `index.json` and its CAFs, as this cache wrote them)
+    /// as the saved audio of `key`, then aligns it with `paragraphs`, which drops any paragraph
+    /// whose text is not the one recorded. Only into a key with no audio, and only a recording
+    /// in `voice`. False when it is refused or fails, leaving nothing behind.
+    func install(recording: URL, as key: UUID, voice: CacheVoice?, paragraphs: [String]) -> Bool {
+        guard let voice, !hasCache(for: key),
+              let data = try? Data(contentsOf: recording.appendingPathComponent("index.json")),
+              let recorded = try? JSONDecoder().decode(IndexFile.self, from: data),
+              recorded.engineID == voice.engineID, recorded.voiceID == voice.voiceID else { return false }
+        // Copied beside, then renamed into place: a kill mid-copy leaves no half-installed folder.
+        // `entries()` skips a name that is not a key's.
+        let staging = root.appendingPathComponent(".install", isDirectory: true)
+        do {
+            try? fileManager.removeItem(at: staging)
+            try fileManager.copyItem(at: recording, to: staging)
+            try? fileManager.removeItem(at: directory(for: key))
+            try fileManager.moveItem(at: staging, to: directory(for: key))
+            forget([key])
+            try reconcile(articleID: key, paragraphs: paragraphs)
+            try markSaved(cacheKey: key)
+            return true
+        } catch {
+            try? fileManager.removeItem(at: staging)
+            try? deleteAudio(for: key)
+            return false
+        }
+    }
+
     /// Moves an article's audio under another key (Save of a legacy reader key, adopting a v1
     /// cache); `newKey` ends saved. First the old voices of `oldKey` become `newKey`'s, and
     /// `oldKey`'s audio becomes an old-voice entry of `newKey` when it isn't in `voice` (the voice

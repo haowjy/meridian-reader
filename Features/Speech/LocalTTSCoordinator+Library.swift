@@ -39,6 +39,15 @@ extension LocalTTSCoordinator: LibraryAudioEffects {
         return cacheVoice(of: selection).map { ArticleAudioCache.CacheVoice(engineID: selection.engine.rawValue, voiceID: $0) }
     }
 
+    /// A recording shipped with the app, installed as `key`'s saved audio in the voice the article
+    /// speaks in (`ArticleAudioCache.install`). True when audio is there.
+    func installRecording(_ recording: URL, as key: UUID, paragraphs: [String]) -> Bool {
+        guard audioCache.install(recording: recording, as: key, voice: selectedCacheVoice(of: key),
+                                 paragraphs: paragraphs) else { return false }
+        noteBakeMarksChanged(of: key)
+        return true
+    }
+
     /// The saved bake jobs of audio the work let go are adopted now, not at the next launch.
     func heldAudioChanged() { drainPendingIntoQueue() }
 

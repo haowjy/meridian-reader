@@ -75,6 +75,14 @@ enum AppComposition {
         progressRecorder = ListeningProgressRecorder(speech: speechController, library: library)
     }
 
+    /// The welcome article, built once: ⋯ › Help and Settings › About open it through the shell,
+    /// and the launch adds it on a fresh install (`AppLaunch`).
+    static func attachWelcome(library: LibraryStore, preparedAudio: PrepareCenter) -> WelcomeArticle {
+        let welcome = WelcomeArticle(library: library, speech: speechController, preparedAudio: preparedAudio, shell: shell)
+        shell.openWelcome = welcome.open
+        return welcome
+    }
+
     /// Settings › Developer: developer options and their switches, over the stored settings.
     static let developer = DeveloperSettings(defaults: .standard)
 

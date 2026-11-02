@@ -37,7 +37,7 @@ Save/Save to Folder become Remove from Library/Move to… in their corresponding
 | Menu | Rows |
 |---|---|
 | Library or folder screen title ⋯ | Add a Link… · Import a File… · Paste Text… — New Folder… — Sort › |
-| Library ⋯ menu (regular width, beside its own ＋) | Sort › — Settings · Listen (the Library row is left out: you are there) |
+| Library ⋯ menu (regular width, beside its own ＋) | Sort › — Settings · Help · Listen (the Library row is left out: you are there) |
 | ＋ and Edit's ＋ | Add a Link… · Import a File… · Paste Text… — New Folder… |
 | Folder header More | Play from Start — Remove Prepared Audio · Voice — Move to… · Edit Details… — Delete Folder… |
 | Folder row | Continue — Prepare Audio · Voice — Move to… · Edit Details… — Delete Folder… |
@@ -58,7 +58,7 @@ audio row offers only Delete Audio, disabled while playback needs it. The Prepar
 own ⋯ offers Delete All… and Clear Audio from Listening… while their sections have rows.
 
 Regular width keeps its existing panels and navigation tiles; shared registry changes apply to
-the item rows. Compact menus have no navigation tiles appended to the Library or reading pages.
+the item rows. Compact menus have no navigation tiles appended to the Library or reading pages, except *Help* (the welcome article), which the compact Library's ⋯ has alone. Every tiles block ends with *Help* before its Listen row.
 The Browser's leading field glyph toggles reader mode on tap and opens its menu on hold.
 
 Voice rows identify the effective voice as Settings does: *Voice: Default*, else the voice library

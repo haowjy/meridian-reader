@@ -9,7 +9,7 @@ import SwiftUI
 /// Appearance / Reading   Appearance ›, Reading › (one card; drill-ins)
 /// Browsing     Block Ads (on)
 /// Prepared Audio & Storage   Prepared Audio ›, sizes, Version (long-press: developer options)
-/// About        Privacy Policy, Support, Acknowledgements
+/// About        How Meridian Reader Works, Privacy Policy, Support, Acknowledgements
 /// Developer    (developer options only) listen debug, fake extraction failure, the panel
 /// ```
 ///
@@ -210,13 +210,26 @@ private struct AboutSettingsSection: View {
     private static let privacy = String(localized: "Privacy Policy")
     private static let support = String(localized: "Support")
     private static let acknowledgements = String(localized: "Acknowledgements")
-    static let group = SettingsSearch.Group(title: String(localized: "About"), rows: [privacy, support, acknowledgements])
+    static let group = SettingsSearch.Group(title: String(localized: "About"),
+                                            rows: [Verbs.howItWorks, privacy, support, acknowledgements])
 
     @Environment(\.settingsSearch) private var search
+    @Environment(ShellState.self) private var shell
 
     var body: some View {
         if search.shows(Self.group) {
             Section {
+                if search.shows(Verbs.howItWorks, in: Self.group) {
+                    Button { shell.openWelcome() } label: {
+                        SymbolRow(Verbs.howItWorks, symbol: nil) {
+                            Image(systemName: Icons.disclosure)
+                                .disclosureSymbol()
+                                .foregroundStyle(Palette.tertiaryInk)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settingsHowItWorks")
+                }
                 if search.shows(Self.privacy, in: Self.group) {
                     link(Self.privacy, to: Self.privacyURL, id: "settingsPrivacyPolicy")
                 }

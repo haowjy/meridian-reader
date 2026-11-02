@@ -139,3 +139,7 @@ changing the shell code.
   Settings as `.presentationSizing(.form)` sheets. Measures live in
   `../DesignSystem/Tokens/RegularLayout.swift` (`regularReadableMeasure`, `regularInsetFormSheet`
   apply them). Both layouts must keep working: probe a change on an iPhone and an iPad simulator.
+- **The welcome article is wired through the shell, not special-cased in it.** `ShellState.openWelcome` is a
+  closure `AppComposition.attachWelcome` sets once the library exists (like `isHearing`); ⋯ › Help (`MenuContext.help`, in every
+  `tiles`, alone in the compact Library's) and Settings › About call it. `WelcomeArticle.open` opens Library Read (as a row's *Open* does), not Listen, while another page plays or is paused; it clears any sheet
+  (`shell.sheet`, Settings on regular width) so Listen is not under it. Nothing else in the shell names the article.

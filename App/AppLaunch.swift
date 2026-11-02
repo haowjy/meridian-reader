@@ -8,16 +8,16 @@ import Foundation
 enum AppLaunch {
     private static var didRun = false
 
-    static func run(library: LibraryStore, speech: SpeechController, shell: ShellState,
+    static func run(library: LibraryStore, speech: SpeechController, shell: ShellState, welcome: WelcomeArticle,
                     preparedAudio: PrepareCenter? = nil, follow: FollowCenter? = nil) async {
         guard !didRun else { return }
         didRun = true
-        await launch(library: library, speech: speech, shell: shell, preparedAudio: preparedAudio, follow: follow)
+        await launch(library: library, speech: speech, shell: shell, welcome: welcome, preparedAudio: preparedAudio, follow: follow)
     }
 
     /// The launch sequence `run` does once. `importFiles`: where book imports keep their files.
     /// Prepared audio and Follow's fetching carry on once the library's maintenance is done.
-    static func launch(library: LibraryStore, speech: SpeechController, shell: ShellState,
+    static func launch(library: LibraryStore, speech: SpeechController, shell: ShellState, welcome: WelcomeArticle,
                        preparedAudio: PrepareCenter? = nil, follow: FollowCenter? = nil,
                        importFiles: BookImportFiles = .standard) async {
         // No import is running yet: a book file a killed import left goes.
@@ -38,11 +38,24 @@ enum AppLaunch {
         #endif
 
         resumeAfterCrash(library: library, speech: speech, shell: shell)
+        addWelcomeOnFreshInstall(welcome)
 
         #if DEBUG
         await LaunchHooks.runAfterLaunch(.current, library: library, speech: speech, shell: shell, follow: follow,
                                            preparedAudio: preparedAudio)
         #endif
+    }
+
+    /// A fresh install gets the welcome article, with Listen open on it paused (`WelcomeArticle`).
+    /// After crash resume, which has nothing to resume then: an install that has played before has
+    /// pages, so it adds nothing. `-recordWelcome` adds it without its audio instead, to record it;
+    /// `-skipWelcome` adds nothing, for probes that need the empty start.
+    private static func addWelcomeOnFreshInstall(_ welcome: WelcomeArticle) {
+        #if DEBUG
+        if LaunchOptions.current.recordsWelcome { return welcome.record() }
+        if LaunchOptions.current.skipsWelcome { return }
+        #endif
+        welcome.addOnFreshInstall()
     }
 
     /// The library's launch maintenance, then the end of the render queue's launch hold: it

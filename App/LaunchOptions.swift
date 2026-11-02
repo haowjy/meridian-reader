@@ -78,6 +78,12 @@ struct LaunchOptions: Equatable {
     var seedsHistory = false
     /// `-bakeArticle <id prefix>`: render that saved article's audio top-down without playing.
     var bakeArticlePrefix: String?
+    /// `-recordWelcome` (with `-resetLibrary`): the welcome article is added without its bundled
+    /// audio and prepared in its voice, for `tools/record-welcome-audio.sh` to copy out of the cache.
+    var recordsWelcome = false
+    /// `-skipWelcome`: a fresh start adds no welcome article, as before it existed (the empty
+    /// Library, nothing open), for probes that start from nothing.
+    var skipsWelcome = false
     /// `-scrubBubbleDemo` (with `-uiTesting`): freeze a mid-drag scrubber frame for a screenshot.
     var scrubBubbleDemo = false
     /// `-chromeFallback`: draw the compact bottom chrome in its pre-iOS 26 skin (the blur and
@@ -242,6 +248,8 @@ struct LaunchOptions: Equatable {
         testStoryThrottles = flags.contains("-testStoryThrottles")
         seedsHistory = flags.contains("-seedHistory")
         bakeArticlePrefix = value(after: "-bakeArticle")?.uppercased()
+        recordsWelcome = flags.contains("-recordWelcome")
+        skipsWelcome = flags.contains("-skipWelcome")
         scrubBubbleDemo = uiTesting && flags.contains("-scrubBubbleDemo")
         forcesChromeFallback = flags.contains("-chromeFallback")
         readerFullScreen = flags.contains("-readerFullScreen")
