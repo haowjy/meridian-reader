@@ -42,14 +42,11 @@ struct DetailLine: View {
             ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
                 HStack(spacing: Spacing.xxs) {
                     if let ring = part.ring { ProgressRing(fraction: ring) }
-                    if let symbol = part.symbol {
-                        // The prepared ↓ takes the accent, as the Prepare control does (C97).
-                        if symbol == Icons.prepared { Image(systemName: symbol).foregroundStyle(Palette.accent) }
-                        else { Image(systemName: symbol) }
-                    }
+                    if let symbol = part.symbol { Image(systemName: symbol) }
                     Text(part.text)
                 }
-                .foregroundStyle(part.isLit ? reading?.accent ?? Palette.accent
+                .foregroundStyle(part.isAlert ? Palette.destructive
+                                 : part.isLit ? reading?.accent ?? Palette.accent
                                  : index == 0 ? DetailLine.leadInk(reading) : DetailLine.restInk(reading))
                 .lineLimit(!wraps ? 1 : index > 0 ? nil : parts.count == 1 && typeSize.isAccessibilitySize ? 3 : 1)
             }
@@ -79,13 +76,17 @@ struct DetailPart: Hashable, ExpressibleByStringLiteral {
     var spoken: String?
     /// In the accent: a row's status while it is what you hear ("Playing", "Paused").
     var isLit = false
+    /// In the destructive colour: something that went wrong ("Couldn’t download").
+    var isAlert = false
 
-    init(_ text: String, symbol: String? = nil, ring: Double? = nil, spoken: String? = nil, isLit: Bool = false) {
+    init(_ text: String, symbol: String? = nil, ring: Double? = nil, spoken: String? = nil, isLit: Bool = false,
+         isAlert: Bool = false) {
         self.text = text
         self.symbol = symbol
         self.ring = ring
         self.spoken = spoken
         self.isLit = isLit
+        self.isAlert = isAlert
     }
 
     init(stringLiteral text: String) {
@@ -95,12 +96,6 @@ struct DetailPart: Hashable, ExpressibleByStringLiteral {
     /// A page heard to its end: the listening ring, full, and "Finished", as a row's status draws
     /// it (no ✓: that is selection's only).
     static var finished: DetailPart { DetailPart(ListeningTime.finishedLabel, ring: 1) }
-
-    /// `text` after the accent filled ↓ a prepared row starts its second line with (a page's, a
-    /// download's, a voice model's in Settings).
-    static func prepared(_ text: String) -> DetailPart {
-        DetailPart(text, symbol: Icons.prepared, spoken: "\(Verbs.prepared), \(text)")
-    }
 }
 
 /// The parts of a `DetailLine`, side by side `spacing` apart on their first text baseline. One

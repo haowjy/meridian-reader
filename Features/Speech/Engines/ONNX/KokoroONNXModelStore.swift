@@ -180,9 +180,13 @@ final class KokoroONNXModelStore {
         resumeWaiters(.failure(CancellationError()))
     }
 
-    func delete() {
+    /// Delete the model (the Voice picker's *Remove* of Kokoro's last voice, the CPU route
+    /// benchmark). Nothing while a download is in flight.
+    func delete() throws {
         guard !isBusy else { return }
-        try? FileManager.default.removeItem(at: Self.directory)
+        if FileManager.default.fileExists(atPath: Self.directory.path) {
+            try FileManager.default.removeItem(at: Self.directory)
+        }
         state = .notDownloaded
         ListenTimingLog.log("cpubench_model_download", ["op": "delete"])
         ListenDebugLog.shared.append("CPU route: model deleted")

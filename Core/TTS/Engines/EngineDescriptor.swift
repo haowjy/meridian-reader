@@ -18,8 +18,6 @@ struct EngineVoice: Hashable, Sendable, Identifiable {
     let id: String
     /// Row title ("Heart").
     let label: String
-    /// Row subtitle ("Warm, American").
-    var detail: String = ""
     /// Bundled preview clip (m4a resource name, no extension, in `VoicePreviews/`), if any.
     var previewResource: String? = nil
 }

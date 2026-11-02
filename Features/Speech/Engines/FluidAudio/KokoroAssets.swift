@@ -69,14 +69,17 @@ enum KokoroAssets {
         ListenTimingLog.log("kokoro_voice_download", ["voice": voice, "ms": ListenTimingLog.ms(since: t0)])
     }
 
+    /// A voice pack's size: 510 × 256 fp32 values.
+    static let packBytes: Int64 = 510 * 256 * 4
+
     /// Remove one voice pack (`.bin`). Does not touch the shared ONNX model or other packs.
     /// Returns bytes freed (0 when the file was already gone).
     @discardableResult
-    static func deleteVoicePack(_ voice: String, fileManager fm: FileManager = .default) -> Int64 {
+    static func deleteVoicePack(_ voice: String, fileManager fm: FileManager = .default) throws -> Int64 {
         let url = voicePackURL(voice)
         guard fm.fileExists(atPath: url.path) else { return 0 }
         let bytes = FileSizes.allocatedBytes(at: url, fileManager: fm)
-        try? fm.removeItem(at: url)
+        try fm.removeItem(at: url)
         ListenTimingLog.log("kokoro_voice_delete", ["voice": voice, "bytes": bytes])
         return bytes
     }

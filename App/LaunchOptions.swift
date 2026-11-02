@@ -142,6 +142,25 @@ struct LaunchOptions: Equatable {
     var usesTestVoice = false
     /// `-showWhatsNew`: show the What's New sheet even under `-uiTesting`.
     var showsWhatsNew = false
+    /// `-simulateVoiceDownloads`: Kokoro's downloads and removals in the Voice picker run offline
+    /// (`KokoroDownloadSimulation`): `-voiceDownloadSeconds N` (8) to fill, `-failVoiceDownload
+    /// <voice ids, comma separated>` fail half-way, `-kokoroNotDownloaded` starts with its model missing.
+    var voiceDownloadSimulation: VoiceDownloadSimulationOptions?
+    struct VoiceDownloadSimulationOptions: Equatable {
+        let seconds: Double
+        let failing: Set<String>
+        let modelMissing: Bool
+    }
+    /// `-downloadVoice <voice id>` (with `-openSettingsPage voice`): two seconds in, what a tap on
+    /// that voice's row in Settings › Voice does; `-stopVoiceDownloadAfter N` then stops it N s later.
+    var downloadsVoice: String?
+    var stopsVoiceDownloadAfter: Double?
+    /// `-editVoices`: Settings › Voice opens in Edit. `-removeVoice <voice id>`: a second after it
+    /// opens, what that voice's *Remove* does (its question, when it asks).
+    var editsVoices = false
+    var removesVoice: String?
+    /// `-openVoicePicker` (with `-seedDemoArticle`): the newest saved article's *Voice* sheet.
+    var opensVoicePicker = false
     /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
     /// load at launch; its voice is the default for new articles.
     var selectsEngine: SpeechEngineID?
@@ -213,6 +232,16 @@ struct LaunchOptions: Equatable {
         showsWhatsNew = flags.contains("-showWhatsNew")
         usesTestVoice = flags.contains("-testVoice")
         selectsEngine = value(after: "-selectEngine").map(SpeechEngineID.init(rawValue:))
+        if flags.contains("-simulateVoiceDownloads") {
+            voiceDownloadSimulation = VoiceDownloadSimulationOptions(seconds: value(after: "-voiceDownloadSeconds").flatMap(Double.init) ?? 8,
+                                       failing: Set((value(after: "-failVoiceDownload") ?? "").split(separator: ",").map(String.init)),
+                                       modelMissing: flags.contains("-kokoroNotDownloaded"))
+        }
+        downloadsVoice = value(after: "-downloadVoice")
+        stopsVoiceDownloadAfter = value(after: "-stopVoiceDownloadAfter").flatMap(Double.init)
+        editsVoices = flags.contains("-editVoices")
+        removesVoice = value(after: "-removeVoice")
+        opensVoicePicker = flags.contains("-openVoicePicker")
         usesLanePolicy = value(after: "-renderPolicy") == "lanes"
         if flags.contains("-engineProbe") {
             engineProbe = EngineLatencyProbe.Request(

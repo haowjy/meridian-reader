@@ -22,6 +22,8 @@ enum Motion {
     /// The two halves of a Reduce Motion swap: fade out, change, fade in.
     static let fadeOut = Animation.easeOut(duration: 0.1)
     static let fadeIn = Animation.easeIn(duration: 0.12)
+    /// One turn a second, for ever: a download's spinning arc while it starts (the App Store's).
+    static let spin = Animation.linear(duration: 1).repeatForever(autoreverses: false)
 
     /// A swipe-to-dismiss that committed: carries on at the finger's release speed instead of
     /// starting from rest. `velocity` is points per second toward the target; `distance` is how

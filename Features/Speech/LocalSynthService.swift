@@ -79,8 +79,8 @@ final class LocalSynthService: SynthChunkRendering {
 
     /// Make a host built for `route` the resident one on its lane: nothing to do when it is
     /// loaded, the load in flight awaited when it is loading (never a second load of it), else
-    /// loaded (`load`). Throws when it ends anything but loaded: failed, cancelled (Settings'
-    /// cancel), or replaced. The load runs at `priority`'s task priority (a listener's:
+    /// loaded (`load`). Throws when it ends anything but loaded: failed, cancelled (a dropped
+    /// host), or replaced. The load runs at `priority`'s task priority (a listener's:
     /// `.userInitiated`; a preload's or bake-ahead's: `.utility`), and so does the host's load
     /// under it (`SingleFlightLoad`).
     func makeResident(_ route: RenderRoute, voice: String?, priority: RenderPriority) async throws {
@@ -132,14 +132,6 @@ final class LocalSynthService: SynthChunkRendering {
 
     /// The engine of `lane`'s host, loaded, loading or failed (nil: off).
     func engine(on lane: Lane) -> SpeechEngineID? { state(on: lane) == .off ? nil : slots[lane]?.route.engine }
-
-    /// Settings: stop the model downloads / loads in flight.
-    func cancelDownload() {
-        for lane in Lane.allCases {
-            guard case .warming = state(on: lane) else { continue }
-            turnOff(lane)
-        }
-    }
 
     private func cancelLoad(on lane: Lane) {
         if case .warming(_, _, let task) = state(on: lane) { task.cancel() }

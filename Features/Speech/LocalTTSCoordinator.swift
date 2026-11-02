@@ -67,13 +67,8 @@ final class LocalTTSCoordinator: SynthQueueContext {
     /// From the start of the launch's audio-cache steps until the library's launch maintenance has
     /// finished (`holdRenderingForLaunch`, `endLaunchHold`).
     @ObservationIgnored private(set) var isHeldForLaunch = false
-    /// Voice whose files are preparing after the user picked it (Settings shows a spinner).
-    private(set) var voiceDownloadID: String?
-    /// Last voice download failure (Settings footer); cleared on the next pick.
-    private(set) var voiceDownloadError: String?
-    /// Bumped when a Kokoro voice pack is installed or removed (Voice rows refresh swipe / ↓).
-    private(set) var voicePacksRevision: UInt64 = 0
-    private var voiceChoiceToken = 0
+    /// The Voice picker's downloads: what each voice needs, progress, failures.
+    let voiceDownloads: VoiceDownloads
 
     /// Loads no engine: the render queue's worker loads the engine of the work it takes, and at the
     /// end of the launch's hold the default's (`endLaunchHold`). `selecting` is a Debug launch's
@@ -98,6 +93,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         self.pendingBakes = pendingBakes
         self.resumePoints = resumePoints
         self.synth = LocalSynthService(engines: engines, crashGuard: crashGuard)
+        self.voiceDownloads = VoiceDownloads(engines: engines)
         self.chunkPlans = ChunkPlans { engines.descriptor(SpeechEngineID(rawValue: $0))?.onDevice.limits }
         self.defaultSelection = Self.builtInDefault(of: engines)
         for d in engines.descriptors where !d.voices.isEmpty {
@@ -294,76 +290,10 @@ final class LocalTTSCoordinator: SynthQueueContext {
     }
 
 
-    /// A voice was picked (Settings default or an article's picker): prepare its files if needed
-    /// (e.g. a ~0.5 MB Kokoro pack). Selects nothing (`setDefaultSelection`, `ArticleVoiceChange`).
-    /// Returns true once the files are there.
-    func downloadVoice(_ voice: String, for id: SpeechEngineID) async -> Bool {
-        guard let d = engines.descriptor(id) else { return false }
-        voiceChoiceToken &+= 1
-        let token = voiceChoiceToken
-        voiceDownloadError = nil
-        voiceDownloadID = voice
-        do {
-            try await engines.prepareVoice(voice, for: id)
-        } catch {
-            guard token == voiceChoiceToken else { return false }
-            voiceDownloadID = nil
-            let label = d.allVoices.first { $0.id == voice }?.label ?? voice
-            voiceDownloadError = "Couldn't download \(label). Check your connection and try again."
-            ListenDebugLog.shared.append("voice download failed \(voice): \(error.localizedDescription)")
-            return false
-        }
-        guard token == voiceChoiceToken else { return false }
-        voiceDownloadID = nil
-        engineVoices[id] = voice // the host's voice when it loads; every render names its own
-        voicePacksRevision &+= 1
-        return true
-    }
-
     /// What shows the engine's state (Settings' progress, the debug panel, Prepared Audio) looks
     /// again. Loads are the render queue's worker's (`makeResident`); nothing here starts one.
     private func engineStateChanged() {
         onRenderStateChange?([])
-    }
-
-    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
-        engines.isVoicePackInstalled(voice, for: id)
-    }
-
-    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool {
-        engines.canDeleteVoicePack(voice, for: id)
-    }
-
-    /// Remove one on-device voice pack (swipe *Remove Download* on that voice). The engine's
-    /// default pack stays when it is the only one; deleting the selected pack falls back to the
-    /// default (or another installed pack if the default itself was removed).
-    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws {
-        guard engines.canDeleteVoicePack(voice, for: id) else { return }
-        try engines.deleteVoicePack(voice, for: id)
-        let fallback = fallbackVoiceAfterDeleting(voice, for: id)
-        if engineVoices[id] == voice {
-            setEngineVoice(id, fallback)
-            // Its host goes after the call in flight; the next work for it loads a fresh one.
-            synthQueue.dropHost(engineID: id.rawValue)
-        }
-        if defaultSelection.engine == id, defaultSelection.voice == voice {
-            defaultSelection = VoiceSelection(engine: id, voice: fallback)
-            defaults.set(defaultSelection.stored, forKey: Self.defaultSelectionKey)
-        }
-        voicePacksRevision &+= 1
-        noteBakeMarksChanged()
-    }
-
-    /// After removing `voice`, prefer the engine's default voice (its provider re-seeds it), else
-    /// any other installed pack, else the default anyway.
-    private func fallbackVoiceAfterDeleting(_ voice: String, for id: SpeechEngineID) -> String {
-        // `deleteVoicePack` only gets here for an engine a provider registered.
-        guard let descriptor = engines.descriptor(id),
-              let preferred = descriptor.resolvedVoice(nil) else { return voice }
-        if voice != preferred, engines.isVoicePackInstalled(preferred, for: id) { return preferred }
-        return descriptor.allVoices.map(\.id).first {
-            $0 != voice && engines.isVoicePackInstalled($0, for: id)
-        } ?? preferred
     }
 
     /// Audio of any article may have changed.

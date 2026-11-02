@@ -151,8 +151,8 @@ player and the lock screen agree. The engine reports facts; it owns no bake poli
   Settings reads an engine's across lanes, `state(of:)`). Only the render queue's worker loads a
   host (`makeResident`, Render queue → "Loads"); a render never loads one and runs only on the
   resident host of its own engine on its route's lane. An engine switch on a lane, a dropped host
-  (Retry, a thread setting, a media services reset, a voice pack's swipe *Remove Download*),
-  Settings' cancel or a failed load lets that lane's host go: its load in flight stops, its models
+  (Retry, a thread setting, a media services reset, removing a voice in Settings › Voice),
+  or a failed load lets that lane's host go: its load in flight stops, its models
   are released and the model call in flight on it finishes, and every load waits until each host
   let go has released its models, so a load that replaces one never holds both (two ORT sessions,
   ≈1 GB). Different lanes keep their hosts together: two models are resident at once only under
@@ -170,9 +170,9 @@ player and the lock screen agree. The engine reports facts; it owns no bake poli
   when the start is rendered.
 - Nothing moves a live play to another engine or voice: engine state changes don't re-route.
   Changing an article's voice stops its playback (`ArticleVoiceChange`).
-- Views only call `setDefaultSelection` (Settings), `ArticleVoiceChange.apply` (an article's or a
-  book's picker), `deleteVoicePack` (Settings) or `synth.cancelDownload`; they never restart playback or load
-  an engine themselves.
+- Views only call `chooseDefault` (Settings), `ArticleVoiceChange.apply` (an article's or a
+  book's picker), `removeVoice` (Settings) and `VoiceDownloads` (a voice's files: download, stop);
+  they never restart playback or load an engine themselves.
 
 ### UI binding
 
@@ -861,17 +861,16 @@ engines read English only (`EngineDescriptor.supportedLanguages`). There is no l
 
 `ListeningSettingsSection` in Settings (⋯ → *Settings*, `NAVIGATION.md` → "Settings"), the first card of Settings, on the
 Library's list style: chrome cards on paper, `SectionHeader`s, notes in secondary ink. Every
-choice row is one `SettingsChoiceRow` (title, optional one-line subtitle, fixed accessory and
-check slots, min height 48), so state changes never move rows.
+choice row but a voice's is one `SettingsChoiceRow` (title, optional one-line subtitle, a fixed
+check slot, min height 48), so state changes never move rows.
 
 1. **Voice ›** (`VoicePage`): the default voice for new articles and books, from the one voice
    switcher (`VoiceSelectionList`, C138a), the same list an article's or a book's *Voice* picker
    shows. A *Phonon | Kokoro* chip row chooses which engine's voices are listed, starting
-   on the current selection's engine: Phonon's and Kokoro's curated voices with samples (Zoey and
-   Heart marked "(default)"; Phonon adds a *More voices* list); other packs show the prepared ↓ once
-   downloaded; swipe *Remove Download* on a downloaded Kokoro pack (Heart only when another
-   curated pack is installed); the model's download progress below them, tap to cancel (on
-   cellular or Low Data Mode it asks first); a failed load's message in the footer, and on a
+   on the current selection's engine: Phonon's and Kokoro's curated voices (Phonon adds a *More
+   voices* list), each a `VoiceRow` as iOS's own Voice screen draws it (NAVIGATION.md →
+   "Settings"): the sample's ▶, the name alone, the download size while it isn't on the device,
+   and ✓, ⤓ or the download's ring. A failed engine load's message sits in the footer, and on a
    device that can't run the library, what it needs. Picking a voice picks its engine. The row's
    value never names the voice: "Default" while the built-in voice is the pick
    (`builtInDefault(of:)`), else its voice library ("Kokoro").

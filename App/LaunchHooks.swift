@@ -109,7 +109,8 @@ enum LaunchHooks {
     /// `-failLibrarySaves`' refusal.
     private struct InjectedSaveFailure: Error {}
 
-    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-openLibraryFolder`, `-tapListen`
+    /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-openSettings`, `-downloadVoice`,
+    /// `-openVoicePicker`, `-openLibraryFolder`, `-tapListen`
     /// (`-tapListenWhen`), `-tapLibraryRow`,
     /// `-pasteText`, `-importBook`, `-listenDemo`, `-playTestEPUB`, `-chainDemoChapters`,
     /// `-switchDestinationAndBack`.
@@ -117,6 +118,8 @@ enum LaunchHooks {
                                shell: ShellState, follow: FollowCenter?) async {
         if options.opensDemoInReader { await openNewestInReader(in: library, shell: shell) }
         if options.opensSettings { await openSettings(options, shell: shell) }
+        if let voice = options.downloadsVoice { downloadVoice(voice, options, tts: speech.localTTS) }
+        if options.opensVoicePicker { await openVoicePicker(in: library, shell: shell) }
         if options.readsDemoInLibrary { await readNewestInLibrary(in: library, shell: shell) }
         if let away = options.switchesDestinationAndBack {
             Task { @MainActor in
@@ -401,6 +404,28 @@ enum LaunchHooks {
         guard let saved = try? library.context.fetch(newest).first else { return }
         shell.openLibrary()
         shell.openSaved(saved.listenKey, in: library, inPlace: shell.isCompact)
+    }
+
+    /// `-downloadVoice` (and `-stopVoiceDownloadAfter`): Settings › Voice's tap on that voice's row.
+    static func downloadVoice(_ voice: String, _ options: LaunchOptions, tts: LocalTTSCoordinator) {
+        guard let engine = tts.engines.descriptors.first(where: { $0.allVoices.contains { $0.id == voice } }) else { return }
+        let selection = VoiceSelection(engine: engine.id, voice: voice)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            Task { await tts.chooseDefault(selection) }
+            guard let stop = options.stopsVoiceDownloadAfter else { return }
+            try? await Task.sleep(for: .seconds(stop))
+            tts.voiceDownloads.cancel(selection)
+        }
+    }
+
+    /// `-openVoicePicker`: the newest saved article's *Voice* sheet, a second in.
+    static func openVoicePicker(in library: LibraryStore, shell: ShellState) async {
+        try? await Task.sleep(for: .seconds(1))
+        var newest = LibraryQueries.savedInLibrary
+        newest.fetchLimit = 1
+        guard let saved = try? library.context.fetch(newest).first else { return }
+        shell.sheet = .voice(.article(saved.listenKey))
     }
 
     /// `-openSettings` and its `-searchSettings` / `-openSettingsPage`: a second in, once the window's

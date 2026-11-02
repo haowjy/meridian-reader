@@ -17,15 +17,20 @@ protocol SpeechEngineProvider: AnyObject {
     func makeHost(for route: RenderRoute, voice: String?) -> LocalSynthHost?
     /// Model files for `id` look present on disk.
     func isInstalled(_ id: SpeechEngineID) -> Bool
-    /// Make sure `voice`'s files are on disk (prepare if needed) before it's selected.
-    /// No-op for engines whose voices ship with the model.
-    func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws
-    /// One voice pack's files are on disk (Kokoro `<voice>.bin`). False for engines without packs.
-    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool
-    /// Settings may offer *Remove Download* for this pack (Heart is protected when alone).
-    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool
-    /// Remove one voice pack's download. No-op when `canDeleteVoicePack` is false.
-    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws
+    /// What choosing `voice` still has to download, in bytes (its own files and any the library
+    /// shares between its voices); nil when everything it needs is on the device (it ships in the
+    /// app, or it was downloaded). The Voice picker's second line.
+    func downloadSize(of voice: String, for id: SpeechEngineID) -> Int64?
+    /// Download everything `voice` needs (no-op when it is on the device). Files only: no engine
+    /// loads. `progress` gets the fraction once the size is known, nil while it starts or checks.
+    /// Throws `CancellationError` when the task is cancelled or the large-download prompt declined.
+    func download(_ voice: String, for id: SpeechEngineID,
+                  progress: @escaping @MainActor (Double?) -> Void) async throws
+    /// What removing `voice`'s download frees; nil when it can't be removed (it ships in the app,
+    /// or isn't downloaded).
+    func removal(of voice: String, for id: SpeechEngineID) -> VoiceRemoval?
+    /// Remove `voice`'s download (`removal(of:for:)`); no-op when it can't be removed.
+    func remove(_ voice: String, for id: SpeechEngineID) throws
     /// The previous process died inside a call of one of this provider's engines (`crash.engine`).
     /// nil: the default (pause for Retry, `LocalTTSCoordinator.recover`). `playing` is the last
     /// session resume point.
@@ -45,10 +50,11 @@ protocol SpeechEngineProvider: AnyObject {
 
 extension SpeechEngineProvider {
     var retiredEngines: [RetiredEngine] { [] }
-    func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {}
-    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool { false }
-    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool { false }
-    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws {}
+    func downloadSize(of voice: String, for id: SpeechEngineID) -> Int64? { nil }
+    func download(_ voice: String, for id: SpeechEngineID,
+                  progress: @escaping @MainActor (Double?) -> Void) async throws {}
+    func removal(of voice: String, for id: SpeechEngineID) -> VoiceRemoval? { nil }
+    func remove(_ voice: String, for id: SpeechEngineID) throws {}
     func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) -> CrashRecovery? { nil }
     var regenerableDirectories: [URL] { [] }
     var storedKeys: [String] { [] }
@@ -145,20 +151,21 @@ final class EngineRegistry {
         byID[id]?.1.isInstalled(id) ?? false
     }
 
-    func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {
-        try await byID[id]?.1.prepareVoice(voice, for: id)
+    func downloadSize(of voice: String, for id: SpeechEngineID) -> Int64? {
+        byID[id]?.1.downloadSize(of: voice, for: id)
     }
 
-    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
-        byID[id]?.1.isVoicePackInstalled(voice, for: id) ?? false
+    func download(_ voice: String, for id: SpeechEngineID,
+                  progress: @escaping @MainActor (Double?) -> Void) async throws {
+        try await byID[id]?.1.download(voice, for: id, progress: progress)
     }
 
-    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool {
-        byID[id]?.1.canDeleteVoicePack(voice, for: id) ?? false
+    func removal(of voice: String, for id: SpeechEngineID) -> VoiceRemoval? {
+        byID[id]?.1.removal(of: voice, for: id)
     }
 
-    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws {
-        try byID[id]?.1.deleteVoicePack(voice, for: id)
+    func remove(_ voice: String, for id: SpeechEngineID) throws {
+        try byID[id]?.1.remove(voice, for: id)
     }
 
     /// The selection a cache voice key was made in: "kokoro.af_heart" → Kokoro's Heart; nil for a
@@ -175,4 +182,13 @@ final class EngineRegistry {
         guard let id = crash.engine, supports(id) else { return nil }
         return byID[id]?.1.recover(from: crash, playing: playing)
     }
+}
+
+/// What removing a voice's download frees (`SpeechEngineProvider.removal(of:for:)`).
+struct VoiceRemoval: Equatable {
+    /// Bytes it frees.
+    let bytes: Int64
+    /// The voice library's shared model goes with it: every one of its voices downloads again
+    /// before it is chosen (the last downloaded voice of the library).
+    let removesEngine: Bool
 }

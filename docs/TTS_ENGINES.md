@@ -73,15 +73,21 @@ chunk (playback pauses there with Retry), and `LocalPCMWriter` writes non-finite
 ### Assets and voices
 
 - Shared assets (`KokoroAssets`, `Application Support/fluidaudio/Models/kokoro-82m-coreml/ANE/`):
-  vocab, BART G2P, the US lexicon and voice packs (`<voice>.bin`, 0.5 MB each). The shared ONNX model download shows progress under the voice
-  list (tap to cancel). Each downloaded voice pack is removed with a swipe *Remove Download* on
-  that voice row; Heart cannot be removed while it is the only curated pack on disk.
+  vocab, BART G2P, the US lexicon and voice packs (`<voice>.bin`, 0.5 MB each).
+- What the Voice picker shows (`KokoroVoiceDownloads.swift`, the provider's `downloadSize`,
+  `download`, `removal`, `remove`): a voice is on the device when its pack, the ONNX model and
+  the frontend's files are. Its size line is what choosing it fetches: the pack, plus the model
+  (163.2 MB) while it is missing, plus the frontend (about 12 MB, measured) on a fresh install.
+  Choosing one downloads the frontend, the pack, then the model (its progress is the row's ring;
+  a render queue load waiting on the model shares the transfer). Removing a voice deletes its
+  pack; Heart's ships in the app, so Heart is removable only as the last voice on the device,
+  which deletes the model (Kokoro then downloads again for any voice).
 - Voices (`KokoroVoiceCatalog`): `af_heart` (Heart, default), `af_bella`, `bf_emma`, `am_puck`,
   `bm_fable`. Heart's pack ships in the app (`Resources/Kokoro/af_heart.bin`) and is copied into
   the cache on first launch (`KokoroHeartPackInstall`), so the Voice picker never starts empty.
-  A stored voice that isn't curated resolves to the default. Other packs prepare (~0.5 MB) when
-  the voice is chosen (`LocalTTSCoordinator.downloadVoice` → `EngineRegistry.prepareVoice`);
-  only then does the voice switch. A failed prepare keeps the old voice and shows the error.
+  A stored voice that isn't curated resolves to the default. A chosen voice downloads first
+  (`VoiceDownloads.pick` → `EngineRegistry.download`); only then does the selection change. A
+  failed download keeps the old voice and says so on the voice's row.
 - Previews are bundled (`Resources/VoicePreviews/voice-preview-kokoro-<id>.m4a`, ≈5 s, 24 kHz
   mono AAC), rendered on the Mac:
 

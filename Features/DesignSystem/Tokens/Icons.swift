@@ -130,6 +130,8 @@ enum Icons {
     /// A voice's sample: play, stop.
     static let previewPlay = "play.circle"
     static let previewStop = "stop.circle"
+    /// A voice that isn't on the device: tap to download it (the Voice picker's trailing mark).
+    static let download = "icloud.and.arrow.down"
 
     // MARK: Prepared audio
 
@@ -137,8 +139,7 @@ enum Icons {
     static let prepare = "arrow.down.circle"
     /// The arrow alone, inside a prepare's filling circle (`PrepareMark`).
     static let prepareArrow = "arrow.down"
-    /// Prepared: the grey badge before a row's second line, a folder header's control, a voice
-    /// model in Settings.
+    /// Prepared: a row's badge, a folder header's control.
     /// A filled ↓, not a ✓ (C89): ✓ means only selection and a picked option.
     static let prepared = "arrow.down.circle.fill"
     /// The Prepared Audio list.

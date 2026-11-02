@@ -11,14 +11,14 @@ enum KokoroVoiceCatalog {
     static let defaultVoice = "af_heart"
 
     static let curated: [EngineVoice] = [
-        voice("af_heart", "Heart", "Warm, American"),
-        voice("af_bella", "Bella", "Bright, American"),
-        voice("bf_emma", "Emma", "British"),
-        voice("am_puck", "Puck", "American male"),
-        voice("bm_fable", "Fable", "British male"),
+        voice("af_heart", "Heart"),
+        voice("af_bella", "Bella"),
+        voice("bf_emma", "Emma"),
+        voice("am_puck", "Puck"),
+        voice("bm_fable", "Fable"),
     ]
 
-    private static func voice(_ id: String, _ label: String, _ detail: String) -> EngineVoice {
-        EngineVoice(id: id, label: label, detail: detail, previewResource: "voice-preview-kokoro-\(id)")
+    private static func voice(_ id: String, _ label: String) -> EngineVoice {
+        EngineVoice(id: id, label: label, previewResource: "voice-preview-kokoro-\(id)")
     }
 }

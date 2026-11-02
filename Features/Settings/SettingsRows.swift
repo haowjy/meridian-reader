@@ -1,36 +1,14 @@
 import SwiftUI
 
-/// One fixed-layout choice row: title, optional one-line subtitle (a downloaded model's starts
-/// with the accent filled ↓, as every prepared row's line two does), a fixed-size trailing accessory slot
-/// (a prepare's progress, a voice's preview), and a fixed-size slot for the selection ✓. State
-/// changes swap contents inside the slots, so the row's size never changes.
-struct SettingsChoiceRow<Accessory: View>: View {
+/// One choice row: title, optional one-line subtitle, and a fixed-size slot for the selection ✓,
+/// so a change of choice never moves the row. (A voice's row is `VoiceRow`.)
+struct SettingsChoiceRow: View {
     let title: String
-    /// Line two: a model's state, a voice's detail (`DetailPart.downloaded` once downloaded).
     let subtitle: DetailPart?
     let selected: Bool
     var enabled: Bool = true
     let accessibilityID: String
     let action: () -> Void
-    @ViewBuilder let accessory: () -> Accessory
-
-    init(
-        title: String,
-        subtitle: DetailPart?,
-        selected: Bool,
-        enabled: Bool = true,
-        accessibilityID: String,
-        action: @escaping () -> Void,
-        @ViewBuilder accessory: @escaping () -> Accessory
-    ) {
-        self.title = title
-        self.subtitle = subtitle
-        self.selected = selected
-        self.enabled = enabled
-        self.accessibilityID = accessibilityID
-        self.action = action
-        self.accessory = accessory
-    }
 
     var body: some View {
         HStack(spacing: Spacing.s) {
@@ -42,9 +20,6 @@ struct SettingsChoiceRow<Accessory: View>: View {
             .accessibilityIdentifier(accessibilityID)
             .accessibilityAddTraits(selected ? .isSelected : [])
 
-            accessory()
-                .frame(width: Control.small, height: Control.small)
-
             ZStack {
                 if selected {
                     Image(systemName: Icons.checkmark)
@@ -55,14 +30,6 @@ struct SettingsChoiceRow<Accessory: View>: View {
             .frame(width: Glyph.regular, height: Glyph.regular)
             .accessibilityHidden(true)
         }
-    }
-}
-
-extension SettingsChoiceRow where Accessory == EmptyView {
-    init(title: String, subtitle: DetailPart?, selected: Bool, enabled: Bool = true, accessibilityID: String,
-         action: @escaping () -> Void) {
-        self.init(title: title, subtitle: subtitle, selected: selected, enabled: enabled,
-                  accessibilityID: accessibilityID, action: action) { EmptyView() }
     }
 }
 
@@ -124,24 +91,6 @@ struct SettingsControlRow<Control: View>: View {
         }
         // The card adds no inset above or below a row (`listCard`).
         .padding(.vertical, Spacing.s)
-    }
-}
-
-/// A voice model downloading (tap = cancel): the `DownloadMark` filling as it downloads, as every
-/// prepare shows; a spinner while the fraction is unknown (preparing, compiling).
-struct ModelDownloadMark: View {
-    let fraction: Double?
-
-    var body: some View {
-        Group {
-            if let fraction, fraction < 1 {
-                PrepareMark(state: .preparing(fraction: fraction), size: Glyph.slot)
-            } else {
-                ProgressView().controlSize(.small)
-            }
-        }
-        .frame(width: Glyph.slot, height: Glyph.slot)
-        .contentShape(Rectangle())
     }
 }
 

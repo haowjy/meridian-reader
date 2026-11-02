@@ -281,4 +281,8 @@ extension KokoroCPUHost: KokoroCPURouteFrontend {
 /// Frontend-files presence check without importing FluidAudio at the call site.
 enum KokoroAneCPUFrontendFiles {
     static var present: Bool { KokoroAneCPUFrontend.assetsPresent() }
+    /// About what a fresh install downloads for the frontend (the US lexicon, ≈10.4 MB, and the
+    /// G2P weights, ≈1.5 MB), measured on the Simulator: the Voice picker's size before it is there.
+    static let downloadBytes: Int64 = 12_000_000
+    static func download() async throws { try await KokoroAneCPUFrontend.ensureAssets() }
 }

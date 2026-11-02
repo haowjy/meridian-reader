@@ -88,19 +88,12 @@ struct ArticleVoiceChange {
         return cost
     }
 
-    enum Failure: Error {
-        /// The voice's files didn't download.
-        case download
-        /// The library couldn't save the change: nothing changed.
-        case save
-    }
-
-    /// C138a: picks `selection` (any engine's voice): downloads its files if needed, then sets
-    /// it (one save with its voice records, `LibraryStore.setVoice`) and prepares again what was
-    /// prepared. Throws `Failure` when the download or the save fails.
-    func apply(_ selection: VoiceSelection) async throws {
+    /// C138a: sets `selection` (any engine's voice, its files on the device: the picker downloads
+    /// it first, `VoiceDownloads.pick`) in one save with its voice records
+    /// (`LibraryStore.setVoice`), and prepares again what was prepared. Throws when the save fails:
+    /// nothing changed.
+    func apply(_ selection: VoiceSelection) throws {
         guard selection != ownSelection else { return }
-        guard await tts.downloadVoice(selection.voice, for: selection.engine) else { throw Failure.download }
         let keys = articles.map(\.listenKey)
         // Never two voices in one listen: what plays of it stops at once.
         for key in keys { speech.stopIfPlaying(key) }
@@ -108,7 +101,7 @@ struct ArticleVoiceChange {
             try library.setVoice(selection.stored, of: owner)
         } catch {
             ListenDebugLog.shared.append("C138a voice \(selection) not saved: \(error)")
-            throw Failure.save
+            throw error
         }
         tts.articleVoicesChanged()
         for key in keys where preparedAudio.hasRecord(for: key) { preparedAudio.reprepare(article: key) }

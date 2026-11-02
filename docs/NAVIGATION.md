@@ -1385,10 +1385,25 @@ a symbol. Top to bottom:
   - *Voice ›* (`VoicePage`): the default voice for new articles and books, from the one voice
     switcher (`VoiceSelectionList`, the same list an article's or a book's *Voice* picker shows).
     *Phonon | Kokoro* chips choose which engine's voices are listed; picking a voice picks
-    its engine. Each lists its curated voices with samples, then *More voices*. A voice's download shows
-    progress below the list (tap to cancel; on cellular or Low Data Mode it asks first, "Download
-    on Cellular?"), a downloaded Kokoro pack is removed with a swipe, and a failed load's
-    message sits in the footer (on a device that can't run the library, what it needs). The row's
+    its engine. Each lists its curated voices, then *More voices*, each row drawn as iOS's own
+    Voice screen draws one (`VoiceRow`): the sample's ▶ at the leading edge, the name alone (no
+    description), a second line only while the voice isn't on the device (its download size,
+    *0.5 MB*; with Kokoro's shared model missing, model and pack, *164 MB*), and one trailing mark:
+    ✓ for the voice in use, ⤓ when it isn't downloaded, the download's progress while it
+    downloads (a spinning accent arc while it starts, then a ring filling round a ■ that stops it),
+    nothing for a downloaded voice not in use. Phonon's voices are in the app: no second line.
+    A tap on the row or ⤓ picks it: one not on the device downloads first and the ✓ stays on the
+    voice before until it is there (the newest pick wins); a failed download says *Couldn’t
+    download* in red on its row, with ⤓ back (a tap tries again); a stopped one goes back to not
+    downloaded. On cellular or in Low Data Mode Kokoro's model asks first ("Download on
+    Cellular?" or "Download in Low Data Mode?", *Download* or *Not Now*, which stops it).
+    *Edit* (top right) gives each downloaded Kokoro voice the List's delete control, and a swipe
+    on one offers *Remove*. Heart ships in the app, so it is removable only as Kokoro's last
+    voice, which removes Kokoro's model too ("Remove Kokoro? Frees 164 MB. Kokoro voices will
+    need to download again."); removing the default asks first and says which voice new articles
+    take and that articles already in it download it again before they play. A failed removal is a
+    toast. A failed engine load's message sits in the footer (on a device that can't run the
+    library, what it needs). The row's
     value never names the voice: *Default* while the built-in voice is the pick (Zoey, else
     Heart), else its voice library (*Kokoro*).
   - *Speed ›* (the speeds Listen lists, 0.75× to 2×, the

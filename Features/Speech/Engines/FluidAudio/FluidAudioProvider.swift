@@ -30,9 +30,19 @@ final class FluidAudioProvider: SpeechEngineProvider {
     /// Route settings source (tests inject a suite).
     let routeSettings: KokoroRouteSettings
 
+    #if DEBUG
+    /// A Debug launch's offline stand-in for downloads (`-simulateVoiceDownloads`).
+    let simulation: KokoroDownloadSimulation?
+
+    init(routeSettings: KokoroRouteSettings = KokoroRouteSettings(), simulation: KokoroDownloadSimulation? = nil) {
+        self.routeSettings = routeSettings
+        self.simulation = simulation
+    }
+    #else
     init(routeSettings: KokoroRouteSettings = KokoroRouteSettings()) {
         self.routeSettings = routeSettings
     }
+    #endif
 
     /// Curated voices live in `KokoroVoiceCatalog` (one-line swaps).
     static var kokoroVoices: [EngineVoice] { KokoroVoiceCatalog.curated }
@@ -126,44 +136,6 @@ final class FluidAudioProvider: SpeechEngineProvider {
 
     func isInstalled(_ id: SpeechEngineID) -> Bool {
         id == .kokoro && KokoroCPUHost.filesLookInstalled
-    }
-
-    /// Non-default Kokoro packs are fetched on first use (~0.5 MB); do it at select time so the
-    /// first render doesn't wait on the network (and a failed prepare keeps the old voice).
-    func prepareVoice(_ voice: String, for id: SpeechEngineID) async throws {
-        guard id == .kokoro else { return }
-        // Heart's pack ships in the app bundle; restore it even before the ONNX frontend is ready.
-        if voice == KokoroVoiceCatalog.defaultVoice {
-            KokoroAssets.installBundledHeartIfNeeded()
-        }
-        // Only once the frontend files exist; otherwise `prepare()` fetches the voice.
-        guard KokoroAneCPUFrontendFiles.present else { return }
-        try await KokoroAssets.ensureVoicePack(voice)
-    }
-
-    /// Whether `<voice>.bin` is on disk for Kokoro.
-    func isVoicePackInstalled(_ voice: String, for id: SpeechEngineID) -> Bool {
-        id == .kokoro && KokoroAssets.voicePackInstalled(voice)
-    }
-
-    /// Heart stays while it is the only curated pack on disk (or would leave the picker empty).
-    /// Any other downloaded pack can be removed.
-    func canDeleteVoicePack(_ voice: String, for id: SpeechEngineID) -> Bool {
-        guard id == .kokoro, KokoroAssets.voicePackInstalled(voice) else { return false }
-        if voice == KokoroVoiceCatalog.defaultVoice {
-            return KokoroAssets.installedCuratedVoiceIDs().contains { $0 != voice }
-        }
-        return true
-    }
-
-    /// Remove one Kokoro voice pack. No-op when `canDeleteVoicePack` is false.
-    func deleteVoicePack(_ voice: String, for id: SpeechEngineID) throws {
-        guard canDeleteVoicePack(voice, for: id) else { return }
-        _ = KokoroAssets.deleteVoicePack(voice)
-        // Heart is re-seeded from the bundle if somehow wiped while still required.
-        if voice != KokoroVoiceCatalog.defaultVoice {
-            KokoroAssets.installBundledHeartIfNeeded()
-        }
     }
 
     /// Everything Chatterbox Nano wrote outside the article cache: FluidAudio's model cache,
