@@ -25,8 +25,8 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching an article out of sight" and 
   site that advertises a feed saves as a link. `LinkPage.Body` keeps a page and a feed apart, so
   the list rule never reads a feed document. The list gate (at least half the list's links
   chapter-like or dated) keeps a blog's archive, or an author's "3 Fictions / 0 Posts" links, from
-  passing as a chapter list; a list holding a link to the page's own parent is the page's navigation
-  (← Contents, ← Previous, Next →), so a chapter page falls through to its parent; the links script leaves out `aside` and `footer` links, so "Related"
+  passing as a chapter list; links up to the page's own ancestors are not candidates, so a chapter's
+  navigation (← Contents, ← Previous, Next →) shrinks below three links and the page falls through to its parent; the links script leaves out `aside` and `footer` links, so "Related"
   lists don't pass. *Chapters* if most links read as chapters (reversed to story order when the
   dates run newest first by most adjacent pairs); else a dated newest-first list or a feed is
   *Posts*; else *Chapters* in page order.

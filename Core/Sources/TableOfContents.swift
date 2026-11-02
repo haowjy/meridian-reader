@@ -179,10 +179,13 @@ struct TableOfContents: Equatable, Sendable {
     }
 
     /// The same address, tolerating "www." and a trailing "/" (a WordPress feed names its home
-    /// `https://example.com`, the page is `https://example.com/`).
+    /// `https://example.com`, the page is `https://example.com/`). The port and the query must
+    /// match: a post at `/?p=123` is not the home.
     private static func sameHome(_ a: URL, _ b: URL) -> Bool {
-        func path(_ url: URL) -> String { pathParts(url).joined(separator: "/") }
-        return host(of: a) == host(of: b) && path(a) == path(b)
+        func key(_ url: URL) -> [String?] {
+            [url.port.map(String.init), url.query, pathParts(url).joined(separator: "/")]
+        }
+        return host(of: a) == host(of: b) && key(a) == key(b)
     }
 
     private static func feed(_ document: LinkPage, siteName: String?) -> TableOfContents? {
@@ -199,19 +202,19 @@ struct TableOfContents: Equatable, Sendable {
     /// (`shape`: `/story/#/*/chapter/#/*`) add the size of the largest such group. A list needs
     /// three links, at least half of them chapter-like or dated, so a chapter's previous and next
     /// links, a site's menu or a blog's archive with a "Part 2" here and there are not a list.
-    /// Links to the page itself are left out.
+    /// Links to the page itself and to its ancestors are left out.
     private static func list(on page: LinkPage) -> TableOfContents? {
         guard case .page(let links, _, _) = page.body else { return nil }
         let here = ArticleIdentity.canonicalURLString(from: page.url)
         let candidates = links.filter { link in
             sameSite(link.url, page.url) && ArticleIdentity.canonicalURLString(from: link.url) != here
                 && !squeezed(link.text).isEmpty
+                // A link up to the page's own parent is never one of its chapters; a chapter's
+                // navigation (← Contents, ← Previous, Next →) shrinks below three links.
+                && !isAncestor(link.url, of: page.url)
         }
-        // A list holding a link to the page's own parent (← Contents, ← Previous, Next →) is the
-        // page's navigation, not what it lists.
-        let navigation = Set(candidates.filter { isAncestor($0.url, of: page.url) }.map(\.list))
         var best: (list: Int, score: Int)?
-        for (list, links) in Dictionary(grouping: candidates, by: \.list) where !navigation.contains(list) {
+        for (list, links) in Dictionary(grouping: candidates, by: \.list) {
             let signalled = links.filter { isChapterLike($0) || $0.date != nil }.count
             guard links.count >= 3, 2 * signalled >= links.count else { continue }
             let sharedShape = Dictionary(grouping: links, by: { shape(of: $0.url) }).values.map(\.count).max() ?? 0

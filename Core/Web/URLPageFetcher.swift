@@ -171,8 +171,8 @@ final class URLPageFetcher {
       const ms = (s) => { const t = Date.parse(s); return isNaN(t) ? null : t; };
       const root = document.documentElement;
       const child = (el, name) => Array.from(el.children).find((c) => c.localName === name);
-      // RSS's own <link> (no namespace), not an <atom:link rel="self"> beside it.
-      const rssLink = (el) => Array.from(el.children).find((c) => c.localName === "link" && !c.namespaceURI);
+      // RSS's own <link> (RSS 1.0 gives it a namespace), not an <atom:link rel="self"> beside it.
+      const rssLink = (el) => Array.from(el.children).find((c) => c.localName === "link" && c.namespaceURI !== "http://www.w3.org/2005/Atom");
       const absolute = (raw) => { try { return new URL(raw, document.baseURI).href; } catch (e) { return null; } };
       const web = /^(https?|reader-test):/;
       if (root && /^(rss|feed|rdf)$/i.test(root.localName)) {

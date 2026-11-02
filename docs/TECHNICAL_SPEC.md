@@ -209,7 +209,7 @@ a serial site's promotions of its fictions) are not blocked.
 **Follow** (`FollowCenter`, `LibraryStore+Follow`): a story's table of contents
 (`TableOfContents.read`, through generic rules only, no site is named; the first that finds a list
 wins: the page's own list of links, the one with the most chapter-like or dated links on its site
-and at least half of its links of that kind, a list holding a link to the page's own parent (a chapter's ← Contents, ← Previous, Next →) left out as navigation, links sharing one path shape adding to its score;
+and at least half of its links of that kind, links up to the page's own ancestors left out (a chapter's ← Contents, ← Previous, Next → then falls below three links), links sharing one path shape adding to its score;
 else, for a page with no list (a chapter, a post), the link on it whose path is the longest proper
 prefix of its own, read the same way and kept only as a list of chapters, one more fetch; else a feed the page advertises
 (RSS 2.0 or Atom, `<link rel="alternate">`), used only when the page is the feed's home (its
