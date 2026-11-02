@@ -12,15 +12,17 @@ final class NetworkPathStatus: @unchecked Sendable {
     private let lock = NSLock()
     /// nil until the monitor's first update.
     private var path: NWPath?
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    /// Decisions waiting for the first update, each resumed exactly once: by the update or by its
+    /// own timeout, whichever comes first takes it out.
+    private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self else { return }
             self.lock.lock()
             self.path = path
-            let ready = self.waiters
-            self.waiters = []
+            let ready = self.waiters.values
+            self.waiters = [:]
             self.lock.unlock()
             for waiter in ready { waiter.resume() }
         }
@@ -43,12 +45,7 @@ final class NetworkPathStatus: @unchecked Sendable {
     /// (`unknown`).
     func largeDownloadCaution(timeout: Duration = .seconds(1)) async -> LargeDownloadCaution? {
         if let path = currentPath { return Self.caution(of: path) }
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.firstUpdate() }
-            group.addTask { try? await Task.sleep(for: timeout) }
-            await group.next()
-            group.cancelAll()
-        }
+        await firstUpdate(timeout: timeout)
         guard let path = currentPath else { return .unknown }
         return Self.caution(of: path)
     }
@@ -59,18 +56,31 @@ final class NetworkPathStatus: @unchecked Sendable {
         return path
     }
 
-    /// Returns at the monitor's first update (at once when it came).
-    private func firstUpdate() async {
+    /// Returns at the monitor's first update (at once when it came), or after `timeout`.
+    private func firstUpdate(timeout: Duration) async {
         await withCheckedContinuation { (waiter: CheckedContinuation<Void, Never>) in
             lock.lock()
             if path != nil {
                 lock.unlock()
                 waiter.resume()
-            } else {
-                waiters.append(waiter)
-                lock.unlock()
+                return
+            }
+            let id = UUID()
+            waiters[id] = waiter
+            lock.unlock()
+            let (seconds, attoseconds) = timeout.components
+            queue.asyncAfter(deadline: .now() + Double(seconds) + Double(attoseconds) / 1e18) { [weak self] in
+                self?.resumeWaiter(id)
             }
         }
+    }
+
+    /// A waiter's timeout: resumes it unless the update already did.
+    private func resumeWaiter(_ id: UUID) {
+        lock.lock()
+        let waiter = waiters.removeValue(forKey: id)
+        lock.unlock()
+        waiter?.resume()
     }
 
     private static func caution(of path: NWPath) -> LargeDownloadCaution? {
