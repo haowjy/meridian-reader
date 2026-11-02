@@ -1,13 +1,14 @@
 import SwiftUI
 
 /// A followed story's lines in its folder header: one status line, which opens the Following
-/// sheet (a `HeaderLink`, its parts set apart by space and ink), and, while its site has asked to
+/// sheet (a `HeaderLink`, its parts set apart by space and ink, the `DownloadMark` ring filling
+/// while chapters are fetched), and, while its site has asked to
 /// slow down or isn't answering, one notice saying how long the next chapter waits, by its title.
 ///
 /// ```
-/// 📡 Following   3 of 107 fetched ›
-/// 📡 Following   1 chapter couldn’t load   41 of 107 fetched ›
-/// ⏳ Royal Road asked to slow down (429). “Chapter 42: Low Tide” in 1:52, then slower.
+/// 📡 Following   3 of 107 downloaded ◔ ›
+/// 📡 Following   1 chapter couldn’t load   41 of 107 downloaded ◔ ›
+/// ⏳ Royal Road asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52, more slowly.
 /// 📡 Following   checked today 8:02 AM   2 new ›
 /// ```
 struct FollowStatus: View {
@@ -21,7 +22,7 @@ struct FollowStatus: View {
     var body: some View {
         let progress = follow.progress(of: articles)
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HeaderLink(symbol: Icons.follow, parts: parts(progress), identifier: "followStatus") {
+            HeaderLink(symbol: Icons.follow, parts: parts(progress), mark: mark(progress), identifier: "followStatus") {
                 shell.present(.following(folder.id))
             }
             if let next = progress.fetching, let url = folder.contentsURL,
@@ -34,6 +35,13 @@ struct FollowStatus: View {
                 }
             }
         }
+    }
+
+    /// The ring filling while chapters are fetched (how many have their text), the spinning arc
+    /// while it checks for new ones; none otherwise.
+    private func mark(_ progress: FollowCenter.Progress) -> DownloadMark.State? {
+        if let fraction = progress.downloadFraction { return .progress(fraction) }
+        return follow.checking.contains(folder.id) ? .waiting : nil
     }
 
     private func parts(_ progress: FollowCenter.Progress) -> [String] {
@@ -53,6 +61,23 @@ struct FollowStatus: View {
             }
         }
         return parts
+    }
+}
+
+extension FollowCenter.Progress {
+    /// How many chapters have their text, 0…1, while some are still to fetch; nil otherwise.
+    var downloadFraction: Double? {
+        guard (fetching != nil || toFetch > 0), chapters > 0 else { return nil }
+        return Double(withText) / Double(chapters)
+    }
+}
+
+extension FollowCenter.ChapterStatus {
+    /// Its row's `DownloadMark`: the spinning arc while its text is fetched, waits its turn or its
+    /// site's back-off (no fraction: one request); none once it couldn't be had.
+    var mark: DownloadMark.State? {
+        if case .failed = self { return nil }
+        return .waiting
     }
 }
 

@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// A page row: a saved page, a link (lighter, 🔗), a followed story's chapter waiting for its
-/// text (a link with its status: "Fetching text…", "Retrying in 1:52", "Waiting"), or a page
+/// text (a link with the spinning arc and its status: "Downloading…", "Trying again in 1:52",
+/// "Waiting"), or a page
 /// played without saving. Every page uses this same row, including imported chapters: two lines,
 /// the title and then its site and status (decision D21). In a book or series the second line is
 /// the status alone ("5 min", "Skipped", "Playing"): its header already names the author or site,
@@ -10,8 +11,8 @@ import SwiftUI
 /// Tapping the row plays it (`LibraryActions.play`; a link is fetched first), except the page you
 /// hear, which opens Now Playing, so a stray tap never pauses it. Its only control is ⋯ (`ArticleMenu`), the same menu as
 /// its long press (decision D11), whose first row, *Read*, opens it. Its prepare shows on the
-/// row (`PrepareCenter.state(of:)`): dimmed under a jade ↓ while preparing, a accent filled ↓ once
-/// prepared. Swipe left removes it from the Library, and from every list it shows in
+/// row (`PrepareCenter.state(of:)`): its `DownloadMark` before line two, the ring filling while it
+/// prepares, ●↓ once prepared. Swipe left removes it from the Library, and from every list it shows in
 /// (`LibraryQueries`). A page in the Library lifts into a drag from the long press, to be filed in
 /// a folder or placed between rows (`LibraryDrag`), a chapter as any page (decision D19); not on
 /// the home's History tab or in search results (`LibraryScreenKey.filtered`), where a page in a
@@ -54,7 +55,7 @@ struct LibraryArticleRow: View {
     /// A followed story's chapter waiting for its text: where it stands.
     private var chapterStatus: FollowCenter.ChapterStatus? { follow.status(of: article) }
 
-    /// A followed story's chapter says where its text stands ("Fetching text…", "Waiting").
+    /// A followed story's chapter says where its text stands ("Downloading…", "Waiting").
     private func note(now: Date) -> String? {
         chapterStatus.map { FollowText.rowNote($0, now: now) }
     }
@@ -74,6 +75,7 @@ struct LibraryArticleRow: View {
                 playState: actions.playState(of: article),
                 insertionEdge: screen.insertion?.id == .article(article.listenKey) ? screen.insertion?.edge : nil,
                 prepare: preparedAudio.state(of: article),
+                download: chapterStatus?.mark,
                 menu: isEditing ? nil : AnyView(menu),
                 editHandle: isEditing ? AnyView(EditDragHandle(id: .article(article.listenKey), screen: screen)) : nil)
             .opensOnTap(isEditing ? nil : { actions.tap(article) })
@@ -106,8 +108,8 @@ struct LibraryArticleRow: View {
 /// for the symbol. A folder whose pages play shows its place (the page it is at) and the time
 /// left; any other folder shows its count. Its only control is ⋯ (`FolderMenu`, with *Continue*
 /// and *Play from Start*), the same menu as its long press, which also lifts it into a drag; a
-/// dragged row let go on it is filed in it. Its prepare shows as a page's does: dimmed under a
-/// jade ↓ while its prepare runs, a accent filled ↓ once every page it covers is prepared; Prepare
+/// dragged row let go on it is filed in it. Its prepare shows as a page's does: its `DownloadMark`
+/// before line two while its prepare runs, ●↓ once every page it covers is prepared; Prepare
 /// itself is in its screen's header. Swipe left asks to delete it. In search results
 /// (`LibraryScreenKey.filtered`) a nested folder shows its parents' path, opens under them, so ‹
 /// goes to its parent, and doesn't lift.

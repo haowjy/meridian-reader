@@ -110,7 +110,7 @@ enum Icons {
     static let excluded = "square"
     /// Some of a list kept: Review's *Select All* between all and none.
     static let partlyIncluded = "minus.square.fill"
-    /// Waiting: on a site that asked to slow down; a prepare queued with Reduce Motion on, in place of the spinner (C93).
+    /// Waiting: on a site that asked to slow down; `DownloadMark`'s spinning arc with Reduce Motion on.
     static let waiting = "hourglass"
 
     // MARK: Listening
@@ -135,15 +135,13 @@ enum Icons {
     /// A voice's sample: play, stop.
     static let previewPlay = "play.circle"
     static let previewStop = "stop.circle"
-    /// A voice that isn't on the device: tap to download it (the Voice picker's trailing mark).
+    /// Not downloaded yet (`DownloadMark`'s idle glyph): a voice not on the device, tap to download it.
     static let download = "icloud.and.arrow.down"
 
     // MARK: Prepared audio
 
     /// Prepare (a row's menu, a toast, a folder header's control before it prepared audio).
     static let prepare = "arrow.down.circle"
-    /// The arrow alone, inside a prepare's filling circle (`PrepareMark`).
-    static let prepareArrow = "arrow.down"
     /// Prepared: a row's badge, a folder header's control.
     /// A filled ↓, not a ✓ (C89): ✓ means only selection and a picked option.
     static let prepared = "arrow.down.circle.fill"

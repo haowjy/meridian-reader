@@ -40,7 +40,7 @@ struct DisclosureRow: View {
                         .lineLimit(1)
                 }
                 if !isOpen, downloading {
-                    DownloadProgressMark(fraction: fraction, size: Glyph.small, stops: false)
+                    DownloadMark(state: fraction.map { .progress($0) } ?? .waiting, size: Glyph.small)
                 }
                 chevron
             }

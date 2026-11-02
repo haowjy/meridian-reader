@@ -34,16 +34,22 @@ struct NoticeCard: View {
 /// them as one label, joined with commas.
 ///
 /// ```
-/// 📡 Following   1 chapter couldn’t load   41 of 107 downloaded ›
+/// 📡 Following   1 chapter couldn’t load   41 of 107 downloaded ◔ ›
 /// ```
+///
+/// `mark`, while something it names is under way, is its `DownloadMark` (the ring filling, or the
+/// spinning arc with no fraction), as tall as the text, just before ›.
 struct HeaderLink: View {
     let symbol: String
     let parts: [String]
+    var mark: DownloadMark.State?
     var identifier: String = "headerLink"
     let action: () -> Void
 
     /// `DetailLine`'s spacing: `Spacing.s` at the default text size, growing with the caption.
     @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var spacing = Spacing.s
+    /// The mark as tall as the caption.
+    @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var markSize = Glyph.inline
 
     var body: some View {
         Button(action: action) {
@@ -57,6 +63,12 @@ struct HeaderLink: View {
                             .foregroundStyle(index == 0 ? Palette.accent : Palette.secondaryInk)
                             .lineLimit(index == 0 ? 1 : nil)
                     }
+                }
+                if let mark {
+                    DownloadMark(state: mark, size: markSize)
+                        // Its centre on the lowercase letters' middle, as a symbol's sits: a
+                        // little below its foot on the baseline.
+                        .alignmentGuide(.firstTextBaseline) { $0[.bottom] - $0.height * 0.15 }
                 }
                 Image(systemName: Icons.disclosure)
                     .imageScale(.small)
@@ -80,10 +92,11 @@ struct HeaderCardsGallery: View {
     var body: some View {
         PreviewGallery {
             PreviewState("header link") {
-                HeaderLink(symbol: Icons.follow, parts: ["Following", "3 of 107 downloaded"]) {}
+                HeaderLink(symbol: Icons.follow, parts: ["Following", "3 of 107 downloaded"], mark: .progress(0.03)) {}
             }
             PreviewState("header link, a chapter failed") {
-                HeaderLink(symbol: Icons.follow, parts: ["Following", "1 chapter couldn’t load", "41 of 107 downloaded"]) {}
+                HeaderLink(symbol: Icons.follow, parts: ["Following", "1 chapter couldn’t load", "41 of 107 downloaded"],
+                           mark: .progress(0.38)) {}
             }
             PreviewState("notice") {
                 NoticeCard(symbol: Icons.waiting,

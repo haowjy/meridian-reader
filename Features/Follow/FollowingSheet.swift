@@ -50,7 +50,7 @@ struct FollowingSheet: View {
             Section {
                 fact(String(localized: "Last Checked"), state.lastCheckedAt.map { FollowText.when($0) } ?? String(localized: "Not yet"))
                 fact(String(localized: "Next Check"), nextCheck(folder))
-                fact(String(localized: "Chapters"), chapterText(progress))
+                fact(String(localized: "Chapters"), chapterText(progress), mark: progress.downloadFraction.map { .progress($0) })
                 fact(String(localized: "Last New Chapters"), state.lastAddedAt.map {
                     String(localized: "\(FollowText.when($0)), \(state.lastAddedCount) added")
                 } ?? String(localized: "None yet"))
@@ -106,12 +106,14 @@ struct FollowingSheet: View {
         return String(localized: "\(fetched), \(FollowText.couldNotLoad(progress.failed))")
     }
 
-    private func fact(_ title: String, _ value: String) -> some View {
+    /// A fact's row; `mark`: a `DownloadMark` after its value while what it counts is under way.
+    private func fact(_ title: String, _ value: String, mark: DownloadMark.State? = nil) -> some View {
         SymbolRow(title, symbol: nil) {
             Text(value)
                 .typeStyle(.row)
                 .foregroundStyle(Palette.secondaryInk)
                 .multilineTextAlignment(.trailing)
+            if let mark { DownloadMark(state: mark, size: Glyph.small) }
         }
         .padding(.horizontal, Spacing.m)
         .accessibilityElement(children: .combine)
@@ -121,7 +123,7 @@ struct FollowingSheet: View {
                         perform: @escaping () -> Void) -> some View {
         Button(action: perform) {
             SymbolRow(title, symbol: symbol, ink: tint) {
-                if busy { ProgressView().tint(Palette.accent) }
+                if busy { DownloadMark(state: .waiting, size: Glyph.small) }
             }
             .padding(.horizontal, Spacing.m)
         }

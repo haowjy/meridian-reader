@@ -18,8 +18,9 @@ import SwiftUI
 ///     Prepare                     More
 /// ```
 ///
-/// The Prepare control is a `PrepareMark` (an outline ↓, the circle filling as it prepared audio, a
-/// accent filled ↓ once prepared) with what it shows written under it; *More* opens a menu; the ▶ is the
+/// The Prepare control is a `DownloadMark` (◯↓; the spinning arc while it waits its turn; the ring
+/// filling as it prepares, with no ■ since a tap then opens the Prepared Audio list; grey while
+/// paused; ●↓ once prepared) with what it shows written under it; *More* opens a menu; the ▶ is the
 /// folder's Continue (⏸ while one of its pages is what you hear). The side controls share one
 /// width, so the ▶ stays centred whatever their captions say. The row is an `ActionButtonRow`
 /// (decision D21): with its captions while they fit whole, else the symbols alone (VoiceOver and
@@ -88,7 +89,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
         CentredSidesLayout(spacing: Spacing.m, minSide: sideWidth) {
             Button(action: actions.onPrepare) {
                 sideLabel(actions.prepareCaption ?? actions.prepare.label, shown: captions) {
-                    PrepareMark(state: actions.prepare)
+                    DownloadMark(state: actions.prepare.mark, act: .prepare, size: Control.small)
                 }
             }
             .buttonStyle(PillPressStyle())

@@ -60,9 +60,11 @@ enum Glyph {
     /// or a small site tile, so every such row's text starts at one place; it grows with the text
     /// like the row), a voice model's download.
     static let slot: CGFloat = 24
-    /// A listening ring in a row's trailing column, part-way or full (rings mean listening,
-    /// nothing else); the playing bars there.
+    /// A listening ring in a row's trailing column, part-way or full; the playing bars there.
     static let ring: CGFloat = 12
+    /// A mark set in a caption line, as tall as its text (`@ScaledMetric` relative to the caption):
+    /// a `DownloadMark` before a row's line two or in a header's line.
+    static let inline: CGFloat = 13
     /// The stroke of a ring, a drop target's outline and a chosen swatch's ring.
     static let stroke: CGFloat = 2
     /// A Frequently Visited tile on the start page: a site's icon.

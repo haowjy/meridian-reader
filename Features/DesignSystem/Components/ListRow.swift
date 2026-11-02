@@ -7,10 +7,12 @@ import SwiftUI
 ///    2 folders   3 articles
 /// ▣  Pride and Prejudice                         ⋯   book: its place and time left
 ///    Ch 24   6 h 10 min left                ◐  ⋯   (the listening column: ◐ part-way)
-/// ▣ Coupon Basics                             ●  ⋯   page, prepared: the accent filled ↓ badge;
-/// ▣ ↓ example.com   Finished                          ● the same ring, full
+/// ▣ Coupon Basics                             ●  ⋯   page, prepared: ●↓ before line two;
+/// ▣ ●↓ example.com   Finished                          ● the same ring, full
 /// ▣̲ Seven-Day Yield                          ▂▅▇ ⋯   page, playing and preparing: tinted,
-/// ▣ Playing                                           bars; the prepare mark before line two (C102)
+/// ▣ ◔ Playing                                         bars; the prepare's ring before line two (C102)
+/// 🔗 Chapter 26                                    ⋯   a chapter waiting for its text: the arc
+///    ◜ Waiting
 /// 🔗 serials.example.com                              link: lighter
 /// ```
 ///
@@ -29,9 +31,10 @@ import SwiftUI
 /// "Finished", "Playing"). Rows with no listening (a folder with its count, a book preview's
 /// chapter, `showsListening` false: browser visits, prepared audio) have no column.
 ///
-/// Its prepare (`prepare`) shows on the row itself, never as a button: preparing dims the
-/// small ↓ filling before line two (grey while paused; C102), prepared puts a accent filled ↓ before the second
-/// line. The trailing ⋯ (`menu`, the same menu as the row's long press) is in the row's accessory slot
+/// Its prepare (`prepare`) or a link page's fetch (`download`) shows on the row itself, never as a
+/// button: a `DownloadMark` as tall as the text before line two, the app's one download look (the
+/// spinning arc while it waits, the ring filling while it renders, grey while paused, ●↓ once
+/// prepared; C102). The trailing ⋯ (`menu`, the same menu as the row's long press) is in the row's accessory slot
 /// (`RowMetrics`: its glyph ends where every card's text does); a row with a control of its own (a
 /// prepare's pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
 /// whatever leads it. Its height is a two-line row's (`RowMetrics`), in Edit and out (C123).
@@ -76,8 +79,11 @@ struct ListRow: View {
     var isDropTarget = false
     /// A dragged row would be placed beside this one, on this side: a line marks the place.
     var insertionEdge: VerticalEdge?
-    /// Where its prepare stands: the dimmed thumbnail while preparing, the ↓ badge once done.
+    /// Where its prepare stands: its `DownloadMark` before line two.
     var prepare: PrepareState = .notPrepared
+    /// Where a link page's text stands while it is fetched or waits to be (a followed story's
+    /// chapter): its `DownloadMark` before line two, in the prepare's place.
+    var download: DownloadMark.State?
     var folderHasDetails = false
     /// The rows of its ⋯ menu, the same as its long press (nil: no ⋯, as in Edit).
     var menu: AnyView?
@@ -244,8 +250,8 @@ struct ListRow: View {
 
     // MARK: - Second line
 
-    /// The ✓ badge once prepared, the subtitle, the note, then the status, spaced apart on one
-    /// line: "↓ example.org   4 min left" (the ring is the trailing column's). The subtitle and note give way first; at
+    /// The download mark, the subtitle, the note, then the status, spaced apart on one
+    /// line: "●↓ example.org   4 min left" (the listening ring is the trailing column's). The subtitle and note give way first; at
     /// accessibility sizes they are left out and the status truncates if it must, so the line
     /// never wraps or widens the row.
     @ViewBuilder
@@ -254,24 +260,11 @@ struct ListRow: View {
         // At accessibility sizes there is no room for both: the status alone (VoiceOver reads all).
         let leads = typeSize.isAccessibilitySize && status != nil ? []
             : [subtitle, note].compactMap { $0 } + details + (folderCount ?? [])
-        // A skipped chapter never plays, so it shows no prepared mark (C89).
-        let badged = prepare == .prepared && !isSkipped
-        let queued = prepare.isQueued
-        // Rendering now or paused: the small ↓ filling in the same slot (C102), never on the tile.
-        let filling = prepare.isPreparing && !queued
-        if !leads.isEmpty || status != nil || badged || queued || filling {
+        let mark = slotMark
+        if !leads.isEmpty || status != nil || mark != nil {
             HStack(spacing: partSpacing / 2) {
-                if filling {
-                    PrepareMark(state: prepare, size: statusMarkSize)
-                        .transition(.opacity)
-                } else if queued {
-                    // Waiting its turn: a small spinner in the badge slot (C93).
-                    QueuedIndicator()
-                        .transition(.opacity)
-                } else if badged {
-                    // Prepared: the accent filled ↓ before the line, as tall as its text (C97).
-                    Image(systemName: Icons.prepared)
-                        .foregroundStyle(Palette.accent)
+                if let mark {
+                    DownloadMark(state: mark.state, act: mark.act, size: statusMarkSize)
                         .transition(.opacity)
                 }
                 DetailLine(parts: leads.map { DetailPart($0) }
@@ -280,6 +273,18 @@ struct ListRow: View {
                     .monospacedDigit()
             }
             .typeStyle(.caption)
+        }
+    }
+
+    /// The `DownloadMark` before line two, as tall as its text: a link page's fetch (`download`),
+    /// else its prepare while it waits, renders or is paused, and ●↓ once prepared (a skipped
+    /// chapter never plays, so it shows none, C89). Nil before either starts.
+    private var slotMark: (state: DownloadMark.State, act: DownloadMark.Act)? {
+        if let download { return (download, .download) }
+        switch prepare {
+        case .notPrepared: return nil
+        case .prepared: return isSkipped ? nil : (prepare.mark, .prepare)
+        default: return (prepare.mark, .prepare)
         }
     }
 
@@ -311,8 +316,8 @@ struct ListRow: View {
         case ring(Double)
     }
 
-    /// Bars while it is what you hear, a ring part-way and the same ring full once finished (rings
-    /// mean listening, nothing else; ✓ is selection's only).
+    /// Bars while it is what you hear, a ring part-way and the same ring full once finished (a ring
+    /// in this column is listening; a download's is before line two; ✓ is selection's only).
     private var statusMark: StatusMark? {
         if playState.isCurrent { return .bars }
         if case .partWay(let fraction, _) = progress { return .ring(fraction) }
@@ -373,7 +378,7 @@ struct ListRow: View {
     }
 
     /// The line-two prepare mark's side: as tall as the caption text.
-    @ScaledMetric(relativeTo: .caption) private var statusMarkSize: CGFloat = 13
+    @ScaledMetric(relativeTo: TypeStyle.caption.relativeTo) private var statusMarkSize = Glyph.inline
 
     private var isSkipped: Bool {
         if case .skipped = progress { return true }
@@ -480,7 +485,8 @@ struct ListRowGallery: View {
             }
             PreviewState("link, and a link chapter waiting for its text") {
                 ListRow(kind: .link, title: "investing.example.com", menu: menu)
-                ListRow(kind: .link, title: "Chapter 26", subtitle: "not fetched yet", note: "Waiting", menu: menu)
+                ListRow(kind: .link, title: "Chapter 26", note: "Waiting", download: .waiting, menu: menu)
+                ListRow(kind: .link, title: "Chapter 27", note: "Trying again in 1:52", download: .waiting, menu: menu)
             }
         }
     }

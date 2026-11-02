@@ -276,7 +276,7 @@ struct FollowCheckbox: View {
     }
 }
 
-/// A step that is a message: a spinner (no symbol) or a symbol, a line, the address, and its
+/// A step that is a message: `DownloadMark`'s spinning arc (no symbol) or a symbol, a line, the address, and its
 /// buttons.
 private struct FollowMessage<Actions: View>: View {
     let symbol: String?
@@ -291,9 +291,8 @@ private struct FollowMessage<Actions: View>: View {
                     .glyphSize(Glyph.regular)
                     .foregroundStyle(Palette.secondaryInk)
             } else {
-                ProgressView()
-                    .controlSize(.large)
-                    .tint(Palette.accent)
+                // Reading the story's contents: one request, no fraction.
+                DownloadMark(state: .waiting, size: Control.small)
             }
             Text(title)
                 .typeStyle(.row, weight: .semibold)

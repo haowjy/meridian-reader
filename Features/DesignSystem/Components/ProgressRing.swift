@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// A small progress ring: how far through a part-way page or chapter. Rings mean listening only
-/// (a prepare's progress is `PrepareMark`): a row's listening column, a `DetailPart`'s ring.
+/// A small progress ring: how far through a part-way page or chapter, in a row's listening column
+/// and a `DetailPart`'s ring. A download's or a prepare's ring is `DownloadMark`'s, before a row's
+/// line two, never in this column.
 struct ProgressRing: View {
     let fraction: Double
     var size: CGFloat = Glyph.ring

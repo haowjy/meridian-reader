@@ -136,8 +136,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   picks the header's look (`FolderHeaderStyle.detailed`: the cover above the title), a book's too.
 - **Rows, the article menu and the header ask `PrepareCenter.state(of:)`** (an article; a folder with
   the pages its row or screen already holds) for the one `PrepareState`; `ListRow` only draws
-  the mark it is given, on line two, before its text (a spinner waiting, the accent ↓ filling while it
-  renders, filled once prepared); the thumbnail is never dimmed or covered.
+  the mark it is given, on line two, before its text (`DownloadMark`: the spinning arc waiting, the
+  ring filling while it renders, ●↓ once prepared; a chapter's fetch the arc); the thumbnail is never
+  dimmed or covered.
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`ArticleProgress.of`); counts come from relationships, not fetches.
 - **D20 home:** `LibraryHomeView` renders the Everything / Recent tab (shown as Library / History)

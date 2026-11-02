@@ -547,7 +547,7 @@ Library  History
 ▣ Pride and Prejudice              ⋯   tap opens; its cover never changes (C102)
 ▣ Tide Tables                      ⋯
 ▣ Finance                          ⋯
-[i] Seven-Day Yield                ⋯   tap plays; ◌ queued, a filling accent ↓, then a filled ↓ before its second line
+[i] Seven-Day Yield                ⋯   tap plays; ◜ the spinning arc queued, the ring filling, then ●↓ before its second line
 ```
 
 Secondary lines (a row's second line, the bar's, a header's details) never join their parts with
@@ -613,10 +613,11 @@ commas.
   symbols line up (the captions hang below), and the header's lines sit close.
   The big ▶ is the folder's *Continue* (its place, or the first page; ⏸ while one of its pages is
   what you hear: tap pauses). *More* opens the folder's own menu, the same as its row's ⋯ and
-  the top of its screen's ⋯ ("Menus", below). **Prepare Audio** is the folder's Prepare toggle (F7): an outline ↓ while it isn't
-  prepared; the circle filling with jade from the bottom as it prepared audio (the ↓ white where the
-  fill has reached it; never a ring: rings are listening), the same in grey while its prepare is
-  paused; a grey filled ✓ once every article its prepare covers is. Its caption says *Prepare Audio*,
+  the top of its screen's ⋯ ("Menus", below). **Prepare Audio** is the folder's Prepare toggle (F7), drawn as every download in the app is
+  (`DownloadMark`, the App Store's look): ◯↓ while it isn't prepared; the spinning accent arc while
+  it waits its turn; a thin accent ring filling clockwise as it prepares (no ■: a tap then opens
+  the Prepared Audio list), the same ring grey and still while its prepare is paused; ●↓ once
+  every article its prepare covers is. Its caption says *Prepare Audio*,
   *Preparing*, *Paused* or *Prepared*, and VoiceOver
   reads whether the toggle is on and the percent. Tapping ↓ turns the toggle on (or keeps it on):
   every article in it prepared audio and so does every article added to it later (Follow's new chapters, a
@@ -710,7 +711,7 @@ commas.
 its story article), or the Library's ⋯ → *Follow…* (the home, or a folder, which the story's folder
 goes in), where you type or paste the story's address. Follow covers the screen:
 
-1. *Finding the chapters…* with a spinner and the address: one request, signed in as in the
+1. *Finding the chapters…* with the spinning download arc and the address: one request, signed in as in the
    browser. A page with no list of chapters, or a site that refuses, says so, with *Try Again*
    and *Edit Address*; a story followed already offers *Open Folder*.
 2. **Review**: a *Chapters 109* section header (how many are kept is on the button, *Follow 107
@@ -736,21 +737,23 @@ goes in), where you type or paste the story's address. Follow covers the screen:
 
 The story's folder header has one line: *📡 Following* in the accent, then where it is, its parts
 set apart by space (never a separator), in secondary ink: *41 of 107 downloaded* (the Following
-sheet's words), or *checked today 8:02 AM   2 new*. While chapters couldn't be had this
+sheet's words) with the download ring filling after it (`DownloadMark`; the spinning arc while it
+checks for new chapters), or *checked today 8:02 AM   2 new*. While chapters couldn't be had this
 launch, their count comes right after *Following*: *📡 Following   1 chapter couldn’t load
 41 of 107 downloaded*; a line too long for the screen wraps rather than losing its end. While its site
 is backed off, a notice in the caution colour names the chapter that waits by its title (*the
 next chapter* when it has none): *Royal Road asked to slow down. Trying “Chapter 42: Low Tide” again in 1:52,
 more slowly.*, or *Example.com isn’t answering. Trying “Chapter 42: Low Tide” again in 1:52.* A
-chapter waiting for its text says *Downloading…*, *Trying again in 1:52*, *Waiting*, or why it
-couldn't be had (it is tried again at the next launch); tapping it fetches it next and then plays it.
+chapter waiting for its text shows the spinning download arc before its second line, which says
+*Downloading…*, *Trying again in 1:52* or *Waiting* (no arc, only why, once it couldn't be had) (it is tried again at the next launch); tapping it fetches it next and then plays it.
 Playing through the story stops before a chapter still waiting for its text, and the chapter
 after the one playing is always fetched first. *Skip When Playing* on a chapter that can't be had
 lets playback go past it.
 
 Tapping the line opens **Following**: where it is read from, *Last Checked*, *Next Check*,
-*Chapters* ("109 of 109 downloaded", "107 of 109 downloaded, 2 chapters couldn’t load"), *Last
-New Chapters* ("today 8:02 AM, 2 added"), **Check Now** (↻, a spinner while it reads; a failed check says why) and
+*Chapters* ("109 of 109 downloaded", "107 of 109 downloaded, 2 chapters couldn’t load", the download
+ring after it while chapters are fetched), *Last
+New Chapters* ("today 8:02 AM, 2 added"), **Check Now** (↻, the spinning download arc while it reads; a failed check says why) and
 **Unfollow** (or *Follow Again*). About once a day while the app is in front, the story's whole
 table of contents is read again and chapters it didn't list before go at the end of the folder;
 chapters left out in Review, and ones you deleted, stay out.
@@ -768,7 +771,7 @@ first line already is its site), except in a book or series, whose header names 
 on History and in search an article in a folder shows its folder's path there instead. The listening mark stands in a
 fixed-width column at the row's trailing edge, just before the ⋯, so the rings line up down the list
 (C88): nothing before a start (the column kept; line two says "18 min"), a small ring part-way
-(line two "6 min left"; the only rings in the app are listening), the same ring full once finished
+(line two "6 min left"; the only rings in this column are listening: a download's ring sits before line two), the same ring full once finished
 (line two "Finished"; no ✓), and still or moving accent bars while it plays or is paused (the row
 tinted, "Playing" or "Paused" in the accent); every time at the playback speed.
 
@@ -778,7 +781,7 @@ D11), and a long press that moves lifts the row into a drag (below). **Tapping a
 row plays it** (replacing what plays; in a folder it carries on through the folder) and, on compact
 width, slides Listen up over the Library, except the
 article you hear, which opens Listen (a stray tap never pauses); a link page (*Add Link…*'s,
-a story's chapter waiting for its text) is fetched first, its row saying *Downloading…* (or why it
+a story's chapter waiting for its text) is fetched first, its row showing the download arc and saying *Downloading…* (or why it
 couldn't be had), then plays, Listen staying down; a skipped page plays when tapped. *Read*, the menu's first row, opens
 it (the Reader; Listen for the page you hear; the browser for a link). **Tapping a folder
 row opens it**; its ⋯ has *Continue* and *Play from Start*. Swipe left is the menu's own last row,
@@ -892,11 +895,11 @@ article's text is fetched only while the app is in front (LISTEN_PLAYBACK.md).
 ```
 Prepared Audio                                       ( Done )
 Now                                        Pause All
-[i] Chapter 3: The Tide                        ⋯   ↓ filling (its own progress) before line two
-   ↓ Demo Folder   17%
+[i] Chapter 3: The Tide                        ⋯   the ring filling (its own progress) before line two
+   ◔ Demo Folder   17%
 Waiting  2
-[i] Chapter 4: The Bay                         ⋯   spinner, in the order pages render
-   ◌ Demo Folder   Default
+[i] Chapter 4: The Bay                         ⋯   the spinning arc, in the order pages render
+   ◜ Demo Folder   Default
 Prepared  1
 [i] Coupon Basics
    Default   12 MB
@@ -911,11 +914,11 @@ Different Voice  1
 the Reader's, Listen's; medium, grows to large; also Settings › Prepared Audio & Storage ›
 Prepared Audio, pushed) lists one row per page (C110: a folder's pages each on their own row, never a folder total;
 line two its folder's name, or its site for an article in no folder; the status mark before it:
-spinner waiting, accent ↓ filling while it renders, filled once done), in sections shown only
+`DownloadMark`, as everywhere: the spinning arc waiting, the ring filling while it renders, ●↓ once done), in sections shown only
 when they have rows (**Now**, **Waiting** in render order, then the ones below; a folder's own
 prepare is turned off on its screen, *Pause All* pauses everything). Older text below
 describes record rows: **Queued** (the prepare rendering now and those waiting, *Pause All / Resume All*, each
-row's filling arrow, just before its ⋯, pausing it; grey while paused, a tap resumes it; a paused
+row's filling ring, just before its ⋯, pausing it; grey while paused, a tap resumes it; a paused
 prepare is grey on its Library row and its folder's header too, captioned *Paused*),
 **Prepared** (each with the grey ✓ and the room it takes, the total under the section, on the
 cards' edge), and **Different Voice** (done, but its audio isn't in its article's voice, C138:
@@ -1409,8 +1412,8 @@ a symbol. Top to bottom:
     one trailing mark: ✓ for the voice in use once it is on the device, ⤓ when it isn't downloaded
     (the voice in use too: it shows ⤓, VoiceOver still calls it selected, and the ✓ comes back once
     it downloads), the download's progress while it downloads, whoever started it (a pick, or
-    playback loading the voice): a spinning accent arc while it starts, then a ring filling round a
-    ■ that stops it, and listening waiting for it too (its VoiceOver hint says so); nothing for a
+    playback loading the voice): `DownloadMark`, the app's one download look: a spinning accent arc
+    while it starts, then a ring filling round a ■ that stops it, and listening waiting for it too (its VoiceOver hint says so); nothing for a
     downloaded voice not in use.
     A tap on the row or ⤓ picks it: one not on the device downloads first and the ✓ stays on the
     voice before until it is there (the newest pick wins, the voice already in use included, and a

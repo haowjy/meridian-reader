@@ -11,7 +11,7 @@ import SwiftUI
 ///        0.5 MB
 /// ( ▶ )  Emma                                    ⤓      not downloaded: tap to download
 ///        164 MB                                          (what it downloads)
-/// ( ▶ )  Puck                                    ◌      starting (a spinner)
+/// ( ▶ )  Puck                                    ◜      starting (the spinning arc)
 ///        164 MB
 /// ( ▶ )  Fable                                   ◔■     downloading: ■ stops it
 ///        164 MB
@@ -28,7 +28,8 @@ import SwiftUI
 /// everyone waiting on it, listening included (its VoiceOver hint says so). In Edit a row whose
 /// download can go leads with ⊖, which shows *Remove* in place of its mark (`onRemove`, the
 /// swipe's action too); the row never leaves the list, so the List never thinks it was deleted.
-/// Every control's hit area is `Control.tap`.
+/// Every control's hit area is `Control.tap`. ⤓, the arc and the ring are `DownloadMark`, the app's
+/// one download look.
 struct VoiceRow: View {
     /// Whether the voice is on the device, and what its row says about it.
     enum Download: Equatable {
@@ -184,7 +185,7 @@ struct VoiceRow: View {
         switch download {
         case .downloading(let fraction, _):
             Button(action: onStop) {
-                DownloadProgressMark(fraction: fraction)
+                DownloadMark(state: fraction.map { .progress($0) } ?? .waiting, stops: true)
                     .frame(minWidth: Control.tap, minHeight: Control.tap)
                     .contentShape(Rectangle())
             }
@@ -199,9 +200,7 @@ struct VoiceRow: View {
                 .accessibilityHidden(true)
         case .notDownloaded, .failed:
             Button(action: onPick) {
-                Image(systemName: Icons.download)
-                    .glyphSize(Glyph.regular)
-                    .foregroundStyle(Palette.accent)
+                DownloadMark(state: .idle)
                     .frame(minWidth: Control.tap, minHeight: Control.tap)
                     .contentShape(Rectangle())
             }
@@ -211,51 +210,6 @@ struct VoiceRow: View {
         case .onDevice:
             EmptyView()
         }
-    }
-}
-
-/// A download in flight, as the App Store draws one: a thin accent arc spinning while it starts
-/// (its size unknown; the system spinner with Reduce Motion), then a thin accent ring filling
-/// clockwise round a small ■ (tap to stop). Without `stops` (a closed section's header, which
-/// stops nothing) the ring is bare.
-struct DownloadProgressMark: View {
-    let fraction: Double?
-    var size: CGFloat = Glyph.slot
-    var stops = true
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var turned = false
-
-    var body: some View {
-        Group {
-            if let fraction {
-                ZStack {
-                    Circle().stroke(Palette.track, lineWidth: Glyph.stroke)
-                    Circle()
-                        .trim(from: 0, to: min(max(fraction, 0), 1))
-                        .stroke(Palette.accent, style: StrokeStyle(lineWidth: Glyph.stroke, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                        .animation(Motion.standard, value: fraction)
-                    if stops {
-                        Image(systemName: Icons.stop)
-                            .font(.system(size: size * 0.33))
-                            .foregroundStyle(Palette.accent)
-                    }
-                }
-            } else if reduceMotion {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .controlSize(size < Glyph.slot ? .small : .regular)
-                    .tint(Palette.accent)
-            } else {
-                Circle()
-                    .trim(from: 0, to: 0.8)
-                    .stroke(Palette.accent, style: StrokeStyle(lineWidth: Glyph.stroke, lineCap: .round))
-                    .rotationEffect(.degrees(turned ? 360 : 0))
-                    .onAppear { withAnimation(Motion.spin) { turned = true } }
-            }
-        }
-        .frame(width: size, height: size)
     }
 }
 
