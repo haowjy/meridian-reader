@@ -35,6 +35,30 @@ struct TitleMenuGlyph: View {
     }
 }
 
+/// A screen's ⋯ in a system navigation bar (a folder, Prepared Audio): the bare symbol in ink, since the
+/// bar draws the bubble itself (iOS 26's glass, at the bar's own size) and a framed face would be padded
+/// twice. It goes last on the trailing side (`ScreenMenuToolbarItem`), its own bubble, after Edit or a
+/// sheet's Done.
+struct TitleMenuToolbarGlyph: View {
+    var body: some View {
+        Image(systemName: Icons.more).foregroundStyle(Palette.ink)
+    }
+}
+
+/// A screen's ⋯ as a system navigation bar's last trailing item, set apart from the item before it
+/// (Edit, a sheet's Done) so each is its own bubble. Every pushed page and sheet with a screen menu
+/// puts it here.
+struct ScreenMenuToolbarItem<Content: View>: ToolbarContent {
+    @ViewBuilder var menu: Content
+
+    var body: some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+        }
+        ToolbarItem(placement: .topBarTrailing) { menu }
+    }
+}
+
 /// A screen title with ⋯ at the end of its line (the Library home, Settings in place).
 struct TitleLine<Trailing: View>: View {
     let title: String

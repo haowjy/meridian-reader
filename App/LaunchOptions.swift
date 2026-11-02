@@ -169,7 +169,7 @@ struct LaunchOptions: Equatable {
     var revealsVoiceRemove: String?
     /// `-openVoicePicker`: the newest saved article's *Voice* sheet; with `-seedDemoBook`, the book's.
     var opensVoicePicker = false
-    /// `-presentSheet move|follow|following|appearance`: a second in, that sheet over the screen
+    /// `-presentSheet move|preparedAudio|follow|following|appearance`: a second in, that sheet over the screen
     /// (Move: the newest saved article's *Save to Folder*; Follow and Following: the test story,
     /// with `-browseTestPages`; appearance: the in-place reader's Aa panel, with a reader open).
     var presentsSheet: String?

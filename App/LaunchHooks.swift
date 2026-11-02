@@ -442,6 +442,8 @@ enum LaunchHooks {
         switch name {
         case "move":
             shell.present(.moveTo(MoveRequest(title: Verbs.title(Verbs.saveToFolder), current: nil) { _ in true }))
+        case "preparedAudio":
+            shell.present(.preparedAudio)
         case "follow":
             shell.present(.follow(FollowFlow(url: story, parentID: nil, center: follow)))
         case "following":

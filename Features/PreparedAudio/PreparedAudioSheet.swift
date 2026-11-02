@@ -141,13 +141,10 @@ struct PreparedAudioList: View {
         .task(id: overview.done.map(\.key)) { sizes = await measure(overview.done.map(\.key)) }
         .task(id: "\(revision)-\(preparedAudio.records.count)") { await loadListening() }
         .toolbar {
+            // The screen's ⋯ where every pushed page and sheet has it: last on the trailing side, after the sheet's Done.
             let rows = listMenuRows(hasPrepared: !overview.isEmpty)
             if !rows.isEmpty {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu { MenuRows(rows) } label: { Image(systemName: Icons.more) }
-                        .accessibilityLabel(Verbs.more)
-                        .accessibilityIdentifier("preparedMore")
-                }
+                ScreenMenuToolbarItem { TitleMenuButton(id: "preparedMore", blocks: [rows]) { TitleMenuToolbarGlyph() } }
             }
         }
         .alert(String(localized: "Delete \(preparedAudio.heldArticleKeys.count) articles and their prepared audio? This can’t be undone."),

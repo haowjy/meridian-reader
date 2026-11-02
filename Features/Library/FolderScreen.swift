@@ -119,14 +119,8 @@ struct FolderScreen: View {
                         .disabled(searching)
                         .accessibilityIdentifier("folderEdit")
                     }
-                    // Edit and ⋯ are two bubbles, not one shared glass capsule.
-                    if #available(iOS 26.0, *) {
-                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                    }
-                    // Compact width: the screen's ⋯, which the bottom chrome doesn't have. The bare
-                    // symbol: the toolbar sizes and spaces its items, so a framed face would be padded twice; in the
-                    // ink, as every other screen's ⋯ is.
-                    ToolbarItem(placement: .topBarTrailing) { LibraryTitleMenu { Image(systemName: Icons.more).foregroundStyle(Palette.ink) } }
+                    // Compact width: the screen's ⋯, which the bottom chrome doesn't have, its own bubble after Edit.
+                    ScreenMenuToolbarItem { LibraryTitleMenu { TitleMenuToolbarGlyph() } }
                 }
             }
             .navigationBarBackButtonHidden(screen.isEditing(folderID: folder.id))
