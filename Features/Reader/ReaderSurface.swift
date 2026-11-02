@@ -40,6 +40,11 @@ struct ReaderSurface: View {
     @State private var chrome = ReadingChrome()
     @State private var appearanceOpen = false
 
+    #if DEBUG
+    /// `-presentSheet appearance`: the first in-place reader opens its Aa panel a second in.
+    static var opensAppearance = false
+    #endif
+
     private var palette: ReadingPalette { appearance.palette(accent: AppAppearance.shared.accent) }
 
     var body: some View {
@@ -63,6 +68,14 @@ struct ReaderSurface: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("inPlaceReader")
         .task(id: WarmKey(id: article.id, count: article.document.count)) { listen.warmUp() }
+        #if DEBUG
+        .task {
+            guard Self.opensAppearance else { return }
+            Self.opensAppearance = false
+            try? await Task.sleep(for: .seconds(1))
+            appearanceOpen = true
+        }
+        #endif
     }
 
     /// Aa, ▶ Listen (its live state once this page is what you hear), 🔖 and ⋯; the header, gone in full screen.

@@ -169,6 +169,10 @@ struct LaunchOptions: Equatable {
     var revealsVoiceRemove: String?
     /// `-openVoicePicker`: the newest saved article's *Voice* sheet; with `-seedDemoBook`, the book's.
     var opensVoicePicker = false
+    /// `-presentSheet move|follow|following|appearance`: a second in, that sheet over the screen
+    /// (Move: the newest saved article's *Save to Folder*; Follow and Following: the test story,
+    /// with `-browseTestPages`; appearance: the in-place reader's Aa panel, with a reader open).
+    var presentsSheet: String?
     /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
     /// load at launch; its voice is the default for new articles.
     var selectsEngine: SpeechEngineID?
@@ -253,6 +257,7 @@ struct LaunchOptions: Equatable {
         opensVoiceSection = value(after: "-openVoiceSection")
         revealsVoiceRemove = value(after: "-revealVoiceRemove")
         opensVoicePicker = flags.contains("-openVoicePicker")
+        presentsSheet = value(after: "-presentSheet")
         usesLanePolicy = value(after: "-renderPolicy") == "lanes"
         if flags.contains("-engineProbe") {
             engineProbe = EngineLatencyProbe.Request(

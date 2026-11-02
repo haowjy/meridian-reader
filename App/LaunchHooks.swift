@@ -121,6 +121,7 @@ enum LaunchHooks {
         if let voice = options.downloadsVoice { downloadVoice(voice, options, tts: speech.localTTS) }
         if options.opensVoicePicker { await openVoicePicker(in: library, shell: shell, book: options.seedsDemoBook) }
         if options.readsDemoInLibrary { await readNewestInLibrary(in: library, shell: shell) }
+        if let sheet = options.presentsSheet, let follow { await presentSheet(sheet, library: library, shell: shell, follow: follow) }
         if let away = options.switchesDestinationAndBack {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(5))
@@ -431,6 +432,25 @@ enum LaunchHooks {
         newest.fetchLimit = 1
         guard let saved = try? library.context.fetch(newest).first else { return }
         shell.sheet = .voice(.article(saved.listenKey))
+    }
+
+    /// `-presentSheet`: Move (the newest saved article's *Save to Folder*), Follow (the test story's
+    /// contents) or Following (the test story, followed first). `appearance` is `ReaderSurface`'s.
+    static func presentSheet(_ name: String, library: LibraryStore, shell: ShellState, follow: FollowCenter) async {
+        try? await Task.sleep(for: .seconds(1))
+        guard let story = URL(string: "reader-test://story/toc") else { return }
+        switch name {
+        case "move":
+            shell.present(.moveTo(MoveRequest(title: Verbs.title(Verbs.saveToFolder), current: nil) { _ in true }))
+        case "follow":
+            shell.present(.follow(FollowFlow(url: story, parentID: nil, center: follow)))
+        case "following":
+            guard let contents = try? await follow.readContents(of: story),
+                  let folder = library.story(contentsURL: contents.url) ?? (try? follow.follow(contents, keeping: contents.chapters, in: nil))
+            else { return }
+            shell.present(.following(folder.id))
+        default: break
+        }
     }
 
     /// `-openSettings` and its `-searchSettings` / `-openSettingsPage`: a second in, once the window's
