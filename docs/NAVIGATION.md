@@ -193,7 +193,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   slides Listen up, never restarting or moving playback (VoiceOver *Open Listen*). It is not drawn while the page
   has no text to read, so in place the row is `( Aa ) ( Listen ) … ( 🔖 ) ( ⋯ )`. Sizes: every piece 44 pt (`Control.chrome`, the bottom chrome's pieces: its circles are Listen's), as tall
   as a folder screen's system toolbar buttons, 8 pt between Aa
-  and ▶ Listen and between 🔖 and ⋯, `Spacing.topBarMargin` (16) from the screen's edges in place and `Spacing.bandMargin` (12) from the sheet's in Listen, `Spacing.xs` below the row. It is the
+  and ▶ Listen and between 🔖 and ⋯, `Spacing.topBarMargin` (16) from the screen's edges, in place and in Listen alike, `Spacing.xs` below the row. It is the
   page's header, so at rest the title starts on its own line below it; the text scrolls under it. In place it
   sits on the safe area's top and 16 pt in from the screen's edges (`Spacing.topBarMargin`), where a navigation bar's buttons sit (a book's or folder's `‹ … Edit ⋯`), so both rows line up. In Listen it is the sheet's top row, as Voice Memos' is: the grabber
   (36 × 5) 8 pt below the sheet's top edge, centred; Aa and ⋯ with their tops 16 pt below that edge (centres

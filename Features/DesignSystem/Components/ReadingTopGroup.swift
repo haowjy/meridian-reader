@@ -16,11 +16,11 @@ import SwiftUI
 /// saved, dimmed where it can't apply. ⋯ (trailing, where every other screen has its ⋯) is the screen's
 /// menu as a system menu (`menu`, a section per block). VoiceOver reads them as they sit: Aa, ▶ Listen,
 /// 🔖, ⋯. `Control.chrome` high, as every piece of the bottom
-/// chrome (⋯ and Aa are Listen's circle), at least `Control.tap` to tap (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, in place `Spacing.topBarMargin` from the screen's edges (a navigation bar's buttons'), the chrome's glyph and glass
+/// chrome (⋯ and Aa are Listen's circle), at least `Control.tap` to tap (`ChromeMetrics.hitOutset` past the glass), `Spacing.xs` apart, `Spacing.topBarMargin` from the screen's edges (a navigation bar's buttons'), in place and in Listen alike, the chrome's glyph and glass
 /// (the material skin before iOS 26). In place it sits on the safe area's
 /// top, level with a navigation bar's buttons. On Listen's sheet (`carriesGrabber`) it is the sheet's top, as Voice Memos'
-/// is: the grabber centred `Spacing.xs` below the sheet's top edge, the circles' tops `Spacing.m` below it
-/// and `Spacing.bandMargin` in from its sides, so they sit inside its rounded corners. It keeps
+/// is: the grabber centred `Spacing.xs` below the sheet's top edge, the circles' tops `Spacing.m` below it,
+/// clear of its rounded corners. It keeps
 /// `Spacing.xs` under it: drawn in a reading page's header, the text starts clear below it. It is a reading page's header, so it goes with the bars in full screen (`ReadingBars`).
 struct ReadingTopGroup: View {
     /// The screen's menu, a section per block.
@@ -52,12 +52,11 @@ struct ReadingTopGroup: View {
                     .frame(width: Control.chrome, height: Control.chrome)
                     .disabled(!save.isEnabled)
             }
-            TitleMenuButton(id: menuID, blocks: menu) {
-                ChromeCircleFace(symbol: Icons.more, label: Verbs.more)
-                    .frame(width: Control.chrome, height: Control.chrome)
-            }
+            TitleMenuButton(id: menuID, blocks: menu)
         }
-        .padding(.horizontal, carriesGrabber ? Spacing.bandMargin : Spacing.topBarMargin)
+        // Every top bar's margin, Listen's sheet included, so its Aa, 🔖 and ⋯ sit where the in-place
+        // readers' and every screen's do; only the grabber's room above them is the sheet's own.
+        .padding(.horizontal, Spacing.topBarMargin)
         .padding(.top, carriesGrabber ? Spacing.m : 0)
         .padding(.bottom, Spacing.xs)
         .overlay(alignment: .top) {
