@@ -214,7 +214,8 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   **Only the screen showing drives the chrome** (`ChromeSource`, `ShellState.chromeOwner`): the web page under
   the reader mode, the Library under Library Read and anything under Listen or a sheet (Voice, Share, Follow,
   History, the Files picker, …) move nothing, and after Listen or a sheet closes, the next scroll only sets where
-  the following one is measured from.
+  the following one is measured from. A browser page that loads under another destination, Listen or a sheet
+  leaves the chrome showing alone; the Browser comes back expanded on its new page.
 - **An in-place reader is expanded or full screen, nothing between** (`ChromePolicy.reads`). In Scroll mode
   **60 pt of scrolling down in one gesture** (`ChromeScroll.fullScreenDistance`, the moment a page's row 2 goes;
   about two and a half lines, so adjusting a line or two never hides anything) enters full screen: the top group,

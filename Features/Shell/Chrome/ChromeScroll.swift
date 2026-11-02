@@ -258,8 +258,8 @@ final class ChromeScroll {
     /// The step `value` is nearest: 0 two rows, 1 one row, 2 the bubble.
     nonisolated static func step(_ value: CGFloat) -> Int { value < 0.25 ? 0 : value < 0.75 ? 1 : 2 }
 
-    /// Back to two rows because the screen or page changed (a handover, a new web page, the search
-    /// opening): scrolling folds it again from here.
+    /// Back to two rows because the screen changed (a handover to a new owner, a new web page among
+    /// them) or the search opened: scrolling folds it again from here.
     func expand() {
         settling?.cancel()
         grace = 0
@@ -292,18 +292,25 @@ final class ChromeScroll {
 
     /// The one handover: `new` drives the chrome from now, under its source's rule (nil: nothing, a
     /// cover is up). Continuity drops at once whatever the change, keeping what is drawn. A cover and
-    /// its removal back to the same screen keep the fold and full screen; any other screen starts
+    /// its removal back to the same screen keep the fold and full screen (a fold stopped between steps
+    /// finishes its step once the screen is back, not under the cover); any other screen starts
     /// expanded and out of full screen.
     func hand(to new: ChromeOwner?) {
         guard new != owner else { return }
         owner = new
         continuity = nil
-        guard let new else { return }
+        guard let new else {
+            // A cover holds the fold where it is: a pending settle would change it out of sight.
+            settling?.cancel()
+            return
+        }
         if new != lastOwner {
             lastOwner = new
             setFullScreen(false)
             last = 0
             expand()
+        } else if progress != Self.stepEnd(progress) {
+            scheduleSettle()
         }
         applyPolicy()
     }

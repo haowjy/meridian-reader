@@ -184,6 +184,12 @@ final class ShellState {
     private(set) var pageReader: ReaderArticle? {
         didSet { syncChromeOwner() }
     }
+    /// The Browser's page (`browserPageChanged`), the browser's screen as the chrome knows it: a new page
+    /// is a new screen, handed over like any other, so a page that changes under another destination or
+    /// a cover leaves that screen's chrome alone and starts expanded when the Browser shows again.
+    private(set) var browserPage: URL? {
+        didSet { syncChromeOwner() }
+    }
     /// A Library page read in place (Library *Read*): its text replaces the Library's content, like the
     /// Browser's reader mode, under the same chrome with the Library segment lit. Nothing plays until
     /// the top group's ▶ Listen (which raises Now Playing over it); ‹ (or the edge swipe) puts the
@@ -293,14 +299,15 @@ final class ShellState {
         if case .library = surface { true } else { false }
     }
 
-    /// The screen whose scrolling moves the compact chrome: the one showing (a pushed page and a page
-    /// read in place are screens of their own), and nothing while Listen, the Reader or any sheet (the
+    /// The screen whose scrolling moves the compact chrome: the one showing (a pushed page, the
+    /// Browser's page and a page read in place are screens of their own), and nothing while Listen, the Reader or any sheet (the
     /// Files picker included) covers it. Every property it reads calls `syncChromeOwner` when it
     /// changes, so the controller's owner is never out of step.
     var chromeOwner: ChromeOwner? {
         if isNowPlayingPresented || reader != nil || sheet != nil || isPickingBook { return nil }
         return switch surface {
-        case .browse: pageReader.map { ChromeOwner(source: .browserReader, screen: $0.id) } ?? ChromeOwner(source: .browser)
+        case .browse: pageReader.map { ChromeOwner(source: .browserReader, screen: $0.id) }
+            ?? ChromeOwner(source: .browser, screen: browserPage)
         case .library: libraryReader.map { ChromeOwner(source: .libraryReader, screen: $0.id) }
             ?? ChromeOwner(source: .library, screen: libraryPath)
         case .settings: ChromeOwner(source: .settings, screen: settingsPath)
@@ -511,11 +518,12 @@ final class ShellState {
         }
     }
 
-    /// The browser's page changed: its address field, and the page to reopen on.
+    /// The browser's page changed: the chrome's screen (`browserPage`), its address field, and the page
+    /// to reopen on.
     func browserPageChanged() {
         if let wanted = readerOnLoad, web.currentURL != wanted { readerOnLoad = web.isLoading ? web.currentURL : nil }
+        browserPage = web.currentURL
         closePageReader()
-        chromeScroll.expand()
         syncAddressField()
         remember()
     }

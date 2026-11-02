@@ -640,6 +640,37 @@ final class ChromeTests: XCTestCase {
         XCTAssertEqual(chrome.progress, 0, "a pushed folder is a new screen, handed over in the same step")
     }
 
+    /// A browser page that changes while another screen owns the chrome, or under a cover, leaves that
+    /// screen's fold alone (and no settle runs under a cover); the Browser comes back expanded on its new page.
+    @MainActor
+    func testABrowserPageChangeOrAPendingSettleNeverMovesAnotherScreensChrome() async throws {
+        let shell = ShellState()
+        let chrome = shell.chromeScroll
+        shell.openLibrary()
+        chrome.anchor(at: 10, from: .library)
+        scroll(chrome, to: [130])
+        shell.web.currentURL = URL(string: "https://example.com/one")
+        shell.browserPageChanged()
+        XCTAssertEqual(chrome.progress, 1, "a page loading under the Library")
+        shell.showNowPlaying()
+        shell.web.currentURL = URL(string: "https://example.com/two")
+        shell.browserPageChanged()
+        shell.hideNowPlaying()
+        XCTAssertEqual(chrome.progress, 1, "a page loading under Listen over the Library")
+        chrome.anchor(at: 0, from: .library)
+        scroll(chrome, to: [30])
+        let partway = chrome.progress
+        XCTAssertNotEqual(partway, ChromeScroll.stepEnd(partway))
+        shell.showNowPlaying()
+        try await Task.sleep(for: ChromeScroll.settleDelay * 2)
+        XCTAssertEqual(chrome.progress, partway, "no settle under Listen")
+        shell.hideNowPlaying()
+        try await Task.sleep(for: ChromeScroll.settleDelay * 2)
+        XCTAssertEqual(chrome.progress, ChromeScroll.stepEnd(partway), "back, the fold finishes its step")
+        shell.showBrowser()
+        XCTAssertEqual(chrome.progress, 0, "the Browser on its new page starts expanded")
+    }
+
     /// A reader is expanded or full screen: 60 pt of one gesture down enters, 24 pt up leaves, and it never folds.
     @MainActor
     func testAReaderGoesFullScreenAfterADeliberateScrollDownAndBackAfter24Up() {

@@ -99,13 +99,14 @@ changing the shell code.
   queues its offset reports in a `Task`, and keeps sending them under a reader, the Library, Listen or a
   sheet (hit testing off doesn't stop KVO). A refused report touches nothing, not even the baseline. The
   owner is `ShellState.chromeOwner` (the source and the screen within it: the Library's and Settings'
-  paths, the page read in place; nil under Listen, the Reader, any sheet or the Files picker), handed
+  paths, the Browser's page (`browserPage`, so a page that changes under another destination or a cover
+  is a new screen only when the Browser shows again), the page read in place; nil under Listen, the Reader, any sheet or the Files picker), handed
   over by `syncChromeOwner` from the `didSet` of every property it reads, so each transition reaches
   `ChromeScroll.hand(to:)` synchronously; a new input to `chromeOwner` needs the same `didSet`. The
   handover drops the gesture's continuity on every change, keeping what is drawn: the first accepted
   report after it only sets the baseline, so a fling under a Listen or sheet that opened and closed
   never lands its travel at once. A cover and its removal back to the same owner keep the fold and full
-  screen; any other owner starts expanded and out of full screen. The rule (`ChromePolicy`) is computed
+  screen (a pending settle is cancelled under the cover and rescheduled when the owner is back); any other owner starts expanded and out of full screen. The rule (`ChromePolicy`) is computed
   in the same step from the source and `ChromeConditions` (VoiceOver, the reading layout, which
   destinations are in Edit, whether the Browser has a page), which `ChromeHost` keeps current; no screen
   resets the chrome on appearing.
