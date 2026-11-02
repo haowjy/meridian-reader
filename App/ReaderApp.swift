@@ -35,6 +35,7 @@ private struct UnitTestHostApp: App {
 
 struct ReaderApp: App {
     private let container: ModelContainer
+    private let welcome: WelcomeArticle
     /// Composition root output (engine registry → SpeechController). See `AppComposition`.
     @State private var speechController = AppComposition.speechController
     @State private var shell = AppComposition.shell
@@ -61,10 +62,7 @@ struct ReaderApp: App {
         _follow = State(initialValue: follow)
         let preparedAudio = AppComposition.makePreparedAudio(library: library, follow: follow)
         _preparedAudio = State(initialValue: preparedAudio)
-        let speech = speechController, shell = shell
-        shell.openWelcome = {
-            WelcomeArticle(library: library, speech: speech, preparedAudio: preparedAudio, shell: shell).open()
-        }
+        welcome = AppComposition.attachWelcome(library: library, preparedAudio: preparedAudio)
         // Foreground/background gate for Core ML synthesis (no model calls in the background).
         AppRunState.shared.observeApplication()
         AppComposition.runLaunchMaintenance(library: library)
@@ -85,8 +83,8 @@ struct ReaderApp: App {
                 .environment(developer)
                 .modifier(IncomingOpenModifier(library: library, shell: shell))
                 .task {
-                    await AppLaunch.run(library: library, speech: speechController, shell: shell, preparedAudio: preparedAudio,
-                                        follow: follow)
+                    await AppLaunch.run(library: library, speech: speechController, shell: shell, welcome: welcome,
+                                        preparedAudio: preparedAudio, follow: follow)
                 }
         }
         .modelContainer(container)

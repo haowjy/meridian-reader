@@ -43,11 +43,9 @@ extension LibraryStore {
     /// longer first line (`defaultTitle`) leaves that line in.
     ///
     /// `key`: the page's key when it must be a known one (a bundled article whose audio ships
-    /// with the app, `WelcomeArticle`); a page already holding it comes back into the Library as
-    /// it is, text and position kept. `atTop`: it goes before the folder's first page, not after
-    /// its last. `byline` is a new page's; a page already holding `key` keeps its own.
+    /// with the app, `WelcomeArticle`).
     @discardableResult
-    func saveText(title: String, text: String, in folder: Folder?, key: UUID = UUID(), atTop: Bool = false,
+    func saveText(title: String, text: String, in folder: Folder?, key: UUID = UUID(),
                   byline: String = String(localized: "Pasted text")) throws -> Article {
         let plain = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         var blocks = plain.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -58,18 +56,8 @@ extension LibraryStore {
         let html = blocks.map { "<p>" + Self.escapedHTML($0) + "</p>" }.joined(separator: "\n")
         let paragraphs = Article.buildListenDocument(plainText: body, cleanedHTML: html, title: nil).paragraphs
         let saved = try edit("paste text") { () -> Article in
-            let sortKey = atTop ? firstSortKey(in: folder) - 1 : nextSortKey(in: folder)
-            if let existing = self.article(key: key) {
-                if existing.addedAt == nil {
-                    existing.addedAt = now()
-                    existing.removedAt = nil
-                    existing.sortKey = sortKey
-                    existing.setFolder(folder)
-                }
-                return existing
-            }
             let article = Article(key: key, title: name, byline: byline, urlString: nil,
-                                  contentState: .saved, addedAt: now(), sortKey: sortKey)
+                                  contentState: .saved, addedAt: now(), sortKey: nextSortKey(in: folder))
             article.givenTitle = name
             article.locator = "text:\(key.uuidString)"
             article.setText(html: html, plain: body, excerpt: String(body.prefix(140)),
@@ -101,7 +89,7 @@ extension LibraryStore {
     }
 
     /// *Prepare* on a page played without saving saves it first (C104), into the Library's top
-    /// level; a page in the Library stays where it is.
+    /// level; a page in the Library stays where it is. Audio it has is saved with it.
     func saveUnsaved(_ article: Article) throws {
         guard article.addedAt == nil else { return }
         try edit("save to download") {
@@ -109,5 +97,6 @@ extension LibraryStore {
             article.removedAt = nil
             article.sortKey = nextSortKey(in: nil)
         }
+        if let key = article.key { plan(.saved, key: key) }
     }
 }

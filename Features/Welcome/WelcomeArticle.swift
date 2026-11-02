@@ -20,7 +20,6 @@ struct WelcomeArticle {
     let speech: SpeechController
     let preparedAudio: PrepareCenter
     let shell: ShellState
-    var defaults: UserDefaults = .standard
 
     private var tts: LocalTTSCoordinator { speech.localTTS }
 
@@ -30,8 +29,8 @@ struct WelcomeArticle {
     /// (`ShellState.hasSomewhereToGo`: a Share, an Open In, an import). An upgrade (a library
     /// already in use) and every later launch add nothing.
     func addOnFreshInstall() {
-        guard !defaults.bool(forKey: Self.installedKey) else { return }
-        defaults.set(true, forKey: Self.installedKey)
+        guard !UserDefaults.standard.bool(forKey: Self.installedKey) else { return }
+        UserDefaults.standard.set(true, forKey: Self.installedKey)
         guard library.isUntouched, let article = ensure() else { return }
         library.recordPlaybackStarted(article)
         if !shell.hasSomewhereToGo { bindPaused(article) }
@@ -39,7 +38,7 @@ struct WelcomeArticle {
 
     /// ⋯ › Help and Settings › About: the article, added again first when it was deleted or
     /// removed. Listen, paused, so it is read to you, as on first launch; but while another page
-    /// plays or is paused, Library Read, as a Library row opens it: Help never takes over what
+    /// plays or is paused, Library Read, as a row's *Open* does: Help never takes over what
     /// you are hearing.
     func open() {
         guard let article = ensure() else { return }
@@ -65,31 +64,32 @@ struct WelcomeArticle {
 
     private func bindPaused(_ article: Article) {
         let session = SpeechSession.article(article)
-        guard !session.document.isEmpty else { return }
         speech.prepare(session, at: article.listenStart)
         shell.showNowPlaying()
     }
 
     /// The article in the Library, with its bundled audio installed and prepared when it was
-    /// just added back in the voice the audio is in.
+    /// just added back.
     private func ensure() -> Article? {
         guard let (article, added) = addedToLibrary() else { return nil }
-        if let spoken = added, spoken == tts.builtInDefaultSelection, installAudio(of: article, voice: spoken) {
-            _ = preparedAudio.prepare(article)
-        }
+        if added, installAudio(of: article) { _ = preparedAudio.prepare(article) }
         return article
     }
 
-    /// The article in the Library with its voice locked. `voice` is the one it speaks in, nil when
-    /// it was in the Library already.
-    private func addedToLibrary() -> (article: Article, voice: VoiceSelection?)? {
-        if let article = library.article(key: Self.key), article.isInLibrary { return (article, nil) }
+    /// The article in the Library, its voice locked when it is added. `added` is false when it
+    /// was in the Library already.
+    private func addedToLibrary() -> (article: Article, added: Bool)? {
+        if let article = library.article(key: Self.key) {
+            if article.isInLibrary { return (article, false) }
+            do { try library.saveUnsaved(article) } catch { return nil }
+            return (article, true)
+        }
         guard let (title, body) = Self.bundledText() else { return nil }
         do {
-            let article = try library.saveText(title: title, text: body, in: nil, key: Self.key, atTop: true,
+            let article = try library.saveText(title: title, text: body, in: nil, key: Self.key,
                                                byline: String(localized: "Meridian Reader"))
-            let held = library.lockVoice(ofKey: Self.key, to: tts.builtInDefaultSelection.stored)
-            return (article, VoiceSelection(stored: held))
+            library.lockVoice(ofKey: Self.key, to: tts.builtInDefaultSelection.stored)
+            return (article, true)
         } catch {
             return nil
         }
@@ -104,38 +104,11 @@ struct WelcomeArticle {
         return (String(lines[0].dropFirst(2)), String(lines[1]))
     }
 
-    /// Copies the bundled recording (`Welcome/audio`: `index.json` and its CAFs, as the audio
-    /// cache wrote them) into the article's cache directory, then lets the cache align it with the
-    /// article's paragraphs, which drops any paragraph whose text is not the one recorded. Only
-    /// into an article with no audio, and only a recording in the voice the article speaks in
-    /// (a model revision the recording predates renders live instead). True when audio is there.
-    private func installAudio(of article: Article, voice: VoiceSelection) -> Bool {
-        let cache = tts.audioCache
-        guard !cache.hasCache(for: Self.key),
-              let source = Bundle.main.resourceURL?.appendingPathComponent("Welcome/audio"),
-              let data = try? Data(contentsOf: source.appendingPathComponent("index.json")),
-              let recorded = try? JSONDecoder().decode(ArticleAudioCache.IndexFile.self, from: data),
-              let cacheVoice = tts.cacheVoice(of: voice),
-              recorded.engineID == voice.engine.rawValue, recorded.voiceID == cacheVoice else { return false }
-        let fileManager = FileManager.default
-        let target = cache.directory(for: Self.key)
-        // Copied beside, then renamed into place: a kill mid-copy leaves no half-installed folder
-        // behind the done flag.
-        let staging = cache.root.appendingPathComponent(".welcome-install", isDirectory: true)
-        do {
-            try? fileManager.removeItem(at: staging)
-            try fileManager.copyItem(at: source, to: staging)
-            try? fileManager.removeItem(at: target)
-            try fileManager.moveItem(at: staging, to: target)
-            cache.dropIndex(for: Self.key)
-            try cache.reconcile(articleID: Self.key, paragraphs: article.listenDocument().paragraphs)
-            try cache.markSaved(cacheKey: Self.key)
-            cache.bumpContentRevision()
-            return true
-        } catch {
-            try? fileManager.removeItem(at: staging)
-            try? cache.deleteAudio(for: Self.key)
-            return false
-        }
+    /// Installs the bundled recording (`Welcome/audio`) as the article's audio. A recording in
+    /// another voice than the article speaks in (a model revision it predates) is refused, and the
+    /// article renders live. True when audio is there.
+    private func installAudio(of article: Article) -> Bool {
+        guard let source = Bundle.main.resourceURL?.appendingPathComponent("Welcome/audio") else { return false }
+        return tts.installRecording(source, as: Self.key, paragraphs: article.listenDocument().paragraphs)
     }
 }
