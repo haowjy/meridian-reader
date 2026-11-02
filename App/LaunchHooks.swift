@@ -110,7 +110,7 @@ enum LaunchHooks {
     private struct InjectedSaveFailure: Error {}
 
     /// Last, after crash resume (which wins): `-openDemoInBrowseReader`, `-openSettings`, `-downloadVoice`,
-    /// `-openVoicePicker`, `-openLibraryFolder`, `-prepareFolder`, `-tapListen`
+    /// `-openVoicePicker`, `-openLibraryFolder`, `-prepareFolder`, `-openPageMenu`, `-tapListen`
     /// (`-tapListenWhen`), `-tapLibraryRow`,
     /// `-pasteText`, `-importBook`, `-listenDemo`, `-playTestEPUB`, `-chainDemoChapters`,
     /// `-switchDestinationAndBack`.
@@ -139,6 +139,24 @@ enum LaunchHooks {
             try? await Task.sleep(for: .seconds(1))
             let folders = (try? library.context.fetch(FetchDescriptor<Folder>())) ?? []
             if let folder = folders.first(where: { $0.name == name }) { _ = preparedAudio.prepare(folder) }
+        }
+        if options.opensPageMenu, let follow, let preparedAudio {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                // An in-place reader's ⋯ is a system menu, which nothing opens without a tap: its page
+                // rows (the same `ArticleMenu` at the same place) show in the ⋯ panel instead.
+                let inPlace = shell.isNowPlayingPresented ? nil
+                    : shell.libraryReader.map { ($0, ArticleMenu.Place.open) } ?? shell.pageReader.map { ($0, .browser) }
+                var context = ArticleActions.readingPageMenu(shell: shell, library: library, speech: speech,
+                                                             preparedAudio: preparedAudio, follow: follow)
+                if let (article, place) = inPlace {
+                    let actions = ArticleActions(article: library.article(key: article.id, canonicalURL: article.origin.canonicalURL),
+                                                 readerArticle: article, library: library, shell: shell, speech: speech,
+                                                 preparedAudio: preparedAudio, follow: follow)
+                    context.item = ArticleMenu(actions: actions, place: place).rows
+                }
+                shell.openMenu(context, from: CGRect(x: 340, y: 760, width: 44, height: 44))
+            }
         }
 
         if options.tapsListen || options.tapsListenWhenFullScreen {

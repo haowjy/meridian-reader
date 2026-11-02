@@ -49,6 +49,10 @@ struct LaunchOptions: Equatable {
     /// `-prepareFolder <name>`: once launched, the first folder named `<name>` prepared, as its
     /// header's Prepare does (prepare marks for probes; with `-testVoice` it renders offline).
     var preparesFolder: String?
+    /// `-openPageMenu`: 3 s in, the ⋯ panel over the reading page showing (Library Read, the
+    /// Browser's reader mode, the Reader, Listen) with that page's own rows (`ArticleMenu` at its
+    /// place), so they can be seen without a tap.
+    var opensPageMenu = false
     /// `-openSettings`: once launched, what a tap on the pill's Settings does. `-searchSettings <text>`:
     /// then Search Settings holds the text. `-openSettingsPage <page>` (`voice`, `appearance`, …): then
     /// that page is pushed.
@@ -212,6 +216,7 @@ struct LaunchOptions: Equatable {
         opensLibrary = flags.contains("-openLibrary")
         opensLibraryFolder = value(after: "-openLibraryFolder")
         preparesFolder = value(after: "-prepareFolder")
+        opensPageMenu = flags.contains("-openPageMenu")
         settingsSearch = value(after: "-searchSettings")
         settingsPage = value(after: "-openSettingsPage").flatMap(SettingsRoute.init(rawValue:))
         opensSettings = flags.contains("-openSettings") || settingsSearch != nil || settingsPage != nil
