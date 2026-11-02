@@ -98,8 +98,8 @@ struct ArticleActions {
         }
     }
 
-    /// 🔖 / *Save to Library* / *Remove from Library*: saves the page into the Library's top
-    /// level, or removes it. Neither touches the screen; Save never touches playback, and Remove
+    /// 🔖 / *Save to Library* / *Remove from Library*: saves the page (a new one into the Library's
+    /// top level; one already in a folder stays there), or removes it. Neither touches the screen; Save never touches playback, and Remove
     /// stops the page only if you hear it. A change that can't be stored leaves it as it was, and
     /// a toast says so.
     func toggleSaved() {

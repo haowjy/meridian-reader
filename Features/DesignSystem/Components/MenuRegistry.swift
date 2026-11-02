@@ -203,7 +203,7 @@ enum MenuRegistry {
     /// The options a `kind` menu shows at `place` for `facts`, in order, with their submenus. A page's
     /// menu with no page and no address (the browser's start page) is empty.
     static func entries(_ kind: Kind, at place: Place, _ facts: Facts) -> [Entry] {
-        if kind == .article && !facts.hasTarget { return [] }
+        if kind == .article && place == .browser && !facts.hasTarget { return [] }
         func entry(_ spec: Spec) -> Entry? {
             guard spec.kind == kind, spec.places.contains(place), spec.applies(facts) else { return nil }
             let children = specs.filter { $0.parent == spec.option }.compactMap(entry)

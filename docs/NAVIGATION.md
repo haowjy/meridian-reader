@@ -407,8 +407,8 @@ the same spot. ⋯ is never replaced.
   Text without a scheme loads as an address only when its host ends in letters (`.com`, `.uk`,
   `.js`) or is an IP address; anything else ("3.14", "e.g.") is a Google search, and the
   suggestions follow the same rule (`BrowseURLParser`).
-- **🔖** (regular width, slot 3; on compact width ⋯ has the page's *Save to Folder…*) is the Reader's 🔖 for the article on screen: tap saves it to the Library's top level
-  (extracted first; 🔖 spins), or removes it when it is saved (filled, jade); held, it opens the
+- **🔖** (regular width, slot 3; on compact width ⋯ has the page's *Save to Folder…*) is the Reader's 🔖 for the article on screen: tap saves it (a new page to the Library's top level, one already in a folder stays there;
+  extracted first; 🔖 spins), or removes it when it is saved (filled, jade); held, it opens the
   Move tree (*Save to Folder…*). Dimmed on the start page. **🕘** (slot 4; on compact width a row of ⋯) opens Browsing History: the
   pages visited, newest first, as Library rows (the site under a titled visit, none under an
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
