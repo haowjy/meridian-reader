@@ -8,7 +8,8 @@
      order. Add it as a `ContentsReader` in `TableOfContents.readers`, ahead of the others.
   2. **The page's list of links** (today's `Generic`), scored on more than chapter words: dates,
      and links that repeat one shape.
-  3. **No site rules.** The owner wants the Royal Road code gone ("hopefully our generic thing
+  3. **No site rules. This blocks the App Store release** (the owner's call): it ships before
+     the next submission. The owner wants the Royal Road code gone ("hopefully our generic thing
      can follow Royal Road"). Delete `TableOfContents.RoyalRoad` and make the generic path cover it:
      - **from a chapter to its index:** when the page has no list of chapters, follow the link on it
        whose path is the longest proper prefix of the page's own path. Royal Road's chapter
