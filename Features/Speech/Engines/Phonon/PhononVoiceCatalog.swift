@@ -3,7 +3,7 @@ import Foundation
 /// Phonon 31m English voices in the shipped model bundle (`PhononModelStore`).
 /// Ids match the `.safetensors` file names (no extension). THE place to trim the Settings list.
 /// `curated` is the top of the picker (natural long-form reading voices, Zoey first and default);
-/// `more` is everything else in the bundle, shown under *More voices*.
+/// `more` is everything else in the bundle, shown under *More Voices*. Every voice has a sample.
 enum PhononVoiceCatalog {
     static let defaultVoice = "Zoey"
 
@@ -50,12 +50,15 @@ enum PhononVoiceCatalog {
         voice("The Snow Queen"),
         voice("The Thing Under the Stairs"),
         voice("Vyrmathrax the Ancient"),
-        EngineVoice(id: "default", label: "Gradium default"),
+        voice("default", label: "Gradium default"),
     ]
 
     static let all: [EngineVoice] = curated + more
 
-    private static func voice(_ id: String) -> EngineVoice {
-        EngineVoice(id: id, label: id)
+    /// Its sample is `Resources/VoicePreviews/voice-preview-phonon-<id, lowercased, spaces as
+    /// hyphens>.m4a` (`docs/TTS_ENGINES.md`, "Phonon").
+    private static func voice(_ id: String, label: String? = nil) -> EngineVoice {
+        let slug = id.lowercased().replacingOccurrences(of: " ", with: "-")
+        return EngineVoice(id: id, label: label ?? id, previewResource: "voice-preview-phonon-\(slug)")
     }
 }

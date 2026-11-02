@@ -84,7 +84,8 @@ private struct LaunchTestHooks: ViewModifier {
             .environment(\.webViewSchemeHandlers, options.servesTestPages ? TestPageSchemeHandler.handlers : [:])
             .environment(\.searchSuggestionProvider, options.suggestionProvider)
             .environment(\.showsScrubBubbleDemo, options.scrubBubbleDemo)
-            .environment(\.voicePageProbe, VoicePageProbe(editing: options.editsVoices, removing: options.removesVoice))
+            .environment(\.voicePageProbe, VoicePageProbe(editing: options.editsVoices, removing: options.removesVoice,
+                                                           openSection: options.opensVoiceSection))
     }
 }
 #endif

@@ -66,6 +66,20 @@ final class PhononProvider: SpeechEngineProvider {
     /// The model bundle ships in the app (`PhononModelStore`): always installed.
     func isInstalled(_ id: SpeechEngineID) -> Bool { id == .phonon }
 
+    /// A voice's file in the shipped bundle (`voices/<id>.safetensors`), measured once.
+    func installedSize(of voice: String, for id: SpeechEngineID) -> Int64? {
+        guard id == .phonon else { return nil }
+        if let known = voiceSizes[voice] { return known }
+        guard let bundle = PhononModelStore.shippedBundle else { return nil }
+        let bytes = FileSizes.allocatedBytes(at: bundle.appendingPathComponent("voices/\(voice).safetensors"))
+        guard bytes > 0 else { return nil }
+        voiceSizes[voice] = bytes
+        return bytes
+    }
+
+    /// The bundle's voice files never change while the app runs.
+    private var voiceSizes: [String: Int64] = [:]
+
     /// Phonon's model housekeeping, then pruning Core ML's compiled-model cache of earlier
     /// installs' bundles (Phonon is the app's only Core ML model).
     var launchMigrations: [LaunchMigration] {

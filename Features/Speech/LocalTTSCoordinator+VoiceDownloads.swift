@@ -21,7 +21,7 @@ extension LocalTTSCoordinator {
         guard affected else { return nil }
         if !removal.removesEngine, let voice = engines.descriptor(selection.engine)?.resolvedVoice(nil), voice != selection.voice {
             let fallback = VoiceSelection(engine: selection.engine, voice: voice)
-            if voiceDownloads.status(of: fallback) == .onDevice { return fallback }
+            if case .onDevice = voiceDownloads.status(of: fallback) { return fallback }
         }
         return builtInDefaultSelection
     }

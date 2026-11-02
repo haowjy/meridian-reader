@@ -1,19 +1,26 @@
 import SwiftUI
 
-/// C138a: the one voice switcher. A compact Voices control (Phonon | Kokoro) filters the list;
-/// that voice library's voices follow (with samples and downloads, `VoiceChoiceRows`), or why it can't run on
-/// this device. Picking a voice picks its engine. Settings › Voice (the default for new articles) and an article's or a book's *Voice*
-/// picker (`VoicePickerSheet`) are this list.
+/// C138a: the one voice switcher, Settings › Voice (the default for new articles) and an
+/// article's or a book's *Voice* picker (`VoicePickerSheet`). One card: each registered engine, in
+/// the registry's order, is a row that opens its section in place (`DisclosureRow`), as iOS's
+/// Settings groups do, its voices following (with samples and downloads, `VoiceChoiceRows`), or
+/// why it can't run on this device. Picking a voice picks its engine.
 ///
 /// ```
-/// Voices   [ Phonon | Kokoro ]
-/// KOKORO
-/// ( ▶ )  Heart                 ✓
-/// ( ▶ )  Bella                 ◔■
-///        164 MB
-/// ( ▶ )  Emma                  ⤓
-///        164 MB
+/// Phonon                          ⌄
+/// ( ▶ )  Zoey                     ✓
+///        0.3 MB
+/// ( ▶ )  Jude
+///        0.3 MB
+///        More Voices              ›      an engine's further voices, closed until opened
+/// Kokoro                Heart  ◔  ›      closed: the voice in use, a download running in it
+/// New articles and books use this voice. …
 /// ```
+///
+/// Open at first: the engine holding the voice in use and any engine with a download running;
+/// several can be open, and what is open lasts as long as the screen (nothing stored). A closed
+/// engine's row names the voice in use when it holds it, and rings while one of its voices
+/// downloads.
 struct VoiceSelectionList: View {
     @Bindable var speech: SpeechController
     /// The selection with the checkmark.
@@ -26,100 +33,131 @@ struct VoiceSelectionList: View {
     var onRemove: ((VoiceSelection) -> Void)?
     let onPick: (VoiceSelection) -> Void
 
-    private var localTTS: LocalTTSCoordinator { speech.localTTS }
+    /// The open engines' sections, and the engines whose *More Voices* is open; nil until the
+    /// screen first shows (then `startsOpen`).
+    @State private var openEngines: Set<SpeechEngineID>?
+    @State private var openMore: Set<SpeechEngineID>?
+    #if DEBUG
+    @Environment(\.voicePageProbe) private var probe
+    #endif
 
-    /// Engine whose voices are listed. nil until the user taps one: the current selection's engine.
-    @State private var shownEngine: SpeechEngineID?
+    private var localTTS: LocalTTSCoordinator { speech.localTTS }
+    private var downloads: VoiceDownloads { localTTS.voiceDownloads }
 
     private var engines: [EngineDescriptor] {
         localTTS.engines.descriptors.filter { !$0.voices.isEmpty }
     }
 
-    private var visibleEngine: SpeechEngineID {
-        shownEngine ?? current?.engine ?? localTTS.engines.defaultEngine.id
-    }
-
-    /// Engine first (Phonon / Kokoro), then only that engine's voices.
     var body: some View {
-        engineSelector
-        if let descriptor = engines.first(where: { $0.id == visibleEngine }) {
-            engineSection(descriptor)
-            if !descriptor.moreVoices.isEmpty, localTTS.engines.supports(descriptor.id) {
-                moreVoicesSection(descriptor)
-            }
-        }
-    }
-
-    /// Compact Phonon | Kokoro chips (same ChoicePicker as Appearance), not tall choice rows.
-    private var engineOptions: [SpeechEngineID] { engines.map(\.id) }
-
-    private var engineSelection: Binding<SpeechEngineID> {
-        Binding(get: { visibleEngine }, set: { shownEngine = $0 })
-    }
-
-    @ViewBuilder
-    private var engineSelector: some View {
         Section {
-            SettingsControlRow(title: String(localized: "Voices")) {
-                ChoicePicker(options: engineOptions, selection: engineSelection,
-                             identifier: "engineRow") { id in
-                    Text(engineChipLabel(id)).typeStyle(.row)
-                }
+            ForEach(engines, id: \.id) { descriptor in
+                engineRows(descriptor)
             }
+        } footer: {
+            footerText.listFooter()
         }
         .listCard()
-    }
-
-    private func engineChipLabel(_ id: SpeechEngineID) -> String {
-        localTTS.engines.shortName(id)
-    }
-
-    /// Same engine, listing only its *More voices* (VoiceChoiceRows lists `descriptor.voices`).
-    private static func moreDescriptor(_ d: EngineDescriptor) -> EngineDescriptor {
-        var more = d
-        more.voices = d.moreVoices
-        return more
-    }
-
-    @ViewBuilder
-    private func moreVoicesSection(_ descriptor: EngineDescriptor) -> some View {
-        let id = descriptor.id
-        let more = Self.moreDescriptor(descriptor)
-        Section {
-            VoiceChoiceRows(descriptor: more, current: current?.engine == id ? current?.voice : nil,
-                            preview: preview, speech: speech, onRemove: onRemove) { voice in
-                onPick(VoiceSelection(engine: id, voice: voice.id))
-            }
-        } header: {
-            SectionHeader(title: String(localized: "More voices")).listHeader()
+        .onAppear {
+            if openEngines == nil { openEngines = startsOpen(more: false) }
+            if openMore == nil { openMore = startsOpen(more: true) }
         }
-        .listCard()
     }
 
     @ViewBuilder
-    private func engineSection(_ descriptor: EngineDescriptor) -> some View {
+    private func engineRows(_ descriptor: EngineDescriptor) -> some View {
         let id = descriptor.id
-        let supported = localTTS.engines.supports(id)
-        Section {
-            if supported {
-                VoiceChoiceRows(descriptor: descriptor, current: current?.engine == id ? current?.voice : nil,
-                                preview: preview, speech: speech, onRemove: onRemove) { voice in
-                    onPick(VoiceSelection(engine: id, voice: voice.id))
+        let open = (openEngines ?? startsOpen(more: false)).contains(id)
+        let running = downloading(in: descriptor.allVoices, of: id)
+        DisclosureRow(title: descriptor.displayName, isOpen: open,
+                      value: inUseLabel(in: descriptor.allVoices, of: id),
+                      downloading: running.any, fraction: running.fraction,
+                      accessibilityID: "engineSection-\(descriptor.shortName.lowercased())") {
+            openEngines = (openEngines ?? startsOpen(more: false)).symmetricDifference([id])
+        }
+        if open {
+            if localTTS.engines.supports(id) {
+                if case .failed(id, let message) = localTTS.synth.state(of: id) {
+                    Text(message)
+                        .typeStyle(.caption)
+                        .foregroundStyle(Palette.destructive)
+                        .padding(.leading, VoiceRow.nameInset)
                 }
+                voiceRows(descriptor)
+                if !descriptor.moreVoices.isEmpty { moreVoicesRows(descriptor) }
             } else {
                 Text(localTTS.engines.blockReason(id) ?? String(localized: "Not supported on this device"))
                     .foregroundStyle(Palette.secondaryInk)
             }
-        } header: {
-            SectionHeader(title: descriptor.displayName).listHeader()
-        } footer: {
-            if case .failed(id, let message) = localTTS.synth.state(of: id) {
-                Text(message).foregroundStyle(Palette.destructive).listFooter()
-            } else {
-                footerText.listFooter()
+        }
+    }
+
+    private func voiceRows(_ descriptor: EngineDescriptor) -> some View {
+        let id = descriptor.id
+        return VoiceChoiceRows(descriptor: descriptor, current: current?.engine == id ? current?.voice : nil,
+                               preview: preview, speech: speech, onRemove: onRemove) { voice in
+            onPick(VoiceSelection(engine: id, voice: voice.id))
+        }
+    }
+
+    /// The engine's further voices behind their own row, so its curated ones stay a short list.
+    @ViewBuilder
+    private func moreVoicesRows(_ descriptor: EngineDescriptor) -> some View {
+        let id = descriptor.id
+        let open = (openMore ?? startsOpen(more: true)).contains(id)
+        let running = downloading(in: descriptor.moreVoices, of: id)
+        DisclosureRow(title: String(localized: "More Voices"), isOpen: open,
+                      value: inUseLabel(in: descriptor.moreVoices, of: id),
+                      downloading: running.any, fraction: running.fraction,
+                      leadingInset: VoiceRow.nameInset,
+                      accessibilityID: "moreVoices-\(descriptor.shortName.lowercased())") {
+            openMore = (openMore ?? startsOpen(more: true)).symmetricDifference([id])
+        }
+        if open { voiceRows(Self.moreDescriptor(descriptor)) }
+    }
+
+    /// The same engine listing only its *More Voices* (`VoiceChoiceRows` lists `voices`).
+    private static func moreDescriptor(_ descriptor: EngineDescriptor) -> EngineDescriptor {
+        var more = descriptor
+        more.voices = descriptor.moreVoices
+        return more
+    }
+
+    /// What opens first: where the voice in use is and wherever a download runs (`more`: among
+    /// the engines' *More Voices*).
+    private func startsOpen(more: Bool) -> Set<SpeechEngineID> {
+        var open = Set<SpeechEngineID>()
+        for descriptor in engines {
+            let id = descriptor.id
+            let voices = more ? descriptor.moreVoices : descriptor.allVoices
+            if inUseLabel(in: voices, of: id) != nil || downloading(in: voices, of: id).any { open.insert(id) }
+        }
+        if !more, current == nil { open.insert(localTTS.engines.defaultEngine.id) }
+        #if DEBUG
+        if !more, let name = probe.openSection?.lowercased(),
+           let asked = engines.first(where: { $0.shortName.lowercased() == name || $0.id.rawValue == name }) {
+            open.insert(asked.id)
+        }
+        #endif
+        return open
+    }
+
+    /// The voice in use's name when it is one of `voices`.
+    private func inUseLabel(in voices: [EngineVoice], of id: SpeechEngineID) -> String? {
+        guard let current, current.engine == id else { return nil }
+        return voices.first { $0.id == current.voice }?.label
+    }
+
+    /// Whether any of `voices` is downloading, and how far (nil while one hasn't a size yet).
+    private func downloading(in voices: [EngineVoice], of id: SpeechEngineID) -> (any: Bool, fraction: Double?) {
+        var fractions: [Double?] = []
+        for voice in voices {
+            if case .downloading(let fraction, _) = downloads.status(of: VoiceSelection(engine: id, voice: voice.id)) {
+                fractions.append(fraction)
             }
         }
-        .listCard()
+        guard !fractions.isEmpty else { return (false, nil) }
+        let known = fractions.compactMap { $0 }
+        return (true, known.count == fractions.count ? known.reduce(0, +) / Double(known.count) : nil)
     }
 
     /// What the picked voice is for (`footer`), or why the last pick changed nothing.

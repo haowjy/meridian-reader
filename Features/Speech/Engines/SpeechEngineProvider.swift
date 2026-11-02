@@ -21,6 +21,10 @@ protocol SpeechEngineProvider: AnyObject {
     /// shares between its voices); nil when everything it needs is on the device (it ships in the
     /// app, or it was downloaded). The Voice picker's second line.
     func downloadSize(of voice: String, for id: SpeechEngineID) -> Int64?
+    /// What `voice` takes on the device once it is there: its own files (a voice file, a pack),
+    /// not those its library's voices share; measured, not assumed. nil when unknown. The Voice
+    /// picker's second line for a voice on the device.
+    func installedSize(of voice: String, for id: SpeechEngineID) -> Int64?
     /// Download everything `voice` needs (no-op when it is on the device). Files only: no engine
     /// loads. `progress` gets the fraction once the size is known, nil while it starts or checks.
     /// Throws `CancellationError` when the task is cancelled or the large-download prompt declined.
@@ -56,6 +60,7 @@ protocol SpeechEngineProvider: AnyObject {
 extension SpeechEngineProvider {
     var retiredEngines: [RetiredEngine] { [] }
     func downloadSize(of voice: String, for id: SpeechEngineID) -> Int64? { nil }
+    func installedSize(of voice: String, for id: SpeechEngineID) -> Int64? { nil }
     func download(_ voice: String, for id: SpeechEngineID,
                   progress: @escaping @MainActor (Double?) -> Void) async throws {}
     func transfer(of voice: String, for id: SpeechEngineID) -> VoiceTransfer? { nil }
@@ -160,6 +165,10 @@ final class EngineRegistry {
 
     func downloadSize(of voice: String, for id: SpeechEngineID) -> Int64? {
         byID[id]?.1.downloadSize(of: voice, for: id)
+    }
+
+    func installedSize(of voice: String, for id: SpeechEngineID) -> Int64? {
+        byID[id]?.1.installedSize(of: voice, for: id)
     }
 
     func download(_ voice: String, for id: SpeechEngineID,

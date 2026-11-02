@@ -866,12 +866,13 @@ check slot, min height 48), so state changes never move rows.
 
 1. **Voice ›** (`VoicePage`): the default voice for new articles and books, from the one voice
    switcher (`VoiceSelectionList`, C138a), the same list an article's or a book's *Voice* picker
-   shows. A *Phonon | Kokoro* chip row chooses which engine's voices are listed, starting
-   on the current selection's engine: Phonon's and Kokoro's curated voices (Phonon adds a *More
-   voices* list), each a `VoiceRow` as iOS's own Voice screen draws it (NAVIGATION.md →
-   "Settings"): the sample's ▶, the name alone, the download size while it isn't on the device,
-   and ✓, ⤓ or the download's ring. A failed engine load's message sits in the footer, and on a
-   device that can't run the library, what it needs. Picking a voice picks its engine. The row's
+   shows. Each voice library is a row in one card that opens its section in place
+   (`DisclosureRow`), the one holding the voice in use open at first: its curated voices (Phonon's
+   others behind a *More Voices* row), each a `VoiceRow` as iOS's own Voice screen draws it
+   (NAVIGATION.md → "Settings"): the sample's ▶, the name over its size (on the device, or what it
+   downloads), and ✓, ⤓ or the download's ring. A closed library's row names the voice in use and
+   rings while one of its voices downloads. A failed engine load's message is the first row of its
+   section, and on a device that can't run the library, opening it says what it needs. Picking a voice picks its engine. The row's
    value never names the voice: "Default" while the built-in voice is the pick
    (`builtInDefault(of:)`), else its voice library ("Kokoro").
 2. **Speed**, the six speeds in one line.

@@ -13,8 +13,8 @@ import Observation
 final class VoiceDownloads {
     /// Where a voice stands in the picker.
     enum Status: Equatable {
-        /// Everything it needs is on the device.
-        case onDevice
+        /// Everything it needs is on the device, its own files taking `bytes` (nil: unknown).
+        case onDevice(bytes: Int64?)
         /// Choosing it downloads `bytes`.
         case notDownloaded(bytes: Int64)
         /// Downloading: `fraction` once the size is known, nil while it starts or checks. `bytes`
@@ -52,7 +52,9 @@ final class VoiceDownloads {
             return .downloading(fraction: transfer.fraction, bytes: size ?? running[selection]?.bytes ?? 0)
         }
         if let run = running[selection] { return .downloading(fraction: run.fraction, bytes: run.bytes) }
-        guard let bytes = size else { return .onDevice }
+        guard let bytes = size else {
+            return .onDevice(bytes: engines.installedSize(of: selection.voice, for: selection.engine))
+        }
         return failed.contains(selection) ? .failed(bytes: bytes) : .notDownloaded(bytes: bytes)
     }
 

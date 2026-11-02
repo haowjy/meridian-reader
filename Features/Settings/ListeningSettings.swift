@@ -3,7 +3,7 @@ import SwiftUI
 /// Settings › Listening, on the Settings card:
 ///
 /// 1. **Voice ›**: the default voice for new articles and books, from the one voice switcher
-///    (`VoicePage`, `VoiceSelectionList`: compact Engine chips then that engine's voices, C138a).
+///    (`VoicePage`, `VoiceSelectionList`: each engine a section that opens in place).
 /// 2. **Speed ›**: the playback speeds, the list Now Playing's speed opens (`SpeedPage`).
 struct ListeningSettingsSection: View {
     @Bindable var speech: SpeechController
@@ -199,11 +199,14 @@ struct VoicePage: View {
 }
 
 #if DEBUG
-/// A Debug launch's look at the Voice page (`LaunchTestHooks`): Edit on, or a voice's *Remove*.
+/// A Debug launch's look at the voice pickers (`LaunchTestHooks`): Edit on, a voice's *Remove*,
+/// an engine's section open.
 struct VoicePageProbe: Equatable {
     var editing = false
     /// The engine voice id whose *Remove* runs a second in ("af_heart").
     var removing: String?
+    /// An engine's short name or id ("kokoro") whose section starts open in every voice picker.
+    var openSection: String?
 }
 
 extension EnvironmentValues {

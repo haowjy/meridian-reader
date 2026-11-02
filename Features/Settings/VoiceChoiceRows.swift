@@ -72,7 +72,7 @@ struct VoiceChoiceRows: View {
 
     static func rowDownload(_ status: VoiceDownloads.Status) -> VoiceRow.Download {
         switch status {
-        case .onDevice: .onDevice
+        case .onDevice(let bytes): .onDevice(size: bytes.map(FileSizes.megabytes))
         case .notDownloaded(let bytes): .notDownloaded(size: FileSizes.megabytes(bytes))
         case .downloading(let fraction, let bytes): .downloading(fraction: fraction, size: FileSizes.megabytes(bytes))
         case .failed: .failed

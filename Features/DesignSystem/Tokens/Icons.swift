@@ -23,6 +23,8 @@ enum Icons {
     static let clearText = "xmark.circle.fill"
     /// A row that opens a screen or a submenu.
     static let disclosure = "chevron.right"
+    /// A row that opens its section in place (`DisclosureRow`): turned down while open.
+    static let expandable = "chevron.right"
     /// ⋯.
     static let more = "ellipsis"
     /// The web: the swap to the browser, Website, search the web.

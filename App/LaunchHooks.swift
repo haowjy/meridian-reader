@@ -119,7 +119,7 @@ enum LaunchHooks {
         if options.opensDemoInReader { await openNewestInReader(in: library, shell: shell) }
         if options.opensSettings { await openSettings(options, shell: shell) }
         if let voice = options.downloadsVoice { downloadVoice(voice, options, tts: speech.localTTS) }
-        if options.opensVoicePicker { await openVoicePicker(in: library, shell: shell) }
+        if options.opensVoicePicker { await openVoicePicker(in: library, shell: shell, book: options.seedsDemoBook) }
         if options.readsDemoInLibrary { await readNewestInLibrary(in: library, shell: shell) }
         if let away = options.switchesDestinationAndBack {
             Task { @MainActor in
@@ -420,8 +420,13 @@ enum LaunchHooks {
     }
 
     /// `-openVoicePicker`: the newest saved article's *Voice* sheet, a second in.
-    static func openVoicePicker(in library: LibraryStore, shell: ShellState) async {
+    static func openVoicePicker(in library: LibraryStore, shell: ShellState, book: Bool) async {
         try? await Task.sleep(for: .seconds(1))
+        if book, let folders = try? library.context.fetch(FetchDescriptor<Folder>()),
+           let demo = folders.first(where: { $0.kind.isBookOrSeries }) {
+            shell.sheet = .voice(.folder(demo.id))
+            return
+        }
         var newest = LibraryQueries.savedInLibrary
         newest.fetchLimit = 1
         guard let saved = try? library.context.fetch(newest).first else { return }

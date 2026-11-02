@@ -17,6 +17,15 @@ extension FluidAudioProvider {
         return bytes > 0 ? bytes : nil
     }
 
+    /// `voice`'s pack (0.5 MB) as it is on disk; its known size when it isn't there to measure
+    /// (Heart before its copy from the app, a Debug simulation). The model it shares with every
+    /// voice isn't counted: removing a voice frees its pack.
+    func installedSize(of voice: String, for id: SpeechEngineID) -> Int64? {
+        guard id == .kokoro else { return nil }
+        let bytes = FileSizes.allocatedBytes(at: KokoroAssets.voicePackURL(voice))
+        return bytes > 0 ? bytes : KokoroAssets.packBytes
+    }
+
     /// `voice`'s transfer (`KokoroTransfers`): the frontend, the pack, then the model, whose
     /// progress is the row's ring. A host load or render downloading the same voice is the same
     /// transfer.

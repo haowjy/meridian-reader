@@ -161,7 +161,10 @@ struct LaunchOptions: Equatable {
     /// opens, what that voice's *Remove* does (its question, when it asks).
     var editsVoices = false
     var removesVoice: String?
-    /// `-openVoicePicker` (with `-seedDemoArticle`): the newest saved article's *Voice* sheet.
+    /// `-openVoiceSection <engine>` ("kokoro", or its id): the voice pickers open with that
+    /// engine's section open, as well as the ones they open anyway.
+    var opensVoiceSection: String?
+    /// `-openVoicePicker`: the newest saved article's *Voice* sheet; with `-seedDemoBook`, the book's.
     var opensVoicePicker = false
     /// `-selectEngine <engine id>` (`local.phonon`, `local.kokoro`, `test.voice`): the engine to
     /// load at launch; its voice is the default for new articles.
@@ -244,6 +247,7 @@ struct LaunchOptions: Equatable {
         stopsVoiceDownloadAfter = value(after: "-stopVoiceDownloadAfter").flatMap(Double.init)
         editsVoices = flags.contains("-editVoices")
         removesVoice = value(after: "-removeVoice")
+        opensVoiceSection = value(after: "-openVoiceSection")
         opensVoicePicker = flags.contains("-openVoicePicker")
         usesLanePolicy = value(after: "-renderPolicy") == "lanes"
         if flags.contains("-engineProbe") {

@@ -1384,17 +1384,27 @@ a symbol. Top to bottom:
 - **Listening** (first; the audio settings):
   - *Voice ›* (`VoicePage`): the default voice for new articles and books, from the one voice
     switcher (`VoiceSelectionList`, the same list an article's or a book's *Voice* picker shows).
-    *Phonon | Kokoro* chips choose which engine's voices are listed; picking a voice picks
-    its engine. Each lists its curated voices, then *More voices*, each row drawn as iOS's own
-    Voice screen draws one (`VoiceRow`): the sample's ▶ at the leading edge, the name alone (no
-    description), a second line only while the voice isn't on the device (its download size,
-    *0.5 MB*; with Kokoro's shared model missing, model and pack, *164 MB*), and one trailing mark:
-    ✓ for the voice in use once it is on the device, ⤓ when it isn't downloaded (the voice in use
-    too: it shows ⤓ and its size, VoiceOver still calls it selected, and the ✓ comes back once it
-    downloads), the download's progress while it downloads, whoever started it (a pick, or
+    One card, no tabs: each voice library, in the registry's order, is a row that opens its section
+    in place (`DisclosureRow`, as iOS's Settings groups do; a row in the card, not a section
+    title): a tap anywhere on it opens or closes it, its chevron turning from › to ⌄ (a cross-fade
+    under Reduce Motion), and VoiceOver calls it a button, expanded or collapsed. Open at first:
+    the library holding the voice in use and any with a download running; several can be open, and
+    what is open lasts as long as the screen. A closed one still says what is inside: the voice in
+    use set apart by space (*Kokoro   Heart*), and a small accent ring while one of its voices
+    downloads. Open, it lists its curated voices; Phonon's others follow behind their own *More
+    Voices* row (lined up with the names, closed until opened or the voice in use is there).
+    Picking a voice picks its engine. Each voice row is drawn as iOS's own Voice screen draws one
+    (`VoiceRow`): the sample's ▶ at the leading edge (every voice has a sample; one without would
+    show its ▶ dimmed, never a gap), the name over its size, in every state, so rows never change
+    height (the size of its own files on the device once it is there: a Phonon voice's file in the
+    app, *0.3 MB*, a Kokoro pack, *0.5 MB*; while it isn't, what choosing it downloads: with
+    Kokoro's shared model missing, model and pack, *164 MB*; VoiceOver reads it with the name), and
+    one trailing mark: ✓ for the voice in use once it is on the device, ⤓ when it isn't downloaded
+    (the voice in use too: it shows ⤓, VoiceOver still calls it selected, and the ✓ comes back once
+    it downloads), the download's progress while it downloads, whoever started it (a pick, or
     playback loading the voice): a spinning accent arc while it starts, then a ring filling round a
     ■ that stops it, and listening waiting for it too (its VoiceOver hint says so); nothing for a
-    downloaded voice not in use. Phonon's voices are in the app: no second line.
+    downloaded voice not in use.
     A tap on the row or ⤓ picks it: one not on the device downloads first and the ✓ stays on the
     voice before until it is there (the newest pick wins, the voice already in use included, and a
     stopped download never selects); a failed download says *Couldn’t
@@ -1407,8 +1417,9 @@ a symbol. Top to bottom:
     need to download again."); removing the default, or the voice of what you're listening to,
     asks first and says what changes: listening stops, which voice new articles take, and that
     articles already in it download it again before they play. A failed removal is a
-    toast. A failed engine load's message sits in the footer (on a device that can't run the
-    library, what it needs). The row's
+    toast. Edit and the swipe work in every open section, and a section closes in Edit too. A
+    failed engine load's message is the first row of its section; a library the device can't run
+    keeps its row, and opening it says what it needs. The note under the card is the screen's. The *Voice ›* row's
     value never names the voice: *Default* while the built-in voice is the pick (Zoey, else
     Heart), else its voice library (*Kokoro*).
   - *Speed ›* (the speeds Listen lists, 0.75× to 2×, the
