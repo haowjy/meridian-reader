@@ -6,7 +6,7 @@ import SwiftUI
 ///
 /// ```
 /// │←16→[col]←12→Title                                [ ⋯ ]│   one line: `oneLineHeight` (48)
-/// │          Detail                              ←16→│      two lines: both lines' height + 2 × 8
+/// │          Detail                              ←16→│      two lines: `twoLineHeight`, both lines + 2 × 8
 ///                                         slot 44, its glyph ending 16 in
 /// ```
 ///
@@ -19,8 +19,8 @@ import SwiftUI
 ///   `symbolColumn` wide, `columnGap` before the text. A page's thumbnail column is its two lines' height
 ///   (`ListRow`), a voice's ▶ its tap square (`VoiceRow`).
 /// - Trailing: text and marks end `edgeInset` in; a trailing control is `Control.tap` square
-///   (`accessorySlot`), placed so its `Glyph.regular` glyph also ends `edgeInset` in, its centre
-///   `accessoryCenter` from the card's edge. (The top bar's ⋯ is centred 18 in from the card's edge,
+///   (`accessorySlot`), `accessoryTrailing` from the card's edge so its `Glyph.regular` glyph also ends
+///   `edgeInset` in. (The top bar's ⋯ is centred 18 in from the card's edge,
 ///   `Spacing.topBarMargin` + half `Control.chrome` less the page margin: a 44 pt slot there would
 ///   cross the card's edge, so rows line up with the card's text instead.)
 enum RowMetrics {
@@ -32,22 +32,21 @@ enum RowMetrics {
     static let columnGap = Spacing.s
     /// A leading symbol's or checkbox's column.
     static let symbolColumn = Glyph.slot
-    /// A one-line row at the default text size, on a card list.
+    /// A one-line row at the default text size, on a card list: the list's row minimum (`cardListStyle`).
     static let oneLineHeight = Control.bar
     /// A trailing control's square.
     static let accessorySlot = Control.tap
     /// From the card's trailing edge to a trailing control's square: its glyph then ends `edgeInset` in.
     static let accessoryTrailing = edgeInset - (accessorySlot - Glyph.regular) / 2
-    /// From the card's trailing edge to a trailing control's centre.
-    static let accessoryCenter = accessoryTrailing + accessorySlot / 2
     /// A title beside other content: one line, two at the accessibility sizes (whole labels, C130).
     static func titleLines(_ size: DynamicTypeSize) -> Int { size.isAccessibilitySize ? 2 : 1 }
     /// A title on a line of its own above the rest (`ListRow` at the accessibility sizes).
     static let stackedTitleLines = 3
 
-    /// A two-line row at the default text size.
-    static var twoLineHeight: CGFloat {
-        TypeStyle.row.lineHeight + TypeStyle.caption.lineHeight + 2 * verticalInset
+    /// A two-line row: its title's and detail's line heights (each scaled with the text) and the
+    /// vertical inset above and below.
+    static func twoLineHeight(title: CGFloat, detail: CGFloat) -> CGFloat {
+        title + detail + 2 * verticalInset
     }
 }
 
@@ -76,7 +75,7 @@ private struct RowHeight: ViewModifier {
 
     private var height: CGFloat {
         lines <= 1 ? Control.grown(minimum * growth, from: minimum)
-            : titleLine + detailLine + 2 * RowMetrics.verticalInset
+            : RowMetrics.twoLineHeight(title: titleLine, detail: detailLine)
     }
 
     func body(content: Content) -> some View {

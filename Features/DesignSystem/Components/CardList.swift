@@ -13,7 +13,7 @@ import SwiftUI
 /// ```
 extension View {
     /// Grouped cards on paper, at the page margin, `Spacing.m` between sections, every row at
-    /// least `Control.bar` tall (the proportions of the system's Settings); a row taller by its
+    /// least `RowMetrics.oneLineHeight` tall (the proportions of the system's Settings); a row taller by its
     /// content (two lines, a control, large text) keeps its height. With `listCard()` this is the one
     /// card-row policy: no row sets a height of its own; the List's minimum and `SymbolRow`'s
     /// (`rowMinimum`, which grows with the text) are this one value.
@@ -23,7 +23,7 @@ extension View {
     /// header's text sits there under a system bar. A list that opens with a bare card (`startsWithCard`)
     /// would get the List's own 35 pt top margin instead, so it sets its own.
     func cardListStyle(startsWithCard: Bool = false) -> some View {
-        let minimum = Control.bar
+        let minimum = RowMetrics.oneLineHeight
         return listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Palette.paper)
@@ -34,14 +34,14 @@ extension View {
             .environment(\.rowMinimum, minimum)
     }
 
-    /// A section's rows on the card's fill, `Spacing.m` in from its sides and no List inset above
-    /// or below: the list's minimum (`cardListStyle`) gives a row its height, and a row's own
+    /// A section's rows on the card's fill, `RowMetrics.edgeInset` in from its sides and no List inset
+    /// above or below: the list's minimum (`cardListStyle`) gives a row its height, and a row's own
     /// vertical padding only keeps two lines clear of the separators. A row that pads itself
-    /// horizontally (`ListRow`, which centres its ⋯ on the toolbar's) sets `.listRowInsets(EdgeInsets())`
-    /// inside this, which wins.
+    /// horizontally (`ListRow`, whose trailing ⋯ slot sits `RowMetrics.accessoryTrailing` in) sets
+    /// `.listRowInsets(EdgeInsets())` inside this, which wins.
     func listCard() -> some View {
         listRowBackground(Palette.chrome)
-            .listRowInsets(EdgeInsets(top: 0, leading: Spacing.m, bottom: 0, trailing: Spacing.m))
+            .listRowInsets(EdgeInsets(top: 0, leading: RowMetrics.edgeInset, bottom: 0, trailing: RowMetrics.edgeInset))
     }
 
     /// A note's look: caption, secondary ink. A card's footer (`listFooter()`) and a note outside
