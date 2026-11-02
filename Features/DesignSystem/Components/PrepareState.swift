@@ -41,9 +41,6 @@ enum PrepareState: Equatable {
         }
     }
 
-    /// Waiting its turn.
-    var isQueued: Bool { if case .queued = self { true } else { false } }
-
     /// How much is ready while preparing, waiting or paused; nil otherwise.
     var fraction: Double? {
         switch self {
