@@ -5,9 +5,5 @@ url = "https://github.com/haowjy/meridian-dev-workflow"
 url = "https://github.com/abdiraimov-otabek/dashboard-design-skill"
 
 [settings]
-targets = [
-    ".claude",
-    ".codex",
-    ".pi",
-]
+targets = [".claude", ".codex", ".pi", ".opencode"]
 models_cache_ttl_hours = 24

@@ -8,6 +8,10 @@
   links when every link is in one short list (or a list that is only prev/next/contents wording),
   so the page falls through to its contents page.
 
+- **A blog's archive or post reads as nothing, because a feed is used only from its exact home
+  address.** Tracked as [issue #29](https://github.com/haowjy/meridian-reader/issues/29), with the
+  probe table and the proposed change (compare hosts, not addresses).
+
 - **Limit a follow to the newest X.** Wanted for the next version, not scheduled (owner,
   2026-11-03). Following takes everything the list holds: Hacker News's front page is 30 entries,
   a blog's feed 25, a story's contents its whole archive — so Review opens with every row checked
