@@ -90,6 +90,7 @@ targets:
         MeridianAppGroup: $(APP_GROUP)$(BUNDLE_ID_SUFFIX)
         # Open In / Copy to Meridian from Files and other apps (PDF, EPUB).
         LSSupportsOpeningDocumentsInPlace: false
+        LSApplicationCategoryType: public.app-category.books
         CFBundleDocumentTypes:
           - CFBundleTypeName: PDF Document
             CFBundleTypeRole: Viewer
@@ -135,7 +136,7 @@ targets:
       # System controls tint with the asset; it mirrors `Palette.accent` (keep the two in step).
       ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       MARKETING_VERSION: "0.1.0"
-      CURRENT_PROJECT_VERSION: "2"
+      CURRENT_PROJECT_VERSION: "3"
       # App Store: iPhone + iPad (screenshots for both device families).
       TARGETED_DEVICE_FAMILY: "1,2"
       INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -169,7 +170,7 @@ targets:
       PRODUCT_NAME: MeridianReaderShare
       GENERATE_INFOPLIST_FILE: NO
       MARKETING_VERSION: "0.1.0"
-      CURRENT_PROJECT_VERSION: "2"
+      CURRENT_PROJECT_VERSION: "3"
       TARGETED_DEVICE_FAMILY: "1,2"
       SKIP_INSTALL: YES
       LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
