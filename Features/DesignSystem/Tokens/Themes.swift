@@ -345,7 +345,9 @@ extension Color {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
         func mix(_ c: CGFloat, _ shift: UInt32) -> CGFloat {
-            c * opacity + CGFloat((base >> shift) & 0xFF) / 255 * (1 - opacity)
+            let o = CGFloat(opacity)
+            let channel = CGFloat((base >> shift) & 0xFF) / 255
+            return c * o + channel * (1 - o)
         }
         return Color(uiColor: UIColor(red: mix(r, 16), green: mix(g, 8), blue: mix(b, 0), alpha: 1))
     }
