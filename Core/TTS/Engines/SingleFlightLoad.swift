@@ -18,7 +18,7 @@ final class SingleFlightLoad: @unchecked Sendable {
         let task: Task<Void, Error>? = try lock.withLock {
             if closed { throw CancellationError() }
             if loaded { return nil }
-            if let task { return task }
+            if let inFlight = self.task { return inFlight }
             let created = Task(operation: load)
             self.task = created
             return created
