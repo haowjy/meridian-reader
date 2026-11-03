@@ -130,19 +130,23 @@ jobs:
 
           echo "Set MARKETING_VERSION=$VERSION, CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
 
-      - name: Generate Xcode project
-        run: xcodegen generate
-
       # Phonon's model bundle ships in the app but isn't in git (~170 MB; docs/RELEASE.md).
+      # XcodeGen needs Resources/PhononBundle to exist, so fetch it first.
       - name: Fetch the Phonon model bundle
         run: tools/fetch-phonon-bundle.sh
 
+      - name: Generate Xcode project
+        run: xcodegen generate
+
       # ── Select Xcode ────────────────────────────────────────────────
-      - name: Select latest Xcode
+      - name: Select Xcode 26
         run: |
-          XCODE=$(find /Applications -maxdepth 1 -name 'Xcode*.app' -print 2>/dev/null | sort -V | tail -1)
+          # App Store uploads need the iOS 26 SDK. The runner default is Xcode 16.
+          XCODE=$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' -print 2>/dev/null | sort -V | tail -1)
+          test -n "$XCODE" || { echo "::error::No Xcode 26 on this runner"; exit 1; }
           echo "Using $XCODE"
           sudo xcode-select -s "$XCODE"
+          xcodebuild -version
 
       # ── Build archive (skipped for GitHub Release only) ──────────────
       - name: Write ASC API key
