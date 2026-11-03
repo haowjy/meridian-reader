@@ -201,11 +201,15 @@ jobs:
         run: |
           CERT="$RUNNER_TEMP/dist.p12"
           KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERT"
+          test -n "$BUILD_CERTIFICATE_BASE64" || { echo "::error::BUILD_CERTIFICATE_BASE64 is empty"; exit 1; }
+          echo "Decoding certificate"
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERT"
+          echo "Certificate: $(wc -c < "$CERT") bytes"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "Importing certificate"
           security import "$CERT" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
           security list-keychain -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
@@ -214,7 +218,7 @@ jobs:
           mkdir -p "$PROFILES"
           for P in PROFILE_APP_BASE64 PROFILE_SHARE_BASE64; do
             FILE="$RUNNER_TEMP/$P.mobileprovision"
-            echo -n "${!P}" | base64 --decode -o "$FILE"
+            printf '%s' "${!P}" | base64 --decode > "$FILE"
             UUID=$(security cms -D -i "$FILE" | plutil -extract UUID raw -)
             cp "$FILE" "$PROFILES/$UUID.mobileprovision"
             echo "Installed profile $UUID"
