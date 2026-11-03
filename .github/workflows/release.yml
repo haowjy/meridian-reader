@@ -1,10 +1,10 @@
 # Meridian Reader — release workflow
 #
-# Manual dispatch only. Builds a Release archive, uploads to TestFlight or
+# Runs from release-on-merge.yml (labeled PR merged to main) or by hand.
+# Builds a Release archive, uploads to TestFlight or
 # submits to the App Store, and cuts a GitHub Release with the release notes.
 #
 # Inputs:
-#   bump      : same | patch | minor | major, applied to the latest v* tag
 #   target    — TestFlight | App Store submit | GitHub Release only
 #   dry_run   — if true, stop before upload/tag/release and print what would happen
 #
@@ -29,21 +29,32 @@
 
 name: Release
 
-run-name: "Release (${{ inputs.bump }}, ${{ inputs.target }}${{ inputs.dry_run && ', dry run' || '' }})"
+run-name: "Release (${{ inputs.version || 'current version' }}, ${{ inputs.target || 'TestFlight' }}${{ inputs.dry_run && ', dry run' || '' }})"
 
 on:
+  # Called by release-on-merge.yml after it commits and tags a new version.
+  workflow_call:
+    inputs:
+      version:
+        description: "Version to build (X.Y.Z, already tagged)"
+        required: true
+        type: string
+      ref:
+        description: "Git ref to build (the release tag)"
+        required: true
+        type: string
+      target:
+        required: false
+        type: string
+        default: TestFlight
+      dry_run:
+        required: false
+        type: boolean
+        default: false
+  # Manual runs rebuild the current version (latest v* tag) as a new build,
+  # for re-uploading to TestFlight or submitting to the App Store.
   workflow_dispatch:
     inputs:
-      bump:
-        description: "Version bump from the latest v* tag (same = another build of it)"
-        required: true
-        type: choice
-        options:
-          - same
-          - patch
-          - minor
-          - major
-        default: same
       target:
         description: "Release target"
         required: true
@@ -76,38 +87,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || '' }}
           fetch-depth: 0
 
       # ── Compute version ─────────────────────────────────────────────
-      # Base = latest v* semver tag, or MARKETING_VERSION in project.yml if
-      # there is no tag yet. "same" ships another build of the base version.
+      # Called from release-on-merge: the version is passed in. Manual runs use
+      # the latest v* tag, or project.yml MARKETING_VERSION if there is no tag.
       - name: Compute version
+        env:
+          INPUT_VERSION: ${{ inputs.version || '' }}
         run: |
           git fetch --tags --force --quiet
-          BASE=$(git tag -l 'v*' | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
-          if [ -z "$BASE" ]; then
-            BASE=$(sed -n 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*"\{0,1\}\([0-9.]*\).*/\1/p' project.yml | head -n1)
-            echo "No v* tag yet, using project.yml MARKETING_VERSION $BASE as the base"
+          VERSION="$INPUT_VERSION"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(git tag -l 'v*' | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
           fi
-          if ! echo "$BASE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Base version '$BASE' is not X.Y.Z"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(sed -n 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*"\{0,1\}\([0-9.]*\).*/\1/p' project.yml | head -n1)
+            echo "No v* tag yet, using project.yml MARKETING_VERSION"
+          fi
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' is not X.Y.Z"
             exit 1
           fi
-          IFS=. read -r MAJOR MINOR PATCH <<< "$BASE"
-          case "${{ inputs.bump }}" in
-            same)  VERSION="$BASE" ;;
-            patch) VERSION="$MAJOR.$MINOR.$((PATCH + 1))" ;;
-            minor) VERSION="$MAJOR.$((MINOR + 1)).0" ;;
-            major) VERSION="$((MAJOR + 1)).0.0" ;;
-          esac
-          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
-            TAG_EXISTS=true
-          else
-            TAG_EXISTS=false
-          fi
-          echo "Base $BASE, bump ${{ inputs.bump }}, version $VERSION (tag exists: $TAG_EXISTS)"
+          echo "Version $VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "TAG_EXISTS=$TAG_EXISTS" >> "$GITHUB_ENV"
 
       # ── Release notes ───────────────────────────────────────────────
       # Required for App Store and GitHub releases. TestFlight builds can go
@@ -332,20 +336,22 @@ jobs:
       # No version-bump commit to main: the build number comes from App Store
       # Connect at build time.
       # Runs only after a successful upload (earlier steps must pass).
-      # A "same" build of an already tagged version keeps the existing tag.
+      # Idempotent: an existing tag or Release is left alone.
       - name: Create tag and GitHub Release
         if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "$TAG_EXISTS" = "true" ]; then
-            echo "Tag v$VERSION already exists, leaving the tag and Release as they are"
-            exit 0
+          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+            echo "Tag v$VERSION already exists"
+          else
+            git tag "v$VERSION"
+            git push origin "v$VERSION"
           fi
-          git tag "v$VERSION"
-          git push origin "v$VERSION"
-          if ! gh release view "v$VERSION" > /dev/null 2>&1; then
-            gh release create "v$VERSION" \
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "GitHub Release v$VERSION already exists"
+          else
+            gh release create "v$VERSION" --verify-tag \
               --title "v$VERSION" \
               --notes-file release_notes.txt
           fi
@@ -356,7 +362,6 @@ jobs:
           {
             echo "### Release ${VERSION:-unknown} (build ${BUILD_NUMBER:-unknown})"
             echo ""
-            echo "- Bump: ${{ inputs.bump }}"
             echo "- Target: ${{ inputs.target }}"
             echo "- Dry run: ${{ inputs.dry_run }}"
           } >> "$GITHUB_STEP_SUMMARY"
