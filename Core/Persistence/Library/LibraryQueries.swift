@@ -47,10 +47,12 @@ enum LibraryQueries {
     static var recent: FetchDescriptor<Article> {
         let past = Date.distantPast
         let saved = ArticleContentState.saved.rawValue
-        return FetchDescriptor(predicate: #Predicate<Article> {
-            ($0.addedAt != nil || ($0.removedAt == nil && $0.folderID == nil && $0.contentStateRaw == saved))
-                && ($0.lastPlayedAt ?? past) > past
-        }, sortBy: [SortDescriptor(\Article.lastPlayedAt, order: .reverse), SortDescriptor(\Article.key)])
+        // Explicit closure types keep Xcode 26's type checker within its time limit.
+        let predicate = #Predicate<Article> { (article: Article) -> Bool in
+            (article.addedAt != nil || (article.removedAt == nil && article.folderID == nil && article.contentStateRaw == saved))
+                && (article.lastPlayedAt ?? past) > past
+        }
+        return FetchDescriptor(predicate: predicate, sortBy: [SortDescriptor(\Article.lastPlayedAt, order: .reverse), SortDescriptor(\Article.key)])
     }
 
     /// Whether `article` is in Recent, for one page in hand (a row's menu): `recent`'s own
@@ -138,7 +140,7 @@ enum LibraryQueries {
             // `recent`'s rule, written again: a predicate can't call another on iOS 17.
             let past = Date.distantPast
             let saved = ArticleContentState.saved.rawValue
-            return FetchDescriptor(predicate: #Predicate<Article> { article in
+            return FetchDescriptor(predicate: #Predicate<Article> { (article: Article) -> Bool in
                 (article.addedAt != nil || (article.removedAt == nil && article.folderID == nil && article.contentStateRaw == saved))
                     && (article.lastPlayedAt ?? past) > past
                     && (article.title.localizedStandardContains(text) || article.byline.localizedStandardContains(text)
