@@ -218,6 +218,7 @@ jobs:
           mkdir -p "$PROFILES"
           for P in PROFILE_APP_BASE64 PROFILE_SHARE_BASE64; do
             FILE="$RUNNER_TEMP/$P.mobileprovision"
+            test -n "${!P}" || { echo "::error::$P is empty"; exit 1; }
             printf '%s' "${!P}" | base64 --decode > "$FILE"
             UUID=$(security cms -D -i "$FILE" | plutil -extract UUID raw -)
             cp "$FILE" "$PROFILES/$UUID.mobileprovision"
