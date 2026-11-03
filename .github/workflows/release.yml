@@ -16,11 +16,11 @@
 #   ASC_KEY_ID        — App Store Connect API Key ID
 #   ASC_ISSUER_ID     — App Store Connect API Issuer ID
 #   ASC_KEY_P8        — contents of the .p8 private key file
-#   BUILD_CERTIFICATE_BASE64 — base64 of the Apple Distribution .p12
-#   P12_PASSWORD      — password of that .p12
-#   KEYCHAIN_PASSWORD — any random string (locks the temporary keychain)
-#   PROFILE_APP_BASE64   — base64 of "Meridian Reader AppStore" profile
-#   PROFILE_SHARE_BASE64 — base64 of "Meridian Reader Share AppStore" profile
+#   BUILD_CERTIFICATE_BASE64 : base64 of the Apple Distribution .p12
+#   P12_PASSWORD      : password of that .p12
+#   KEYCHAIN_PASSWORD : any random string (locks the temporary keychain)
+#   PROFILE_APP_BASE64   : base64 of "Meridian Reader AppStore" profile
+#   PROFILE_SHARE_BASE64 : base64 of "Meridian Reader Share AppStore" profile
 #
 # The archive is built with automatic signing via the ASC API key. The export
 # re-signs manually with the .p12 distribution certificate and the two App
