@@ -4,7 +4,7 @@
 # submits to the App Store, and cuts a GitHub Release with the release notes.
 #
 # Inputs:
-#   version   — semver string, e.g. 0.1.0 (must be > every existing v* tag)
+#   bump      : same | patch | minor | major, applied to the latest v* tag
 #   target    — TestFlight | App Store submit | GitHub Release only
 #   dry_run   — if true, stop before upload/tag/release and print what would happen
 #
@@ -29,13 +29,21 @@
 
 name: Release
 
+run-name: "Release (${{ inputs.bump }}, ${{ inputs.target }}${{ inputs.dry_run && ', dry run' || '' }})"
+
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version (semver, e.g. 0.1.0)"
+      bump:
+        description: "Version bump from the latest v* tag (same = another build of it)"
         required: true
-        type: string
+        type: choice
+        options:
+          - same
+          - patch
+          - minor
+          - major
+        default: same
       target:
         description: "Release target"
         required: true
@@ -65,57 +73,64 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # ── Validate inputs ──────────────────────────────────────────────
-      - name: Validate semver
-        run: |
-          VERSION="${{ inputs.version }}"
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Version '$VERSION' is not valid semver (expected X.Y.Z)"
-            exit 1
-          fi
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Version must be higher than any existing tag
+      # ── Compute version ─────────────────────────────────────────────
+      # Base = latest v* semver tag, or MARKETING_VERSION in project.yml if
+      # there is no tag yet. "same" ships another build of the base version.
+      - name: Compute version
         run: |
-          VERSION="${{ inputs.version }}"
-          HIGHEST=$(git tag -l 'v*' | sed 's/^v//' | sort -V | tail -1)
-          if [ -n "$HIGHEST" ]; then
-            # Compare: the new version must sort after the highest
-            SORTED=$(printf '%s\n%s' "$HIGHEST" "$VERSION" | sort -V | tail -1)
-            if [ "$SORTED" = "$HIGHEST" ] || [ "$VERSION" = "$HIGHEST" ]; then
-              echo "::error::Version $VERSION is not higher than existing tag v$HIGHEST"
-              exit 1
-            fi
+          git fetch --tags --force --quiet
+          BASE=$(git tag -l 'v*' | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+          if [ -z "$BASE" ]; then
+            BASE=$(sed -n 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*"\{0,1\}\([0-9.]*\).*/\1/p' project.yml | head -n1)
+            echo "No v* tag yet, using project.yml MARKETING_VERSION $BASE as the base"
           fi
-          echo "version=$VERSION" >> "$GITHUB_ENV"
-
-      # ── Validate release notes ──────────────────────────────────────
-      - name: Check release notes exist
-        run: |
-          NOTES="release-notes/${{ inputs.version }}.md"
-          if [ ! -f "$NOTES" ]; then
-            echo "::error::$NOTES not found — add release notes before running the workflow"
+          if ! echo "$BASE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Base version '$BASE' is not X.Y.Z"
             exit 1
           fi
-          if [ ! -s "$NOTES" ]; then
-            echo "::error::$NOTES is empty"
-            exit 1
+          IFS=. read -r MAJOR MINOR PATCH <<< "$BASE"
+          case "${{ inputs.bump }}" in
+            same)  VERSION="$BASE" ;;
+            patch) VERSION="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+            minor) VERSION="$MAJOR.$((MINOR + 1)).0" ;;
+            major) VERSION="$((MAJOR + 1)).0.0" ;;
+          esac
+          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+            TAG_EXISTS=true
+          else
+            TAG_EXISTS=false
           fi
+          echo "Base $BASE, bump ${{ inputs.bump }}, version $VERSION (tag exists: $TAG_EXISTS)"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG_EXISTS=$TAG_EXISTS" >> "$GITHUB_ENV"
 
-      # ── Extract release notes ────────────────────────────────────────
+      # ── Release notes ───────────────────────────────────────────────
+      # Required for App Store and GitHub releases. TestFlight builds can go
+      # out without them (no What's New for that version).
       - name: Generate WhatsNew.json and plain-text notes
         run: |
-          python3 scripts/whats-new.py "${{ inputs.version }}"
+          NOTES="release-notes/$VERSION.md"
+          if [ ! -s "$NOTES" ]; then
+            if [ "${{ inputs.target }}" = "TestFlight" ]; then
+              echo "::warning::$NOTES is missing or empty, continuing without What's New"
+              : > release_notes.txt
+              exit 0
+            fi
+            echo "::error::$NOTES is missing or empty. Add release notes for $VERSION before releasing to ${{ inputs.target }}."
+            exit 1
+          fi
+          python3 scripts/whats-new.py "$VERSION"
 
           # Plain-text notes for the GitHub Release
           python3 -c "
-          import json, pathlib
+          import json, os, pathlib
           data = json.loads(pathlib.Path('Resources/WhatsNew.json').read_text())
-          bullets = data['versions'].get('${{ inputs.version }}', [])
+          bullets = data['versions'].get(os.environ['VERSION'], [])
           notes = '\n'.join(f'• {b}' for b in bullets)
           pathlib.Path('release_notes.txt').write_text(notes)
           print(notes)
@@ -127,7 +142,6 @@ jobs:
 
       - name: Set version in project.yml
         run: |
-          VERSION="${{ inputs.version }}"
           sed -i '' "s/MARKETING_VERSION: .*/MARKETING_VERSION: \"$VERSION\"/" project.yml
           echo "Set MARKETING_VERSION=$VERSION"
 
@@ -277,9 +291,9 @@ jobs:
       - name: Dry run summary
         if: inputs.dry_run
         run: |
-          echo "::notice::DRY RUN — would upload to ${{ inputs.target }}, tag v${{ inputs.version }}, create GitHub Release"
+          echo "::notice::DRY RUN: would upload to ${{ inputs.target }}, tag v$VERSION, create GitHub Release"
           echo ""
-          echo "Version: ${{ inputs.version }}"
+          echo "Version: $VERSION"
           echo "Build:   $BUILD_NUMBER"
           echo "Target:  ${{ inputs.target }}"
           echo ""
@@ -317,16 +331,35 @@ jobs:
       # ── Tag and GitHub Release ─────────────────────────────────────
       # No version-bump commit to main: the build number comes from App Store
       # Connect at build time.
+      # Runs only after a successful upload (earlier steps must pass).
+      # A "same" build of an already tagged version keeps the existing tag.
       - name: Create tag and GitHub Release
         if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git tag "v${{ inputs.version }}"
-          git push origin "v${{ inputs.version }}"
-          gh release create "v${{ inputs.version }}" \
-            --title "v${{ inputs.version }}" \
-            --notes-file release_notes.txt
+          if [ "$TAG_EXISTS" = "true" ]; then
+            echo "Tag v$VERSION already exists, leaving the tag and Release as they are"
+            exit 0
+          fi
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+          if ! gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release create "v$VERSION" \
+              --title "v$VERSION" \
+              --notes-file release_notes.txt
+          fi
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### Release ${VERSION:-unknown} (build ${BUILD_NUMBER:-unknown})"
+            echo ""
+            echo "- Bump: ${{ inputs.bump }}"
+            echo "- Target: ${{ inputs.target }}"
+            echo "- Dry run: ${{ inputs.dry_run }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Delete temporary keychain
         if: always()
