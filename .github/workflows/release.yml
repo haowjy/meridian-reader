@@ -167,18 +167,20 @@ jobs:
             -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
             -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
             -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
-            CODE_SIGN_STYLE=Automatic \
-            DEVELOPMENT_TEAM=JMYU8K3WZN
+            CODE_SIGN_STYLE=Automatic
 
       # ── Export IPA ───────────────────────────────────────────────────
       - name: Write ExportOptions.plist
         if: ${{ inputs.target != 'GitHub Release only' }}
         run: |
+          # project.yml is the single source of the team ID.
+          TEAM_ID=$(sed -n 's/^[[:space:]]*DEVELOPMENT_TEAM:[[:space:]]*\([A-Z0-9]*\).*/\1/p' project.yml | head -n1)
+          test -n "$TEAM_ID" || { echo "::error::DEVELOPMENT_TEAM not found in project.yml"; exit 1; }
           plutil -create xml1 "$RUNNER_TEMP/ExportOptions.plist"
           plutil -insert method -string app-store-connect "$RUNNER_TEMP/ExportOptions.plist"
           # A dry run exports the IPA locally and uploads nothing.
           plutil -insert destination -string ${{ inputs.dry_run && 'export' || 'upload' }} "$RUNNER_TEMP/ExportOptions.plist"
-          plutil -insert teamID -string JMYU8K3WZN "$RUNNER_TEMP/ExportOptions.plist"
+          plutil -insert teamID -string "$TEAM_ID" "$RUNNER_TEMP/ExportOptions.plist"
 
       - name: Export
         if: ${{ inputs.target != 'GitHub Release only' }}
