@@ -30,6 +30,11 @@ is `../../../docs/TECHNICAL_SPEC.md` → "Fetching an article out of sight" and 
   lists don't pass. *Chapters* if most links read as chapters (reversed to story order when the
   dates run newest first by most adjacent pairs); else a dated newest-first list or a feed is
   *Posts*; else *Chapters* in page order.
+- **Review carries the weight, so the reader stays simple.** A list read wrongly is visible as
+  wrong rows, and *Save This Page Only* sits under them, so a bad read costs a dismissal rather
+  than data, and no rule tries to judge what a list means beyond *Chapters* or *Posts*. Keep the
+  reader that small: how much of a story to keep is the user's choice in Review (see `FUTURE.md`,
+  a limit to the newest X), not something a new rule guesses.
 - **A check reads what was followed, nothing else.** `FollowState` keeps the `source` (list or
   feed) and `kind` beside `siteName` (JSON, optional, so no migration; absent from before: a feed
   document is a feed, else a list, and chapters unless the read says posts). `FollowCenter.check`
