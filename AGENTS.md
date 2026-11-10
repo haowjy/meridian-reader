@@ -32,9 +32,9 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   the phone, drive the flows the change touches, look at the result (screenshots, the unified log,
   `ListenTiming`), then have the diff reviewed. Tests passing is not the evidence.
 - **All automated tests together run in under 60 seconds** of sequential time on the Simulator
-  (unit tests only, `test-without-building` wall clock: about 5 s). **Test policy (C133): critical
+  (unit tests only, `test-without-building` wall clock: about 5 s). **Test policy: critical
   tests only**, guarding costly regressions: the
-  engine crash guard and C129 recovery (`EngineCrashGuardTests`), cache integrity (audio in the
+  engine crash guard and its recovery (`EngineCrashGuardTests`), cache integrity (audio in the
   wrong voice never counts as prepared, `PrepareOverviewTests`), a failed save never losing
   an article (`PlayedNotSavedTests`), no text dropped from audio (`TextChunkerTests`), and, at the
   owner's request, the compact chrome's state, layout and scroll controller (`ChromeTests`). Add a
@@ -136,14 +136,14 @@ The scheme runs the unit tests only; there are no UI tests (see Tests below).
   disagree, and UIKit aborts on the next change ("attempt to delete item … before the update").
   Which lists an article is in is decided only in `LibraryQueries`; an action that takes a row out
   must take it out of every list there.
-- **One menu per item kind** (decisions C4, DR-09): an article's (`ArticleMenu`), a folder's
+- **One menu per item kind**: an article's (`ArticleMenu`), a folder's
   (`FolderMenu`) and a prepare's (`PrepareMenu`) are each one ordered `[MenuRow]`, drawn by every
   entry point (`MenuRows` in a system `Menu` or long press). Add or change a
   row there, never at an entry point; a place's own rows go in a block after the item's. A row
   is hidden only when it can never apply to that kind of item there, dimmed when it can't run now
   (`MenuAvailability`); no bare `if` around a menu row. Labels from `Verbs` (its case and ellipsis
   rules), symbols from `Icons`.
-- **Button rows never wrap** (decision D21): two or more buttons side by side go in an
+- **Button rows never wrap**: two or more buttons side by side go in an
   `ActionButtonRow`, which falls back from full labels to symbols alone. Give every button in one a symbol.
 - **Nothing in the bottom lip**: no control, label or footer sits below the top of the home
   indicator's strip (the bottom safe area, 34 pt on a phone with one), where the display's rounded
