@@ -62,10 +62,15 @@ In the repo's Settings → Secrets and variables → Actions, add:
 | `ASC_KEY_ID` | App Store Connect API Key ID | App Store Connect → Users and Access → Integrations → App Store Connect API → Generate Key (role: App Manager). Copy the Key ID. |
 | `ASC_ISSUER_ID` | The Issuer ID shown on the same API Keys page | Copy from the page header. |
 | `ASC_KEY_P8` | Contents of the `.p8` private key file | Download the `.p8` when you create the key (it can only be downloaded once). Paste the full contents including `-----BEGIN PRIVATE KEY-----` lines. |
+| `BUILD_CERTIFICATE_BASE64` | base64 of the Apple Distribution `.p12` | Export the distribution certificate with its key from Keychain Access, then `base64 -i dist.p12`. |
+| `P12_PASSWORD` | Password of that `.p12` | Set when exporting. |
+| `KEYCHAIN_PASSWORD` | Any random string | Locks the temporary keychain the workflow creates. |
+| `PROFILE_APP_BASE64` | base64 of the "Meridian Reader AppStore" provisioning profile | Download from the Apple Developer portal, then `base64 -i`. |
+| `PROFILE_SHARE_BASE64` | base64 of the "Meridian Reader Share AppStore" profile | Same, for the share extension. |
 
-The workflow uses automatic code signing with the ASC API key
-(`-allowProvisioningUpdates -authenticationKeyPath`), so no .p12 certificate or provisioning
-profile is needed as a secret — Xcode Cloud–style signing handles it.
+The archive is built with automatic signing through the ASC API key. The export re-signs
+manually with the `.p12` and the two App Store profiles, so neither cloud signing nor an Admin
+key is needed. The ASC key (App Manager role) reads the latest build number and uploads.
 
 ## One-time setup in App Store Connect
 

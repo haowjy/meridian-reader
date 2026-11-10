@@ -352,9 +352,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
 
 ## Planned: the rest of the bottom chrome redesign (approved design 5e, not shipped)
 
-Still to come, from the approved design (mockups and build plan in the
-project context, `work/bottom-chrome/`, outside this repo; the decision
-`three-destination-bottom-chrome` in the project KB):
+Still to come, from the approved design:
 
 - **Widths:** below 360 pt or at large text, ‹ › give way to the field.
 

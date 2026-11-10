@@ -1,7 +1,6 @@
 # Prepared Audio: deferred
 
-- **Rendering while charging, with the phone locked** (D16 says prepared audio render "mainly in the
-  foreground or while charging"). Not built: with the app in the background and nothing playing,
+- **Rendering while charging, with the phone locked.** Not built: with the app in the background and nothing playing,
   no call starts (while audio plays, prepares render on). It needs a `BGProcessingTask` with
   `requiresExternalPower` (Info.plist `BGTaskSchedulerPermittedIdentifiers`, the `processing`
   background mode), registered at launch, under which the render policy may start calls while
