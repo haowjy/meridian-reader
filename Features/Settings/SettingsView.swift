@@ -341,7 +341,7 @@ private struct BrowsingSettingsSection: View {
     }
 }
 
-/// Settings › Prepared Audio & Storage (C134): the Prepared Audio list, and the audio kept on
+/// Settings › Prepared Audio & Storage: the Prepared Audio list, and the audio kept on
 /// this iPhone in two figures: prepared (chosen, never cleared automatically) and from listening
 /// (cleared once its article leaves Recent).
 private struct StorageSettingsSection<VersionRow: View>: View {

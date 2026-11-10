@@ -3,7 +3,7 @@ import UIKit
 
 /// The reading page's look in HTML (the Reader and Now Playing render articles in a web view):
 /// the reading theme's tokens (`ReadingPalette`) written as CSS, the same page for both sheets.
-/// Every paragraph is in full ink (C105); the spoken one sits on the highlight, and the spoken sentence is underlined in the theme's accent. The title and source line are part of the page.
+/// Every paragraph is in full ink; the spoken one sits on the highlight, and the spoken sentence is underlined in the theme's accent. The title and source line are part of the page.
 ///
 /// Everything that can change while a page is up is a CSS variable: the type sizes (Dynamic
 /// Type, `Sizes`) and the look (`Look`: colours, typeface, text size, line spacing), applied in
@@ -145,7 +145,7 @@ enum ReadingStyle {
         [data-reader-index] { border-radius: \(pad)px; transition: color \(Motion.standardResponse)s ease-out; }
         @media (prefers-reduced-motion: reduce) { [data-reader-index] { transition: none; } }
         html.reader-paged [data-reader-index] { transition: none; }
-        /* Every paragraph stays in full ink (C105): only the spoken one gets the highlight. */
+        /* Every paragraph stays in full ink: only the spoken one gets the highlight. */
         body.reader-has-active .reader-active, .reader-active { color: var(--ink); background: var(--highlight);
                         box-shadow: 0 0 0 \(pad)px var(--highlight); }
         ::highlight(reader-sentence) { text-decoration: underline 2px var(--underline); text-underline-offset: 4px; }

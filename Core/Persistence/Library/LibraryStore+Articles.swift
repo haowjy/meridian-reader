@@ -72,7 +72,7 @@ extension LibraryStore {
         article.removedAt = nil
         commit("record playback")
         trimChapterAudio(behind: article)
-        retainRecent() // Recent changed (C134)
+        retainRecent() // Recent changed
         return article
     }
 
@@ -126,7 +126,7 @@ extension LibraryStore {
         applyStart(article, at: at)
         commit("playback started")
         trimChapterAudio(behind: article)
-        retainRecent() // Recent changed (C134)
+        retainRecent() // Recent changed
     }
 
     /// The listening position, written as it moves.
@@ -146,7 +146,7 @@ extension LibraryStore {
     }
 
     /// A page became the place of its book or series: finished pages more than 2 behind it lose
-    /// their audio (D7).
+    /// their audio.
     private func trimChapterAudio(behind article: Article) {
         guard let folder = article.folder, folder.kind.isBookOrSeries else { return }
         trimFinishedAudio(folder: folder)
@@ -255,7 +255,7 @@ extension LibraryStore {
         context.delete(article)
     }
 
-    /// *Delete All…* in Prepared Audio (C135): every one of `articles` deleted, with its audio, in
+    /// *Delete All…* in Prepared Audio: every one of `articles` deleted, with its audio, in
     /// one save. Playback of any of them stops. Folders stay.
     func deleteAll(_ articles: [Article]) throws {
         guard !articles.isEmpty else { return }

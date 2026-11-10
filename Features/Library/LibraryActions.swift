@@ -182,7 +182,7 @@ struct LibraryActions {
 
     /// The delete question’s answer (`libraryDialogs`): once the delete is saved, Edit ends, its
     /// selection with it. A delete that can’t be saved changes nothing: a toast says so, and Edit
-    /// keeps its selection. False then. During an edit session (C148) the delete is staged; confirming
+    /// keeps its selection. False then. During an edit session the delete is staged; confirming
     /// commits the whole session.
     @discardableResult
     func deleteFolders(_ folders: [Folder], in screen: LibraryScreenState) -> Bool {

@@ -9,11 +9,11 @@ import WebKit
 /// - The line being read stays on screen through every new layout (loading, a reflow from Aa or
 ///   Dynamic Type, an image arriving: the script's `ResizeObserver` posts `layout`): the page
 ///   holding the first character of the page shown (`start`) is shown again.
-/// - Pages turn sideways with native paging (C107, see `PagesTextLayout`): the page tracks the
+/// - Pages turn sideways with native paging (see `PagesTextLayout`): the page tracks the
 ///   finger and settles with the system's physics; an edge tap slides one page. The leftmost
 ///   `ReadingChrome.TapZone.edgeMargin` points are left to the system (back).
-/// - Pages never follow the audio (C108): the page you read stays until you turn it. *Jump to
-///   Audio* (above the band, bars shown: C111) goes to the spoken sentence's page once.
+/// - Pages never follow the audio: the page you read stays until you turn it. *Jump to
+///   Audio* (above the band, bars shown) goes to the spoken sentence's page once.
 @MainActor
 @Observable
 final class ReadingPages {
@@ -37,7 +37,7 @@ final class ReadingPages {
     /// The first character of the page shown: what the footer counts the time left from, and the
     /// line a new layout keeps on screen. Nil: the top of the text.
     fileprivate(set) var start: Spot?
-    /// The overview's card height (C117): the text area and its bottom margin, no footer room.
+    /// The overview's card height: the text area and its bottom margin, no footer room.
     fileprivate(set) var cardHeight: CGFloat = 0
     /// The first character of the next page (nil on the last page or until looked up).
     fileprivate(set) var end: Spot?
@@ -60,7 +60,7 @@ extension ReadingPages.Spot: Comparable {
     }
 }
 
-/// Pages mode's layout (see `ReadingPages`), C107: the page's own CSS columns, one per screen
+/// Pages mode's layout (see `ReadingPages`): the page's own CSS columns, one per screen
 /// width, in the web view's scroll view with native paging, as Apple Books' Slide. The body is a
 /// column box from the top inset (under the top bar) down to the footer; WebKit breaks lines
 /// between columns, so no line is ever cut. Pages track the finger 1:1 and settle with UIKit's
@@ -85,10 +85,10 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
     private var guardView: UIView?
     /// The width a page is (the scroll view's width when it was measured).
     private var pageWidth: CGFloat = 0
-    /// The bars show: the page is a card between them (C113).
+    /// The bars show: the page is a card between them.
     private var overview = false
     var isOverview: Bool { paged && overview }
-    /// The overview's page cards (C116), by page: the shown page and its neighbours.
+    /// The overview's page cards, by page: the shown page and its neighbours.
     private var cards: [Int: UIView] = [:]
     private var snapTask: Task<Void, Never>?
 
@@ -172,8 +172,8 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         }
     }
 
-    /// Pages never follow the audio (C108): once the voice leaves the page shown, following stops
-    /// (Now Playing then offers *Jump to Audio* above the band, C111).
+    /// Pages never follow the audio: once the voice leaves the page shown, following stops
+    /// (Now Playing then offers *Jump to Audio* above the band).
     func follow(word: ReadingPages.Spot) {
         guard let start = model.start, model.shown != nil else { return }
         if word < start || model.end.map({ word >= $0 }) == true { host.stopFollowing() }
@@ -194,7 +194,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         return true
     }
 
-    /// Kindle-style overview (C113): with the bars shown the page laid out for reading shrinks
+    /// Kindle-style overview: with the bars shown the page laid out for reading shrinks
     /// into a card (`ReadingPagesCard`, a SwiftUI scale: no reflow); here the neighbours are let
     /// out of the scroll view's clip so they peek either side. Taps on the card zoom back.
     func setOverview(_ on: Bool) {
@@ -205,7 +205,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         if on { repaint() }
     }
 
-    /// The overview's cards (C116, Kindle's): each page's own rectangle, inset `cardGap` from its
+    /// The overview's cards (Kindle's): each page's own rectangle, inset `cardGap` from its
     /// column's edges (inside the page margin, so the text never moves) so a gap parts the cards;
     /// the shown page outlined in the theme's accent, its neighbours in the theme's rule (a quiet
     /// grey fitted to each reading theme). They scroll with the pages, so the selection follows
@@ -250,7 +250,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         }
     }
 
-    /// The neighbours drawn outside the screen can keep tiles from an earlier layout (C116): a
+    /// The neighbours drawn outside the screen can keep tiles from an earlier layout: a
     /// repaint of the body, now and once the layout has settled, clears them.
     private func repaint() {
         guard let webView = host.webView else { return }
@@ -276,7 +276,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
 
     private func applyOverview() {
         guard let webView = host.webView else { return }
-        // Never clipped in Pages (C114): the neighbours stay drawn, so the card never shows blank
+        // Never clipped in Pages: the neighbours stay drawn, so the card never shows blank
         // while they come into view; off screen while reading.
         webView.clipsToBounds = !paged
         webView.scrollView.clipsToBounds = !paged
@@ -388,12 +388,12 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         pageWidth = width
         layoutGuard()
         sv.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: sv.contentInset.right)
-        // The page is the full screen inside the safe area (C113, superseding C112's area): the
+        // The page is the full screen inside the safe area: the
         // bars hide while reading; when they show, the same page shrinks into a card between them
         // (`setOverview`), so it never reflows. A margin of `Spacing.s` above and below; the
         // columns end on whole lines.
         // The web view already starts below the status bar (the sheet's top): a small margin
-        // only (C114; C113 added the status bar twice).
+        // only.
         let top = Spacing.m
         let bottom = footer + Spacing.s
         let boxHeight = Int(max(height - bottom, top + 100))
@@ -449,7 +449,7 @@ final class PagesTextLayout: NSObject, ReadingTextLayout {
         if abs(sv.contentOffset.y) > 0.5 { host.movingByCode { sv.contentOffset.y = 0 } }
         let exact = sv.contentOffset.x / pageWidth
         let index = Int(exact.rounded())
-        // A slide interrupted part-way (seen in the overview while playing, C117) settles on the
+        // A slide interrupted part-way (seen in the overview while playing) settles on the
         // nearest page once the finger and the deceleration are done.
         snapTask?.cancel()
         if abs(exact - CGFloat(index)) >= 0.01 {
@@ -515,7 +515,7 @@ struct ReadingPageFrame: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .overlay(alignment: .bottom) {
-            // Kindle's (C113): the time left on the left, how far through on the right; only while
+            // Kindle's: the time left on the left, how far through on the right; only while
             // reading (the bars show the player instead).
             HStack {
                 Text(pages.start.flatMap { timeLeft($0.paragraph, $0.offset) } ?? " ")
@@ -540,7 +540,7 @@ struct ReadingPageFrame: View {
     }
 }
 
-/// Pages' overview (C113, Kindle's): while the bars show, the page laid out for the full screen
+/// Pages' overview (Kindle's): while the bars show, the page laid out for the full screen
 /// shrinks (a scale, so it never reflows) into a card centred between them, outlined in the
 /// accent, the neighbouring pages peeking either side; hidden bars zoom it back to full screen.
 /// A spring; under Reduce Motion a short fade instead of the zoom.
@@ -548,7 +548,7 @@ struct ReadingPagesCard: ViewModifier {
     let active: Bool
     let overview: Bool
     let insets: ReaderTextInsets
-    /// The card's height in the page (`ReadingPages.cardHeight`, C117): the text area, so no
+    /// The card's height in the page (`ReadingPages.cardHeight`): the text area, so no
     /// empty footer strip; 0 until known (the whole height).
     var cardHeight: CGFloat = 0
 
@@ -559,7 +559,7 @@ struct ReadingPagesCard: ViewModifier {
         GeometryReader { proxy in
             let h = proxy.size.height
             let room = h - insets.top - insets.bottom - 2 * Spacing.m
-            // The card (the text area, C117) is centred in the room between the bars; nothing is
+            // The card (the text area) is centred in the room between the bars; nothing is
             // kept for Jump to Audio, which may float over the card's foot.
             let card = cardHeight > 0 ? min(cardHeight, h) : h
             let scale = active && overview && h > 0 ? min(0.8, max(0.4, room / card)) : 1

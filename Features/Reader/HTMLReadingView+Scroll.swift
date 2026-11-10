@@ -13,7 +13,7 @@ import WebKit
 /// - An edge tap turns a screen: the visible text less one line, so the line at one edge stays in
 ///   view at the other, landing with a whole line at the top. In full screen the visible text
 ///   starts below the fade at the top (`HTMLReadingView`).
-/// - A drag let go glides and rests where UIKit's deceleration stops it (C105).
+/// - A drag let go glides and rests where UIKit's deceleration stops it.
 @MainActor
 final class ScrollTextLayout: ReadingTextLayout {
     private unowned let host: HTMLReadingWebView.Coordinator
@@ -51,7 +51,7 @@ final class ScrollTextLayout: ReadingTextLayout {
     }
 
     func dragEnded(velocity: CGFloat) {
-        // A drag let go glides and stops as UIKit has it (C105): snapping it to a line fought the
+        // A drag let go glides and stops as UIKit has it: snapping it to a line fought the
         // finger's glide and stuttered.
     }
 
@@ -189,7 +189,7 @@ final class ScrollTextLayout: ReadingTextLayout {
 
     /// What a settling offset is.
     private enum Target: Equatable {
-        /// Another page's position (D2).
+        /// Another page's position.
         case handOver(ReadingHandOver)
         /// `offset` points below the text's top (so it moves with the text, not with the web view
         /// on screen).

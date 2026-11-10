@@ -23,7 +23,7 @@ extension ReaderSentence {
 }
 
 extension ListenSpot {
-    /// *Play from Here* on a selection (C109): the start of the sentence holding `offset` (UTF-16,
+    /// *Play from Here* on a selection: the start of the sentence holding `offset` (UTF-16,
     /// into `paragraph`'s text), as a document spot; the paragraph's start when no sentence holds
     /// it. Nil for a paragraph the document doesn't have.
     static func fromSelection(in document: ParagraphDocument, paragraph: Int, offset: Int) -> ListenSpot? {

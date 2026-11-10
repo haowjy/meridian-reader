@@ -8,7 +8,7 @@ enum LibraryItem {
 }
 
 /// Why the tree refused a change. Every folder takes pages and subfolders, books and series too
-/// (decision D19); only these are refused.
+///; only these are refused.
 enum LibraryTreeError: Error, Equatable {
     /// A folder into itself or one of its own subfolders.
     case cycle
@@ -60,7 +60,7 @@ enum FractionalOrder {
 }
 
 /// The folder tree: making, renaming, moving, sorting and deleting folders. Folders nest to any
-/// depth, books and series as any other (decision D19); only cycles, and filing a page that isn't
+/// depth, books and series as any other; only cycles, and filing a page that isn't
 /// in the Library, are refused (`LibraryTreeError`). Each change saves at once; a save that fails
 /// is rolled back and throws `LibraryStoreError.saveFailed`.
 extension LibraryStore {
@@ -86,7 +86,7 @@ extension LibraryStore {
 
     /// *Edit Details*: the name, byline, cover and kind in one edit. A blank name keeps the name;
     /// a blank byline clears it; a nil cover removes it. Toggling the kind between `.book` and
-    /// `.plain` changes only labels (C149).
+    /// `.plain` changes only labels.
     func setDetails(of folder: Folder, name: String, byline: String?, cover: Data?, kind: FolderKind? = nil) throws {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let byline = byline?.trimmingCharacters(in: .whitespacesAndNewlines)

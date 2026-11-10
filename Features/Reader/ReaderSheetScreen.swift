@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The Reader (`ReaderSheet`), regular width: one page for reading, with its own Listen, in a sheet
 /// over the surface that opened it, closed by the close pill ("‹ Browser", "‹ Library"), the grabber
-/// and a pull down. Its top bar, 🔖 and ⋯ are Now Playing's too (decision D24), so Listen turns one
+/// and a pull down. Its top bar, 🔖 and ⋯ are Now Playing's too, so Listen turns one
 /// into the other with nothing moving. Playback never stops for it. Compact width reads in place
 /// instead (`ReaderSurface`).
 ///
@@ -10,13 +10,13 @@ import SwiftUI
 ///   Now Playing bar above its toolbar is always another page.
 /// - Listen reads "▶ Listen  9 min", "▶ Continue  6 min left" (the time lighter, after the title)
 ///   or "▶ Listen Again", starts at
-///   the page's saved spot, and turns the Reader into Now Playing where it was (decision D2).
+///   the page's saved spot, and turns the Reader into Now Playing where it was.
 ///   ☝︎ in the top bar, then a tap on a paragraph, listens from that paragraph.
 /// - A page part-way through opens with its saved spot's sentence in the middle, underlined;
 ///   after that the text never scrolls by itself.
 /// - 🔖 saves / removes from the Library (tap) or files the page (long-press, *Save to Folder…*: the Move tree);
 ///   ⋯ is the page's menu (Save / Remove from Library, Move to…, Share,
-///   Prepare, Prepared Audio; then Settings / Saved / Reader, Reader disabled here, C140). Both act through
+///   Prepare, Prepared Audio; then Settings / Saved / Reader, Reader disabled here). Both act through
 ///   `ArticleActions`, as in Now Playing.
 /// - Aa changes how the page reads (`TextAppearanceControl`), live: left of ☝︎ in the sheet's top bar.
 /// - Voice (an `IconButton`), right of the title in the bottom band, opens the page's Voice
@@ -212,7 +212,7 @@ struct ReaderSheetScreen: View {
         shell.turnReaderIntoNowPlaying(handOver: handOver)
     }
 
-    /// *Play from Here* on a selection (C109): the page plays from that spot, as Listen does.
+    /// *Play from Here* on a selection: the page plays from that spot, as Listen does.
     private func listen(at spot: ListenSpot) {
         guard sessionReady else { return }
         jumpMode = false

@@ -2,7 +2,7 @@ import SwiftData
 import XCTest
 @testable import MeridianReader
 
-/// C134 retention and the C136 rename's on-disk compatibility: the two guards against losing
+/// Retention and the rename's on-disk compatibility: the two guards against losing
 /// what the user chose to keep.
 @MainActor
 final class RetentionTests: XCTestCase {
@@ -38,7 +38,7 @@ final class RetentionTests: XCTestCase {
         XCTAssertNotNil(library.article(key: savedKey), "the saved article itself stays")
     }
 
-    /// A list written before the rename (and before C121) still reads as prepared: the file name
+    /// A list written before the rename (and before the `Page` → `Article` rename) still reads as prepared: the file name
     /// and its keys are kept on disk (`Downloads.json`, "page").
     func testOldDownloadsJSONStillReadsAsPrepared() throws {
         let url = FileManager.default.temporaryDirectory.appending(path: "Downloads-\(UUID().uuidString).json")

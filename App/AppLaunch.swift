@@ -66,7 +66,7 @@ enum AppLaunch {
         // Copy saved articles and bookmarks without a receipt (layout pass and dedupe included).
         library.migrateLegacy()
         // Books stored without a record of their chapters get one, before anything can move
-        // pages in or out of them (decision D19).
+        // pages in or out of them.
         library.recordBookChapters()
         #if DEBUG
         // After the copy, so no legacy row arrives after a seed; before the layout pass, so a

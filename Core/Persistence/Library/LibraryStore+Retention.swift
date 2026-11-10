@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// C134 retention: three states of an article and its audio.
+/// Retention: three states of an article and its audio.
 /// - **Prepared**: saved, and the user chose *Prepare Audio* (a prepare record holds it). Its audio
 ///   is never cleared automatically.
 /// - **Saved**: its text is kept in the Library. Listening renders audio as it goes ("audio from

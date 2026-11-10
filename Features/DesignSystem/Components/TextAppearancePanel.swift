@@ -100,7 +100,7 @@ struct AccentThemePicker: View {
 /// A row of round swatches with their names under them; the chosen one ringed in the accent and
 /// named in ink. A name wraps between words, never inside one; when a name's widest word is wider
 /// than its swatch's share of the row (the accessibility sizes), the row shows the swatches alone
-/// (D21), and VoiceOver still reads each name.
+///, and VoiceOver still reads each name.
 struct SwatchPicker<Option: Identifiable & Hashable, Face: View>: View {
     let options: [Option]
     @Binding var selection: Option

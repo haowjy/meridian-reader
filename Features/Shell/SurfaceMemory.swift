@@ -6,7 +6,7 @@ enum LibraryRoute: Hashable, Codable {
     case folder(UUID)
 }
 
-/// The surface you left (decision D10): the Library with its path, the browser with its page, or
+/// The surface you left: the Library with its path, the browser with its page, or
 /// Settings. The app reopens on it; a fresh install has none and opens the Library. Device-local
 /// (UserDefaults `shell.lastSurface`), never synced.
 struct SurfaceMemory: Codable, Equatable {

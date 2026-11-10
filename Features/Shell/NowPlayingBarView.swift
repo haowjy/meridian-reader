@@ -8,7 +8,7 @@ import UIKit
 /// and under other sheets.
 ///
 /// Tap or swipe up opens Now Playing; long-press shows the page's menu (`ArticleMenu`), then Stop
-/// Listening (decision D3). At the end of a page it stays, with ▶ and Finished.
+/// Listening. At the end of a page it stays, with ▶ and Finished.
 struct NowPlayingBarView: View {
     @Bindable var speech: SpeechController
 
@@ -49,7 +49,7 @@ private struct BarProgress: View {
         NowPlayingBar(
             title: now.lineOne,
             detail: now.isFinished ? [.finished]
-                // Line two names its folder when it is in one, as Recent's rows do (C130), else its source.
+                // Line two names its folder when it is in one, as Recent's rows do, else its source.
                 : [articles.first?.folder?.name ?? ArticleRowTitle.lineTwoSource(title: now.title, source: now.source),
                    speech.isPreparingVoice ? NowPlayingControls.preparingVoiceLabel : ListeningTime.leftLabel(minutes: left)]
                     .compactMap { $0 }.map { DetailPart($0) },

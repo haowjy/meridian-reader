@@ -54,12 +54,12 @@ enum Verbs {
     static let cancelPlayFromParagraph = String(localized: "Cancel Play from a Paragraph")
     static let prepare = String(localized: "Prepare Audio")
     /// A page's, in its menu and in the Prepared Audio list: its audio deleted, and it stays out of
-    /// every download (P8).
+    /// every download.
     static let removePrepare = String(localized: "Remove Prepared Audio")
     /// A voice model's, in Settings › Voice (and the CPU route bench): the model files deleted so
     /// they download again before the engine speaks. Not prepared-audio removal.
     static let removeModelDownload = String(localized: "Remove Download")
-    /// The Prepared Audio list's row action (C135): the audio only, never the article.
+    /// The Prepared Audio list's row action: the audio only, never the article.
     static let deleteAudio = String(localized: "Delete Audio")
     static let deleteAllPrepared = String(localized: "Delete All…")
     static let clearListeningAudio = String(localized: "Clear Audio from Listening…")
@@ -77,7 +77,7 @@ enum Verbs {
     static let markUnfinished = String(localized: "Mark as Unfinished")
     static let markAllAboveFinished = String(localized: "Mark All Above as Finished")
     static let skipInPlayback = String(localized: "Skip When Playing")
-    /// The submenu holding a chapter's rare playback rows (C98).
+    /// The submenu holding a chapter's rare playback rows.
     static let playback = String(localized: "Playback")
     static let playInPlayback = String(localized: "Don’t Skip")
     static let share = String(localized: "Share")
@@ -143,7 +143,7 @@ enum Verbs {
     /// ⋯ › Help, and Settings › About's row: the bundled article that explains the app.
     static let help = String(localized: "Help")
     static let howItWorks = String(localized: "How Meridian Reader Works")
-    /// The Library's tab of pages played or opened and not kept (C100).
+    /// The Library's tab of pages played or opened and not kept.
     static let history = String(localized: "History")
     /// The browser's pages visited: its sheet's title and the buttons and menu rows that open it.
     static let browsingHistory = String(localized: "Browsing History")
@@ -187,7 +187,7 @@ enum Verbs {
     /// Settings rows and the pages or panels they open.
     static let speed = String(localized: "Speed")
     static let voice = String(localized: "Voice")
-    /// An article's or a book's menu row (C138), with what the screen calls its voice
+    /// An article's or a book's menu row, with what the screen calls its voice
     /// (`LocalTTSCoordinator.voiceSummary`): "Voice: Default", "Voice: Kokoro".
     static func voiceRow(_ name: String) -> String { String(localized: "Voice: \(name)") }
     static let changeVoice = String(localized: "Change Voice")

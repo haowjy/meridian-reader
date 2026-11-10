@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import MeridianReader
 
-/// Cancel reverts every edit made during the session (C148).
+/// Cancel reverts every edit made during the session.
 @MainActor
 struct EditSessionTests {
     /// A reorder done during an edit session is undone when the session is cancelled.

@@ -20,7 +20,7 @@ import SwiftUI
 /// Not read aloud: Title Page. You can still read them.
 /// ```
 ///
-/// A book already in the Library asks *Replace* or *Cancel* (decision D13); a refusal, or an
+/// A book already in the Library asks *Replace* or *Cancel*; a refusal, or an
 /// import or *Replace* whose save fails, says why in one line, with OK. Done, the sheet closes on
 /// the book's screen. The shell's toast floats over the sheet and its *Add to* tree (a folder that
 /// can't be made, another book arriving).

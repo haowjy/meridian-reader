@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Imported books: one `Folder(kind: .book)` per book key, one saved page per chapter. A book is a
-/// folder like any other (decision D19): its chapters start in the book's order, and can be
+/// folder like any other: its chapters start in the book's order, and can be
 /// reordered, moved out and joined by other pages. Its record of its chapters
 /// (`BookSourceState.chapterKeys`) is how *Replace* finds them wherever they are now. Every
 /// chapter is written with its content: a book holds no link pages of its own.
@@ -37,10 +37,10 @@ extension LibraryStore {
         return folder
     }
 
-    /// *Replace* (decision D13): the book's chapters rebuilt from the file, in the same folder,
+    /// *Replace*: the book's chapters rebuilt from the file, in the same folder,
     /// which keeps its place in the tree, its name, its order and its listening. The book's
     /// chapters are the pages its record names (`BookSourceState.chapterKeys`), wherever they
-    /// have been moved (decision D19). A chapter is carried over from the page it was:
+    /// have been moved. A chapter is carried over from the page it was:
     /// - the page with its key, wherever it is, stays there, in its place in the order. With the
     ///   same listen text it keeps everything: position, finished, audio. With other text it keeps
     ///   its audio where paragraphs match (aligned by text), and its position only if the
@@ -122,7 +122,7 @@ extension LibraryStore {
         for key in changing + keysWaitingToMerge(into: Set(changing)) { stopPlaybackIfPlaying(key) }
     }
 
-    /// Which page each chapter comes from (decision D13).
+    /// Which page each chapter comes from.
     private struct Replacement {
         /// Chapter index → the page with its key, wherever it is.
         var byKey: [Int: Article] = [:]
@@ -277,7 +277,7 @@ extension LibraryStore {
             return
         }
         // What was heard isn't what it says now: a finished chapter starts again from its top,
-        // so neither Continue nor the D7 trim treats the revision as heard.
+        // so neither Continue nor the finished-chapter trim treats the revision as heard.
         let wasFinished = article.finishedAt != nil
         article.finishedAt = nil
         let position = wasFinished ? nil : Self.carriedPosition(paragraph: article.positionParagraph,

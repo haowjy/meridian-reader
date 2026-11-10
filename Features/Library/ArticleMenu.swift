@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A page's menu: the one definition every way to a page's menu renders (decisions C4, C98), as a
+/// A page's menu: the one definition every way to a page's menu renders, as a
 /// row's ⋯ and long press (`MenuRows`, through this view) and as the item block of the ⋯ menu
 /// (`rows`). Which options show where, in what order and greyed or not is `MenuRegistry`'s
 /// (docs/MENUS.md: *Save* / *Remove from Library*, *Save to Folder…* / *Move to…* and *Follow…* lead
@@ -162,7 +162,7 @@ struct ArticleMenu: View {
 }
 
 extension ArticleActions {
-    /// The ⋯ menu of the Reader and regular width's Now Playing (decision D24, C140): the page's
+    /// The ⋯ menu of the Reader and regular width's Now Playing: the page's
     /// menu, then regular width's `[Settings][Library]` rows.
     /// Listen is left out: already reading. Website is reachable via Share in the article's own menu rows.
     func readingPageMenu(_ place: ArticleMenu.Place) -> MenuContext {

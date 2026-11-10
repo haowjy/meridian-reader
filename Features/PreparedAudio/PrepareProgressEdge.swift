@@ -3,7 +3,7 @@ import SwiftUI
 /// The progress line on a surface's bottom chrome (the browser's, the Library's, the Reader's,
 /// Now Playing's), a `ProgressLine` on the edge track:
 /// shown while prepared audio run, gone when nothing is queued, everything queued is paused, or no
-/// on-device voice renders prepared audio (decision D16). Laid over the top edge of the band
+/// on-device voice renders prepared audio. Laid over the top edge of the band
 /// (`.overlay(alignment: .top)`); it always takes the band's width and the line's height, so a
 /// toast laid beside it keeps its place. VoiceOver reads it as a button that opens Prepared audio.
 struct PrepareProgressEdge: View {
@@ -33,7 +33,7 @@ struct PrepareProgressEdge: View {
 
 /// Asking for a prepare from a row's menu, a folder header or a ⋯ menu: the request, then a
 /// toast only when nothing on screen shows it. One that starts (or resumes) has no toast: its row's
-/// mark and the header's control already show it (C96).
+/// mark and the header's control already show it.
 @MainActor
 struct PrepareActions {
     let preparedAudio: PrepareCenter

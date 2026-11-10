@@ -94,7 +94,7 @@ struct ReadingPage<Trailing: View, Banner: View, Reading: View, Band: View, Floa
         case .sheet(let close, let onClose):
             Sheet(onDismiss: onClose, palette: palette, chrome: chrome) {
                 VStack(spacing: 0) {
-                    // The same row in the Reader and Now Playing (decision D24): the close pill
+                    // The same row in the Reader and Now Playing: the close pill
                     // leading, Aa then ☝︎ trailing, so they sit at the same place whichever is up.
                     HStack(spacing: Spacing.s) {
                         ClosePill(close: close)
@@ -197,7 +197,7 @@ private struct ClosePill: View {
             .accessibilityIdentifier(identifier)
     }
 
-    /// The Reader's and Now Playing's pills sit at the same place (D24) but are told apart: a
+    /// The Reader's and Now Playing's pills sit at the same place but are told apart: a
     /// Reader can stay under Now Playing.
     private var identifier: String {
         switch close {

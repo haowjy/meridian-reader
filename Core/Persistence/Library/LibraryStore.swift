@@ -166,7 +166,7 @@ final class LibraryStore {
         return result
     }
 
-    // MARK: - Edit session (C148)
+    // MARK: - Edit session
 
     /// Begins an edit session: all changes accumulate in the context without saving until
     /// `commitEditSession` or `cancelEditSession`. Listening progress is preserved across

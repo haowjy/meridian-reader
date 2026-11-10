@@ -370,9 +370,9 @@ final class GlobalSynthQueue {
             throw NSError(domain: "GlobalSynthQueue", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "Coordinator not attached"])
         }
-        // C138a: the article's own engine and voice. A listener's chunk is demand: the worker
+        // The article's own engine and voice. A listener's chunk is demand: the worker
         // loads that engine for it first. Its load fails: the waiter is told, and the player
-        // pauses there (C129, never another voice).
+        // pauses there (never another voice).
         guard let target = coordinator.lockedRenderTarget(for: cacheKey) else { throw Self.noEngine }
         let cache = coordinator.audioCache
         let hash = ArticleIdentity.paragraphHash(text)
@@ -520,7 +520,7 @@ final class GlobalSynthQueue {
         didSet { if !isHeldForLaunch { kickWorker() } }
     }
 
-    /// The engine stopped repeatedly (C129): nothing renders until Retry.
+    /// The engine stopped repeatedly: nothing renders until Retry.
     var isPausedForRetry = false {
         didSet { if !isPausedForRetry { kickWorker() } }
     }
@@ -565,7 +565,7 @@ final class GlobalSynthQueue {
                 continue
             }
             let isStaged = staged?.cacheKey == key
-            // C138a: its own target, loaded or not.
+            // Its own target, loaded or not.
             guard let target = coordinator.renderTarget(for: key) else {
                 position += 1
                 continue

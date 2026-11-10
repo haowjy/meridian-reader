@@ -4,7 +4,7 @@ import SwiftData
 /// Saving a page that isn't a web page's extraction: a page played without saving filed into the
 /// Library, an address saved as a link, and pasted text.
 extension LibraryStore {
-    /// Add a Link (C126): the page for `url` saved in `folder` (nil: the top level), at its end. One
+    /// Add a Link: the page for `url` saved in `folder` (nil: the top level), at its end. One
     /// already in the Library stays in its folder (a followed story's chapter stays in its story);
     /// one the library has outside it (played without saving) goes in; a new one is a link page,
     /// whose text is fetched when it first plays or prepared audio.
@@ -33,7 +33,7 @@ extension LibraryStore {
         return saved
     }
 
-    /// *Paste Text…* (C127): a new article holding `text`, saved at the end of `folder` (nil: the
+    /// *Paste Text…*: a new article holding `text`, saved at the end of `folder` (nil: the
     /// top level). It has no web address (`ArticleOrigin.book`, locator "text:<key>"), so nothing
     /// ever refetches it; it reads, plays and prepared audio like any saved article.
     ///
@@ -88,7 +88,7 @@ extension LibraryStore {
             .replacingOccurrences(of: ">", with: "&gt;")
     }
 
-    /// *Prepare* on a page played without saving saves it first (C104), into the Library's top
+    /// *Prepare* on a page played without saving saves it first, into the Library's top
     /// level; a page in the Library stays where it is. Audio it has is saved with it.
     func saveUnsaved(_ article: Article) throws {
         guard article.addedAt == nil else { return }

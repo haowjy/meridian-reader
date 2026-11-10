@@ -23,7 +23,7 @@ import SwiftUI
 /// paused; ●↓ once prepared) with what it shows written under it; *More* opens a menu; the ▶ is the
 /// folder's Continue (⏸ while one of its pages is what you hear). The side controls share one
 /// width, so the ▶ stays centred whatever their captions say. The row is an `ActionButtonRow`
-/// (decision D21): with its captions while they fit whole, else the symbols alone (VoiceOver and
+///: with its captions while they fit whole, else the symbols alone (VoiceOver and
 /// the large content viewer keep the names), so it never wraps or cuts a word. Takes plain
 /// values and closures only; `anchor` lays a view of the caller's behind a side control, where a
 /// question the control asks attaches, so on iOS 26 its popover points at that control.
@@ -52,7 +52,7 @@ struct FolderHeader<Status: View, More: View, Anchor: View>: View {
     private var sideWidth: CGFloat { Control.grown(scaledSideWidth, from: 76) }
 
     var body: some View {
-        // Tight (C124): title, details and the action row sit close.
+        // Tight: title, details and the action row sit close.
         VStack(spacing: Spacing.xs) {
             if case .detailed(let cover) = style {
                 ArtworkTile(image: cover, letter: title, size: coverWidth, isCover: true)
@@ -164,7 +164,7 @@ private struct CentredSidesLayout: Layout {
     }
 
     /// The row's centre line: the disc's middle, and the middle of each side's 44 pt glyph (its
-    /// caption hangs below), so the three line up however tall the captions are (C124).
+    /// caption hangs below), so the three line up however tall the captions are.
     private func centreLine(_ subviews: Subviews) -> CGFloat {
         max(subviews[1].sizeThatFits(.unspecified).height, Control.tap) / 2
     }
@@ -205,7 +205,7 @@ struct FolderHeaderActions {
     /// The folder's Prepare toggle (VoiceOver reads it with the state).
     var prepareIsOn: Bool
     var onPrepare: () -> Void
-    /// The Prepare control's caption while a prepare runs ("2 of 3", C96); nil: the state's own
+    /// The Prepare control's caption while a prepare runs ("2 of 3"); nil: the state's own
     /// label. The header has no separate prepare line.
     var prepareCaption: String? = nil
     var play: PlayState

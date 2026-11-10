@@ -102,7 +102,7 @@ extension HTMLReadingWebView {
             });
             // Highlight only: scrolling is Swift's (following, scrub).
             if (el) el.classList.add('reader-active');
-            // Marks that a paragraph is spoken (nothing else dims: C105).
+            // Marks that a paragraph is spoken (nothing else dims).
             document.body.classList.toggle('reader-has-active', !!el);
           };
           // Document y: what the scroll view calls content y.
@@ -178,7 +178,7 @@ extension HTMLReadingWebView {
             var box = el.getBoundingClientRect();
             return [docTop(box), box.height, window.__readerTextTop()];
           };
-          // Pages mode (C107): CSS columns a screen wide in a box from `top` to `h`.
+          // Pages mode: CSS columns a screen wide in a box from `top` to `h`.
           window.__readerPaged = function(on, top, h) {
             document.documentElement.classList.toggle('reader-paged', !!on);
             // On the body: the root's style attribute is rewritten with every look change.
@@ -221,7 +221,7 @@ extension HTMLReadingWebView {
             }
             return null;
           };
-          // The selection's start as [listen paragraph, offset in it] (C109), counted as rangeIn
+          // The selection's start as [listen paragraph, offset in it], counted as rangeIn
           // counts (leading white space skipped); null with no selection in the text.
           window.__readerSelectionSpot = function() {
             var sel = window.getSelection();
@@ -298,10 +298,10 @@ extension HTMLReadingWebView {
           // to an element that looks clickable; the pointer cursor, inherited, makes the whole
           // page one (the tap highlight is transparent).
           document.body.style.cursor = 'pointer';
-          // A touch that stops a glide, or lands as one ends, isn't a tap (C105).
+          // A touch that stops a glide, or lands as one ends, isn't a tap.
           var lastScroll = 0, touchAfterScroll = false;
           window.addEventListener('scroll', function() { lastScroll = Date.now(); }, { passive: true });
-          // A tap that clears a selection isn't a tap on the text either (C109).
+          // A tap that clears a selection isn't a tap on the text either.
           var hadSelection = false;
           document.addEventListener('touchstart', function() {
             touchAfterScroll = Date.now() - lastScroll < 250;

@@ -16,7 +16,7 @@ import SwiftUI
 ///   book, a series, a folder you made), a saved page in no folder from the Library,
 ///   a page you haven't saved from its site. ⋯ → *Go to <name>* opens the Library at the folder
 ///   or the Library; for a site, ⋯ → Website opens the page in the browser.
-/// - The top bar, 🔖 and ⋯ are the Reader's (decision D24): Aa changes how the page reads; ☝︎
+/// - The top bar, 🔖 and ⋯ are the Reader's: Aa changes how the page reads; ☝︎
 ///   then a tap on a paragraph plays from there; 🔖 saves / removes (tap) or files the page
 ///   (long-press, *Save to Folder…*); ⋯ is the page's menu at `.nowPlaying` (on compact width a
 ///   system menu, the top group's). Both act through `ArticleActions`, as in the Reader. Voice (an
@@ -361,7 +361,7 @@ struct NowPlayingScreen: View {
         speech.play(fromParagraph: index)
     }
 
-    /// *Play from Here* on a selection (C109): from its sentence's start.
+    /// *Play from Here* on a selection: from its sentence's start.
     private func playFromSelection(paragraph: Int, offset: Int) {
         guard let spot = ListenSpot.fromSelection(in: speech.document, paragraph: paragraph, offset: offset) else { return }
         jumpMode = false

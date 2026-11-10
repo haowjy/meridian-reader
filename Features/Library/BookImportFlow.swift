@@ -10,8 +10,8 @@ import Foundation
 ///   looks it up again in its one save, so the book is stored where *Add to* says, durably, with
 ///   no second save. It is fixed from *Saving the book…* on. A folder chosen and then deleted
 ///   fails the import, saying so (`BookImportError.destinationGone`); the Library is unchanged.
-/// - A book already in the Library stops after reading and asks *Replace* / *Cancel* (decision
-///   D13). *Replace* runs again on the same file and rebuilds the book where it is.
+/// - A book already in the Library stops after reading and asks *Replace* / *Cancel*.
+///   *Replace* runs again on the same file and rebuilds the book where it is.
 /// - *Cancel* stops the import between chapters, before anything is stored; the library is as
 ///   it was.
 @MainActor
@@ -100,7 +100,7 @@ final class BookImportFlow: Identifiable {
         run(.cancel)
     }
 
-    /// D13's *Replace*.
+    /// *Replace*.
     func replace() {
         guard case .alreadyInLibrary(let id) = phase else { return }
         isReplacing = true
@@ -108,7 +108,7 @@ final class BookImportFlow: Identifiable {
         run(.replace)
     }
 
-    /// *Cancel*, D13's *Cancel*, or the sheet pulled away: stops the import (it keeps nothing)
+    /// *Cancel*, The importer's *Cancel*, or the sheet pulled away: stops the import (it keeps nothing)
     /// and closes the sheet.
     func cancel() {
         guard phase != .ended else { return }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// What a prepare still to finish says about itself, the one wording a folder header and the
-/// Prepared Audio list share (C91): where it is and how long its rendering has left.
+/// Prepared Audio list share: where it is and how long its rendering has left.
 ///
 /// ```
 /// Preparing 5 of 17   ~2 h 45 min left

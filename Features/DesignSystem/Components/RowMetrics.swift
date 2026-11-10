@@ -38,7 +38,7 @@ enum RowMetrics {
     static let accessorySlot = Control.tap
     /// From the card's trailing edge to a trailing control's square: its glyph then ends `edgeInset` in.
     static let accessoryTrailing = edgeInset - (accessorySlot - Glyph.regular) / 2
-    /// A title beside other content: one line, two at the accessibility sizes (whole labels, C130).
+    /// A title beside other content: one line, two at the accessibility sizes (whole labels).
     static func titleLines(_ size: DynamicTypeSize) -> Int { size.isAccessibilitySize ? 2 : 1 }
     /// A title on a line of its own above the rest (`ListRow` at the accessibility sizes).
     static let stackedTitleLines = 3

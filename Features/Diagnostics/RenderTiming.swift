@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-/// Where row and menu work goes (C98): an `os_signpost` interval per measured block (Instruments'
+/// Where row and menu work goes: an `os_signpost` interval per measured block (Instruments'
 /// Points of Interest, subsystem `com.jimmyyao.Reader`, category `RenderTiming`) and running
 /// totals that the log gets every 5 s while something is measured:
 /// `render_timing articleRow=412 0.9ms folderRow=3 0.1ms menuBuild=0 0.0ms`. Main actor only; cheap

@@ -14,7 +14,7 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
     enum Target: Codable, Hashable {
         case article(UUID)
         case folder(UUID)
-        /// Persisted in Prepared audio.json under the names from before C121.
+        /// Persisted in Prepared audio.json under the names from before the `Page` → `Article` rename.
         private enum CodingKeys: String, CodingKey {
             case article = "page", folder
         }
@@ -73,7 +73,7 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
         get { target.isFolder && folderToggle }
         set { folderToggle = newValue }
     }
-    /// Pages of the folder whose prepared audio were deleted (*Remove Prepared Audio* on one, decision P8):
+    /// Pages of the folder whose prepared audio were deleted (*Remove Prepared Audio* on one):
     /// they don't join again while the toggle stays on, until Prepare is asked for again.
     var deleted: [UUID] = []
 
@@ -126,7 +126,7 @@ struct PrepareRecord: Codable, Equatable, Identifiable {
         hasPrepared(key, currentOf: { _ in current }, voiceOf: voiceOf)
     }
 
-    /// C138: `currentOf` is the voice each page renders in (its own, or its book's).
+    /// `currentOf` is the voice each page renders in (its own, or its book's).
     func hasPrepared(_ key: UUID, currentOf: (UUID) -> String?, voiceOf: (UUID) -> String?) -> Bool {
         guard entries.contains(where: { $0.key == key && $0.state == .done }), let voice = voiceOf(key) else { return false }
         return accepts(voice, current: currentOf(key))

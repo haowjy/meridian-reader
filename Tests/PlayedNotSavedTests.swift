@@ -2,7 +2,7 @@ import SwiftData
 import XCTest
 @testable import MeridianReader
 
-/// Pages played without saving (decision D5): the Library home's Recent tab, most recently
+/// Pages played without saving: the Library home's Recent tab, most recently
 /// played first (`LibraryQueries.recent`), never Everything, and *Save to Library* puts one in
 /// the Library. A page removed from the Library is in no list, not even this one, nor the bar's
 /// resume, until it is saved or listened to again (`Article.removedAt`); if you hear it, it stops.

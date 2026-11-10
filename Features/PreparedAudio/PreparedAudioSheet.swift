@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// ⋯ › Prepared audio (decision D16): what is preparing and what is prepared, with the voice each
+/// ⋯ › Prepared audio: what is preparing and what is prepared, with the voice each
 /// is in. Sections, each only when it has rows:
 ///
 /// ```
@@ -9,7 +9,7 @@ import SwiftUI
 /// ▣  Pride and Prejudice                    (◔)    ⋯   the ↓ filling as it renders
 ///    4 of 12   ~2 h 45 min left
 /// Waiting  2
-/// [i] Notes on Tides                        (✻)    ⋯   in queue order, spinner (C93)
+/// [i] Notes on Tides                        (✻)    ⋯   in queue order, spinner
 ///    Kokoro Heart
 /// [i] Bond Ladders                          (◔)    ⋯   paused: the mark in grey
 ///    Kokoro Heart   Paused
@@ -47,7 +47,7 @@ struct PreparedAudioSheet: View {
 }
 
 /// The Prepared Audio list itself: the sheet's, and Settings › Prepared audio & Storage › Prepared audio. Every
-/// row is one page (C110), a folder's pages each on their own row: its status mark before line
+/// row is one page, a folder's pages each on their own row: its status mark before line
 /// two (a spinner waiting, the accent ↓ filling with its own progress, filled once done), line two
 /// its folder's name (its site when it is in no folder). Waiting is in the order pages render.
 /// A folder's own prepare (its toggle, *Stop Preparing*) stays on the folder's screen.
@@ -59,7 +59,7 @@ struct PreparedAudioList: View {
     @Environment(\.speechController) private var speech
     /// Bytes on disk of each prepared page, by its key (measured off the main actor).
     @State private var sizes: [UUID: Int64] = [:]
-    /// From Listening (C135): articles with audio made while listening, not prepared, newest
+    /// From Listening: articles with audio made while listening, not prepared, newest
     /// played first, with their sizes.
     @State private var listening: [UUID] = []
     @State private var listeningSizes: [UUID: Int64] = [:]
@@ -161,7 +161,7 @@ struct PreparedAudioList: View {
         }
     }
 
-    // MARK: - From Listening (C135)
+    // MARK: - From Listening
 
     /// The list's ⋯: *Delete All…* over Prepared, *Clear Audio From Listening…* over From
     /// Listening, each only while its section has rows (`MenuRegistry`).
@@ -190,7 +190,7 @@ struct PreparedAudioList: View {
         let place = article.flatMap { $0.folder?.name ?? ArticleRowTitle.lineTwoSource(title: $0.givenTitle, source: $0.byline) }
         let menu = PrepareMenu(item: item, preparedAudio: preparedAudio, library: library, isListeningAudio: true,
                                 needsAudio: speech.localTTS.listeningNeedsKey)
-        // No accent ↓: that mark is for prepared audio only (C135).
+        // No accent ↓: that mark is for prepared audio only.
         return ListRow(kind: kind, title: title, subtitle: place,
                        details: [item.voice.map(voiceLabel), listeningSizes[item.key].map(FileSizes.label)].compactMap { $0 },
                        menu: AnyView(menu), showsListening: false)
@@ -281,7 +281,7 @@ struct PreparedAudioList: View {
             .accessibilityIdentifier("downloadRow")
     }
 
-    /// The row's one status mark (C102): filling with its own progress, waiting, paused, done.
+    /// The row's one status mark: filling with its own progress, waiting, paused, done.
     private func mark(_ item: PrepareArticles.Item) -> PrepareState {
         switch item.status {
         case .preparing(let f), .fetching(let f): .preparing(fraction: f)

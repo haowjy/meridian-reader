@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One SF Symbol per concept, app-wide (decision D24): the same thing reads the same on every
+/// One SF Symbol per concept, app-wide: the same thing reads the same on every
 /// surface, in a toolbar, a ⋯ row, a context menu or a toast. Feature code names the concept
 /// (`Icons.save`), never the symbol. A concept's states pair up as outline at rest and filled when
 /// on (`save` / `saved`, `jump` / `jumpOn`).
@@ -60,7 +60,7 @@ enum Icons {
     static let add = "plus"
     static let folder = "folder"
     static let newFolder = "folder.badge.plus"
-    /// Import EPUB… (nothing is a book: an import is a folder, C100).
+    /// Import EPUB… (nothing is a book: an import is a folder).
     static let importFile = "square.and.arrow.down"
     /// Move to… and Save to Folder…: into a folder (a folder itself is `folder`). The arrow-folder
     /// symbol is iOS 26's; before that the plain folder stands in.
@@ -77,7 +77,7 @@ enum Icons {
     /// *Remove* shows, as iOS's delete control.
     static let removeControl = "minus.circle.fill"
     static let sort = "arrow.up.arrow.down"
-    /// ≡ Drag handle for reorder in Edit (C148).
+    /// ≡ Drag handle for reorder in Edit.
     static let reorder = "line.3.horizontal"
     /// Checked: the chosen option in a list or menu (where the system draws the same ✓ in its own
     /// pickers). Not Select's circle, nor the filled circle that means prepared, nor a finished
@@ -92,7 +92,7 @@ enum Icons {
     /// Mark All Above as Finished: a list of pages, rings full (no ✓; the circle-✓ is *Select*'s).
     static let markAllAboveFinished = "list.bullet.circle"
     static let skipInPlayback = "forward.end"
-    /// The *Playback* submenu (C98).
+    /// The *Playback* submenu.
     static let playback = "list.bullet"
     static let includeInPlayback = "play.square"
     static let photo = "photo"
@@ -143,7 +143,7 @@ enum Icons {
     /// Prepare (a row's menu, a toast, a folder header's control before it prepared audio).
     static let prepare = "arrow.down.circle"
     /// Prepared: a row's badge, a folder header's control.
-    /// A filled ↓, not a ✓ (C89): ✓ means only selection and a picked option.
+    /// A filled ↓, not a ✓: ✓ means only selection and a picked option.
     static let prepared = "arrow.down.circle.fill"
     /// The Prepared Audio list.
     static let preparedAudio = "tray.and.arrow.down"
@@ -154,7 +154,7 @@ enum Icons {
     static let turnOffPrepare = "arrow.down.circle.dotted"
     /// *Prepare Again*: down again (not the browser's Reload arrow).
     static let reprepare = "arrow.uturn.down.circle"
-    /// *Voice: Heart*, an article's or a book's voice (C138).
+    /// *Voice: Heart*, an article's or a book's voice.
     static let voice = "person.wave.2"
 
     // MARK: Settings and reading

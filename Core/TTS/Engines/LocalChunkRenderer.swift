@@ -15,7 +15,7 @@ struct ChunkRenderRequest: Sendable {
     var threads: Int? = nil
     /// The render queue's front job.
     var isPrimary = false
-    /// C138: the engine voice to speak in (the article's own); nil: the host's current voice.
+    /// The engine voice to speak in (the article's own); nil: the host's current voice.
     var voice: String? = nil
 
     /// What every timing-log line about this chunk carries.
@@ -105,7 +105,7 @@ final class LocalChunkRenderer: Sendable {
         try Task.checkCancellation()
         let phase = runState.phase
         guard route.lane.runs(in: phase) else { throw LaneUnavailable(lane: route.lane) }
-        // C138: the article's voice, its files made sure of (before the crash marker), then set
+        // The article's voice, its files made sure of (before the crash marker), then set
         // under the gate right before every call.
         if let voice = request.voice {
             try await host.prepareVoice(voice)

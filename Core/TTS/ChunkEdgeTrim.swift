@@ -19,7 +19,7 @@ enum ChunkEdgeTrim {
     static let threshold: Float = 0.003
     static let frameMs = 10
     static let fadeMs = 5
-    /// Fade-out over the kept tail, so a join never stops on a non-zero sample mid-decay (C137).
+    /// Fade-out over the kept tail, so a join never stops on a non-zero sample mid-decay.
     static let tailFadeMs = 30
 
     /// Trailing silence kept after the last voiced frame (the join pause ≈ this + `leadMs`).

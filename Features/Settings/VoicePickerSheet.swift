@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// *Voice: Heart* in an article's or a book's menu (C138, C138a): the voice it speaks in, from the
+/// *Voice: Heart* in an article's or a book's menu: the voice it speaks in, from the
 /// one voice switcher (`VoiceSelectionList`: engines as sections). Picking another asks first when it has audio, with how
 /// much is made again, then downloads the voice if it isn't on the device (its row shows the
 /// download; the ✓ stays until it is there) and changes it to that voice (`ArticleVoiceChange`).

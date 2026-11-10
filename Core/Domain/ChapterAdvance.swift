@@ -1,6 +1,6 @@
 import Foundation
 
-/// The rule for folders (books, followed stories and any other folder, decision D15): when a page
+/// The rule for folders (books, followed stories and any other folder): when a page
 /// ends, the next page that plays starts; when there is none, playback stops. Pure, so it is
 /// tested without SwiftData: it works on a snapshot of the folder's pages in their full play order
 /// (`LibraryStore.chapterSnapshot`), skipped ones included, so a chapter marked *Skip When Playing*

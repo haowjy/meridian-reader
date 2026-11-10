@@ -27,7 +27,7 @@ struct MenuContext {
 
     /// The navigation rows `[Settings][Library][last]` on regular width, `[Library][Browsing History][last]`
     /// on compact (`compact`), then *Help*; `last` is the surface's own focus row, nil where it can never apply (Listen
-    /// on a reading page). Every ⋯ menu uses these same rows in this order (C140). Compact width has
+    /// on a reading page). Every ⋯ menu uses these same rows in this order. Compact width has
     /// Settings in the chrome's pill and no 🕘 button, so its menus drop *Settings* and add *Browsing
     /// History* before `last`. The Library row is left out on the Library, where it would do nothing.
     @MainActor

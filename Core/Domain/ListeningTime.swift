@@ -34,7 +34,7 @@ enum ListeningTime {
         return max(1, Int((words / (wordsPerMinute * max(0.25, rate))).rounded(.up)))
     }
 
-    /// A row's minutes (C131): 0 for text under a minute, which `label` shows as "<1 min", so a
+    /// A row's minutes: 0 for text under a minute, which `label` shows as "<1 min", so a
     /// folder of short articles doesn't read "1 min" on every row and a longer total above them.
     static func rowMinutes(words: Double, rate: Double) -> Int {
         guard words > 0 else { return 0 }

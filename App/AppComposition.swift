@@ -37,7 +37,7 @@ enum AppComposition {
     }
 
     /// What you see. It asks the playback session what you hear, so the Reader of the playing
-    /// page opens as Now Playing, and reopens on the surface you left (decision D10).
+    /// page opens as Now Playing, and reopens on the surface you left.
     static let shell = ShellState(isHearing: { speechController.playState(of: $0).isCurrent },
                                   memory: .standard, restores: restoresSurface)
 
@@ -60,7 +60,7 @@ enum AppComposition {
         let library = LibraryStore(context: context, audio: speech.localTTS)
         library.stopPlaybackIfPlaying = { speech.stopIfPlaying($0) }
         library.keyMerged = { from, to, text in speech.rekeyActiveSession(from: from, to: to, text: text) }
-        // C138a: one selection (engine + voice) per article and per book, kept in the library.
+        // One selection (engine + voice) per article and per book, kept in the library.
         let tts = speech.localTTS
         tts.articleSelection = { [weak library] in library?.voice(ofKey: $0) }
         tts.lockArticleSelection = { [weak library] key, selection in library?.lockVoice(ofKey: key, to: selection) ?? selection }
@@ -118,7 +118,7 @@ enum AppComposition {
         return blocker
     }
 
-    /// Prepared audio (decision D16) over the app's library: a link page's text comes through Follow
+    /// Prepared audio over the app's library: a link page's text comes through Follow
     /// (`FollowCenter.fill`), so it is fetched once and in the one queue. Its pages render in the
     /// speech stack's render queue (`PrepareRendering`); the queue's changes and the library's
     /// stored edits are wired to it here, and it acts on them once started, after the launch's
@@ -210,8 +210,8 @@ enum AppComposition {
                                                      "held": purged.held])
     }
 
-    /// C138 migration, once: articles and books with audio take the voice most of it is in (with its
-    /// engine). C138a, once: voices C138 stored without their engine get it.
+    /// Migration, once: articles and books with audio take the voice most of it is in (with its
+    /// engine). Then, once: voices it stored without their engine get it.
     static func adoptArticleVoices(library: LibraryStore, tts: LocalTTSCoordinator) {
         let doneKey = "reader.migration.articleVoices.c138"
         if !tts.defaults.bool(forKey: doneKey) {
@@ -222,7 +222,7 @@ enum AppComposition {
             ListenDebugLog.shared.append("C138 voices adopted: \(adopted.articles) articles, \(adopted.folders) books")
             ListenTimingLog.log("article_voice_migration", ["articles": adopted.articles, "folders": adopted.folders])
         }
-        // C138a: voices adopted by C138 (cache voice keys) take their engine.
+        // Voices adopted earlier (cache voice keys) take their engine.
         let convertedKey = "reader.migration.articleVoices.c138a"
         if !tts.defaults.bool(forKey: convertedKey) {
             let converted = library.convertVoices { tts.selection(fromCacheVoice: $0)?.stored }

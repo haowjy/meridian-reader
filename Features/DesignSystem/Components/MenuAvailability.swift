@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Whether a menu row shows, and whether it runs (decision DR-09), for every ⋯ menu and
+/// Whether a menu row shows, and whether it runs, for every ⋯ menu and
 /// long-press menu. A row that can never apply to the item is hidden (*Share* on a chapter with no
 /// web address, a folder's rows on the Library's home, *Play from Here* on a page in no folder). A
 /// row that applies but can't run now shows dimmed (*Prepare* while it prepared audio, *Move to…*

@@ -6,7 +6,7 @@ struct PrepareMenu: View {
     let item: PrepareArticles.Item
     let preparedAudio: PrepareCenter
     let library: LibraryStore
-    /// A From Listening row: only *Delete Audio* (C135).
+    /// A From Listening row: only *Delete Audio*.
     var isListeningAudio = false
     /// Listening needs this audio now (the playing article): *Delete Audio* is dimmed.
     var needsAudio: (UUID) -> Bool = { _ in false }
@@ -45,7 +45,7 @@ struct PrepareMenu: View {
         var row = MenuRow(id: "menuDeleteAudio", title: Verbs.deleteAudio, icon: Icons.delete, isDestructive: true,
                           availability: availability) {
             if isListeningAudio {
-                // Only the audio; the article stays (C135).
+                // Only the audio; the article stays.
                 if !needsAudio(item.key), let article = library.article(key: item.key) { library.deletePreparedAudio(article) }
             } else if let article = library.article(key: item.key) {
                 preparedAudio.deletePreparedAudio(of: article)

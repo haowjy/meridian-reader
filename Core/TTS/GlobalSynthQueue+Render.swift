@@ -130,7 +130,7 @@ extension GlobalSynthQueue {
     /// (cancelled, or the unit has no voice any more).
     private func run(_ start: RenderPlan.Start, of unit: Unit, _ coordinator: SynthQueueContext) async -> Bool {
         let (job, index) = (unit.job, unit.index)
-        // C138a: the article's own selection, locked by its first render. Never another voice.
+        // The article's own selection, locked by its first render. Never another voice.
         guard let target = coordinator.lockedRenderTarget(for: job.cacheKey) else { return false }
         guard target == unit.target else { return true } // its voice changed since the pick: pick again
         if coordinator.audioCache.audioURL(articleID: job.cacheKey, paragraphIndex: index,
@@ -341,7 +341,7 @@ extension GlobalSynthQueue {
             throw unavailable
         } catch {
             guard coordinator.renderTarget(for: job.cacheKey) == target else { return nil }
-            // The unit fails; the player pauses there (C129: never another voice).
+            // The unit fails; the player pauses there (never another voice).
             let msg = "\(start.route.id) FAIL p\(index) c\(chunk): \(error.localizedDescription)"
             ListenDebugLog.shared.append(msg)
             lastBakeEvent = msg

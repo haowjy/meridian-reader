@@ -40,7 +40,7 @@ enum PlaybackEngineEvent: Equatable {
 
 /// Why the engine paused where its audio ran out.
 enum ListenStall: Equatable {
-    /// The engine failed, stopped (C129: paused for Retry after a crash) or couldn't load. Retry
+    /// The engine failed, stopped (paused for Retry after a crash) or couldn't load. Retry
     /// (any play) asks it again.
     case engineStopped
     /// In the background, the audio ran out before the next chunk was rendered: it pauses at the

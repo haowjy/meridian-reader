@@ -40,20 +40,20 @@ final class LocalTTSCoordinator: SynthQueueContext {
     @ObservationIgnored var onRenderStateChange: ((Set<UUID>?) -> Void)?
     /// Selected voice per multi-voice engine (e.g. Kokoro `af_heart`). Part of the cache voice key.
     private(set) var engineVoices: [SpeechEngineID: String] = [:]
-    /// C129: the engine killed the last process inside a call (`CrashRecovery`); the render queue
+    /// The engine killed the last process inside a call (`CrashRecovery`); the render queue
     /// waits for Retry (`retryAfterEngineStop`) and playback pauses where rendered audio runs out.
     /// The engine and voice stay selected.
     private(set) var isPausedForRetry = false
-    /// C138a: the stored selection of the article with `key` (or its book), in its stored form.
+    /// The stored selection of the article with `key` (or its book), in its stored form.
     @ObservationIgnored var articleSelection: (UUID) -> String? = { _ in nil }
-    /// C138a: the article with `key` (or its book) takes the selection unless it has one; returns the one it has.
+    /// The article with `key` (or its book) takes the selection unless it has one; returns the one it has.
     @ObservationIgnored var lockArticleSelection: (UUID, String) -> String = { $1 }
     @ObservationIgnored var selectionMemo: [UUID: VoiceSelection?] = [:]
     /// The Settings default: the selection a brand-new article takes on first use. Nothing else.
     var defaultSelection: VoiceSelection
-    /// C134: `key` has a prepare record (set by the composition from the prepare list).
+    /// `key` has a prepare record (set by the composition from the prepare list).
     @ObservationIgnored var preparedKey: (UUID) -> Bool = { _ in false }
-    /// C134: listening needs `key`'s audio now (set by the composition: session, staged chapter).
+    /// Listening needs `key`'s audio now (set by the composition: session, staged chapter).
     @ObservationIgnored var listeningNeedsKey: (UUID) -> Bool = { _ in false }
     /// The crash this launch found (the engine killed the previous process inside a call).
     private(set) var launchCrash: EngineCrashGuard.CrashInfo?
@@ -116,7 +116,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
 
     /// The previous process died inside `crash.engine`. Its provider decides (Kokoro: one thread
     /// fewer first); by default, and when several calls were in flight (it can't say which one did
-    /// it), the engine and voice stay and it pauses for Retry (C129: never another voice).
+    /// it), the engine and voice stay and it pauses for Retry (never another voice).
     private func recover(from crash: EngineCrashGuard.CrashInfo, playing: ListenResumeTarget?) {
         guard let engine = crash.engine else { return }
         let recovery = (crash.isAmbiguous ? nil : engines.recover(from: crash, playing: playing))
@@ -252,7 +252,7 @@ final class LocalTTSCoordinator: SynthQueueContext {
         engines.descriptor(id)?.cacheVoiceID(engineVoice: engineVoices[id])
     }
 
-    /// C138a: what renders for the article with `cacheKey`: its own selection, loaded or not (the
+    /// What renders for the article with `cacheKey`: its own selection, loaded or not (the
     /// render queue's worker loads it). Unlocked articles render in the default (which they then
     /// lock: `lockedRenderTarget`). nil: no registered engine speaks it, and nothing renders; no
     /// other engine or voice is ever substituted.

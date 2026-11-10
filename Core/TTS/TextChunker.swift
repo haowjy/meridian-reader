@@ -407,7 +407,7 @@ enum TextChunker {
         let word = String(chars[(k + 1)..<enderIndex])
         if word.isEmpty { return true }
         let lower = word.lowercased()
-        // "c. 1805", "ca. 1900", "No. 5", "pp. 12": a reference abbreviation before a number (C137).
+        // "c. 1805", "ca. 1900", "No. 5", "pp. 12": a reference abbreviation before a number.
         if next.isNumber, numberAbbreviations.contains(lower) { return false }
         // "etc. The" / "et al. They": these usually end the sentence when a capital follows
         // (titles like "Dr." are always followed by a capitalised name, so they stay joined).

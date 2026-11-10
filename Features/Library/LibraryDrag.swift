@@ -1,13 +1,13 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Drag to file and to reorder, without Edit (decision D15). A long press lifts a row: its menu,
+/// Drag to file and to reorder, without Edit. A long press lifts a row: its menu,
 /// which the press opened, goes as the row lifts (iOS's own handover between the two). Let go
 /// on a folder row to file it there, or between rows to place it.
 ///
 /// - **Onto a folder row**: filed at the end of that folder, as *Move to…* does, with the same
 ///   refusals (`LibraryStore.moveRefusal`). A folder that takes the row is highlighted
-///   (`ListRow.isDropTarget`), a book or series as any other (decision D19); a folder dragged
+///   (`ListRow.isDropTarget`), a book or series as any other; a folder dragged
 ///   over itself or a folder inside it shows the drag as refused.
 /// - **Between rows**: a page among pages, a folder among folders, in the container the row is in
 ///   (a folder dragged over another folder row's top or bottom quarter goes beside it; over its
@@ -126,7 +126,7 @@ extension View {
     }
 }
 
-/// The drag handle on the right of each row in Edit (C148): a visible grip icon that carries
+/// The drag handle on the right of each row in Edit: a visible grip icon that carries
 /// `.onDrag` to start a library drag. Only the handle initiates reorder; the rest of the row
 /// scrolls, taps to select, or does nothing.
 struct EditDragHandle: View {

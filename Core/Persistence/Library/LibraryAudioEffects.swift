@@ -13,7 +13,7 @@ protocol LibraryAudioEffects: AnyObject {
     var pendingBakes: PendingBakeJobStore { get }
     /// The crash-resume file: library work moves the point it names along with the page.
     var resumePoints: ListenResumePointStore { get }
-    /// `key` has a prepare record (C134): its audio is never cleared automatically.
+    /// `key` has a prepare record: its audio is never cleared automatically.
     func isPrepared(_ key: UUID) -> Bool
     /// Listening needs `key`'s audio right now (the session playing, the staged next chapter).
     func listeningNeeds(_ key: UUID) -> Bool

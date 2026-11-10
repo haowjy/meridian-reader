@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// C138: one voice per article, and per book. An article's audio is all in one voice: the voice
+/// One voice per article, and per book. An article's audio is all in one voice: the voice
 /// it was first rendered or prepared in. A book or series (a folder that plays in order) keeps one
 /// voice for every chapter: its first chapter's, which new chapters use too. The voice in Settings
 /// only picks the voice of articles and books with no audio yet. A voice is a cache voice key
@@ -69,7 +69,7 @@ extension LibraryStore {
         }
     }
 
-    /// Migration (C138), once: every article with audio and no voice takes the voice most of its
+    /// Migration, once: every article with audio and no voice takes the voice most of its
     /// audio is in (`voiceOf`); a book or series, the voice most of its chapters' audio is in.
     /// Articles with no audio keep none. Returns how many articles and books got a voice.
     func adoptVoicesFromAudio(voiceOf: (UUID) -> String?) -> (articles: Int, folders: Int) {

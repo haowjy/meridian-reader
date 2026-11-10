@@ -158,7 +158,7 @@ struct ArticleActions {
     /// keeps it out (`PrepareCenter.deletePreparedAudio(of:)`, P8).
     func togglePrepare() {
         guard let article else { return }
-        // Preparing saves it (C104): a page played without saving goes into the Library first.
+        // Preparing saves it: a page played without saving goes into the Library first.
         if !article.isInLibrary {
             guard article.isSaved, shell.attempt(String(localized: "Couldn’t save"), { try library.saveUnsaved(article) }) != nil
             else { return }

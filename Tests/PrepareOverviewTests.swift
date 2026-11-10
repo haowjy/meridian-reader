@@ -1,7 +1,7 @@
 import XCTest
 @testable import MeridianReader
 
-/// The prepare accept rule (decision D16): a page counts as prepared when its entry is done and
+/// The prepare accept rule: a page counts as prepared when its entry is done and
 /// its audio is in a voice the download accepts, the voice downloads render in now or the one
 /// *Keep* stored (`PrepareRecord.accepts`). Other audio is a different voice.
 final class PrepareOverviewTests: XCTestCase {
@@ -74,7 +74,7 @@ final class PrepareOverviewTests: XCTestCase {
         XCTAssertTrue(o.done.isEmpty)
     }
 
-    /// C138: each article renders in its own voice, so its audio counts as prepared in that voice
+    /// Each article renders in its own voice, so its audio counts as prepared in that voice
     /// whatever the voice in Settings; audio not in its own voice never does.
     func testEachArticleIsPreparedInItsOwnVoice() {
         let two = record([.done, .done])
@@ -88,7 +88,7 @@ final class PrepareOverviewTests: XCTestCase {
         XCTAssertTrue(o.differentVoice.isEmpty)
     }
 
-    /// Prepared audio.json written before C121 names an article's prepare `page`: it still decodes,
+    /// Prepared audio.json written before the `Page` → `Article` rename names an article's prepare `page`: it still decodes,
     /// and is written back under the same name.
     func testAnArticleTargetKeepsItsStoredName() throws {
         let key = UUID()

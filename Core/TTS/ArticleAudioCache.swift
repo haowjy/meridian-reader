@@ -117,8 +117,7 @@ final class ArticleAudioCache {
         fileManager.fileExists(atPath: indexURL(for: articleID).path)
     }
 
-    /// Every article with audio of its own (an index in its live directory), by key (C134
-    /// retention, the Prepared Audio list's From Listening section). Old voices aren't listed.
+    /// Every article with audio of its own (an index in its live directory), by key (retention, the Prepared Audio list's From Listening section). Old voices aren't listed.
     func cachedArticleKeys() -> [UUID] {
         entries().filter(\.isLive).map(\.storageID).filter(hasCache(for:))
     }
@@ -200,7 +199,7 @@ final class ArticleAudioCache {
         return directory(for: articleID).appendingPathComponent(entry.file)
     }
 
-    /// Playback: the CAF in the article's voice only (C138). An older voice's file waiting to be
+    /// Playback: the CAF in the article's voice only. An older voice's file waiting to be
     /// replaced never plays: an article never mixes voices; the paragraph renders in its voice.
     func playableAudioURL(articleID: UUID, paragraphIndex: Int, engineID: String, voiceID: String) -> URL? {
         audioURL(articleID: articleID, paragraphIndex: paragraphIndex, engineID: engineID, voiceID: voiceID)

@@ -124,10 +124,10 @@ struct LaunchOptions: Equatable {
     /// essays and *Pride and Prejudice* (chapters 1-10, a drawn cover) as a book at the top level. "A City in the
     /// Rain" is the newest page, so `-listenDemo` and `-openDemoInBrowseReader` open it.
     var seedsMarketingLibrary = false
-    /// `-seedBigFolder N`: add "Big Folder" with N saved pages (the menu and row timing probe, C98).
+    /// `-seedBigFolder N`: add "Big Folder" with N saved pages (the menu and row timing probe).
     var bigFolderArticles = 0
     /// `-restoreSurface` (with `-uiTesting`): reopen on the remembered surface, as a normal launch
-    /// does (decision D10). Without it an `-uiTesting` launch starts on the browser, whatever an earlier
+    /// does. Without it an `-uiTesting` launch starts on the browser, whatever an earlier
     /// run left, and `-browseTestPages` loads page one.
     var restoresSurfaceInUITests = false
     /// `-importTestEPUB`: *Import Book…* imports the synthetic EPUB (`TestEPUB`) instead of

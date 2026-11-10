@@ -40,13 +40,13 @@ enum ShellSheet: Identifiable, Equatable {
     case share(URL)
     /// The Move tree: *Move to…*, and *Save to Folder…* (a menu's row, 🔖 held).
     case moveTo(MoveRequest)
-    /// A book being imported: its progress, *Add to*, and D13's question.
+    /// A book being imported: its progress, *Add to*, and the replace-or-cancel question.
     case importBook(BookImportFlow)
-    /// ⋯ › Prepared audio: what is preparing and prepared (decision D16).
+    /// ⋯ › Prepared audio: what is preparing and prepared.
     case preparedAudio
     /// *Edit Details* for a folder, book or series: its name, author and cover.
     case folderDetails(UUID)
-    /// *Voice: Heart* in an article's or a book's menu: its voice picker (C138).
+    /// *Voice: Heart* in an article's or a book's menu: its voice picker.
     case voice(VoiceTarget)
     /// ⋯ → *Follow…*: a story's table of contents, reviewed, into a folder of chapters.
     case follow(FollowFlow)
@@ -78,7 +78,7 @@ enum ShellSheet: Identifiable, Equatable {
     var showsOverASheet: Bool { self == .listenDebug }
 
     // Every sheet shows over whatever is on screen: History from the Library keeps the Library
-    // under it (C130); opening a page from it goes to the browser as any page does.
+    // under it; opening a page from it goes to the browser as any page does.
 }
 
 /// One use of the Move tree: what it is for, where the item is now, and what picking a place
@@ -122,7 +122,7 @@ enum BusyAction: Equatable {
 
 /// What you see: one surface (the browser or the Library at a folder), the Reader over it,
 /// Now Playing over everything, at most one other sheet, at most one ⋯ menu. The surface, the
-/// Library's path and its home's tab are remembered, and the app reopens on them (decision D10). What you hear belongs to the
+/// Library's path and its home's tab are remembered, and the app reopens on them. What you hear belongs to the
 /// playback session; the shell only asks it (`isHearing`), so opening the Reader of the page you
 /// hear opens Now Playing instead.
 ///
@@ -235,7 +235,7 @@ final class ShellState {
     let web = WebViewStore()
     /// The browser's address field. Idle, its text is the page's address.
     let addressSearch = SearchSession()
-    /// The Library's search field, in the band (decision D22): its text filters the Library home.
+    /// The Library's search field, in the band: its text filters the Library home.
     let librarySearch = SearchSession()
     /// Search Settings, the Settings destination's field: its text filters the settings list.
     let settingsSearch = SearchSession()
@@ -468,7 +468,7 @@ final class ShellState {
         presentNowPlaying()
     }
 
-    /// Listen in the Reader (decision D2): the Reader turns into Now Playing where it was
+    /// Listen in the Reader: the Reader turns into Now Playing where it was
     /// (`handOver`; nil when its page wasn't up, and Now Playing rises as from the bar).
     func turnReaderIntoNowPlaying(handOver: ReadingHandOver?) {
         reader = nil

@@ -73,7 +73,7 @@ final class EngineCrashGuard: @unchecked Sendable {
         /// Whether the engine killed the process. `lastActivity`: the latest time the previous
         /// process is known to have been playing (`ListenResumePointStore`).
         func verdict(lastActivity: Date?, currentBuild: String? = EngineCrashGuard.buildStamp) -> MarkerVerdict {
-            // C129: installing a new build kills the running app; a call it cut off isn't a crash.
+            // Installing a new build kills the running app; a call it cut off isn't a crash.
             if let build, let currentBuild, build != currentBuild { return .reinstalled }
             if let lastActivity, lastActivity.timeIntervalSince(at) > EngineCrashGuard.callBound { return .stale }
             if phase == AppRunState.Phase.background.rawValue, let footprintMB,
@@ -90,7 +90,7 @@ final class EngineCrashGuard: @unchecked Sendable {
         case memoryKill = "memory_kill"
         /// It went on long past the call's start: the call wasn't what ended it.
         case stale
-        /// Another build wrote it: an install replaced the app mid-call (C129).
+        /// Another build wrote it: an install replaced the app mid-call.
         case reinstalled
         /// Several markers each read as an engine crash: which call killed it is unknown, so it
         /// pauses for Retry.
@@ -222,7 +222,7 @@ final class EngineCrashGuard: @unchecked Sendable {
 
 /// What to do after the previous process died inside an engine's call (a provider's answer to
 /// `SpeechEngineProvider.recover(from:playing:)`).
-/// The engine and voice always stay (C129: never another engine or voice).
+/// The engine and voice always stay (never another engine or voice).
 enum CrashRecovery: Equatable {
     /// Go on as before, silently (the same voice and its cached audio, so nothing the user hears
     /// changes), and reopen `resume` when there is one.

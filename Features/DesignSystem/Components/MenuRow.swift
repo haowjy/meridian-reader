@@ -5,7 +5,7 @@ import SwiftUI
 /// page's, a folder's, a prepare's) is one ordered list of these, built once by its definition
 /// and rendered unchanged by every entry point, so order, names, symbols, red and dimming are
 /// decided in one place. Its title comes from `Verbs` and its symbol from `Icons`; whether it
-/// shows, dimmed or not, from `MenuAvailability` (DR-09). A destructive row is red in every
+/// shows, dimmed or not, from `MenuAvailability`. A destructive row is red in every
 /// renderer.
 struct MenuRow: Identifiable {
     /// The row's accessibility identifier, the same in every renderer (`menuPrepare`).

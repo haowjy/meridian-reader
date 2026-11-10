@@ -273,7 +273,7 @@ private struct LibraryDialogs: ViewModifier {
     }
 }
 
-/// *Paste Text…* (C127): an optional title and the text, the pasteboard's when it held some.
+/// *Paste Text…*: an optional title and the text, the pasteboard's when it held some.
 /// *Save* makes a new article of it in the folder on screen and opens it in Library Read.
 struct PasteTextSheet: View {
     let parentID: UUID?

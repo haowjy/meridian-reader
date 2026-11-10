@@ -50,7 +50,7 @@ struct ReadingBars<HeaderBackground: View, Header: View, Content: View, Band: Vi
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .ignoresSafeArea(.container, edges: .bottom)
             // Pages mode is for reading: nothing floats over its text while the bars are hidden
-            // (C108); with them shown, the pill (Jump to Audio, Listen) sits above the band, as in Scroll.
+            //; with them shown, the pill (Jump to Audio, Listen) sits above the band, as in Scroll.
             if appearance.layout != .pages || !hidden {
                 // Placed from the home indicator's strip, not the safe area: a page in place may be
                 // laid out through the bottom safe area (the Browser's reader mode is) or not (Library Read).

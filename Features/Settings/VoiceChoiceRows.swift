@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// An on-device engine's voices as `VoiceRow`s, each with its sample and its download: the one
-/// list Settings › Voice and an article's or a book's voice picker (C138) both show. A voice that
+/// list Settings › Voice and an article's or a book's voice picker both show. A voice that
 /// isn't on the device shows its size and ⤓; picking it downloads it (`VoiceDownloads`), its ring
 /// stopping it. In Settings (`onRemove`) a downloaded voice is removed with a swipe, or in Edit
 /// with its row's ⊖ and *Remove*. Either only asks: the voice stays listed (its download goes),

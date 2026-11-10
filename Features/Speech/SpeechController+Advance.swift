@@ -23,7 +23,7 @@ struct ChapterFlow {
     var nextSession: SpeechSession?
 }
 
-/// Playback through a folder (a book, a followed story, or any folder, decision D15): when a page
+/// Playback through a folder (a book, a followed story, or any folder): when a page
 /// ends, the next playable one starts in place, without deactivating the audio session, clearing
 /// the session or the lock screen; when there is none, or the next is a chapter still waiting for
 /// its text, playback stops as for any page. The rule is `ChapterAdvance`; the library is reached

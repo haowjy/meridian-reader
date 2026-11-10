@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A folder's menu (a book or series as any other): the one definition its row's ⋯ and long press,
-/// and its header's *More* render (decisions C4, C98). Which options show
+/// and its header's *More* render. Which options show
 /// where, in what order and greyed or not is `MenuRegistry`'s (docs/MENUS.md); this gives each its
 /// title, symbol and action. Built only when the menu opens: a row passes this view, never its
 /// `rows`, so nothing here runs on a row's redraw.
@@ -10,7 +10,7 @@ import SwiftUI
 /// Prepare* (toggle on, still to finish), *Remove Prepared Audio* (all prepared, red). *Turn Off
 /// Prepare* asks first (`onTurnOffPrepare`, by the control the menu opened from), then turns it
 /// off and keeps what is prepared. *Remove Prepared Audio* deletes its pages' audio and keeps them
-/// out of its prepare (P8). *Edit Details…* holds the name too (no *Rename…*). Delete asks
+/// out of its prepare. *Edit Details…* holds the name too (no *Rename…*). Delete asks
 /// through `LibraryScreenState`'s dialogs, which the screen hosts.
 struct FolderMenu: View {
     enum Place {

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The screen for a pushed `LibraryRoute`: a folder (a book or series as any other, decision D19).
+/// The screen for a pushed `LibraryRoute`: a folder (a book or series as any other).
 struct LibraryRouteView: View {
     let route: LibraryRoute
 
@@ -96,7 +96,7 @@ extension LibraryEditBar {
     /// The folder whose screen is in Edit.
     var editedFolder: Folder? { screen.editing.flatMap { library.folder(id: $0.folderID) } }
 
-    /// Slot 3's ＋ (C122, C126): the create group at `.edit`, its New Folder filing the selection.
+    /// Slot 3's ＋: the create group at `.edit`, its New Folder filing the selection.
     func createRows(in folder: Folder) -> [MenuRow] {
         LibraryCreateMenu(library: library, shell: shell, follow: follow, screen: screen, folder: folder, place: .edit) {
             let selected = actions.selected(in: screen)

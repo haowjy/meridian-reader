@@ -50,7 +50,7 @@ final class LocalListenPlayer {
     var onFinished: (() -> Void)?
     /// The player ran dry with more to come: it waits for the next unit.
     var onStarved: (() -> Void)?
-    /// C129: rendering is paused for Retry (the engine stopped twice); nothing new renders.
+    /// Rendering is paused for Retry (the engine stopped twice); nothing new renders.
     var rendersPausedForRetry: () -> Bool = { false }
     /// Playback reached audio the engine can't give now and stopped there, everything queued
     /// before it played. The engine pauses.
@@ -312,7 +312,7 @@ final class LocalListenPlayer {
                     continue
                 }
                 let k = min(nextProduceChunk, chunks.count - 1)
-                // C129: rendering paused for Retry and this isn't rendered: play what is queued,
+                // Rendering paused for Retry and this isn't rendered: play what is queued,
                 // then pause here.
                 if rendersPausedForRetry(), !source.isChunkReady(paragraph: index, chunk: k) {
                     hold(.engineStopped, paragraph: index, chunk: k)

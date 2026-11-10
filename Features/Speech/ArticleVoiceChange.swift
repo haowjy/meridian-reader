@@ -1,6 +1,6 @@
 import Foundation
 
-/// What a voice picker is for (C138): an article (by its key) or a book or series (by its id).
+/// What a voice picker is for: an article (by its key) or a book or series (by its id).
 enum VoiceTarget: Equatable {
     case article(UUID)
     case folder(UUID)
@@ -13,7 +13,7 @@ enum VoiceTarget: Equatable {
     }
 }
 
-/// C138: changing the voice of one article, or of a book (every chapter). Its audio is in the new
+/// Changing the voice of one article, or of a book (every chapter). Its audio is in the new
 /// voice from now on, never mixed: playback of it stops (it plays again from the start of its next
 /// play, all in the new voice); the old voice's audio is kept 7 days with other unsaved audio, and
 /// audio kept from an earlier change back is its audio again (the voice record,
@@ -88,7 +88,7 @@ struct ArticleVoiceChange {
         return cost
     }
 
-    /// C138a: sets `selection` (any engine's voice, its files on the device: the picker downloads
+    /// Sets `selection` (any engine's voice, its files on the device: the picker downloads
     /// it first, `VoiceDownloads.pick`) in one save with its voice records
     /// (`LibraryStore.setVoice`), and prepares again what was prepared. Throws when the save fails:
     /// nothing changed.

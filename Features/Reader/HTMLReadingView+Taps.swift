@@ -17,7 +17,7 @@ extension HTMLReadingWebView.Coordinator {
     /// The page's script reported a tap at `x` across a page `width` wide.
     func textTapped(x: CGFloat, width: CGFloat) {
         guard !jumpMode, let chrome, width > 0 else { return }
-        // Pages' overview (C113): a tap anywhere on the card zooms back into reading.
+        // Pages' overview: a tap anywhere on the card zooms back into reading.
         let overview = (layout as? PagesTextLayout)?.isOverview == true
         let zone = overview ? .centre : ReadingChrome.TapZone(x: x, width: width)
         switch zone {

@@ -50,14 +50,14 @@ struct KokoroRouteSettings {
 /// Auto-recover after a crash inside a Kokoro call — a pure state machine (unit-tested) plus
 /// `recover`, the policy `FluidAudioProvider` answers the coordinator's crash hook with.
 ///
-/// C129: Kokoro never falls to another engine or voice on its own.
+/// Kokoro never falls to another engine or voice on its own.
 /// - A crash an older build's Core ML route left (tag "coreml" or none) → resume on ONNX, same
 ///   voice, no notice, not counted (the same voice and cached audio, so nothing heard changes).
 /// - ONNX route crash #1 → the same, silently, on one thread fewer (a fresh session).
 /// - ONNX route crash #2 (without a healthy stretch in between) → still Kokoro, one thread fewer
 ///   again; prepared audio and new rendering pause, while playback goes on through audio already
 ///   rendered. Only where playback reaches audio not rendered yet does it pause, with a plain
-///   notice and Retry (C129, amended).
+///   notice and Retry.
 /// A healthy stretch (`healthyRendersToReset` ONNX calls in one session) or Retry resets the count.
 enum KokoroCrashRecovery {
     static let onnxCrashLimit = 2

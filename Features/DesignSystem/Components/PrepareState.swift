@@ -9,7 +9,7 @@ enum PrepareState: Equatable {
     /// folder's pages and the one rendering, `PrepareOverview.fraction`).
     case preparing(fraction: Double)
     /// Waiting its turn behind another prepare (not paused): how much of it is ready, 0…1. Drawn
-    /// as the spinning arc, never filling, so only what renders now fills (C90).
+    /// as the spinning arc, never filling, so only what renders now fills.
     case queued(fraction: Double)
     /// Queued, and its prepare paused: drawn as preparing, in grey, everywhere it shows (a
     /// row's tile, a folder header's control, the Prepared Audio list).

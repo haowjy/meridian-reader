@@ -48,7 +48,7 @@ final class EngineCrashGuardTests: XCTestCase {
 }
 
 
-/// C129: a crash never switches engine or voice, and an install mid-call isn't a crash.
+/// A crash never switches engine or voice, and an install mid-call isn't a crash.
 final class EngineStopRecoveryTests: XCTestCase {
     func testONNXCrashesResumeSilentlyThenPause() {
         var count = 0

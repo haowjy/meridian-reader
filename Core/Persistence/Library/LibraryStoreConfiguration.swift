@@ -39,7 +39,7 @@ enum LibraryStoreConfiguration {
     }
 }
 
-/// The library store written before C121 named the item entity `Page` and three of `Folder`'s
+/// The library store written before the `Page` → `Article` rename named the item entity `Page` and three of `Folder`'s
 /// fields after it. SwiftData can rename a field (`originalName`) but not an entity, and would
 /// drop every `Page` row as an entity it no longer knows. So before the container opens, a store
 /// that still has `Page` is migrated in place by Core Data: an inferred lightweight migration from
@@ -73,12 +73,12 @@ enum LibraryEntityRename {
             for property in entity.properties { if let old = fields[name]?[property.name] { property.renamingIdentifier = old } }
         }
         let renames = needsMigration(at: url)
-        // C138: a store migrated by C121 keeps that model (with `Article` renamed from `Page`) as
+        // A store migrated by the `Page` → `Article` rename keeps that model (with `Article` renamed from `Page`) as
         // the source of every later migration. SwiftData's own inferred migration, whose model
         // has no renaming identifiers, then reads `Article` as a new entity and fails ("table
         // ZARTICLE already exists"). So any later schema change (a new field) migrates here too,
         // with the same renaming identifiers, before SwiftData opens the store. Only such a store
-        // (it has the C121 backup beside it): one SwiftData wrote itself migrates as usual.
+        // (it has the `LibraryBackup-C121` backup beside it): one SwiftData wrote itself migrates as usual.
         let renamedBefore = FileManager.default.fileExists(
             atPath: url.deletingLastPathComponent().appending(path: "LibraryBackup-C121").path)
         guard renames || (renamedBefore && needsSchemaChange(at: url, model: destination)) else { return }

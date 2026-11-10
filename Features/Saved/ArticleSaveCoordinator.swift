@@ -40,7 +40,7 @@ struct ArticleSaveCoordinator {
                 isLivePlayback: live
             )
         }
-        // C134: saving keeps the text; audio renders only while listening, or when prepared.
+        // Saving keeps the text; audio renders only while listening, or when prepared.
         return key
     }
 }

@@ -1,8 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// One screen for every folder at every depth, books and followed stories included (decision
-/// D19): the header, subfolders first (by their order), then pages by the folder's sort
+/// One screen for every folder at every depth, books and followed stories included): the header, subfolders first (by their order), then pages by the folder's sort
 /// (`LibraryArticleRow` everywhere, including imported chapters). The header is centred
 /// (`FolderHeader`): a folder with details (a book's from its file, or any folder's from *Edit
 /// Details*: a cover or an author) has its cover above the title, the author before the counts.
@@ -199,7 +198,7 @@ private struct FolderContentsList: View {
                         .listCard()
                 }
             }
-            // One mixed list of compact rows (D23): subfolders, then pages, in one card.
+            // One mixed list of compact rows: subfolders, then pages, in one card.
             if !subfolders.isEmpty || !articles.isEmpty {
                 Section {
                     ForEach(subfolders, id: \.id) { child in
@@ -245,7 +244,7 @@ private struct FolderContentsList: View {
     private var header: some View {
         let style: FolderHeaderStyle = folder.hasDetails ? .detailed(cover: folder.coverImage) : .folder
         let playback = actions.progress(of: folder, articles: articles)
-        // Not started, the length joins the details ("Demo Author   4 chapters   4 min", C96);
+        // Not started, the length joins the details ("Demo Author   4 chapters   4 min");
         // once started, the line says where it is.
         let line = playback.hasArticlesToPlay ? playback.headerLine : []
         let lengthOnly = playback.hasArticlesToPlay && playback.fraction == nil
@@ -265,7 +264,7 @@ private struct FolderContentsList: View {
 
     /// The Prepare control, the ▶ (`LibraryActions.playFolder`) and their states. The control
     /// prepared audio when it shows ↓, the toggle on or off (turning it on, and listing again pages
-    /// whose prepared audio were deleted, P8); preparing or prepared with the toggle on, it asks to
+    /// whose prepared audio were deleted); preparing or prepared with the toggle on, it asks to
     /// turn it off (`PrepareCenter.turnOff`: what is prepared stays); prepared with the
     /// toggle off, it turns it on and nothing is prepared again (`PrepareCenter.prepare`: new
     /// pages prepare).
@@ -274,7 +273,7 @@ private struct FolderContentsList: View {
         let isOn = preparedAudio.isOn(folder)
         let record = preparedAudio.record(for: .folder(folder.id))
         let running = record.map { $0.hasQueuedArticles } ?? false
-        // While it prepared audio, the caption is the count and a tap opens Prepared audio (C96).
+        // While it prepared audio, the caption is the count and a tap opens Prepared audio.
         let caption = running ? record.map { String(localized: "\($0.finishedCount) of \($0.entries.count)") } : nil
         return FolderHeaderActions(prepare: state, prepareIsOn: isOn, onPrepare: {
             if running && state != .prepared {

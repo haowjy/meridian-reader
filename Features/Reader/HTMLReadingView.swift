@@ -10,12 +10,12 @@ struct ReaderHeading: Equatable {
     /// The source and the length, as separate parts (["example.org", "9 min"]): spans set apart
     /// by space, the first in secondary ink, the rest in tertiary (like `DetailLine`).
     var detail: [String]
-    /// The title shows elsewhere (C141: the player card), so neither it nor the article's own
+    /// The title shows elsewhere (the player card), so neither it nor the article's own
     /// matching leading heading shows in the text.
     var titleHidden = false
 }
 
-/// Lets the owner read where the text is scrolled to (the Reader hands it to Now Playing, D2).
+/// Lets the owner read where the text is scrolled to (the Reader hands it to Now Playing).
 @MainActor
 final class ReadingScrollHandle {
     fileprivate weak var coordinator: HTMLReadingWebView.Coordinator?
@@ -80,7 +80,7 @@ struct HTMLReadingView: View {
     /// the UTF-16 offset in it), "2 min left" ("2 min left in chapter" for a chapter); nil shows the
     /// page alone.
     var pageTimeLeft: (_ paragraph: Int, _ offset: Int) -> String? = { _, _ in nil }
-    /// *Play from Here* on a text selection (C109): its listen paragraph and the offset in it;
+    /// *Play from Here* on a text selection: its listen paragraph and the offset in it;
     /// nil offers none.
     var onPlaySelection: ((_ paragraph: Int, _ offset: Int) -> Void)? = nil
     let onTapParagraph: (Int) -> Void
@@ -318,7 +318,7 @@ protocol ReadingTextLayout: AnyObject {
     /// The page loaded, its insets set: a fresh page shows its top (the coordinator then places
     /// its hold).
     func opened()
-    /// Puts another page's place (D2) on screen, then tells the coordinator (`handOverPlaced`).
+    /// Puts another page's place on screen, then tells the coordinator (`handOverPlaced`).
     func open(handOver: ReadingHandOver)
     /// Shows the part of the page at document y `top`, `height` tall. False: it can't yet (Pages
     /// before its first measure), and the hold stays for when it can.
@@ -362,7 +362,7 @@ final class ReadingWebView: WKWebView {
     var canPlayFromHere: () -> Bool = { false }
     var onPlayFromHere: () -> Void = {}
 
-    /// The system edit menu on a selection gets *Play from Here* first (C109), beside Copy.
+    /// The system edit menu on a selection gets *Play from Here* first, beside Copy.
     override func buildMenu(with builder: any UIMenuBuilder) {
         super.buildMenu(with: builder)
         guard canPlayFromHere() else { return }

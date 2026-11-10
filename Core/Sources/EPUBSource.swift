@@ -66,7 +66,7 @@ struct BookSourceState: Codable, Equatable {
     var fileFingerprint: String?
     /// The keys of the chapters the file gave when it was last imported, in its order; the
     /// library writes them (`LibraryStore.addBook`, `replaceBook`). They are the pages *Replace*
-    /// rebuilds, wherever they have been moved since (decision D19). A book stored without them
+    /// rebuilds, wherever they have been moved since. A book stored without them
     /// gets them at launch from the pages in it (`LibraryStore.recordBookChapters`).
     var chapterKeys: [UUID]?
 }

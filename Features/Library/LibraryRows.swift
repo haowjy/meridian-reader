@@ -4,17 +4,17 @@ import SwiftUI
 /// text (a link with the spinning arc and its status: "Downloading…", "Trying again in 1:52",
 /// "Waiting"), or a page
 /// played without saving. Every page uses this same row, including imported chapters: two lines,
-/// the title and then its site and status (decision D21). In a book or series the second line is
+/// the title and then its site and status. In a book or series the second line is
 /// the status alone ("5 min", "Skipped", "Playing"): its header already names the author or site,
 /// so rows don't repeat it. Front matter is dimmed and "Skipped" (any page skipped in playback is).
 ///
 /// Tapping the row plays it (`LibraryActions.play`; a link is fetched first), except the page you
 /// hear, which opens Now Playing, so a stray tap never pauses it. Its only control is ⋯ (`ArticleMenu`), the same menu as
-/// its long press (decision D11), whose *Read* (after its save group) opens it. Its prepare shows on the
+/// its long press, whose *Read* (after its save group) opens it. Its prepare shows on the
 /// row (`PrepareCenter.state(of:)`): its `DownloadMark` before line two, the ring filling while it
 /// prepares, ●↓ once prepared. Swipe left removes it from the Library, and from every list it shows in
 /// (`LibraryQueries`). A page in the Library lifts into a drag from the long press, to be filed in
-/// a folder or placed between rows (`LibraryDrag`), a chapter as any page (decision D19); not on
+/// a folder or placed between rows (`LibraryDrag`), a chapter as any page; not on
 /// the home's History tab or in search results (`LibraryScreenKey.filtered`), where a page in a
 /// folder shows the folder's path instead of its site. While its screen is in Edit the List's
 /// selection takes the tap, and the row has no ⋯.
@@ -60,7 +60,7 @@ struct LibraryArticleRow: View {
         chapterStatus.map { FollowText.rowNote($0, now: now) }
     }
 
-    /// Its menu, built only when it opens (C98): the row hands over this view, never its rows.
+    /// Its menu, built only when it opens: the row hands over this view, never its rows.
     private var menu: ArticleMenu {
         ArticleMenu(actions: articleActions, place: .list)
     }
@@ -103,7 +103,7 @@ struct LibraryArticleRow: View {
     }
 }
 
-/// A folder row (a folder you made, a book or series, all alike: decision D19): a tap pushes
+/// A folder row (a folder you made, a book or series, all alike): a tap pushes
 /// its screen. Its cover, when it has one (a book's, or one given in *Edit Details*), stands in
 /// for the symbol. A folder whose pages play shows its place (the page it is at) and the time
 /// left; any other folder shows its count. Its only control is ⋯ (`FolderMenu`, with *Continue*
@@ -260,7 +260,7 @@ extension Folder {
         (articles ?? []).filter(\.isLive)
     }
 
-    /// What its pages are called in a count: "chapters" in an imported EPUB, "articles" in any (C120)
+    /// What its pages are called in a count: "chapters" in an imported EPUB, "articles" in any
     /// other folder (its row, its header, Prepared audio).
     var itemNoun: String {
         kind == .book ? String(localized: "chapters") : String(localized: "articles")

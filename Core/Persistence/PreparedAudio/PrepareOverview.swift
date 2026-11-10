@@ -74,7 +74,7 @@ struct PrepareOverview: Equatable {
                   rendersPreparedAudio: rendersPreparedAudio, voiceOf: voiceOf)
     }
 
-    /// C138: `currentVoiceOf` is the voice each page renders in (its own, or its book's); nil: no
+    /// `currentVoiceOf` is the voice each page renders in (its own, or its book's); nil: no
     /// on-device voice.
     init(records: [PrepareRecord], active: Active?, currentVoiceOf: (UUID) -> String?, rendersPreparedAudio: Bool,
          voiceOf: (UUID) -> String?) {
@@ -149,7 +149,7 @@ struct PrepareOverview: Equatable {
     }
 }
 
-/// The Prepared Audio list by page (C110): each page of every prepare its own row, a folder's pages
+/// The Prepared Audio list by page: each page of every prepare its own row, a folder's pages
 /// too, never a folder total. A page in more than one prepare shows once, where it is furthest
 /// from done (queued over finished). Queued pages are in the order they render (the prepared audio in
 /// the order asked for, each one's pages in play order, as `PrepareCenter.nextQueued` takes them).

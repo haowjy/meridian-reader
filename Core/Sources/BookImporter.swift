@@ -10,7 +10,7 @@ enum BookImportProgress: Equatable, Sendable {
     case storing(title: String)
 }
 
-/// What to do when the book is already in the Library (decision D13). The same file gives the same
+/// What to do when the book is already in the Library. The same file gives the same
 /// keys, so there is no *Keep Both*.
 enum ReimportChoice: Equatable, Sendable {
     /// Rebuild its pages in the same folder (`LibraryStore.replaceBook`).

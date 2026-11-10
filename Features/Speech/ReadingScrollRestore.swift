@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// Where Now Playing's text opens when Listen in the Reader turns it into Now Playing (D2).
+/// Where Now Playing's text opens when Listen in the Reader turns it into Now Playing.
 enum ReadingHandOver: Equatable {
     /// The Reader was at its top: the first line of the article text had not scrolled above the top
     /// of the reading area. Now Playing opens at its top.

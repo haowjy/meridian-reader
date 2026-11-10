@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Prepared audio (decision D16): a page, a folder, a book or a followed story made ready to play
+/// Prepared audio: a page, a folder, a book or a followed story made ready to play
 /// offline, its text fetched (a link page gets its text in place, through Follow's one fetch
 /// queue: `FollowCenter.fill`) and its whole audio rendered ahead in the prepare voice. The list
 /// is kept on the device (`PrepareListStore`) and worked through in order: every queued page with
@@ -134,7 +134,7 @@ final class PrepareCenter {
                                        fraction: Double(paragraphs.count - missing) / Double(paragraphs.count))
     }
 
-    /// The Prepared Audio list by page (C110).
+    /// The Prepared Audio list by page.
     var pageOverview: PrepareArticles {
         PrepareArticles(records: records, active: activeProgress, currentVoiceOf: rendering.prepareVoice(of:),
                       rendersPreparedAudio: rendering.wantsLocalBake) { rendering.renderedVoice(of: $0) }
@@ -156,7 +156,7 @@ final class PrepareCenter {
     /// *Remove Prepared Audio* rows (its row's menu, the Reader's and Now Playing's ⋯) read: while any
     /// prepare (its own or its folder's) has it queued, preparing with its real progress
     /// (paragraphs rendered of its total) when it is the page rendering now, waiting its turn
-    /// (`queued`) otherwise, paused when every prepare holding it is (C90); that wins over
+    /// (`queued`) otherwise, paused when every prepare holding it is; that wins over
     /// prepared (a prepare again in flight). Prepared by the Prepared Audio list's own rule
     /// (`PrepareOverview.isPrepared`), which audio rendered only by listening never meets. A
     /// page out of the Library has no prepare.
@@ -198,12 +198,12 @@ final class PrepareCenter {
     /// Something of `folder` is preparing or has audio kept: its *Remove Prepared Audio* can run.
     func hasPreparedAudio(_ folder: Folder, articles: [Article]) -> Bool {
         if isQueued(.folder(folder.id)) { return true }
-        // Read fresh (C134): audio from listening appears without the list changing, so a memo
+        // Read fresh: audio from listening appears without the list changing, so a memo
         // kept per list change went stale. `hasCache` is one file-exists check per page.
         return articles.contains { library.hasPreparedAudio($0) }
     }
 
-    /// Some prepare holds `key` (any state): its audio is prepared, never auto-cleared (C134).
+    /// Some prepare holds `key` (any state): its audio is prepared, never auto-cleared.
     func hasRecord(for key: UUID) -> Bool {
         records.contains { $0.entries.contains { $0.key == key } }
     }
@@ -213,7 +213,7 @@ final class PrepareCenter {
         record(for: .folder(folder.id))?.followsFolder == true
     }
 
-    // MARK: - Time left (C91)
+    // MARK: - Time left
 
     /// Words the prepare voice renders per second while the app is open, measured as pages
     /// render (`sampleRate`) and kept across launches. Starts from the iPhone 17 Pro's Kokoro
@@ -278,7 +278,7 @@ final class PrepareCenter {
     // MARK: - Asking for prepared audio
 
     /// A page's own Prepare. A page whose prepared audio were deleted from its folder's prepare
-    /// (P8) is taken back into it too.
+    /// is taken back into it too.
     func prepare(_ article: Article) -> Request {
         if let folder = article.folder, let record = record(for: .folder(folder.id)), record.deleted.contains(article.listenKey) {
             withRecord(record.id) { $0.deleted.removeAll { $0 == article.listenKey } }
@@ -288,7 +288,7 @@ final class PrepareCenter {
     }
 
     /// A folder's Prepare, its toggle turned on: every page it covers is queued (its deleted
-    /// ones too, P8), and the pages added later join. With the toggle off and every page it
+    /// ones too), and the pages added later join. With the toggle off and every page it
     /// covers prepared already (its header's filled ↓), the toggle only goes back on (`turnOn`).
     func prepare(_ folder: Folder) -> Request {
         if !isOn(folder), state(of: folder, articles: library.articles(in: folder)) == .prepared { return turnOn(folder) }
@@ -367,7 +367,7 @@ final class PrepareCenter {
     }
 
     /// A folder's prepare covers its pages that play; a book's or story's only while unfinished
-    /// (D7 trims finished chapters' audio).
+    /// (finished chapters' audio is trimmed).
     static func covers(_ article: Article, in folder: Folder) -> Bool {
         !article.skipsInPlayback && !(folder.kind.isBookOrSeries && article.finishedAt != nil)
     }
@@ -462,7 +462,7 @@ final class PrepareCenter {
         advance()
     }
 
-    /// *Prepare Again* on one page of the list (C110): its turn comes again in every prepare that
+    /// *Prepare Again* on one page of the list: its turn comes again in every prepare that
     /// holds it, rendered in the prepare voice.
     func reprepare(article key: UUID) {
         updateRecords { records in
@@ -501,13 +501,13 @@ final class PrepareCenter {
         advance()
     }
 
-    /// Every article any prepare holds, in list order, once each (C135, *Delete All…*).
+    /// Every article any prepare holds, in list order, once each (*Delete All…*).
     var heldArticleKeys: [UUID] {
         var seen = Set<UUID>()
         return records.flatMap { $0.entries.map(\.key) }.filter { seen.insert($0).inserted }
     }
 
-    /// *Delete All…* (C135): in-flight work stops first, every prepare goes, then every article
+    /// *Delete All…*: in-flight work stops first, every prepare goes, then every article
     /// they held is deleted from the Library with its audio (chapters leave their book; folders
     /// stay). Playback of a deleted article stops (`LibraryStore.deleteWithoutSaving`).
     func deleteAll() throws {
@@ -716,7 +716,7 @@ protocol PrepareRendering {
     var wantsLocalBake: Bool { get }
     /// The voice most of `key`'s audio is in.
     func renderedVoice(of key: UUID) -> String?
-    /// C138: the voice `key`'s audio renders in (its own, its book's, else the prepare voice).
+    /// The voice `key`'s audio renders in (its own, its book's, else the prepare voice).
     func prepareVoice(of key: UUID) -> String?
     /// Queues `paragraphs` of `cacheKey` to render in full in the prepare voice.
     func queuePrepare(cacheKey: UUID, paragraphs: [String]) -> PrepareQueueing

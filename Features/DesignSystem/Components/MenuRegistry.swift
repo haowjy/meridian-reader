@@ -54,7 +54,7 @@ enum MenuRegistry {
         case reprepare, removePrepare
         // A screen's own rows
         case newFolder, importFile, pasteText, addLink, sort, browsingHistory, playFromParagraph
-        // The Prepared Audio list's own ⋯ (C135)
+        // The Prepared Audio list's own ⋯
         case deleteAllPrepared, clearListeningAudio
     }
 
@@ -84,11 +84,11 @@ enum MenuRegistry {
         var hasArticles = false
         var prepareIsOn = false
         var hasPreparedAudio = false
-        /// A book or series: one voice for every chapter (C138).
+        /// A book or series: one voice for every chapter.
         var isBookOrSeries = false
         // A prepare
         var isQueued = false
-        /// A row of From Listening: audio made while listening, not prepared (C135).
+        /// A row of From Listening: audio made while listening, not prepared.
         var isListeningAudio = false
         /// Playback needs its audio now (the article playing): it can't be deleted.
         var audioInUse = false

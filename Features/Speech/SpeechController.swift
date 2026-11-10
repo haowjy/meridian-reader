@@ -307,7 +307,7 @@ final class SpeechController {
     /// an interruption) calls `perform`.
     func userPerform(_ intent: PlaybackIntent) {
         noteUserIntent()
-        // C129: the user pressing anything but pause after the engine stopped is the Retry.
+        // The user pressing anything but pause after the engine stopped is the Retry.
         if localTTS.isPausedForRetry, intent != .pause, intent != .stop {
             localTTS.retryAfterEngineStop()
         }
@@ -657,7 +657,7 @@ final class SpeechController {
             return
         }
         if !startPaused { audioSession.activate() }
-        // C138a: its own selection (locked now if it is brand new). The render queue's worker
+        // Its own selection (locked now if it is brand new). The render queue's worker
         // loads its engine for the first chunk the player asks for. Never another voice.
         let selection = localTTS.selection(for: articleID)
         boundSelection = selection
@@ -683,8 +683,8 @@ final class SpeechController {
         // Let other apps' audio resume (Stop Listening / the end of an article or a book).
         audioSession.deactivate()
         localTTS.synthQueue.unstage()
-        // Books and series don't bake whole (D7): only the chapter playing and the next render.
-        // C134: only for prepared audio; audio from listening isn't filled in whole.
+        // Books and series don't bake whole: only the chapter playing and the next render.
+        // Only for prepared audio; audio from listening isn't filled in whole.
         if restartBake, !isChapter, let articleID, !paragraphs.isEmpty, localTTS.preparedKey(articleID) {
             // Return-to-top gap fill so any paragraphs above the listen playhead still bake.
             localTTS.startBakeIfNeeded(articleID: articleID, paragraphs: paragraphs)
@@ -696,7 +696,7 @@ final class SpeechController {
     /// Indices with a usable CAF for the article in its own voice (stale old-voice units don't
     /// count). nil hides the marks: its voice can't run here.
     func bakeReadyParagraphIndices(articleID: UUID, paragraphCount: Int) -> Set<Int>? {
-        // C138a: the article's own selection, else the default it would take.
+        // The article's own selection, else the default it would take.
         let selection = localTTS.effectiveSelection(of: articleID)
         guard localTTS.engines.supports(selection.engine), let voice = localTTS.cacheVoice(of: selection) else { return nil }
         let localID = selection.engine

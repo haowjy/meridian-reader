@@ -10,7 +10,7 @@ extension HTMLReadingWebView {
         var onTapParagraph: (Int) -> Void
         var onPlaySelection: ((_ paragraph: Int, _ offset: Int) -> Void)?
 
-        /// *Play from Here* (C109): the selection's start, then the owner plays from its sentence.
+        /// *Play from Here*: the selection's start, then the owner plays from its sentence.
         func playFromSelection() {
             guard let webView, let onPlaySelection else { return }
             webView.evaluateJavaScript("window.__readerSelectionSpot()") { result, _ in
@@ -57,7 +57,7 @@ extension HTMLReadingWebView {
         enum Hold: Equatable {
             /// A fresh page: its top, the first line just below the top bar.
             case top
-            /// Another page's place (D2), until the layout has put it on screen.
+            /// Another page's place, until the layout has put it on screen.
             case handOver(ReadingHandOver)
             /// The spoken sentence in the middle (the Reader's saved spot).
             case spoken
@@ -71,7 +71,7 @@ extension HTMLReadingWebView {
             self.onTapParagraph = onTapParagraph
         }
 
-        /// Shows `html`. `opensAt` is where this load opens (the D2 handoff); any other load opens
+        /// Shows `html`. `opensAt` is where this load opens (the handoff from the Reader); any other load opens
         /// at the top, or at the spoken sentence when following or `opensAtSentence`.
         func load(html: String, heading: ReaderHeading? = nil, opensAt: ReadingHandOver? = nil) {
             lastHTML = html
@@ -468,7 +468,7 @@ extension HTMLReadingWebView {
         /// text, or its page. A long paragraph's middle can be screens away from the sentence
         /// being read, so the sentence, not the paragraph, is what is shown. Going there drops a
         /// hand-over still being placed (following takes over at the next paragraph).
-        /// Pages never follow the audio (C108): only an explicit move (opening at the sentence, a
+        /// Pages never follow the audio: only an explicit move (opening at the sentence, a
         /// new layout keeping it, *Jump to Audio*) shows the spoken sentence's page.
         func goToSpoken(_ move: SpokenMove, explicit: Bool = false) {
             guard loaded, goesToSpoken, let spot = spokenSpot else { return }

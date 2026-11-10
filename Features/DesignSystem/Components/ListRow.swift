@@ -10,7 +10,7 @@ import SwiftUI
 /// ▣ Coupon Basics                             ●  ⋯   page, prepared: ●↓ before line two;
 /// ▣ ●↓ example.com   Finished                          ● the same ring, full
 /// ▣̲ Seven-Day Yield                          ▂▅▇ ⋯   page, playing and preparing: tinted,
-/// ▣ ◔ Playing                                         bars; the prepare's ring before line two (C102)
+/// ▣ ◔ Playing                                         bars; the prepare's ring before line two
 /// 🔗 Chapter 26                                    ⋯   a chapter waiting for its text: the arc
 ///    ◜ Waiting
 /// 🔗 serials.example.com                              link: lighter
@@ -34,10 +34,10 @@ import SwiftUI
 /// Its prepare (`prepare`) or a link page's fetch (`download`) shows on the row itself, never as a
 /// button: a `DownloadMark` as tall as the text before line two, the app's one download look (the
 /// spinning arc while it waits, the ring filling while it renders, grey while paused, ●↓ once
-/// prepared; C102). The trailing ⋯ (`menu`, the same menu as the row's long press) is in the row's accessory slot
+/// prepared). The trailing ⋯ (`menu`, the same menu as the row's long press) is in the row's accessory slot
 /// (`RowMetrics`: its glyph ends where every card's text does); a row with a control of its own (a
 /// prepare's pause, `accessory`) has it just before the ⋯. Every row's separator starts at its title,
-/// whatever leads it. Its height is a two-line row's (`RowMetrics`), in Edit and out (C123).
+/// whatever leads it. Its height is a two-line row's (`RowMetrics`), in Edit and out.
 ///
 /// A folder row under a dragged row that it takes (`isDropTarget`) is washed and outlined in the
 /// accent, with a selection tick as it lights up.
@@ -92,7 +92,7 @@ struct ListRow: View {
     var menuAnchor: AnyView?
     /// A control of the row's own, 44 pt, just before the ⋯ (a prepare's pause / resume).
     var accessory: AnyView?
-    /// A drag handle shown where the ⋯ sits, in Edit (C148): only the handle initiates reorder.
+    /// A drag handle shown where the ⋯ sits, in Edit: only the handle initiates reorder.
     var editHandle: AnyView?
     /// Whether the row has the trailing listening column (false where listening never shows:
     /// browser visits, the Prepared Audio list).
@@ -131,7 +131,7 @@ struct ListRow: View {
         .background { if menu == nil { menuAnchor } }
         .padding(.leading, RowMetrics.edgeInset)
         .padding(.trailing, (menu != nil || editHandle != nil) ? RowMetrics.accessoryTrailing : RowMetrics.edgeInset)
-        // A page's row is two lines in Edit and out (C123).
+        // A page's row is two lines in Edit and out.
         .rowHeight(lines: 2)
         .background(playState.isCurrent ? Palette.playingTint : Color.clear)
         .overlay { dropHighlight }
@@ -278,7 +278,7 @@ struct ListRow: View {
 
     /// The `DownloadMark` before line two, as tall as its text: a link page's fetch (`download`),
     /// else its prepare while it waits, renders or is paused, and ●↓ once prepared (a skipped
-    /// chapter never plays, so it shows none, C89). Nil before either starts.
+    /// chapter never plays, so it shows none). Nil before either starts.
     private var slotMark: (state: DownloadMark.State, act: DownloadMark.Act)? {
         if let download { return (download, .download) }
         switch prepare {

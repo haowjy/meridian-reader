@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Where a folder came from. Stored as `Folder.kindRaw`; the raw values are persisted and never
-/// change. Every folder follows the same rules (decision D19): it takes drops and subfolders, its
+/// change. Every folder follows the same rules: it takes drops and subfolders, its
 /// pages move in and out, and its order is yours. Book and series origin remain metadata for
 /// Replace, playback, dedupe and audio trimming; display appearance comes from folder details.
 enum FolderKind: String, Codable, CaseIterable {
@@ -61,7 +61,7 @@ final class Folder {
     var sourceStateData: Data?
     /// Not written or read (kept as stored by older builds; persisted fields don't change).
     var languageCode: String?
-    /// C138: a book or series: the one voice every chapter speaks in (the first chapter's), as a
+    /// A book or series: the one voice every chapter speaks in (the first chapter's), as a
     /// cache voice key; nil until a chapter has audio. Plain folders have none: each article keeps its own.
     var voiceID: String?
 
@@ -100,7 +100,7 @@ final class Folder {
     }
 
     /// It has a cover or a byline: its screen has the header with the cover and the author, and its
-    /// row the cover (decision D17). Details change only the look.
+    /// row the cover. Details change only the look.
     var hasDetails: Bool { coverData != nil || !(byline ?? "").isEmpty }
 
     /// This folder and every folder above it, nearest first.

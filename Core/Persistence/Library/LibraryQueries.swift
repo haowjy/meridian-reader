@@ -40,7 +40,7 @@ enum LibraryQueries {
         FetchDescriptor(predicate: #Predicate<Article> { $0.folderID == id }, sortBy: sortDescriptors(sort))
     }
 
-    /// Recent: pages played without saving (decision D5), most recently played first: the
+    /// Recent: pages played without saving, most recently played first: the
     /// Library home's Recent tab, until the 7-day prune (`prunable`) deletes them. A page removed
     /// (`removedAt`, *Remove from Recent* too) isn't in it until you listen to it again. Book
     /// chapters never qualify (they are always in their folder).

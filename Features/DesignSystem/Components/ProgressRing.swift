@@ -13,7 +13,7 @@ struct ProgressRing: View {
         ZStack {
             Circle().stroke(reading?.track ?? Palette.track, lineWidth: Glyph.stroke)
             Circle()
-                // Never a sliver: a few percent in reads as a spinner's arc (C102); the arc starts at
+                // Never a sliver: a few percent in reads as a spinner's arc; the arc starts at
                 // a solid dot-sized wedge, and the full track always shows round it.
                 .trim(from: 0, to: fraction > 0 ? min(max(0.1, fraction), 1) : 0)
                 .stroke(reading?.accent ?? Palette.accent, style: StrokeStyle(lineWidth: Glyph.stroke, lineCap: .round))

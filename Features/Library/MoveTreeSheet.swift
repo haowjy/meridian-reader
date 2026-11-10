@@ -6,7 +6,7 @@ import SwiftUI
 /// one indented list, like Safari's bookmark-folder picker; one tap files, ✓ marks the current
 /// place. *New Folder* makes one at the top level; a folder's
 /// long-press, *New Folder*, makes one in it; either way what is being filed goes into the
-/// new folder. Every folder is a destination, books and series too (decision D19); a folder being
+/// new folder. Every folder is a destination, books and series too; a folder being
 /// moved, and everything inside it, can't be picked. The tree closes once what was
 /// picked is saved; a pick or a new folder that can't be saved leaves it up, with the toast over
 /// it.
