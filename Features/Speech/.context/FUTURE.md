@@ -10,7 +10,7 @@
   benchmark's input in lockstep (501 / 190 phonemes).
 - Background baking: the app registers no `BGProcessingTask`, so saved articles bake only while
   the app is open. Rebuild it around the library's queue (`PendingBakeJobStore` →
-  `GlobalSynthQueue`): render saved articles overnight while the phone charges. Prepared Audio (D16) want
+  `GlobalSynthQueue`): render saved articles overnight while the phone charges. Prepared Audio want
   the same window (`../../Prepared Audio/.context/FUTURE.md`).
 - A session older than its article plays on unrecorded. Progress is written only on an article holding
   the text playing (`LibraryStore.holds`), so a session whose article has other text by then plays

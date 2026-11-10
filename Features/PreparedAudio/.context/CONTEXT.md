@@ -1,7 +1,7 @@
 # Prepared Audio: working notes
 
 What the user sees is in `../../../docs/NAVIGATION.md` → "Prepared Audio"; how it renders is
-`../../../docs/LISTEN_PLAYBACK.md` → "Render queue" (Prepared Audio). Decision D16.
+`../../../docs/LISTEN_PLAYBACK.md` → "Render queue" (Prepared Audio). 
 
 - **No render path of its own.** `PrepareCenter` hands every waiting page whose text is in the
   library to the render queue at once, in the list's order, each as an ordinary bake job
@@ -26,7 +26,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Prepared Audio"; how
 - **The list records intent and outcome, the cache answers voice and readiness.** A record's
   entries say queued / done / speaksLive / failed; which voice an article is in is read from its audio
   (`ArticleAudioCache.renderedVoice`), so a voice change shows without touching the list.
-  *Keep* is gone (C138): `keptVoice` still decodes but nothing sets it; each article is accepted in its own voice (`PrepareRendering.prepareVoice(of:)`).
+  *Keep* is gone: `keptVoice` still decodes but nothing sets it; each article is accepted in its own voice (`PrepareRendering.prepareVoice(of:)`).
 - **Render-queue events arrive inside the queue's work** (`noteBakeMarksChanged` is called mid
   drain): `scheduleCheck` looks afterwards, coalesced. Don't act on the queue synchronously from
   the observer.
@@ -46,7 +46,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Prepared Audio"; how
   Prepare control and one *Prepare Audio* / *Stop Preparing Audio* row in its menus (its face is
   `isOn`, not the state). It lists the
   folder's pages when turned on: a book's or story's chapters that play and
-  aren't finished (D7 trims finished ones' audio anyway), any other folder's own pages. While it
+  aren't finished (finished ones' audio is trimmed anyway), any other folder's own pages. While it
   is on, pages added later join it after each stored library edit (`takeInNewPages`, the same
   pass that drops what left the Library), except the ones in `deleted` (P8: *Remove Prepared Audio* on
   an article records it there; turning the toggle on again empties it). Turned off (`turnOff`), its
@@ -94,9 +94,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "Prepared Audio"; how
   `deletePreparedAudio(of:)` on the article or folder, *Remove Prepared Audio* / *Remove Prepared Audio*); only a
   prepare whose article or folder has left the library is dropped alone.
 
-## Retention and Prepared Audio (C134, C135, C136)
+## Retention and Prepared Audio
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
 - **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
-- **Prepared Audio list** (Settings › Prepared Audio & Storage): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice (C138). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
+- **Prepared Audio list** (Settings › Prepared Audio & Storage): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice. Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
 - **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

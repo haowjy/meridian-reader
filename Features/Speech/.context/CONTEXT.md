@@ -25,7 +25,7 @@ provider owns its host, model store, voice catalog and chunk limits.
   to `onListen` before it binds, so the recorder can keep an article the library doesn't have on its
   first start.
 - **Books, series and folders.** Any article in a folder carries on through it, in the folder's
-  sort (D15; books and series too, D19); `PlaybackFolder.isBookOrSeries` is the one thing that
+  sort (books and series too); `PlaybackFolder.isBookOrSeries` is the one thing that
   tells a book or series apart (the bar's source, no catch-up bake). The controller decides at an article's `finished` before the session sees it
   (`SpeechController+Advance`): the next chapter is bound with `advance`, in place. Nothing
   between chapters may deactivate the audio session, clear the session or clear the lock screen
@@ -58,7 +58,7 @@ provider owns its host, model store, voice catalog and chunk limits.
 - **Per-tick cost.** The live offset changes several times a second. Read it only in leaf views
   (`PlayheadReader`, the Now Playing bar's progress, Now Playing's sentence underline); reading it
   in a screen's body redraws the screen on every tick.
-- **One `VoiceSelection` per article (C138a).** Engine + voice, stored on the article
+- **One `VoiceSelection` per article.** Engine + voice, stored on the article
   (`Article.voiceID`, its book's `Folder.voiceID`), resolved by `LocalTTSCoordinator.selection(for:)`
   (brand new: the Settings default, locked then). It is passed explicitly to playback
   (`ListenPlayRequest.selection`, `QueueUnitSource`) and the render queue reads

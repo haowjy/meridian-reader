@@ -31,7 +31,7 @@
   *Replace* finds its text under a new key while the merge waits, playback reaches paragraph 2,
   and the new key still holds paragraph 1. A fix: the recorder resolves a key with no article
   through the waiting merge to the kept article while that article still holds the text playing,
-  without the early rekey's side effects (a start, the book's place, the D7 trim).
+  without the early rekey's side effects (a start, the book's place, the finished-chapter trim).
 - **A waiting merge whose kept chapter's text moves to another key leaves its session on a key no
   article holds.** Sequence: chapter three plays; a *Replace* finds its text under `renamed` and the
   merge waits; a second *Replace* finds that text under five (`merge(renamed→five)`). Neither

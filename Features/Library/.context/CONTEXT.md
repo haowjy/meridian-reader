@@ -52,7 +52,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
 - **Edit and the dialogs live in `LibraryScreenState`**, on the Library surface, shared through
   the environment: the bottom bar acts on the selection, and
   `libraryDialogs` shows delete / rename / new folder once. The delete question is
-  `FolderDeletePrompt` (unit-tested): one destructive choice, deleting with contents (no keep-contents choice, D18).
+  `FolderDeletePrompt` (unit-tested): one destructive choice, deleting with contents (no keep-contents choice).
 - **The title-line ⋯ is the screen's menu**: Add a Link, Import a File, Paste Text, then New
   Folder and Sort. The header's More holds only `FolderMenu`; Library Read holds only
   `ArticleMenu`. `MenuRegistry` decides every section, carried through flat row lists by
@@ -89,7 +89,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   row's content gets the List's own disclosure, at its own x. Behind the row the List draws
   none, a tap still follows it (and Edit's selection still takes the tap), and the row's ⋯
   (a `Menu`, which takes its own taps) stays in the row's accessory slot (`RowMetrics`).
-- **One menu definition per item kind** (decision C4): `ArticleMenu` and `FolderMenu` are each one
+- **One menu definition per item kind**: `ArticleMenu` and `FolderMenu` are each one
   ordered `[MenuRow]` (`rows`), and every way to that item's menu renders it: as a view
   (`MenuRows`) in a row's ⋯ and `.contextMenu`, the folder header's *More*, a
   History visit, the Now Playing bar; as the item block of the ⋯ menu (the folder's screen, the
@@ -100,7 +100,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   their rows only when shown (the views' bodies), not on each row redraw. In Edit a row passes no
   ⋯ (`ListRow.menu` nil). An article's actions are `ArticleActions`' ("this article" anywhere: a row's
   Library page, the Reader's article, the browser's page, which saves by extracting first).
-- **The home never changes size with playback** (decision D14): no section depends on what is
+- **The home never changes size with playback**: no section depends on what is
   playing or part-way. An article played without saving joins Recent (`LibraryQueries.recent`) on
   its first play, the one insert playback causes, animated; Everything never changes with it.
 - **Recent's menu rows ask `LibraryQueries.isInRecent`** (the `recent` predicate itself,
@@ -123,16 +123,16 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   folder row's ⋯ (`ListRow.menuAnchor`; its long press asks there too) and the band's ⋯
   (`LibrarySurface`). Each host keeps the folder being asked about in its own `@State`, so only
   that one presents; `FolderMenu` reports the tap through `onTurnOffPrepare`.
-- **Books and series are folders** (decision D19): one screen (`FolderScreen`), one article row
+- **Books and series are folders**: one screen (`FolderScreen`), one article row
   (`LibraryArticleRow`), one ⋯ (`FolderMenu`), one delete question. Nothing refuses
   a move, a drop, a sort or a subfolder because of `kind`: only cycles, and an article out of the
   Library, which has no place in the tree (`LibraryTreeError`).
   `kind` is a hint of where a folder came from
   (`FolderKind.isBookOrSeries`): the row appearance comes from details; kind still supplies
-  symbol, *Replace*'s lookup, a followed story's (`series`) waiting chapters, D7's trim, the bar's source. *Replace*
+  symbol, *Replace*'s lookup, a followed story's (`series`) waiting chapters, the finished-chapter trim, the bar's source. *Replace*
   finds a book's chapters through its record (`BookSourceState.chapterKeys`), written at import
   and *Replace*, and recorded once at launch for books stored before (`recordBookChapters`).
-- **Details are not a kind** (decision D17): *Edit Details* (`FolderDetailsSheet`, a shell sheet)
+- **Details are not a kind**: *Edit Details* (`FolderDetailsSheet`, a shell sheet)
   writes a folder's name, byline and cover in one `LibraryStore.setDetails`. `Folder.hasDetails`
   picks the header's look (`FolderHeaderStyle.detailed`: the cover above the title), a book's too.
 - **Rows, the article menu and the header ask `PrepareCenter.state(of:)`** (an article; a folder with
@@ -142,9 +142,9 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   dimmed or covered.
 - **Long lists stay cheap**: a row reads its stored paragraphs only when part-way
   (`ArticleProgress.of`); counts come from relationships, not fetches.
-- **D20 home:** `LibraryHomeView` renders the Everything / Recent tab (shown as Library / History)
+- **Home:** `LibraryHomeView` renders the Everything / Recent tab (shown as Library / History)
   (`ShellState.homeTab`, a `LibraryHomeTab`) over one folder/article collection, filtered by the
-  band's search within that tab (`ShellState.librarySearch`, D22; `LibraryQueries.searchArticles(_:in:)`).
+  band's search within that tab (`ShellState.librarySearch`; `LibraryQueries.searchArticles(_:in:)`).
   Filtered (Recent or a search), the list sets
   `LibraryScreenKey.filtered(under: nil)` and the rows read it: none lifts or takes a drop, a row
   in a folder shows the folder's path (`place(of:)`), and a folder row pushes
@@ -153,7 +153,7 @@ What the user sees is in `../../../docs/NAVIGATION.md` → "The Library". The mo
   `FolderSearchResults`, `.filtered(under: id)`: paths from below it) and ends when the folder
   leaves the path. Rows have only ⋯ at their trailing edge. A folder
   header has Prepare, the big ▶ (Continue) and More.
-- **D21: action rows never wrap; article rows are two lines.** A row of buttons is an
+- **Action rows never wrap; article rows are two lines.** A row of buttons is an
   `ActionButtonRow` (full labels → symbols), never an HStack or a
   stack that can wrap; give every button a symbol. An article row is its title on one line (up to
   three at the accessibility sizes, with the thumbnail, status line and ⋯ on a line under it) and one

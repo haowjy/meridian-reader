@@ -11,7 +11,7 @@ changing the shell code.
   closes a page open in Library Read, since a place asked for by name must show), the Reader sheet and
   its `ReaderOrigin` (derived from the surface), Now Playing, the one other sheet and the toast.
   Add a screen by adding a case here, not a presentation flag in a view. The surface,
-  path and tab are written to `SurfaceMemoryStore` on every change and restored at launch (D10); a UI-test
+  path and tab are written to `SurfaceMemoryStore` on every change and restored at launch; a UI-test
   launch doesn't restore unless `-restoreSurface`, so tests start on the browser whatever the
   last one left. One sheet at a time, except the listen debug panel, which shows over Voice
   settings when opened from them (`overSheet`, `ShellSheet.showsOverASheet`); the sheet's view
