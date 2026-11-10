@@ -251,7 +251,7 @@ The Browser's page menu with no page and no address (its start page) shows nothi
 | pasteText | never | never |
 | newFolder | never | never |
 
-## Bottom-chrome glossary (C143)
+## Bottom-chrome glossary
 
 The names for the chrome that runs along the bottom of every screen.
 

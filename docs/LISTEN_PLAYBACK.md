@@ -108,7 +108,7 @@ Rules:
   it. Continue on a folder starts at `LibraryStore.continueStart`'s spot.
 - Listen's reading content isn't the controller's: Listen looks the playing article up by
   its key when it changes (`LibraryStore.nowPlayingContent(for:)`). The library has every article
-  that has played (an article played without saving, or removed from the Library, is kept while it is in the last 50 of Recent (C134)
+  that has played (an article played without saving, or removed from the Library, is kept while it is in the last 50 of Recent
   after its last play), so it is there after a relaunch too. When nothing is bound any more
   (the article you heard removed or deleted) Listen closes itself.
 
@@ -203,7 +203,7 @@ position, dates each start (`lastPlayedAt`, unfinished again) and marks the end 
 holding the article it writes to rather than fetching it per paragraph. An article started from a
 `ReaderArticle` (`SpeechController.onListen`: the Reader's Listen, 🎧) is recorded from it on its
 first start, so an article the library doesn't have is kept with its text: played without saving,
-not in the Library, removed once it leaves the last 50 of Recent (C134). For an article in a folder (a book's or
+not in the Library, removed once it leaves the last 50 of Recent. For an article in a folder (a book's or
 series' chapter, or an article in any folder you made) the same writes also move the folder's place
 (`Folder.currentArticleKey`) to the article that starts (`LibraryStore+Chapters`); whether the folder is
 finished is worked out from its pages (`FolderProgress.isFinished`), never stored. A page
@@ -253,7 +253,7 @@ own spot the same way. The position is then the recorder's to store, from the se
 
 An article in a folder carries on through it, article to article, then stops; an article in no folder plays to
 its end and stops. Every folder (a book, a series, a folder you made) plays in its
-sort, which is the order its screen shows (decisions D15, D19); a book's starts as the book's
+sort, which is the order its screen shows; a book's starts as the book's
 order.
 `SpeechSession.folder` (`PlaybackFolder`: id, name, whether it is a book or series) says which
 folder an article is in: a library article's session fills it (`SpeechSession.article`), and `listen(to:)`
@@ -270,7 +270,7 @@ its text through the same `FollowCenter.play`, then plays it. Continue on a fold
 place (the article that last played, which the recorder keeps), at the saved spot while
 unfinished, else at the next page; with no place yet, at the first page's own saved spot; a
 finished folder starts again from its first article. Catch-up baking at the end of an article, and the
-D7 trim of finished chapters' audio, stay with books and series. The controller reaches the library through `NextChapterProviding`
+the trim of finished chapters' audio, stay with books and series. The controller reaches the library through `NextChapterProviding`
 (`chapters(of:)`, `load`, `articleFinished`), injected by `AppComposition`, so the speech
 stack never touches SwiftData.
 
@@ -286,7 +286,7 @@ When the engine reports `finished`, the controller decides before the session se
   suspend an app holding a silent audio session.
 
 `playArticle(key)` (Contents) plays a chapter from its start, and the book carries on from it.
-Headphone and lock-screen skips stay paragraph skips (D4).
+Headphone and lock-screen skips stay paragraph skips.
 
 **Rendering across the boundary.** Once the chapter's rendering has reached two paragraphs before
 its end, the next chapter is staged in the render queue (`GlobalSynthQueue.stageNext`, "Render
@@ -296,7 +296,7 @@ render on the CPU, in the background too, and keep their voice; there the next c
 renders as soon as the chapter playing has rendered to its end ("Rendering in the background").
 The catch-up bake at the end of a
 page runs only for pages outside books and series, and finished chapters more than 2 behind the
-book's place lose their audio, keeping their text (D7), except audio held for unfinished library
+book's place lose their audio, keeping their text, except audio held for unfinished library
 work.
 
 Each boundary logs `chapter_advance` (what plays next) and, once the next chapter is audible,
@@ -500,7 +500,7 @@ missing paragraphs above it:
 Saving an article that is already queued, #1 included, keeps its place and plan; the job turns
 saved (`.back` keeps a queued job where it is).
 
-**Prepared Audio** (decision D16, `PrepareCenter`) add no render path of their own. Every
+**Prepared Audio** (`PrepareCenter`) add no render path of their own. Every
 waiting page of the prepare list (`Downloads.json`, `PrepareListStore`) whose text is in the
 library goes to the queue at once, in the list's order; a link page's text is fetched first,
 one page at a time and only in front (it needs a window), through Follow's one fetch queue
@@ -738,7 +738,7 @@ directory), old-voice entries beside them, and `TTSCache/chunks/` for chunk scra
   (`removeChunkScratch(for:keepingCurrent:)`), because every extra Kokoro call is exposure to the
   libBNNS crash.
 - **Keys** (`ARTICLE_IDENTITY.md`): one per canonical URL, saved or not. Leaving an unsaved
-  reader keeps its audio; audio from listening is cleared once its article leaves the last 50 of Recent (C134); prepared audio never is, except audio
+  reader keeps its audio; audio from listening is cleared once its article leaves the last 50 of Recent; prepared audio never is, except audio
   held for unfinished library work (`TECHNICAL_SPEC.md`, Audio work waits for the save). Save
   marks the cache saved once the save is stored, and *Remove from Library* marks it
   ephemeral again, both through the library's audio work; deleting a saved row deletes its audio.
@@ -753,7 +753,7 @@ directory), old-voice entries beside them, and `TTSCache/chunks/` for chunk scra
   missing. The render queue's work and job completion, Prepared Audio, and staging the next
   chapter all ask it; the bake marks show
   `readyIndices`.
-- **One voice per article, and per book (C138, C138a).** Each article stores its selection, the
+- **One voice per article, and per book.** Each article stores its selection, the
   engine and voice together (`VoiceSelection`, stored in `Article.voiceID` as
   `local.kokoro/af_heart`). It is the only source of what plays, renders, prepares and is looked
   up in the cache, resolved once per article (its own, else its book's, else for a brand-new
@@ -802,7 +802,7 @@ directory), old-voice entries beside them, and `TTSCache/chunks/` for chunk scra
   is one write, rename or delete, and running it again finishes from any of them. Playing or
   rendering meanwhile is safe: the voice checks in readiness and publish cover every state. The
   picker asks first with the sizes.
-- **Migration (C138, once, `AppComposition.adoptArticleVoices`):** an article with audio takes the
+- **Migration (once, `AppComposition.adoptArticleVoices`):** an article with audio takes the
   voice most of its paragraphs are in (`ArticleAudioCache.renderedVoice`); a book, the voice most
   of its chapters' audio is in; articles with no audio get none. C138a, once: a voice stored as a
   cache voice key (`kokoro.af_heart`) becomes a selection with its engine (`LibraryStore.convertVoices`).
@@ -867,7 +867,7 @@ choice row but a voice's is one `SettingsChoiceRow` (title, optional one-line su
 check slot, min height 48), so state changes never move rows.
 
 1. **Voice ›** (`VoicePage`): the default voice for new articles and books, from the one voice
-   switcher (`VoiceSelectionList`, C138a), the same list an article's or a book's *Voice* picker
+   switcher (`VoiceSelectionList`), the same list an article's or a book's *Voice* picker
    shows. Each voice library is a row in one card that opens its section in place
    (`DisclosureRow`), the one holding the voice in use open at first: its curated voices (Phonon's
    others behind a *More Voices* row), each a `VoiceRow` as iOS's own Voice screen draws it
@@ -907,7 +907,7 @@ wasn't holding is released, so other apps' audio can resume.
   else the book's cover. Built from `nowPlaying`, as the bar is (the title is `NowPlaying.lineOne`,
   never a made-up one; the subtitle's byline is `NowPlaying.byline`), with the artwork made once per picture rather than every paragraph. Shown
   while playing or paused, and kept across a chapter boundary; cleared on stop or at the end.
-- `MPRemoteCommandCenter` (decision D4: headphone and lock-screen skips are paragraph skips, like
+- `MPRemoteCommandCenter` (headphone and lock-screen skips are paragraph skips, like
   the on-screen ⏮ ⏭): play, pause, togglePlayPause, nextTrack (next paragraph),
   previousTrack (previous paragraph; off at the first, as ⏮ is) and changePlaybackRate (snapped to
   the listen-bar rates). Skip, seek and position commands are off.
@@ -1061,9 +1061,9 @@ Playback is verified by probing the running app (the launch arguments above, the
 chunking and long-paragraph split invariants (`TextChunkerTests`, `ParagraphSplitTests`) and the
 engine crash guard's marker (`EngineCrashGuardTests`).
 
-## Retention and Prepared Audio (C134, C135, C136)
+## Retention and Prepared Audio
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
 - **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio. Neither touches an article's old voices, which the 7-day prune removes ("Audio cache", Old voices).
-- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice (C138). Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
+- **Prepared Audio list** (⋯ › Prepared Audio, Settings): the prepared sections (Now, Waiting, Prepared, Different Voice) and **From Listening** (audio rendered while listening, no ↓, with a footer about Recent 50); every row names its voice. Every row has *Delete Audio* (swipe and ⋯), which never deletes the article. The list's ⋯ (`MenuRegistry`, `.deleteAllPrepared`, `.clearListeningAudio`) has **Delete All…** ("Delete N articles and their prepared audio? This can't be undone.": deletes every prepared article and its audio, folders stay) and **Clear Audio from Listening…** (that audio only), each shown only when its section has rows.
 - **Naming.** The feature is *Prepare*, in the UI and in code (`PrepareCenter`, `PrepareRecord`, `PreparedAudioSheet`, `Features/PreparedAudio`). *Download* stays only for real file downloads (voice models, the CPU model, EPUB files). On-disk names are kept: `Downloads.json`, its keys, `downloads.wordsPerSecond`.

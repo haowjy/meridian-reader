@@ -364,7 +364,7 @@ the status bar and the bottom chrome. On compact width the chrome host's pill sw
 them ("Bottom chrome", above); on regular width the sidebar does ("iPad and regular width",
 below).
 
-**The app reopens on the surface you left** (decision D10): the Library at the folder you were in
+**The app reopens on the surface you left**: the Library at the folder you were in
 (`ShellState.libraryPath`, folders that no longer exist dropped), or the browser on its last page,
 reloaded. A fresh install opens the Library with Listen up, paused, on the welcome article (below). Kept on the device in UserDefaults
 `shell.lastSurface` (`SurfaceMemory`). Reopened on the Library, the browser's last page loads the
@@ -388,7 +388,7 @@ somewhere to go (`ShellState.hasSomewhereToGo`: Share, Open In, an import, a she
 Phonon's model revision changed) is dropped on install and the article renders live;
 `tools/record-welcome-audio.sh` records it again.
 
-**Regular width: one band on both surfaces** (`SurfaceBand`, decisions D22 and D23): the field
+**Regular width: one band on both surfaces** (`SurfaceBand`): the field
 (the address field on the browser, *Search Library*, or the tab or folder it searches, on the
 Library) at the top of the main pane, with a round ✕ beside it while searching, over the clustered
 dock, whose toolbar has one role per slot on both surfaces:
@@ -466,7 +466,7 @@ the same spot. ⋯ is never replaced.
   toolbar ⋯, the Reader's ⋯ and regular width's Listen ⋯, as the title-line ⋯ and the hold menu
   already were. Rows come from the surface that opened it (`MenuContext`: the item's menu, the
   screen's rows, the navigation rows). The menu takes the system's look, not the reading theme's.
-  Like every menu in the app (the long-press ones too), it keeps its shape (decision DR-09): a row
+  Like every menu in the app (the long-press ones too), it keeps its shape: a row
   that applies to what the menu is for but can't run now shows dimmed, and only a row that can
   never apply to that kind of item is left out (`MenuAvailability`). A toggle is one row showing
   the face for the item's state (*Save* / *Remove from Library*, *Mark as Finished* /
@@ -480,7 +480,7 @@ the same spot. ⋯ is never replaced.
   without saving (kept while in the last 50 of History, listed in the Library's History tab, and in the bar). *Remove from Library* is one action wherever it is asked (a row's swipe or menu,
   Edit, 🔖, the ⋯ of the browser, the Reader and Listen, the Now Playing bar's long-press):
   the article leaves its folder and every Library list it was in, History too; if it is what you hear, playback stops, as for
-  *Stop Listening*, and Listen closes. It is kept while it is in the last 50 of History (C134) (an article never
+  *Stop Listening*, and Listen closes. It is kept while it is in the last 50 of History (an article never
   played goes at the next launch) but the bar doesn't offer it, and it comes back only when you
   save it or listen to it again (🎧, the Reader's Listen). There is one article per address: saving
   a link saves it in place. 🔖 = saved.
@@ -513,15 +513,15 @@ the same spot. ⋯ is never replaced.
 The Library is a stack of screens in a `NavigationStack` (`LibrarySurface`, the path is
 `ShellState.libraryPath`): the home, then folder → folder at any depth. ‹ and the edge swipe go
 back up, as does the regular-width dock's ‹ (dimmed at the home). The home's title line is *Library* with ⋯ at
-its end on compact width (a glass circle, the reading pages' ⋯; Settings' title line has the same), then **Library / History** tabs, the system's segmented control at 44 pt (`SegmentedTabs`) (C104; History is the `recent` case,
+its end on compact width (a glass circle, the reading pages' ⋯; Settings' title line has the same), then **Library / History** tabs, the system's segmented control at 44 pt (`SegmentedTabs`) (History is the `recent` case,
 stored as `history`, once labelled Recent); the bottom field searches the tab on screen and says so (*Search Library* on
 Library, *Search History*). On a folder's screen it searches that folder,
 everything under it, and says so (*Search Demo Finance*): the results stand under the folder's
 name, each row showing where it is below the folder (its site when it is in the folder itself);
 the search ends when you leave the folder. Each tab
-is one mixed list: folders and pages share a single list, with no section headings. The History tab is everything you opened or started (C104); the browser's
+is one mixed list: folders and pages share a single list, with no section headings. The History tab is everything you opened or started; the browser's
 *Browsing History* (🕘 on regular width, a row of the compact menus) is its pages visited. From the
-Library, 🕘 opens Browsing History over the Library, which stays under it (C130). A row under a minute says *<1 min* (C131). The Now Playing bar's line two names the article's folder when it is in one, as History does (C130). In an imported EPUB or followed story ＋ shows as in any folder (C149); a folder header's More ends with *Delete Folder…* (*Delete Book…* on a book) alone at the bottom. On
+Library, 🕘 opens Browsing History over the Library, which stays under it. A row under a minute says *<1 min*. The Now Playing bar's line two names the article's folder when it is in one, as History does. In an imported EPUB or followed story ＋ shows as in any folder; a folder header's More ends with *Delete Folder…* (*Delete Book…* on a book) alone at the bottom. On
 History and in search results a row in a folder shows that folder's
 path in place of its site, and a folder opens in its place, under its parents, so ‹ goes to its
 parent. Going to a place in the Library (Listen's ⋯ → *Go to …*, the title on Listen's card,
@@ -535,7 +535,7 @@ into the folder on screen. The regular panel has Sort and its existing navigatio
 ```
 Library                                ⋯   ⋯ on compact width: Add a Link…, Import a File…, Paste Text… — New Folder… — Sort
 Library  History
-▣ Pride and Prejudice              ⋯   tap opens; its cover never changes (C102)
+▣ Pride and Prejudice              ⋯   tap opens; its cover never changes
 ▣ Tide Tables                      ⋯
 ▣ Finance                          ⋯
 [i] Seven-Day Yield                ⋯   tap plays; ◜ the spinning arc queued, the ring filling, then ●↓ before its second line
@@ -550,13 +550,13 @@ when it is short of room, and at accessibility text sizes the row shows its stat
 own lighter label after the title (*Pages* then *48*). VoiceOver reads the parts joined with
 commas.
 
-- **The home** (`LibraryHomeView`, C104): Library shows what is saved: top-level folders and pages in
+- **The home** (`LibraryHomeView`): Library shows what is saved: top-level folders and pages in
   no folder (*New Folder…* is in the title line's ⋯ on compact width, ＋ on regular width). Preparing an article saves it to the Library first (an article played without
   saving goes to the top level). History shows every article you started listening to
   ("opened" is started: `lastPlayedAt`), saved, prepared or played without saving (articles only,
   a book's chapters and link pages too; no folders), most recent first, in the same rows; a tap plays one. An unsaved one's ⋯ (and
   long-press) has *Save to Library*, which moves the article into the Library (it stays in History), *Save to Folder…*, and *Remove from History* (the same remove as *Remove from
-  Library*: in no list after, pruned later), *Prepare Audio* (which saves it first, C104), and the marks dimmed until it is saved; swipe left is *Remove* (*Remove from History*). *Remove from History* never shows on an article in the
+  Library*: in no list after, pruned later), *Prepare Audio* (which saves it first), and the marks dimmed until it is saved; swipe left is *Remove* (*Remove from History*). *Remove from History* never shows on an article in the
   Library (a saved article in History has *Remove from Library*), and is dimmed on one out of it that
   isn't in History. Every empty screen looks the same (`EmptyState`): a heading, one line under it, and
   its ways in as four tiles (`ActionTile`, laid out by `ActionTileGrid`), two to a row at one size,
@@ -580,7 +580,7 @@ commas.
   line). Rows are the compact two-line
   rows (below): an article row plays on a tap, a folder row opens, and each has only ⋯. On regular width the
   bar's ▶ resumes what you last heard (compact width has Listen instead), and a folder row's ⋯ ›
-  *Continue* resumes its own pages without opening it (D14). The home has no navigation bar; rows scrolled up pass under a paper
+  *Continue* resumes its own pages without opening it. The home has no navigation bar; rows scrolled up pass under a paper
   band behind the status bar, not under the clock. The home is the
   top level: its ⋯ has the create group, then *Sort ›* (the order of pages in no folder:
   *Manual*, *Newest*, the default, or *Title*).
@@ -589,9 +589,9 @@ commas.
   header is the title and counts; a folder with details has its cover above them (below). Once
   something in it has played, one more line says where it is, how far and what's left ("3 of 7
   38%   6 h 10 min left", at the playback speed); before that, its length ("52 min"). A folder
-  with pages that play (decision D15) then has one row of three controls, the ▶ in the middle
+  with pages that play then has one row of three controls, the ▶ in the middle
   and a caption under each side one (the captions go, leaving the symbols, when one wouldn't fit
-  whole, as at the largest text sizes: the row never wraps, D21):
+  whole, as at the largest text sizes: the row never wraps):
 
   ```
               ◯↓            ( ▶ )            ⋯
@@ -626,13 +626,13 @@ commas.
   followed story's stop playback, below).
   **Edit** (top right) enters edit mode: all changes during the session (reorders, renames,
   moves, deletes, new folders) are staged until *Done* (top right) commits them in one save;
-  *Cancel* (top left) reverts every change (C148). Cancel replaces the ‹ back button (hidden
+  *Cancel* (top left) reverts every change. Cancel replaces the ‹ back button (hidden
   while editing) and swipe-back is disabled, so the only exits are Cancel or Done. A "New Folder…" row (plus-folder icon,
   accent tint) shows at the top of the list. Check circles appear on every row; a drag handle
   (≡) on the right of each row is the only way to reorder — touching elsewhere scrolls or
   selects. Articles are reorderable in any sort (reordering switches to Manual). The toolbar keeps its five slots and shows
   *Move to…* (📁, slot 1), *Mark as Finished* (●, the listening ring made full, the middle),
-  ＋ (slot 4: the create group, C126; its *New Folder…* makes a folder here and files the
+  ＋ (slot 4: the create group; its *New Folder…* makes a folder here and files the
   selection into it, like Files' *New Folder with Items*) and *Remove*
   (🗑, ⋯'s slot) as symbols for the selection. *Remove* takes the selected pages out of the
   Library at once, then asks before deleting the selected folders, which stay selected until
@@ -644,7 +644,7 @@ commas.
   add into the folder; a followed story’s folder goes at the Library’s top level).
 - **Edit Details** (a folder's or book's ⋯, or a folder, book or series row's long-press menu)
   opens a sheet (`FolderDetailsSheet`): the cover (a letter tile without one), **Name**,
-  **Author**, a **Book** toggle under *Labels* (C149: on calls pages "chapters", off calls them
+  **Author**, a **Book** toggle under *Labels* (on calls pages "chapters", off calls them
   "articles"; EPUB imports default to on), and *Choose from Photos*, *Choose from Files* (images)
   and *Remove Cover*. *Cancel* changes nothing; *Save* stores all at once. A picked picture is
   kept as a 600 px JPEG thumbnail, as a book's cover is. A folder with a cover or an author (a
@@ -667,10 +667,10 @@ commas.
   fails, which keeps nothing. A book already in the Library asks *“Title”
   is already in the Library*: *Replace* (the same folder, its name, place and order kept,
   positions kept where chapters match; *Add to* then shows where it is and can't change) or
-  *Cancel* (decision D13). *Replace* finds the book's chapters wherever they were moved and brings
+  *Cancel*. *Replace* finds the book's chapters wherever they were moved and brings
   them up to date there; a new chapter goes into the book just after the chapter before it;
   chapters the file no longer has are deleted if they are still in the book; pages moved into
-  the book from elsewhere are never touched (decision D19). An `.epub` link in the browser downloads the book (a toast while it does) into
+  the book from elsewhere are never touched. An `.epub` link in the browser downloads the book (a toast while it does) into
   the same sheet, which waits for *Import* (top right), going to the Library unless changed. One
   import at a time: a book whose prepare finishes while the import sheet is up isn't imported,
   and a toast over the sheet says so.
@@ -683,7 +683,7 @@ commas.
   stays until the delete is saved, whichever way it was asked (the row's swipe or menu, ⋯ *Delete
   Folder…*, Edit's *Remove*); *Cancel* leaves everything as it was. Deleting the folder whose
   screen is open goes back to the screen above it.
-- **A book or series is a folder** (decision D19): the same screen, rows and rules as any
+- **A book or series is a folder**: the same screen, rows and rules as any
   folder. Importing makes it with one article per chapter, first in the book's order (its sort is
   *Manual*); after that the order is yours: Edit, drags and *Sort* change it, chapters move out,
   and pages and subfolders move in. Its cover and author are folder details (the detailed
@@ -692,7 +692,7 @@ commas.
   story's chapters waiting for their text use the link row, with where the text stands; a tap
   fetches the text, then plays it ("Follow a story", below). What sets it apart is only where it came from: *Replace* finds a book by its file
   (above), Follow reads a story's contents again and fetches its chapters, the Now Playing bar
-  names it as the source of its chapters, and its finished chapters lose their audio (D7).
+  names it as the source of its chapters, and its finished chapters lose their audio.
 
 **Add a Link and Follow a story**: *Add a Link…* opens the shared input sheet at half height,
 with a grabber, ✕ at the leading edge, an inline title, an address capsule
@@ -777,21 +777,20 @@ text is still fetched.
 **Rows** are `ListRow`s, compact and two lines for every kind (YouTube Music's rows). A folder
 row's second line is what is in it ("2 folders   3 articles", "Empty"), in Edit too; one whose pages
 play shows its place and time left there instead. Every row's separator starts at its title. A
-article row (a chapter too) is exactly two lines (decision D21): its title (its site, or its book, when it has none) on one line, truncated,
+article row (a chapter too) is exactly two lines: its title (its site, or its book, when it has none) on one line, truncated,
 then one short line of what it is and where it stands, with a small thumbnail as tall as the two
 lines. At the accessibility text sizes the title runs the row's width on up to three lines instead,
 over the thumbnail, the second line and the ⋯. Its site comes first on that line everywhere (none for an article without a title, whose
 first line already is its site), except in a book or series, whose header names the source once;
 on History and in search an article in a folder shows its folder's path there instead. The listening mark stands in a
 fixed-width column at the row's trailing edge, just before the ⋯, so the rings line up down the list
-(C88): nothing before a start (the column kept; line two says "18 min"), a small ring part-way
+: nothing before a start (the column kept; line two says "18 min"), a small ring part-way
 (line two "6 min left"; the only rings in this column are listening: a download's ring sits before line two), the same ring full once finished
 (line two "Finished"; no ✓), and still or moving accent bars while it plays or is paused (the row
 tinted, "Playing" or "Paused" in the accent); every time at the playback speed.
 
 The row's only control is **⋯** at its trailing edge, its glyph ending where the card's text and
-every row's trailing mark do (`RowMetrics`); a long press opens the same menu (the item's one menu, "Menus" below; decision
-D11), and a long press that moves lifts the row into a drag (below). **Tapping an article
+every row's trailing mark do (`RowMetrics`); a long press opens the same menu (the item's one menu, "Menus" below), and a long press that moves lifts the row into a drag (below). **Tapping an article
 row plays it** (replacing what plays; in a folder it carries on through the folder) and, on compact
 width, slides Listen up over the Library, except the
 article you hear, which opens Listen (a stray tap never pauses); a link page (*Add a Link…*'s,
@@ -806,14 +805,14 @@ In Edit the row has no ⋯ and a tap selects it.
 
 A row's prepare shows on the row, never as a button: **preparing** (queued in any prepare,
 its own or its folder's, paused too) dims the thumbnail or folder symbol under a small jade disc
-with a white ↓; **prepared** puts a small filled ↓ in the accent (C97) at the start of the second line, before
+with a white ↓; **prepared** puts a small filled ↓ in the accent at the start of the second line, before
 the site. Prepared means the article's whole audio was made ahead of time by a prepare (its ⋯ ›
 *Prepare Audio*, or its folder's Prepare) and is there in the voice selected now (or one *Keep*
 stored); audio rendered only by listening never earns it. A folder, book or series row shows ✓
-when every article its prepare covers is prepared (decision D16). VoiceOver reads
+when every article its prepare covers is prepared. VoiceOver reads
 "Preparing" / "Prepared" with the status.
 
-**Folders play like books** (decision D15). Playing an article that is in a folder (a tap on its row, the
+**Folders play like books**. Playing an article that is in a folder (a tap on its row, the
 Reader's Listen, 🎧 on its article, the folder header's ▶) carries on through the folder, article to
 article, then stops; an article in no folder plays to its end and stops. Every folder plays in its sort,
 which is yours (a book's starts as the book's order). Link pages are passed over (a followed
@@ -822,14 +821,14 @@ row shows the place and the time left and *Continue* resumes there, as a book's 
 anything in it has played, the first article starts where it was left. Listen's "Playing
 from" names the folder.
 
-**Dragging rows** (decision D15), on the home and folder screens, without Edit: a
+**Dragging rows**, on the home and folder screens, without Edit: a
 long press lifts a row (its menu, which the press opened, goes as it moves). Let go on a folder
 row (its middle, for a folder) to file it at the end of that folder; the folder lights up in the
 accent while it takes the row, with a tick. Let go between rows to place it there, a line
 marking the place: a page among pages, a folder among folders (over a folder row's top or bottom
 quarter); placing an article makes its folder's sort *Manual* (the top level's too, until the home's
 ⋯ → *Sort* picks another), numbered first as it was shown. A row lands with a success tick; a refused one with an error buzz. A book or
-series takes drops as any folder, and its chapters lift as any article (decision D19). A folder
+series takes drops as any folder, and its chapters lift as any article. A folder
 dragged over itself or a folder inside it is refused (the drag shows ⊘); rows on the home's
 History tab or in search results (gathered from across the tree), an article played without saving
 and rows in Edit don't lift. The list doesn't scroll by itself while a row is dragged.
@@ -865,7 +864,7 @@ of its folder's prepare until requested again). A folder's Remove Prepared Audio
 its articles. Stop Preparing Audio keeps what is prepared. Every removal that can fail preserves
 the row until its data change succeeds.
 
-**Prepared Audio** (decision D16): *Prepare Audio* on an article, a folder, a book or a followed story (a
+**Prepared Audio**: *Prepare Audio* on an article, a folder, a book or a followed story (a
 article's menu wherever it shows, a folder header's Prepare control, a folder's menu, beside its
 *Remove Prepared Audio*, dimmed when there is nothing to do) makes it ready to play offline: a link article's text is fetched out of sight (in Follow's one
 queue) and kept where it is, then its whole audio is rendered ahead in the on-device voice
@@ -873,7 +872,7 @@ selected (Kokoro). A folder covers its own pages in its order (not its subfolder
 story its chapters that play and aren't finished, one page at a time, and while its toggle is on,
 pages added later too. A prepare starting (or a paused one going on) shows no toast: the row's
 mark and the folder header's Prepare control already show it, and that control, while its
-prepare runs, is captioned with the count ("2 of 3") and opens the Prepared Audio list (C96). Other
+prepare runs, is captioned with the count ("2 of 3") and opens the Prepared Audio list. Other
 toasts (*already preparing*, *Nothing to prepare*) float just above the Listen
 bar (never over it), as every toast does, and goes after a few seconds. A toast's message wraps
 between words, never inside one: when a word wouldn't fit beside *View* (the largest text sizes),
@@ -906,7 +905,7 @@ Different Voice  1
 ```
 
 **Settings › Prepared Audio & Storage › Prepared Audio** (`PreparedAudioSheet`, pushed inside
-Settings) lists one row per page (C110: a folder's pages each on their own row, never a folder total;
+Settings) lists one row per page (a folder's pages each on their own row, never a folder total;
 line two its folder's name, or its site for an article in no folder; the status mark before it:
 `DownloadMark`, as everywhere: the spinning arc waiting, the ring filling while it renders, ●↓ once done), in sections shown only
 when they have rows (**Now**, **Waiting** in render order, then the ones below; a folder's own
@@ -915,7 +914,7 @@ describes record rows: **Queued** (the prepare rendering now and those waiting, 
 row's filling ring, just before its ⋯, pausing it; grey while paused, a tap resumes it; a paused
 prepare is grey on its Library row and its folder's header too, captioned *Paused*),
 **Prepared** (each with the grey ✓ and the room it takes, the total under the section, on the
-cards' edge), and **Different Voice** (done, but its audio isn't in its article's voice, C138:
+cards' edge), and **Different Voice** (done, but its audio isn't in its article's voice:
 it never plays). Every row is a Library row (`ListRow`: one title line, one detail line) and says its voice
 as Settings › Voice does, never by the voice's name (*Default*, else its voice library, *Kokoro*:
 `LocalTTSCoordinator.voiceSummary`; From Listening rows too); its parts are set apart by space, never a dot. A row opens what was prepared
@@ -1021,7 +1020,7 @@ The two widths present them differently:
 The rest of this section describes the regular-width sheets unless it names compact width; the
 compact readers and Listen are described under "Bottom chrome".
 
-**On regular width the Reader and Listen share their chrome** (decision D24), so Listen turns the Reader into Listen
+**On regular width the Reader and Listen share their chrome**, so Listen turns the Reader into Listen
 with nothing moving but what has to: the same top bar (the close pill at the top left, **Aa** then ☝︎ at the top right, at the article margin), one shared bottom band
 (`ReadingBottomBand`: integrated controls flat on the page background, separated by a hairline
 divider — title row, scrub track, transport row, no card, no shadow), the same
@@ -1070,7 +1069,7 @@ synthesis").
   (at the playback speed, written as rows write it, "1 h 5 min left" past the hour; the time in regular weight after the semibold title, left out when the pill is short of room
   at large text sizes), or *▶ Listen Again* for a finished one. It starts at the article's saved spot, makes the article what you
   hear (replacing what plays) and turns the Reader into Listen in place, where the Reader was
-  (decision D2):
+ :
   - **At the Reader's top** (its first line of text not yet scrolled above the top of the reading
     area, so the title may be part way up), Listen opens at its top.
   - **Scrolled into the text**, the same line stays at the same place on screen.
@@ -1129,7 +1128,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
 ```
 
 - **Opens from** the bar (tap, swipe up), from opening the Reader of the article that is playing,
-  from Listen in the Reader (in place, D2) and from crash resume (on compact width: the chrome's
+  from Listen in the Reader (in place) and from crash resume (on compact width: the chrome's
   Listen, a reader's ▶ Listen, a Library row). It presents over everything
   (`ShellState.isNowPlayingPresented`) and holds no article of its own: it shows what you hear.
   **The close pill or a pull down shrinks it into the bar** (on compact width a pull down closes
@@ -1140,7 +1139,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   the strip under the status bar stays as dark as at rest until the sheet has gone, so the clock
   stays readable. The article's title is the first thing in its text; when the article's own first
   heading repeats it, that heading takes the title's look and shows once. The spoken paragraph is on the theme's highlight;
-  every paragraph stays in full ink (C105). The *Jump to Audio* pill takes the theme's accent and its ink on the accent; the scrub row, the bubble, the jump hint, the ⋯ menu and the speed menu
+  every paragraph stays in full ink. The *Jump to Audio* pill takes the theme's accent and its ink on the accent; the scrub row, the bubble, the jump hint, the ⋯ menu and the speed menu
   take the theme's colours. A plain-text article (no reading HTML) shows its paragraphs on the
   same reading article, in both, so everything below applies to it too.
 - **The bottom band** (flat on the page background, no card, no shadow) shows the artwork tile,
@@ -1161,7 +1160,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
 - **The text follows the audio.** It opens with the spoken sentence near the middle (the
   paragraph, until the sentence is worked out a moment later), from the bar, from opening the
   article that is playing and from crash resume; Listen in the Reader opens where the Reader was
-  instead (D2). On each new paragraph it scrolls its spoken sentence near the middle; in a
+  instead. On each new paragraph it scrolls its spoken sentence near the middle; in a
   paragraph too long to stay on screen, it does so again whenever the spoken sentence leaves the
   visible text (the `Motion.standard` spring; a jump under Reduce Motion). The sentence, not the
   paragraph, goes to the middle: a long paragraph's middle can be a screen away from what is
@@ -1189,7 +1188,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   top group's system menu: "Bottom chrome", above.) ▶︎ / ⏸ is a 44 pt round button (accent fill, dark glyph; fixed size,
   like the toolbar glyphs), as tall as the row, so every slot sits where it does on the other
   surfaces. ⏮ ⏭ and headphone / lock-screen skips are paragraph skips
-  (D4). A sideways swipe on the row skips too.
+ . A sideways swipe on the row skips too.
 - **Status notes** ("Preparing next…", "Preparing the voice", the developer-only Debug chip) sit **above** the transport row so appearing text never pushes it.
 - **⋯**: the article's menu for what you hear, with Go to its folder or the Library. Compact
   width ends with Play from a Paragraph; regular width keeps its Settings / Library / Listen tiles.
@@ -1225,7 +1224,7 @@ The regular-width sheet (on compact width it is Listen, a cover with no pill: "B
   A pitch-preserving time-stretch on the player (`AVAudioPlayer.enableRate` / `rate`; all audio
   is rendered at 1×), so nothing is re-queued, re-rendered or restarted. The rate is persisted
   (`reader.rateMultiplier`) and the lock screen's playback rate follows it (and can set it).
-- An article played without saving is kept while it is in the last 50 of Recent (C134), with its text and its
+- An article played without saving is kept while it is in the last 50 of Recent, with its text and its
   spot: after a relaunch it is at the top of the Library's *Pages*, opens in the Reader where it was, and
   Listen shows its text.
 
@@ -1280,7 +1279,7 @@ With **Scroll / Pages** on *Pages* (Aa, Settings › Reading) both sheets show t
 time; Follow's chapter preview always scrolls.
 
 ```
-┌──────────────────────────────────────┐   reading (bars hidden, C113)
+┌──────────────────────────────────────┐   reading (bars hidden)
 │ Second page                          │ ← a page: the whole screen inside the safe area, whole
 │ This offline test article has a long │   lines only, an even margin above and below
 │ …                                    │
@@ -1294,21 +1293,21 @@ time; Follow's chapter preview always scrolls.
 │ ┃ │ Second page              │ ┃     │   centred between the bars, outlined in the accent;
 │ ┃ │ This offline test …      │ ┃     │   the neighbouring pages peek at either side
 │ ┃ └──────────────────────────┘ ┃     │
-│                                 (↑)  │ ← Jump to Audio, when the voice is on another page (C111)
+│                                 (↑)  │ ← Jump to Audio, when the voice is on another page
 │ ─●──────────────────────────── 1×    │ ← the bottom band
 └──────────────────────────────────────┘
 ```
 
-- **An article** (C113, Kindle's) is laid out for the whole reading sheet, from 16 pt below its top (just under the status bar, C114) down to the footer, and holds
+- **An article** (Kindle's) is laid out for the whole reading sheet, from 16 pt below its top (just under the status bar) down to the footer, and holds
   whole lines only: no line is ever cut at its top or bottom. A line that doesn't fit starts the
   next page; a picture taller than a page shows a page-tall slice at a time until the rest of it
   fits, and the text after it carries on from there.
 - **Reading and the overview**: reading, the bars are hidden. A tap in the middle shows them and
   the same article shrinks with a spring into a card between them (a scale of the article laid out for
   reading, so nothing reflows), outlined in the accent; the pages before and after are cards of
-  their own beside it, the same size, parted by a gap and outlined in the theme's quiet rule grey
-  (C116), fully drawn; a card ends at the text's bottom margin, with no strip kept for the
-  footer, and *Jump to Audio* may float over its foot (C117); the accent outline follows the card centred as they swipe; the cards swipe sideways as pages do, and a tap anywhere on the card zooms back
+  their own beside it, the same size, parted by a gap and outlined in the theme's quiet rule grey,
+  fully drawn; a card ends at the text's bottom margin, with no strip kept for the
+  footer, and *Jump to Audio* may float over its foot; the accent outline follows the card centred as they swipe; the cards swipe sideways as pages do, and a tap anywhere on the card zooms back
   into reading. Under Reduce Motion the change is a short fade instead of the zoom.
 - **The footer** (`2 min left` on the left, `33%` on the right), only while reading. The time is
   what is left from the first character of the article shown to the end of the article's text, at the
@@ -1316,7 +1315,7 @@ time; Follow's chapter preview always scrolls.
   series says `2 min left in chapter`. The percentage is the page shown of the pages. It sits 12 pt
   above the home indicator's strip, at the page margins, in the Reader and in place alike (in place
   the strip comes from the window, `ChromeHome.inset`, since the page is laid out through it).
-- **Turning** (C107): native horizontal paging, as Apple Books' *Slide*. The article is laid out in
+- **Turning**: native horizontal paging, as Apple Books' *Slide*. The article is laid out in
   CSS columns a screen wide, in the web view's own scroll view with paging on, so a page tracks
   the finger 1:1 and settles with the system's physics; a tap at the right edge zone slides to the
   next page, at the left edge zone to the one before (the scroll view's own animation; at once
@@ -1324,12 +1323,12 @@ time; Follow's chapter preview always scrolls.
   stay the system's: a swipe or tap that begins there turns nothing. Pages never scroll
   vertically, so a pull down on the text doesn't close a regular-width sheet there (the grabber and
   the close pill do).
-- **No following, nothing over the text** (C108): Pages is for reading. It never turns by itself
+- **No following, nothing over the text**: Pages is for reading. It never turns by itself
   with the audio: once the voice leaves the article shown, Listen offers *Jump to Audio* in
-  its usual place above the band, as in Scroll (only while the bars show, C111), which shows the spoken sentence's page once. Neither
+  its usual place above the band, as in Scroll (only while the bars show), which shows the spoken sentence's page once. Neither
   the floating *Jump to Audio* nor the floating play / pause shows in Pages. Opening Listen
-  in Pages still opens on the page you hear, or the Reader's handed-over line (D2).
-- **Play from Here** (C109): selecting text (both modes) adds *Play from Here* to the system edit
+  in Pages still opens on the page you hear, or the Reader's handed-over line.
+- **Play from Here**: selecting text (both modes) adds *Play from Here* to the system edit
   menu, before Copy; it plays from the start of the sentence holding the selection's start (the
   paragraph's start when none), saved article or not. A tap that clears a selection doesn't turn a
   article or toggle the bars.
@@ -1349,7 +1348,7 @@ spacing change reflows the text and keeps the line on screen where it was).
 - **Theme**: *Match App* (the app's paper and ink in its appearance and colour; the default),
   *Light*, *Sepia*, *Dark*, *Black*. One token set each (`ReadingPalette`: background, card,
   ink, secondary and tertiary ink, dimmed ink, highlight, accent) for the Reader and Listen
-  alike. The spoken paragraph sits on the highlight; every paragraph is in full ink (C105); the spoken
+  alike. The spoken paragraph sits on the highlight; every paragraph is in full ink; the spoken
   sentence is underlined in the theme's accent (one underline colour per theme). Light, Dark and
   Black take the app's colour as their accent; Sepia has its own. Each is a swatch named under
   it; a name wraps between words, and at the accessibility sizes, where a name's longest word
@@ -1503,7 +1502,7 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 | Library (`LibrarySurface`): the home | the chrome's Browser (the sidebar's on iPad) | in-place surface (shared bottom chrome); leave restores browse |
 | Library → a folder (a book or series too) (`FolderScreen`) | ‹ system | push (`navigationDestination`) |
 | Move to…, Save to Folder… (`MoveTreeSheet`) | Cancel (grabber) | `.sheet`, medium/large |
-| Import a File… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; D13 and refusals are alerts over it |
+| Import a File… (Files picker, then `BookImportSheet`), an `.epub` link | Cancel (grabber, except while it works) | system picker, then `.sheet`, medium/large; *Add to* pushes inside it; the replace-or-cancel question and refusals are alerts over it |
 | Delete Folder…, Rename, New Folder | Cancel | confirmation dialog / alert |
 | Edit Details (`FolderDetailsSheet`) | Cancel / Save | `.sheet`; the Photos and Files pickers over it |
 | Add a Link / Follow (`FollowSheet`) | ✕ (cancels a save under way); Follow N Chapters opens the story’s folder | `.sheet`, medium input / large review; chapter preview overlays it, the sheet held at large |
@@ -1516,9 +1515,9 @@ sizes are tokens in `Features/DesignSystem/Tokens/RegularLayout.swift`.
 
 The browser's own ‹ / › are web-history buttons (the web view also has its edge swipes), not screens.
 
-**Item wording (C120).** Every item is an *article* in the UI ("3 articles"); in an imported EPUB's folder it is a *chapter* ("12 chapters"). An item is never called a "page" (Pages is only the Reader mode). Recent lists only started articles and chapters, never folders (C119).
+**Item wording.** Every item is an *article* in the UI ("3 articles"); in an imported EPUB's folder it is a *chapter* ("12 chapters"). An item is never called a "page" (Pages is only the Reader mode). Recent lists only started articles and chapters, never folders.
 
-## Retention and Prepared Audio (C134, C135, C136)
+## Retention and Prepared Audio
 
 - **Three states.** *Prepared*: saved and you chose *Prepare Audio*; its audio is never cleared automatically. *Saved*: in the Library; listening renders audio as it goes, and saving or starring no longer renders the whole article. *Being read*: opened or played without saving, listed in Recent.
 - **Recent is the last 50 articles started.** At launch and when an article starts, unsaved articles beyond those 50 are deleted with their audio; saved articles beyond them lose only their audio from listening. Audio the session or the staged chapter needs is never touched. The finished-chapters trim skips prepared audio.
