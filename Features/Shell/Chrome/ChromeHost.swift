@@ -7,7 +7,7 @@ import UIKit
 /// wires them to the app. Listen is not under it: it slides up over everything, chrome included.
 ///
 /// ```
-/// expanded    [‹][›][⌂][ address / Search Library  ][🎧]     row 1, Listen at its end (⌂, its own circle, on a Browser page)
+/// expanded    [‹][›][ address / Search Library     ][🎧]     row 1, Listen at its end
 ///             [ Library  |  Browser  |  Settings      ]     row 2: where you are, margin to margin
 /// one row     [‹][›][ address / Search Library     ][🎧]     a scroll down's first step: row 2 goes, row 1 drops into its place
 /// folded                     ( example.com )                 the second step: the field shrunk to a bubble naming the page
@@ -85,8 +85,7 @@ struct ChromeHost: View {
     /// `ChromeFold`, so a scroll report redraws the pieces and not this view.
     private var live: ChromeState {
         ChromeState(destination: destination, progress: reduceMotion ? ChromeScroll.stepEnd(scroll.progress) : 0, fullScreen: scroll.fullScreen,
-                    canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, canGoHome: screen.canGoHome,
-                    keyboard: isSearching,
+                    canGoBack: screen.canGoBack, canGoForward: screen.canGoForward, keyboard: isSearching,
                     readerMode: readerMode, editing: screen.editBar != nil, bubbleWidth: bubbleWidth,
                     homeInset: ChromeHome.inset)
     }

@@ -36,12 +36,6 @@ struct ChromePieces: View, Animatable {
                                  canGoBack: state.canGoBack, canGoForward: state.canGoForward, backID: screen.backID, forwardID: screen.forwardID,
                                  onBack: screen.onBack, onForward: screen.onForward)
             }
-            piece(layout.home) {
-                Button(action: screen.onHome) { ChromeCircleFace(symbol: Icons.startPage, label: Verbs.startPage) }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Verbs.startPage)
-                    .accessibilityIdentifier(screen.homeID)
-            }
             fieldPiece(layout)
             piece(layout.pill) {
                 ChromePill(lit: state.destination, onSelect: onSelect)
