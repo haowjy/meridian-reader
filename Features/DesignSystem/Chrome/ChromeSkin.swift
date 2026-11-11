@@ -159,7 +159,7 @@ extension ChromeCircleFace where Content == Image {
 /// A chrome control's hit area: `vertical` past its glass above and below (`hitOutset`; the pill's segments
 /// `pillHitOutset`), and at each side `leading` /
 /// `trailing` past it: `hitOutset` by default, none where a neighbour shares the glass (the pill's segments
-/// meet edge to edge), more where one must make up the width (‹ › ⌂, `ChromeMetrics.navHitSides`).
+/// meet edge to edge), more where one must make up the width (‹ ›, `ChromeMetrics.arrowHitSides`).
 struct ChromeHitShape: Shape {
     var leading = ChromeMetrics.hitOutset
     var trailing = ChromeMetrics.hitOutset

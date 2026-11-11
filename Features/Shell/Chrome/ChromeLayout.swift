@@ -21,7 +21,7 @@ struct ChromePiece: Equatable {
 ///
 /// ```
 /// expanded    [‹][›][ address / search             ][🎧]     row 1: Listen ends it on every destination
-/// on a page   [‹][›][⌂][ address                   ][🎧]     the Browser on a page: ⌂ ends the arrows' capsule
+/// on a page   [‹][›] [⌂] [ address                 ][🎧]     the Browser on a page: ⌂, its own circle after the arrows
 ///             [ Library  |  Browser  |  Settings      ]     row 2: the pill alone, margin to margin
 /// one row     [‹][›][ address / search             ][🎧]     the fold's first step: row 1 in row 2's place
 /// folded                     ( example.com )                 the bubble: the field shrunk, over the home indicator
@@ -40,12 +40,13 @@ struct ChromeLayout: Equatable {
     var pill: ChromePiece
     /// The address, search or title field.
     var field: ChromePiece
-    /// ‹, › and ⌂, one capsule of a circle each that shows (one circle with ‹ alone).
+    /// ‹ and ›, one capsule two circles wide (one circle with ‹ alone).
     var nav: ChromePiece
-    /// Which of ‹, › and ⌂ the capsule draws (one that doesn't show has no circle).
+    /// Which of ‹ and › the capsule draws (the other's circle isn't there).
     var navShowsBack = false
     var navShowsForward = false
-    var navShowsHome = false
+    /// ⌂, its own circle after ‹ ›: the Browser's start page in one tap, while a page shows.
+    var home: ChromePiece
     /// Cancel (a word, `ChromeMetrics.cancelWidth` wide), ending the keyboard's row.
     var cancel: ChromePiece
     /// A Library selection's actions: row 2 whole, in place of the pill.
@@ -63,7 +64,7 @@ struct ChromeLayout: Equatable {
 
     /// The top edge of the highest piece, nil when nothing shows (full screen).
     var top: CGFloat? {
-        [pill, field, nav, cancel, editBar, listen, bubble].filter(\.isShown).map(\.rect.minY).min()
+        [pill, field, nav, home, cancel, editBar, listen, bubble].filter(\.isShown).map(\.rect.minY).min()
     }
 
     init(width w: CGFloat, state s: ChromeState) {
@@ -79,8 +80,8 @@ struct ChromeLayout: Equatable {
         let row1Y = row2Y - gap - bar
         let isBrowse = s.destination == .browse
         let hold = !s.fullScreen
-        /// The capsule for this many circles (‹, › and ⌂: 0 to 3).
-        func navWidth(_ circles: CGFloat) -> CGFloat { circles * K.navSingleWidth }
+        /// ‹ ›'s capsule for this many arrows (0, 1 or 2).
+        func navWidth(_ arrows: CGFloat) -> CGFloat { arrows >= 2 ? K.navPairWidth : arrows * K.navSingleWidth }
         let row2 = !s.editing && hold
 
         // Typing: only the field and Cancel (no pill), so the field runs from the left margin to Cancel,
@@ -100,15 +101,10 @@ struct ChromeLayout: Equatable {
         // Library page read in place): ‹ alone. The keyboard's form has neither.
         let back: CGFloat = isBrowse || (s.readerMode && s.canGoBack) ? 1 : 0
         let forward: CGFloat = isBrowse && s.canGoForward ? 1 : 0
-        // ⌂ ends the capsule while the Browser shows a page: the start page in one tap. It costs the field
-        // one circle; on the start page itself there is no ⌂.
-        let home: CGFloat = isBrowse && s.canGoHome ? 1 : 0
-        let circles = back + forward + home
         navShowsBack = !s.keyboard && back > 0
         navShowsForward = !s.keyboard && forward > 0
-        navShowsHome = !s.keyboard && home > 0
-        let navExpanded = ChromePiece(rect: CGRect(x: margin, y: row1Y, width: navWidth(circles), height: bar),
-                                      isShown: circles > 0 && hold)
+        let navExpanded = ChromePiece(rect: CGRect(x: margin, y: row1Y, width: navWidth(back + forward), height: bar),
+                                      isShown: back + forward > 0 && hold)
         // The keyboard's form has no arrows.
         let navForm = ChromePiece(rect: navExpanded.rect, isShown: navExpanded.isShown && !s.keyboard)
 
@@ -116,7 +112,12 @@ struct ChromeLayout: Equatable {
         let listens = !s.keyboard && !s.editing && hold
         let fieldTyping = ChromePiece(rect: CGRect(x: margin, y: rowY, width: max(0, rightEdge - margin), height: bar),
                                       isShown: hold)
-        let x = margin + navWidth(circles) + (circles > 0 ? rowGap : 0)
+        // ⌂, its own circle one gap after ‹ › while the Browser shows a page (never on the start page, nor in the
+        // keyboard's form): it costs the field a circle and a gap.
+        let homes = isBrowse && s.canGoHome && !s.keyboard
+        let navEnd = margin + navWidth(back + forward) + (back + forward > 0 ? rowGap : 0)
+        let homeForm = ChromePiece(rect: CGRect(x: navEnd, y: row1Y, width: bar, height: bar), isShown: homes && hold)
+        let x = navEnd + (homes ? bar + rowGap : 0)
         let right = w - margin - (listens ? bar + rowGap : 0)
         let fieldExpanded = ChromePiece(rect: CGRect(x: x, y: row1Y, width: right - x, height: bar), isShown: hold)
         let fieldForm = s.keyboard ? fieldTyping : fieldExpanded
@@ -150,6 +151,7 @@ struct ChromeLayout: Equatable {
         }
         pill = down(pill, by: row2Gone)
         nav = down(navForm, by: row1Gone, from: drop)
+        home = down(homeForm, by: row1Gone, from: drop)
         listen = down(listenForm, by: row1Gone, from: drop)
 
         let fieldDropped = fieldForm.rect.offsetBy(dx: 0, dy: drop)

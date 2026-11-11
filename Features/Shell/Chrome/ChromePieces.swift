@@ -32,9 +32,15 @@ struct ChromePieces: View, Animatable {
         let layout = ChromeLayout(width: width, state: state)
         ZStack(alignment: .topLeading) {
             piece(layout.nav) {
-                ChromeNavigation(showsBack: layout.navShowsBack, showsForward: layout.navShowsForward, showsHome: layout.navShowsHome,
+                ChromeNavigation(showsBack: layout.navShowsBack, showsForward: layout.navShowsForward,
                                  canGoBack: state.canGoBack, canGoForward: state.canGoForward, backID: screen.backID, forwardID: screen.forwardID,
-                                 homeID: screen.homeID, onBack: screen.onBack, onForward: screen.onForward, onHome: screen.onHome)
+                                 onBack: screen.onBack, onForward: screen.onForward)
+            }
+            piece(layout.home) {
+                Button(action: screen.onHome) { ChromeCircleFace(symbol: Icons.startPage, label: Verbs.startPage) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Verbs.startPage)
+                    .accessibilityIdentifier(screen.homeID)
             }
             fieldPiece(layout)
             piece(layout.pill) {

@@ -7,7 +7,7 @@ import UIKit
 /// wires them to the app. Listen is not under it: it slides up over everything, chrome included.
 ///
 /// ```
-/// expanded    [‹][›][⌂][ address / Search Library  ][🎧]     row 1, Listen at its end (⌂ on a Browser page)
+/// expanded    [‹][›][⌂][ address / Search Library  ][🎧]     row 1, Listen at its end (⌂, its own circle, on a Browser page)
 ///             [ Library  |  Browser  |  Settings      ]     row 2: where you are, margin to margin
 /// one row     [‹][›][ address / Search Library     ][🎧]     a scroll down's first step: row 2 goes, row 1 drops into its place
 /// folded                     ( example.com )                 the second step: the field shrunk to a bubble naming the page
