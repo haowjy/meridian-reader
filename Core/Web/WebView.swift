@@ -145,13 +145,13 @@ struct WebView: UIViewRepresentable {
         func attach(_ webView: WKWebView) {
             store.attach(webView)
             // Delegate callbacks miss same-document history (#fragments, pushState): observe the
-            // web view directly so ‹ / › enable exactly when WebKit can go back / forward.
+            // web view directly so ‹ / › know exactly when WebKit can go back / forward.
             observations = [
                 webView.observe(\.canGoBack, options: [.new]) { [weak self] wv, _ in
-                    Task { @MainActor in self?.store.canGoBack = wv.canGoBack }
+                    Task { @MainActor in self?.store.historyBack = wv.canGoBack }
                 },
                 webView.observe(\.canGoForward, options: [.new]) { [weak self] wv, _ in
-                    Task { @MainActor in self?.store.canGoForward = wv.canGoForward }
+                    Task { @MainActor in self?.store.historyForward = wv.canGoForward }
                 },
                 webView.observe(\.estimatedProgress, options: [.new]) { [weak self] wv, _ in
                     Task { @MainActor in self?.store.progress = wv.estimatedProgress }

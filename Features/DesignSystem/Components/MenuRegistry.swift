@@ -53,7 +53,7 @@ enum MenuRegistry {
         // A prepare
         case reprepare, removePrepare
         // A screen's own rows
-        case newFolder, importFile, pasteText, addLink, sort, browsingHistory, playFromParagraph
+        case newFolder, importFile, pasteText, addLink, sort, startPage, browsingHistory, playFromParagraph
         // The Prepared Audio list's own ⋯
         case deleteAllPrepared, clearListeningAudio
     }
@@ -97,6 +97,8 @@ enum MenuRegistry {
         var hasListeningAudio = false
         // A screen
         var canJumpToParagraph = false
+        /// The Browser shows a page, not its start page.
+        var browserShowsPage = false
     }
 
     struct Spec {
@@ -191,6 +193,8 @@ enum MenuRegistry {
         Spec(option: .pasteText, kind: .screen, places: createPlaces),
         Spec(option: .newFolder, kind: .screen, places: createPlaces, block: 1),
         Spec(option: .sort, kind: .screen, places: [.libraryHome, .folderScreen, .libraryPanel], block: 2),
+        Spec(option: .startPage, kind: .screen, places: [.browser], block: 5,
+             enabled: { $0.browserShowsPage }, greyIf: "already on the start page"),
         Spec(option: .browsingHistory, kind: .screen, places: [.browser], block: 5),
         Spec(option: .playFromParagraph, kind: .screen, places: [.nowPlaying], block: 5,
              enabled: { $0.canJumpToParagraph }, greyIf: "no text loaded"),

@@ -81,7 +81,11 @@ struct BrowseStartView: View {
             // The Library's screen state reaches Listen and the shell's sheets too: their empty
             // screens' tiles open Paste Text and Add Link on it (`AddToLibraryTiles`).
             .environment(libraryScreen)
-            .onChange(of: webStore.currentURL) { _, _ in shell.browserPageChanged() }
+            .onChange(of: webStore.currentURL) { _, _ in
+                shell.browserPageChanged()
+                // › from the start page shows the covered page again without a load.
+                openReaderIfAsked()
+            }
             .onAppear { webStore.onBookDownload = bookDownloaded }
             .onChange(of: webStore.isLoading) { _, loading in
                 guard !loading else { return }
@@ -380,7 +384,7 @@ struct BrowseStartView: View {
 
     // MARK: - ‹ ›
 
-    /// ‹: the previous page; the reader view it leaves comes back with ›.
+    /// ‹: the previous page, or from the first page the start page; the reader view it leaves comes back with ›.
     private func goBack() {
         shell.browserWillGoBack()
         webStore.goBack()
@@ -486,10 +490,13 @@ struct BrowseStartView: View {
     private var canOpenReader: Bool { hasPage && webStore.isReaderable && shell.busy == nil }
 
     /// The compact Browser's menu, a press and hold on the field's leading glyph (the chrome has no ⋯):
-    /// the page's menu while a page is up (none on the start page), then *Browsing History*. The glyph's tap opens the reader
+    /// the page's menu while a page is up (none on the start page), then *Start Page* (dimmed on it) and
+    /// *Browsing History*. The glyph's tap opens the reader
     /// mode and leaves it, Reload is in the field and Listen in the chrome, so none of them is a row.
     private func holdMenu(_ actions: ArticleActions) -> [[MenuRow]] {
-        ArticleMenu(actions: actions, place: .browser).blocks + [MenuContext.screenRows(at: .browser, shell: shell)]
+        var facts = MenuRegistry.Facts()
+        facts.browserShowsPage = hasPage
+        return ArticleMenu(actions: actions, place: .browser).blocks + [MenuContext.screenRows(at: .browser, facts: facts, shell: shell)]
     }
 
     // MARK: - Start page

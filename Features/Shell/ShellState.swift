@@ -640,8 +640,11 @@ final class ShellState {
         }
     }
 
-    /// ⋯ → New search: the start page, with an empty address field.
+    /// The Browser's *Start Page* row: the start page over the page, with an empty address field;
+    /// › shows the page again, in reader view when it was left from there, as after ‹ (which on the
+    /// first page reaches the start page through `WebViewStore.goBack`).
     func showStartPage() {
+        browserWillGoBack()
         addressSearch.end(showing: "")
         web.showStartPage()
     }

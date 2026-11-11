@@ -160,8 +160,9 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   leaves the tree (inside the glass container an opacity above a piece's glass is ignored) and the
   glass materializes in and out with a content cross-fade; the whole host's opacity (outside the
   container) does fade glass, which is how Reduce Motion cross-fades.
-- **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (as Safari: ‹ always, dimmed to 35%
-  and disabled but in place with nowhere to go back; › beside it only while there is somewhere to go forward), on the
+- **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (as Safari: ‹ always, live on every page, the first page's going back
+  to the start page, and dimmed to 35% and disabled but in place on the start page; › beside it only while there is
+  somewhere to go forward, the start page's to the page ‹ left), on the
   Library its search field, in Library Read `[‹][(lit reader icon) site]` (the lit reader icon where the Browser's reader mode has it, the site taking the rest of the field, no ↻; a tap on the icon opens the article's live page in the Browser and a press and hold opens the top group's ⋯ menu; a page with no web address has none to open, so there a tap opens that menu and VoiceOver calls the icon *More*); Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`). The Browser's reader mode is kept while another destination shows (`ShellState.pageReader`): back on the Browser it is as you left it, the reader view at its place or the web page.
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a 44 pt control
   (`Control.chrome`, `tapTarget`), its glyph in the chrome ink at the chrome glyph weight
@@ -343,7 +344,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   - Settings: ⋯ at the end of its title line (`settingsMore`).
   - Listen: the top-group ⋯ shows its article menu, then *Play from a Paragraph*; Voice is on its card.
   - Browser: hold the leading field glyph (`addressMenu`) or use the reader's top-group ⋯ for
-    the page menu, followed by *Browsing History*. Tap the reader glyph to toggle reader mode;
+    the page menu, followed by *Start Page* (dimmed on the start page) and *Browsing History*. Tap the reader glyph to toggle reader mode;
     Reload stays in the address pill. No Listen, Voice, Library or Prepared Audio row is appended.
   Prepared Audio is reached through Settings › Prepared Audio & Storage.
 - The field's and Listen's card's text grows with Dynamic Type up to *xxxLarge* inside
@@ -418,7 +419,8 @@ the same spot. ⋯ is never replaced.
 - **A new search** is a tap on the address field: it selects the article's address, so typing
   replaces it (Recent Searches show full-bleed, Safari-style); ✕ cancels and restores the article's
   address. Swipe down lowers the keyboard but stays in search mode (typed text and Cancel kept). The
-  page stays loaded underneath. ⋯ → *New Search* opens the start page with an empty field.
+  page stays loaded underneath. The start page is ‹ on the first page or the field's hold menu's
+  *Start Page* (`ShellState.showStartPage`), with an empty field.
   Text without a scheme loads as an address only when its host ends in letters (`.com`, `.uk`,
   `.js`) or is an IP address; anything else ("3.14", "e.g.") is a Google search, and the
   suggestions follow the same rule (`BrowseURLParser`).
@@ -497,7 +499,11 @@ the same spot. ⋯ is never replaced.
   sheets and once nothing is loaded. Elsewhere on compact width the chrome's Listen does its job,
   and on regular width the clustered dock does.
 
-**Start page** (no page loaded), Safari-style:
+**Start page** (no page loaded), Safari-style. The Browser opens on it with no page to restore; from a page, ‹ on
+the first page and the hold menu's *Start Page* bring it back. It covers the page rather than adding a history
+entry: the page stays in the web view, stopped and its media paused, and › shows it again as it was (in reader view
+when you left it from there). A site or a search from the start page loads as the next page after the covered one, so ‹
+from there goes back to it (`WebViewStore.showStartPage`).
 1. **Frequently Visited**: the sites you visit most, from Browsing History (no tracking of
    its own): it keeps one visit per page, the last 30, so a site counts its pages there, the
    most first, then the most recently visited. One tile per site (`www.` folded in): its icon (the

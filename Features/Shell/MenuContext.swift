@@ -10,15 +10,20 @@ struct MenuContext {
     /// The rows by section for `MenuRows`: the item's, the screen's, then the tiles, a section each.
     var blocks: [[MenuRow]] { [item, screen, tiles] }
 
-    /// The screen's registry rows: *Browsing History* from here, every other row from `custom`, the
+    /// The screen's registry rows: *Start Page* and *Browsing History* from here, every other row from `custom`, the
     /// screen's own actions. The registry says which options a place shows; a place showing one its
     /// screen has no row for is a programming error, stopped here rather than drawn as another row.
     @MainActor
     static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(),
                            shell: ShellState, custom: (MenuRegistry.Option) -> MenuRow? = { _ in nil }) -> [MenuRow] {
         MenuRegistry.rows(.screen, at: place, facts) { option in
-            if option == .browsingHistory {
+            switch option {
+            case .startPage:
+                return MenuRow(id: "moreStartPage", title: Verbs.startPage, icon: Icons.startPage, action: shell.showStartPage)
+            case .browsingHistory:
                 return MenuRow(id: "moreHistory", title: Verbs.browsingHistory, icon: Icons.history) { shell.present(.history) }
+            default:
+                break
             }
             guard let row = custom(option) else { preconditionFailure("No row for \(option) at \(place)") }
             return row

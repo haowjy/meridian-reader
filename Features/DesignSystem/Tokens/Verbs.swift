@@ -131,7 +131,8 @@ enum Verbs {
     static let followAgain = String(localized: "Follow Again")
     static let checkNow = String(localized: "Check Now")
     static let sort = String(localized: "Sort")
-    static let newSearch = String(localized: "New Search")
+    /// The Browser's start page (Frequently Visited, Recent Searches), and its hold menu's row to it.
+    static let startPage = String(localized: "Start Page")
     static let reload = String(localized: "Reload")
     /// The Aa panel: the Browser's reader mode has no Aa on screen, so its ⋯ opens it.
     static let textAppearance = String(localized: "Text Appearance")

@@ -35,6 +35,8 @@ enum Icons {
     static let reader = "doc.plaintext"
     /// The Reader text is showing in the page's place (Follow's chapter preview).
     static let readerShowing = "doc.plaintext.fill"
+    /// The Browser's start page.
+    static let startPage = "house"
     /// History (the browser's: pages visited).
     static let history = "clock"
     static let search = "magnifyingglass"

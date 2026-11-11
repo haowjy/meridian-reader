@@ -12,8 +12,12 @@ final class WebViewStore {
     /// start page: `about:` pages are never a page.
     var currentURL: URL?
     var isLoading = false
-    var canGoBack = false
-    var canGoForward = false
+    /// WebKit's own history (`WKWebView.canGoBack` / `canGoForward`), kept current by `WebView`.
+    var historyBack = false
+    var historyForward = false
+    /// The start page is up over the page the view still holds (‹ from the first page): › shows
+    /// that page again. A load, or › itself, ends it.
+    private(set) var startPageCoversPage = false
     /// 0…1 while a page loads (thin bar above the bottom chrome).
     var progress: Double = 0
     /// The page passes Readability's `isProbablyReaderable` (same gate extraction uses): the
@@ -43,6 +47,11 @@ final class WebViewStore {
 
     var hasPage: Bool { currentURL != nil }
 
+    /// ‹: every page has somewhere to go back to, the page before it or, from the first, the start page.
+    var canGoBack: Bool { hasPage }
+    /// ›: the next page in history, or from the start page the page ‹ left.
+    var canGoForward: Bool { startPageCoversPage || (hasPage && historyForward) }
+
     /// The view stays on the page it loads (Follow's chapter preview): links, forms and back /
     /// forward to another address go nowhere, nothing opens a new window, and there are no swipes
     /// back. The page's own load, its redirects, its scripts' navigations, and links and forms
@@ -65,16 +74,23 @@ final class WebViewStore {
     }
 
     func load(_ url: URL) {
+        startPageCoversPage = false
         currentURL = url
         isLoading = true
         start(url)
     }
 
-    /// The start page: a blank document (so ‹ still goes back to the page), no page.
+    /// The start page over the page on screen. The page stays in the view, stopped and its media
+    /// paused, so › shows it again; a search or a site from the start page loads after it in history.
     func showStartPage() {
+        guard hasPage else { return }
+        webView?.stopLoading()
+        webView?.pauseAllMediaPlayback(completionHandler: nil)
+        startPageCoversPage = true
+        isLoading = false
+        progress = 0
         currentURL = nil
         pageTitle = nil
-        if let blank = URL(string: "about:blank") { start(blank) }
     }
 
     /// The browser's web view is made (`WebView`): a load asked for before then starts.
@@ -102,11 +118,11 @@ final class WebViewStore {
     /// WebKit ended the view's content process (it crashed, or the system took its memory): the
     /// page shows blank until it loads again, so it reloads, paced by `ContentProcessRecovery`.
     /// In the background it waits for the front first (a process started there is the first the
-    /// system ends again; WebKit's own recovery waits too). The start page has nothing to reload,
-    /// and a reload still waiting is dropped when the view has moved to another page or is
-    /// loading one.
+    /// system ends again; WebKit's own recovery waits too). The start page alone has nothing to
+    /// reload (over a page it reloads that page, for ›), and a reload still waiting is dropped when
+    /// the view has moved to another page or is loading one.
     func contentProcessEnded() {
-        guard hasPage, let webView else { return }
+        guard hasPage || startPageCoversPage, let webView else { return }
         let page = webView.backForwardList.currentItem
         recoveryReload?.cancel()
         recoveryReload = Task { [weak self, runState = AppRunState.shared] in
@@ -122,15 +138,31 @@ final class WebViewStore {
         }
     }
 
-    func goBack() { webView?.goBack() }
-    func goForward() { webView?.goForward() }
+    /// ‹: the page before this one, or from the first page the start page.
+    func goBack() {
+        guard hasPage else { return }
+        if historyBack { webView?.goBack() } else { showStartPage() }
+    }
+
+    /// ›: from the start page the page it covers, else the next page in history.
+    func goForward() {
+        if startPageCoversPage {
+            startPageCoversPage = false
+            syncNavigationState()
+        } else {
+            webView?.goForward()
+        }
+    }
+
     func refresh() { webView?.reload() }
     func stopLoading() { webView?.stopLoading() }
 
     func syncNavigationState() {
         guard let webView else { return }
-        canGoBack = webView.canGoBack
-        canGoForward = webView.canGoForward
+        historyBack = webView.canGoBack
+        historyForward = webView.canGoForward
+        // The covered page's own events (a late load, a script's pushState) leave the start page up.
+        guard !startPageCoversPage else { return }
         currentURL = webView.url.flatMap { $0.scheme == "about" ? nil : $0 }
         pageTitle = currentURL == nil ? nil : webView.title
     }

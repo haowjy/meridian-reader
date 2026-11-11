@@ -45,8 +45,8 @@ Save/Save to Folder become Remove from Library/Move to… in their corresponding
 | Unsaved History article row | Read — Save to Library · Save to Folder… — Prepare Audio · Voice — Mark as Finished (disabled) · Share — Remove from History |
 | Now Playing bar long press | The article row's menu — Stop Listening |
 | Browsing History visit | Read — Save to Library · Save to Folder… — Share — Remove from History |
-| Browser field hold / reader ⋯ | Save to Library · Save to Folder… · Follow… — Prepare Audio — Mark as Finished · Share — Browsing History |
-| Browser field hold on the start page | Browsing History |
+| Browser field hold / reader ⋯ | Save to Library · Save to Folder… · Follow… — Prepare Audio — Mark as Finished · Share — Start Page · Browsing History |
+| Browser field hold on the start page | Start Page (disabled) · Browsing History |
 | Library Read ⋯ | Save to Library · Save to Folder… · Follow… — Prepare Audio — Mark as Finished · Playback › · Share |
 | Listen ⋯ | Save to Library · Save to Folder… · Follow… — Go to folder or Library — Mark as Finished · Share — Play from a Paragraph |
 | Prepared Audio row | Prepare Again — Delete Audio |
@@ -198,6 +198,7 @@ The Browser's page menu with no page and no address (its start page) shows nothi
 
 | Option | Hidden when | Greyed when |
 |---|---|---|
+| startPage | never | already on the start page |
 | browsingHistory | never | never |
 
 ### screen at libraryHome
