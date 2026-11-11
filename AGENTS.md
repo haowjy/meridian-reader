@@ -194,6 +194,10 @@ Work goes through PRs: write the PR body (`.github/pull_request_template.md`), w
 Changes section as the technical changelog, and add `release-notes/<version>.md` when cutting a
 release. The release workflow (`docs/RELEASE.md`) validates the notes file exists.
 
+**The repo is public: every push publishes.** Before pushing, check the commits for secrets and
+private content (keys, tokens, signing material, absolute home paths); if any is there, stop and
+tell the owner rather than push.
+
 ## Writing
 
 - Comments state current truth and the non-obvious why. No history ("used to", "formerly"), no
