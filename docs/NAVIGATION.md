@@ -74,6 +74,7 @@ Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular 
 
 ```
 expanded    [‹ ›][ address / Search Library     ][🎧]     row 1: the screen's own, Listen at its end
+on a page   [‹ › ⌂][ address                    ][🎧]     the Browser on a page: ⌂ (the start page) ends the arrows' capsule
             [ ▤ Library | 🌐 Browser | ⚙︎ Settings ]   row 2: where you are (glyph over name; glyphs alone when the names don't fit)
 one row     [‹ ›][ address / Search Library     ][🎧]     first step of a scroll down: row 2 gone, row 1 in its place
 folded                     ( example.com )                second step: the field shrunk to a small glass bubble naming the page; a tap brings both rows back
@@ -148,8 +149,8 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   circle 36 (`innerCircle`), the pill's lit segment 40 tall (`pillLitHeight`). **Every hit area is at least 44 pt** (`Control.tap`): at 44 the glass
   is the hit area; were `Control.chrome` or `Control.tabBar` below the tap floor, the hit shape would reach past the
   glass on every side (`hitOutset`, `pillHitOutset`; `ChromeHitShape`, `tapTarget(size)`), ‹ and › side by side reaching outward from their
-  capsule's centre instead (`arrowHitSides`); with 8 pt gaps neighbouring hit areas never overlap. One 8 pt gap everywhere (`Spacing.xs`): between the rows and between
-  neighbours on a row (‹ › and the field, the field and Listen, the field and Cancel). ‹ 44, ‹ › 88. Every control glyph is 20 pt medium (`Glyph.regular`, `BottomChrome.chromeGlyph`).
+  capsule's shared edges instead, the end circles making up the width (`navHitSides`); with 8 pt gaps neighbouring hit areas never overlap. One 8 pt gap everywhere (`Spacing.xs`): between the rows and between
+  neighbours on a row (‹ › and the field, the field and Listen, the field and Cancel). ‹ 44, ‹ › 88, ‹ › ⌂ 132. Every control glyph is 20 pt medium (`Glyph.regular`, `BottomChrome.chromeGlyph`).
 - **Look.** Translucent glass, nothing opaque behind it: Liquid Glass inside one
   `GlassEffectContainer` on iOS 26, every piece answering a press; earlier iOS (and a Debug launch
   with `-chromeFallback`) a blur with white at 58% over it (dark: 44, 44, 48 at 55%), an inner 0.5 pt
@@ -162,7 +163,8 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   container) does fade glass, which is how Reduce Motion cross-fades.
 - **Row 1** is the screen's context: on the Browser `[‹ ›][address]` (as Safari: ‹ always, live on every page, the first page's going back
   to the start page, and dimmed to 35% and disabled but in place on the start page; › beside it only while there is
-  somewhere to go forward, the start page's to the page ‹ left), on the
+  somewhere to go forward, the start page's to the page ‹ left; ⌂ ends the same capsule while a page shows, never on
+  the start page, and shows the start page in one tap, as the hold menu's *Start Page* does), on the
   Library its search field, in Library Read `[‹][(lit reader icon) site]` (the lit reader icon where the Browser's reader mode has it, the site taking the rest of the field, no ↻; a tap on the icon opens the article's live page in the Browser and a press and hold opens the top group's ⋯ menu; a page with no web address has none to open, so there a tap opens that menu and VoiceOver calls the icon *More*); Listen ends it. › after ‹ re-enters the reader view when ‹ left it (`ShellState.readerLeftByBack`, `readerOnLoad`). The Browser's reader mode is kept while another destination shows (`ShellState.pageReader`): back on the Browser it is as you left it, the reader view at its place or the web page.
   The address field is `[reader icon][URL][↻]` (↻ is ✕ while the page loads). ↻ never gives way: a 44 pt control
   (`Control.chrome`, `tapTarget`), its glyph in the chrome ink at the chrome glyph weight
@@ -419,8 +421,8 @@ the same spot. ⋯ is never replaced.
 - **A new search** is a tap on the address field: it selects the article's address, so typing
   replaces it (Recent Searches show full-bleed, Safari-style); ✕ cancels and restores the article's
   address. Swipe down lowers the keyboard but stays in search mode (typed text and Cancel kept). The
-  page stays loaded underneath. The start page is ‹ on the first page or the field's hold menu's
-  *Start Page* (`ShellState.showStartPage`), with an empty field.
+  page stays loaded underneath. The start page is ⌂ in row 1 (compact width), ‹ on the first page or
+  the field's hold menu's *Start Page* (`ShellState.showStartPage`), with an empty field.
   Text without a scheme loads as an address only when its host ends in letters (`.com`, `.uk`,
   `.js`) or is an IP address; anything else ("3.14", "e.g.") is a Google search, and the
   suggestions follow the same rule (`BrowseURLParser`).
@@ -499,8 +501,8 @@ the same spot. ⋯ is never replaced.
   sheets and once nothing is loaded. Elsewhere on compact width the chrome's Listen does its job,
   and on regular width the clustered dock does.
 
-**Start page** (no page loaded), Safari-style. The Browser opens on it with no page to restore; from a page, ‹ on
-the first page and the hold menu's *Start Page* bring it back. It covers the page rather than adding a history
+**Start page** (no page loaded), Safari-style. The Browser opens on it with no page to restore; from a page, ⌂ in row 1
+(compact width), ‹ on the first page and the hold menu's *Start Page* bring it back. It covers the page rather than adding a history
 entry: the page stays in the web view, stopped and its media paused, and › shows it again as it was (in reader view
 when you left it from there). A site or a search from the start page loads as the next page after the covered one, so ‹
 from there goes back to it (`WebViewStore.showStartPage`).

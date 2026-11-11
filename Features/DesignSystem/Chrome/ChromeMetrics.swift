@@ -54,15 +54,17 @@ enum ChromeMetrics {
     /// field's leading slot (🔍, or on a loaded page its 📄 / spinner), so the text starts at one place.
     static let endGlyphSlot: CGFloat = Glyph.slot
     static let endInset: CGFloat = (Control.chrome - endGlyphSlot) / 2
-    /// ‹ alone is a circle; with › it is a capsule of two circles' width.
+    /// ‹ alone is a circle; with › it is a capsule of two circles' width, with ⌂ too three.
     static let navSingleWidth: CGFloat = Control.chrome
     static let navPairWidth: CGFloat = 2 * Control.chrome
-    /// How far an arrow's hit area reaches past its circle at its leading and trailing sides. Alone, `hitOutset`
-    /// each side. In the pair the two meet at the capsule's centre (neither reaches into the other) and each
-    /// makes up `Control.tap` outward instead: ‹ into the margin, › into the gap before the field. All 0
-    /// while the chrome is at least the tap floor.
-    static func arrowHitSides(paired: Bool, isBack: Bool) -> (leading: CGFloat, trailing: CGFloat) {
-        paired ? (isBack ? (2 * hitOutset, 0) : (0, 2 * hitOutset)) : (hitOutset, hitOutset)
+    /// How far a circle's hit area in the ‹ › ⌂ capsule reaches past it at its leading and trailing sides,
+    /// for circle `index` of `count`. Alone, `hitOutset` each side. Side by side neighbours meet at their shared
+    /// edge (neither reaches into the other) and the two ends make up `Control.tap` outward instead: the first
+    /// into the margin, the last into the gap before the field. A middle circle (› between ‹ and ⌂) has only its
+    /// own 44 pt, enough while the chrome is at least the tap floor. All 0 while it is.
+    static func navHitSides(index: Int, of count: Int) -> (leading: CGFloat, trailing: CGFloat) {
+        guard count > 1 else { return (hitOutset, hitOutset) }
+        return (index == 0 ? 2 * hitOutset : 0, index == count - 1 ? 2 * hitOutset : 0)
     }
 
     // MARK: - The bubble (the folded chrome)

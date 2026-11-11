@@ -348,6 +348,9 @@ struct BrowseStartView: View {
             forwardID: "browseForward",
             onBack: goBack,
             onForward: goForward,
+            canGoHome: webStore.hasPage,
+            homeID: "browseHome",
+            onHome: shell.showStartPage,
             field: { focus in
                 AnyView(BrowseAddressField(speech: speech, dictation: dictation,
                                            onOpenReader: { run { try await $0.openInReader(inPlace: true) } }, compact: true,

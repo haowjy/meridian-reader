@@ -206,14 +206,14 @@ final class ChromeTests: XCTestCase {
                         let tag = "\(width) \(destination) forward \(forward) keyboard \(keyboard)"
                         var hits: [(String, CGRect)] = []
                         if l.nav.isShown {
-                            let side = M.navSingleWidth, paired = l.navShowsBack && l.navShowsForward
+                            let side = M.navSingleWidth, count = (l.navShowsBack ? 1 : 0) + (l.navShowsForward ? 1 : 0)
                             if l.navShowsBack {
-                                let s = M.arrowHitSides(paired: paired, isBack: true)
+                                let s = M.navHitSides(index: 0, of: count)
                                 hits.append(("‹", hit(CGRect(x: l.nav.rect.minX, y: l.nav.rect.minY, width: side, height: side),
                                                       ChromeHitShape(leading: s.leading, trailing: s.trailing))))
                             }
                             if l.navShowsForward {
-                                let s = M.arrowHitSides(paired: paired, isBack: false)
+                                let s = M.navHitSides(index: count - 1, of: count)
                                 let x = l.nav.rect.minX + (l.navShowsBack ? side : 0)
                                 hits.append(("›", hit(CGRect(x: x, y: l.nav.rect.minY, width: side, height: side),
                                                       ChromeHitShape(leading: s.leading, trailing: s.trailing))))

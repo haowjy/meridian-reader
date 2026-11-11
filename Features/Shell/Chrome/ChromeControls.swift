@@ -122,36 +122,56 @@ struct ChromePill: View {
     }
 }
 
-/// ‹ and ›: one capsule of one circle per button, in the frame the host gives it. The frame
-/// animates between one and two circles' width, so › fades as it narrows. A button that can't act
-/// stays, dimmed and out of the taps' way; one that isn't `shown` has no circle. Each arrow is tapped
-/// `Control.tap` square: alone `hitOutset` round its circle, in the pair outward from the centre
-/// (`ChromeMetrics.arrowHitSides`).
+/// ‹, › and ⌂: one capsule of one circle per button, in the frame the host gives it. The frame
+/// animates between one, two and three circles' width, so a trailing circle fades as it narrows. A
+/// button that can't act stays, dimmed and out of the taps' way; one that isn't `shown` has no circle.
+/// Each is tapped `Control.tap` square: alone `hitOutset` round its circle, side by side outward from
+/// the shared edges (`ChromeMetrics.navHitSides`).
 struct ChromeNavigation: View {
     let showsBack: Bool
     let showsForward: Bool
+    let showsHome: Bool
     let canGoBack: Bool
     let canGoForward: Bool
     let backID: String
     let forwardID: String
+    let homeID: String
     let onBack: () -> Void
     let onForward: () -> Void
+    let onHome: () -> Void
 
     /// How much of a disabled arrow's ink stays: dimmed, still plainly there.
     static let disabledOpacity: CGFloat = 0.35
 
+    private struct NavButton: Identifiable {
+        let id: String
+        let symbol: String
+        let label: String
+        let enabled: Bool
+        let action: () -> Void
+    }
+
+    /// The circles that show, in order: ‹, ›, ⌂.
+    private var circles: [NavButton] {
+        var all: [NavButton] = []
+        if showsBack { all.append(NavButton(id: backID, symbol: Icons.back, label: Verbs.back, enabled: canGoBack, action: onBack)) }
+        if showsForward {
+            all.append(NavButton(id: forwardID, symbol: Icons.forward, label: Verbs.forward, enabled: canGoForward, action: onForward))
+        }
+        if showsHome { all.append(NavButton(id: homeID, symbol: Icons.startPage, label: Verbs.startPage, enabled: true, action: onHome)) }
+        return all
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let side = ChromeMetrics.navSingleWidth
+            let circles = circles
             HStack(spacing: 0) {
-                if showsBack {
-                    button(Icons.back, label: Verbs.back, id: backID, enabled: canGoBack, isBack: true, action: onBack)
+                ForEach(Array(circles.enumerated()), id: \.element.id) { index, circle in
+                    button(circle, index: index, of: circles.count)
                         .frame(width: side)
-                }
-                if showsForward {
-                    button(Icons.forward, label: Verbs.forward, id: forwardID, enabled: canGoForward, isBack: false, action: onForward)
-                        .frame(width: side)
-                        .opacity(showsBack ? min(1, max(0, (proxy.size.width - side) / side)) : 1)
+                        // A circle past the frame's edge (the capsule narrowing as it goes) fades as it is covered.
+                        .opacity(index == 0 ? 1 : min(1, max(0, (proxy.size.width - CGFloat(index) * side) / side)))
                 }
             }
             .frame(width: proxy.size.width, alignment: .leading)
@@ -159,21 +179,20 @@ struct ChromeNavigation: View {
         .chromeSurface(Capsule())
     }
 
-    private func button(_ symbol: String, label: String, id: String, enabled: Bool, isBack: Bool,
-                        action: @escaping () -> Void) -> some View {
-        let sides = ChromeMetrics.arrowHitSides(paired: showsBack && showsForward, isBack: isBack)
-        return Button(action: action) {
-            Image(systemName: symbol)
+    private func button(_ circle: NavButton, index: Int, of count: Int) -> some View {
+        let sides = ChromeMetrics.navHitSides(index: index, of: count)
+        return Button(action: circle.action) {
+            Image(systemName: circle.symbol)
                 .font(BottomChrome.chromeGlyph)
                 .foregroundStyle(Palette.ink)
-                .opacity(enabled ? 1 : Self.disabledOpacity)
+                .opacity(circle.enabled ? 1 : Self.disabledOpacity)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(ChromeHitShape(leading: sides.leading, trailing: sides.trailing))
         }
         .buttonStyle(.plain)
-        .disabled(!enabled)
-        .accessibilityLabel(label)
-        .accessibilityIdentifier(id)
-        .chromeLargeContent(label, symbol: symbol)
+        .disabled(!circle.enabled)
+        .accessibilityLabel(circle.label)
+        .accessibilityIdentifier(circle.id)
+        .chromeLargeContent(circle.label, symbol: circle.symbol)
     }
 }

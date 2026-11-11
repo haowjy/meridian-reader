@@ -20,6 +20,8 @@ struct ChromeState: Equatable {
     /// The browser has somewhere to go back to / forward to (‹ ›). A new page has neither.
     var canGoBack = false
     var canGoForward = false
+    /// The Browser shows a page, not its start page: ⌂ ends the arrows' capsule.
+    var canGoHome = false
     /// A search is editing: the one-row keyboard form.
     var keyboard = false
     /// The Browser shows its page as the Reader draws it, in place (a Library page read in place is

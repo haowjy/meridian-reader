@@ -20,6 +20,10 @@ struct ChromeScreen {
     var forwardID = ""
     var onBack: () -> Void = {}
     var onForward: () -> Void = {}
+    /// ⌂ (the Browser on a page): the start page in one tap, the last circle of the arrows' capsule.
+    var canGoHome = false
+    var homeID = ""
+    var onHome: () -> Void = {}
     /// The field (a `SearchField`, an `AddressField`): the host passes the focus binding it keeps in
     /// sync with `session.isFocused`.
     var field: (FocusState<Bool>.Binding) -> AnyView = { _ in AnyView(EmptyView()) }
