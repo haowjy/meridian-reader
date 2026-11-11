@@ -188,7 +188,7 @@ provider owns its host, model store, voice catalog and chunk limits.
 
 ## Verifying here
 
-- Playback is verified by probing the running app (AGENTS.md → "Build and verify"). The unit
+- Playback is verified by probing the running app (AGENTS.md → "Build and Verify"). The unit
   tests here are `TextChunkerTests` (chunk limits and whitespace-only normalize),
   `PhononSpokenTextTests`, `VoiceSelectionTests` and `EngineCrashGuardTests`.
 - Behavior that only shows on a device (the libBNNS crash, real render speed, background

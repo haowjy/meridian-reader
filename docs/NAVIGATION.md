@@ -69,7 +69,7 @@ On iPhone (any compact width) one floating chrome host (`Features/Shell/Chrome/C
 sits over three destinations, the Library, the Browser and Settings (and the in-place readers). Listen is
 not a destination: it slides up over the chrome. The chrome has no ⋯: the Library's screens and
 Settings have ⋯ on their title line, the reading pages (the Browser's reader mode, Library Read, Listen) in their
-top group, and the Browser's menu is also a press and hold on its field's leading glyph. There is no system tab bar (invariant 13: `rg "TabView|UITabBar"` finds nothing).
+top group, and the Browser's menu is also a press and hold on its field's leading glyph. There is no system tab bar (an invariant, root `.context/invariants.md`).
 Regular width keeps its own band and dock ("Two surfaces" and "iPad and regular width", below).
 
 ```
@@ -208,7 +208,7 @@ screen's edge (the web view) adds the strip: 138, 82, 58.
   settles forward to its end (`ChromeScroll.stepEnd`: 0, 0.5 or 1). **A scroll up of 24 pt with no scroll down
   between (`ChromeScroll.revealDistance`) brings both rows back, as Safari does, on every screen that folds.**
   The rows also come back by a tap on the bubble, by reaching the top of the content (offset <= 4, which resets
-  progress to 0) (invariant 12), and by what is not a scroll: a new page or screen loading, opening the address
+  progress to 0), and by what is not a scroll: a new page or screen loading, opening the address
   or search field, VoiceOver being on. The Library, the Browser's page and Settings feed it; **Listen does not**
   (it has no chrome), the Browser's start page does not fold, and **an in-place reader never folds** (below).
   **Only the screen showing drives the chrome** (`ChromeSource`, `ShellState.chromeOwner`): the web page under

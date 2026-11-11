@@ -86,6 +86,31 @@ changing the shell code.
   theme. The in-place reader (`ReaderSurface`) covers a web view that takes no touches, so it
   carries its own left-edge swipe for ‹. The rest of design 5e is under "Planned"
   there. Regular width is untouched.
+- **How the chrome host is wired.** Each destination hands the host a `ChromeScreen` (field,
+  arrows, bubble title). One state (`ChromeState`), one pure layout (`ChromeLayout`, from
+  `ChromeMetrics`: 104 pt of rows ending on the home indicator's strip) and one scroll controller
+  (`ChromeScroll`). The glass is `ChromeSkin` (App sets `ChromeSkin.forcesMaterial` for
+  `-chromeFallback`). Screens reserve `ChromeHome.clearance(step: 0)` above the safe area
+  (`CompactChromeInsets`) and report their scroll with `CompactChromeScroll`, naming their
+  `ChromeSource`. `ChromeScroll.policy` (`ChromePolicy`) is `.folds` on pages, lists and Settings;
+  `.holds` on the start page, in Edit and under VoiceOver; `.reads` on an in-place reader, which is
+  expanded or full screen (`ChromeScroll.fullScreen`, the one value the chrome and the page's
+  `ReadingChrome.hidden` both read), never folded. A screen's ⋯ is on its title line
+  (`TitleMenuButton`, `LibraryTitleMenu`, drawing `MenuContext.blocks`); the Browser's is
+  `AddressField`'s `holdMenu`. Library Read and Browse reader mode open in place via
+  `ReaderSurface`; their Aa, ▶ Listen, 🔖 and ⋯ are the top group (`ReadingTopGroup`), which Listen
+  has too without ▶. ▶ Listen is never a play/pause in place: once the page is what you hear it shows
+  the live state (`ReadingListen.Face`) and its tap only opens Listen. Listen and the top group's ⋯ and Aa share one
+  round face, `ChromeCircleFace`.
+- **Listen over the chrome.** `isNowPlayingPresented` draws `NowPlayingScreen` above the chrome in
+  `BrowseStartView.layers`, as a `Sheet` covering the screen (`ReadingShowing.cover`), below the ⋯
+  menu overlay and the sheet presenters so Voice, Save to Folder, ⋯ and the debug panel open over
+  it. Its top row takes hold a further `Control.bar` down, unseen, over the top of the text
+  (`Sheet`'s `grabReach`); a tap there is still the text's. Idle Listen binds the page played last,
+  paused (`SpeechController.prepare`), never a second "current article"; with nothing to bind it
+  opens on *Nothing Playing*, and a showing that loses what it showed closes.
+- **Settings on compact width** is `Surface.settings` with `settingsPath` and `settingsSearch`;
+  `isCompact` turning false on the Settings surface moves it to `ShellSheet.settings`.
 - **Only the screen showing drives the compact chrome, handed over in one step.** Every report to
   `ChromeScroll` names its `ChromeSource`, and so does the in-place reader's full-screen write
   (`setFullScreen(_:from:)`; the Browser's reader stays mounted under other destinations); the check
