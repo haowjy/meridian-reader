@@ -367,7 +367,7 @@ below).
 
 **The app reopens on the surface you left**: the Library at the folder you were in
 (`ShellState.libraryPath`, folders that no longer exist dropped), or the browser on its last page,
-reloaded. A fresh install opens the Library with Listen up, paused, on the welcome article (below). Kept on the device in UserDefaults
+reloaded (on the start page when you left it there, the page it covered forgotten). A fresh install opens the Library with Listen up, paused, on the welcome article (below). Kept on the device in UserDefaults
 `shell.lastSurface` (`SurfaceMemory`). Reopened on the Library, the browser's last page loads the
 first time you go there, and stays remembered until then, across relaunches. `-uiTesting` launches
 start on the browser unless `-restoreSurface`.
@@ -431,9 +431,13 @@ the same spot. ⋯ is never replaced.
   untitled one, whose title line is already its site; then how long ago). A tap loads it; its ⋯
   and long press are the article's menu ("Menus", below; on the Library's article for the address when
   it has one), then *Remove from History*. Empty, it says *No Browsing History Yet*, "Pages you open show up here.", over the four tiles every empty screen has; each closes it first (*Browse the Web* to the Browser).
-- ‹ / › are web history (disabled when WebKit can't go back / forward; KVO on the web view, so
-  same-document history counts too). The web view's own edge swipes still work; over the in-place
-  reader, a swipe from the left edge does what ‹ does.
+- ‹ / › are web history, with the start page before the first page. ‹ is live on every page,
+  whatever WebKit says: the page before, or on the first page the start page. › is live with
+  somewhere to go forward (WebKit's history, by KVO on the web view, so same-document history counts
+  too) and on the start page while it covers a page. One owner decides both (`ShellState.browserBack`,
+  `browserForward`) for every way in: the compact chrome, the regular-width toolbar and the in-place
+  reader's left-edge swipe. The web view's own edge swipes are WebKit's history alone, so on the first
+  page its swipe back does nothing while ‹ and the reader's edge swipe show the start page.
 - A page whose web content process ends (WebKit crashed, or iOS took its memory) shows blank
   until it loads again, so it reloads by itself: at once (in the background, once the app is in
   front), then after 2 s and 5 s when the new process ends too. A fourth end within a minute
@@ -499,11 +503,13 @@ the same spot. ⋯ is never replaced.
   sheets and once nothing is loaded. Elsewhere on compact width the chrome's Listen does its job,
   and on regular width the clustered dock does.
 
-**Start page** (no page loaded), Safari-style. The Browser opens on it with no page to restore; from a page, ‹ on
+**Start page** (no page on screen), Safari-style. The Browser opens on it with no page to restore; from a page, ‹ on
 the first page and the hold menu's *Start Page* bring it back. It covers the page rather than adding a history
 entry: the page stays in the web view, stopped and its media paused, and › shows it again as it was (in reader view
-when you left it from there). A site or a search from the start page loads as the next page after the covered one, so ‹
-from there goes back to it (`WebViewStore.showStartPage`).
+when you left it from there); so does ⋯ → *Website* for that page, with no reload. A site or a search from the start
+page loads as the next page after the covered one, so ‹ from there goes back to it (`WebViewStore.showStartPage`:
+`currentURL` is nil under the cover while `pageURL` keeps the held page). Leaving the app on the start page reopens on
+the start page: the covered page is not remembered.
 1. **Frequently Visited**: the sites you visit most, from Browsing History (no tracking of
    its own): it keeps one visit per page, the last 30, so a site counts its pages there, the
    most first, then the most recently visited. One tile per site (`www.` folded in): its icon (the

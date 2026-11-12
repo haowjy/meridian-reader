@@ -134,7 +134,7 @@ struct BrowseStartView: View {
                         pageLookup { page in
                             let actions = pageActions(page)
                             ReaderSurface(article: article, speech: speech, source: .browserReader, covered: isCovered,
-                                          onEdgeSwipeBack: webStore.canGoBack ? goBack : nil,
+                                          onEdgeSwipeBack: webStore.canGoBack ? { shell.browserBack() } : nil,
                                           menu: holdMenu(actions),
                                           // The page's Save, as its menu's: the text on screen saved.
                                           save: actions.readingSave(identifier: "readerSave",
@@ -346,8 +346,8 @@ struct BrowseStartView: View {
             canGoForward: webStore.canGoForward,
             backID: "browseBack",
             forwardID: "browseForward",
-            onBack: goBack,
-            onForward: goForward,
+            onBack: shell.browserBack,
+            onForward: shell.browserForward,
             field: { focus in
                 AnyView(BrowseAddressField(speech: speech, dictation: dictation,
                                            onOpenReader: { run { try await $0.openInReader(inPlace: true) } }, compact: true,
@@ -380,20 +380,6 @@ struct BrowseStartView: View {
         let host = webStore.currentURL?.host() ?? ""
         let name = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
         return name.isEmpty ? String(localized: "Browser") : name
-    }
-
-    // MARK: - ‹ ›
-
-    /// ‹: the previous page, or from the first page the start page; the reader view it leaves comes back with ›.
-    private func goBack() {
-        shell.browserWillGoBack()
-        webStore.goBack()
-    }
-
-    /// ›: the next page, in reader view again when ‹ left it from there.
-    private func goForward() {
-        shell.browserWillGoForward()
-        webStore.goForward()
     }
 
     /// The page that should open in reader view (› back to one, a shared page) has loaded.
@@ -494,9 +480,7 @@ struct BrowseStartView: View {
     /// *Browsing History*. The glyph's tap opens the reader
     /// mode and leaves it, Reload is in the field and Listen in the chrome, so none of them is a row.
     private func holdMenu(_ actions: ArticleActions) -> [[MenuRow]] {
-        var facts = MenuRegistry.Facts()
-        facts.browserShowsPage = hasPage
-        return ArticleMenu(actions: actions, place: .browser).blocks + [MenuContext.screenRows(at: .browser, facts: facts, shell: shell)]
+        ArticleMenu(actions: actions, place: .browser).blocks + [MenuContext.screenRows(at: .browser, shell: shell)]
     }
 
     // MARK: - Start page

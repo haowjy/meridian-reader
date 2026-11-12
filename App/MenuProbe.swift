@@ -96,9 +96,7 @@ enum MenuProbe {
             let article = reader.flatMap { library.article(key: $0.id, canonicalURL: $0.origin.canonicalURL) }
             let pageActions = actions(article, reader: reader, url: shell.web.currentURL)
             let place: ArticleMenu.Place = name == "browser" ? .browser : .open
-            var facts = MenuRegistry.Facts()
-            facts.browserShowsPage = shell.web.hasPage
-            let tail = name == "browser" ? MenuContext.screenRows(at: .browser, facts: facts, shell: shell) : []
+            let tail = name == "browser" ? MenuContext.screenRows(at: .browser, shell: shell) : []
             context = MenuContext(item: ArticleMenu(actions: pageActions, place: place).rows,
                                   screen: tail, tiles: [])
         case "prepared":

@@ -13,10 +13,13 @@ struct MenuContext {
     /// The screen's registry rows: *Start Page* and *Browsing History* from here, every other row from `custom`, the
     /// screen's own actions. The registry says which options a place shows; a place showing one its
     /// screen has no row for is a programming error, stopped here rather than drawn as another row.
+    /// The Browser's facts come from `shell` here, beside the rows they dim, so no caller supplies them.
     @MainActor
     static func screenRows(at place: MenuRegistry.Place, facts: MenuRegistry.Facts = .init(),
                            shell: ShellState, custom: (MenuRegistry.Option) -> MenuRow? = { _ in nil }) -> [MenuRow] {
-        MenuRegistry.rows(.screen, at: place, facts) { option in
+        var facts = facts
+        facts.browserShowsPage = shell.web.hasPage
+        return MenuRegistry.rows(.screen, at: place, facts) { option in
             switch option {
             case .startPage:
                 return MenuRow(id: "moreStartPage", title: Verbs.startPage, icon: Icons.startPage, action: shell.showStartPage)

@@ -408,16 +408,29 @@ final class ShellState {
     /// where the load lands.
     private(set) var readerOnLoad: URL?
 
-    /// ‹ in the Browser (the button or the reader view's edge swipe).
-    func browserWillGoBack() {
-        readerLeftByBack = pageReader != nil ? web.currentURL : nil
-        readerOnLoad = nil
+    /// ‹ in the Browser, every way in (the compact chrome, the regular-width toolbar, the reader
+    /// view's edge swipe): the page before, or from the first page the start page (`showStartPage`).
+    /// The reader view it leaves comes back with ›.
+    func browserBack() {
+        guard web.hasPage else { return }
+        guard web.historyBack else { return showStartPage() }
+        leavePageByBack()
+        web.goBack()
     }
 
-    /// › in the Browser.
-    func browserWillGoForward() {
+    /// › in the Browser: from the start page the page it covers, as it was; else the next page in
+    /// history. Either way in reader view again when ‹ left it from there.
+    func browserForward() {
+        guard web.canGoForward else { return }
         readerOnLoad = readerLeftByBack
         readerLeftByBack = nil
+        if web.startPageCoversPage { web.revealPage() } else { web.goForward() }
+    }
+
+    /// The page on screen is being left by ‹ (or for the start page): remember its reader view for ›.
+    private func leavePageByBack() {
+        readerLeftByBack = pageReader != nil ? web.currentURL : nil
+        readerOnLoad = nil
     }
 
     /// The page `readerOnLoad` names has loaded and is readable: true once, then it is spent.
@@ -631,7 +644,11 @@ final class ShellState {
     /// scroll kept), else loaded. Audio keeps playing. Either way it is the web page: a reader view
     /// kept from an earlier visit to the Browser closes.
     func openWebsite(_ url: URL) {
-        if let current = web.currentURL, current.isSamePage(as: url) {
+        // The held page counts when the start page covers it: it is revealed, not loaded again.
+        if let held = web.pageURL, held.isSamePage(as: url) {
+            readerLeftByBack = nil
+            readerOnLoad = nil
+            web.revealPage()
             closePageReader()
             endAddressSearch()
             showBrowser()
@@ -640,11 +657,11 @@ final class ShellState {
         }
     }
 
-    /// The Browser's *Start Page* row: the start page over the page, with an empty address field;
-    /// › shows the page again, in reader view when it was left from there, as after ‹ (which on the
-    /// first page reaches the start page through `WebViewStore.goBack`).
+    /// The start page over the page, with an empty address field: the *Start Page* row, and ‹ on the
+    /// first page (`browserBack`). › shows the page again, in reader view when it was left from there.
     func showStartPage() {
-        browserWillGoBack()
+        guard web.hasPage else { return }
+        leavePageByBack()
         addressSearch.end(showing: "")
         web.showStartPage()
     }

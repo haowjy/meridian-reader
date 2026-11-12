@@ -60,11 +60,11 @@ struct BrowserBottomChrome: View {
     private var toolbar: some View {
         BottomToolbarLayout {
             BandToolbarButton(systemImage: Icons.back, label: Verbs.back,
-                              identifier: "browseBack", action: web.goBack)
+                              identifier: "browseBack", action: shell.browserBack)
                 .disabled(!web.canGoBack)
                 .toolbarSlot(0)
             BandToolbarButton(systemImage: Icons.forward, label: Verbs.forward,
-                              identifier: "browseForward", action: web.goForward)
+                              identifier: "browseForward", action: shell.browserForward)
                 .disabled(!web.canGoForward)
                 .toolbarSlot(1)
             SaveToggleButton(isSaved: isSaved, isBusy: shell.busy == .save, identifier: "browseSave",
