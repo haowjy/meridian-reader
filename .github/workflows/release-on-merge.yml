@@ -1,0 +1,130 @@
+# Release on merge, adapted from meridian-cli.
+#
+# On every push to main, look up the merged PR for the pushed commit and read
+# its release:* label:
+#   release:patch | release:minor | release:major  -> bump that part
+#   release:skip or no release:* label             -> no release
+# Direct pushes (no PR) never release.
+#
+# A release bumps MARKETING_VERSION in project.yml, requires
+# release-notes/<version>.md, commits "release: vX.Y.Z", tags vX.Y.Z, then
+# calls release.yml in the same run to archive, upload to TestFlight and
+# create the GitHub Release. (A tag pushed with GITHUB_TOKEN would not start
+# another workflow, so release.yml is called directly.)
+#
+# Rerunning is safe: if the trigger commit was already released, the version
+# is taken from the existing release commit and only the publish runs again.
+
+name: Release on merge
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release-on-merge
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    if: "${{ !startsWith(github.event.head_commit.message, 'release: v') }}"
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Read release label
+        id: label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIGGER_SHA: ${{ github.sha }}
+        run: |
+          PRS=$(gh api "/repos/${{ github.repository }}/commits/$TRIGGER_SHA/pulls")
+          PR=$(jq -c --arg sha "$TRIGGER_SHA" '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $sha)] | .[0] // empty' <<< "$PRS")
+          if [ -z "$PR" ]; then
+            echo "::notice::No merged PR for $TRIGGER_SHA, no release."
+            exit 0
+          fi
+          NUMBER=$(jq -r .number <<< "$PR")
+          LABELS=$(jq -r '.labels[]?.name' <<< "$PR")
+          if grep -qx 'release:skip' <<< "$LABELS"; then BUMP=""
+          elif grep -qx 'release:major' <<< "$LABELS"; then BUMP="major"
+          elif grep -qx 'release:minor' <<< "$LABELS"; then BUMP="minor"
+          elif grep -qx 'release:patch' <<< "$LABELS"; then BUMP="patch"
+          else BUMP=""
+          fi
+          if [ -z "$BUMP" ]; then
+            echo "::notice::PR #$NUMBER has no release:patch/minor/major label, no release."
+            exit 0
+          fi
+          echo "::notice::PR #$NUMBER is labeled release:$BUMP."
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
+      - name: Bump version, commit and tag
+        id: bump
+        if: steps.label.outputs.bump != ''
+        env:
+          BUMP: ${{ steps.label.outputs.bump }}
+          TRIGGER_SHA: ${{ github.sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force --quiet
+
+          # Rerun of an already released trigger: reuse that version.
+          DONE=$(git log origin/main --format='%H %s' --grep="Release-Trigger: $TRIGGER_SHA" | head -n1)
+          if [ -n "$DONE" ]; then
+            VERSION=$(sed 's/.*release: v//' <<< "$DONE")
+            echo "::notice::$TRIGGER_SHA was already released as v$VERSION."
+            if ! git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+              git tag "v$VERSION" "${DONE%% *}"
+              git push origin "v$VERSION"
+            fi
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BASE=$(git tag -l 'v*' | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+          if [ -z "$BASE" ]; then
+            BASE=$(sed -n 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*"\{0,1\}\([0-9.]*\).*/\1/p' project.yml | head -n1)
+          fi
+          IFS=. read -r MAJOR MINOR PATCH <<< "$BASE"
+          case "$BUMP" in
+            patch) VERSION="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+            minor) VERSION="$MAJOR.$((MINOR + 1)).0" ;;
+            major) VERSION="$((MAJOR + 1)).0.0" ;;
+          esac
+          echo "Base $BASE, bump $BUMP, version $VERSION"
+
+          if [ ! -s "release-notes/$VERSION.md" ]; then
+            echo "::error::release-notes/$VERSION.md is missing or empty. Add it in a PR (labeled release:skip), then rerun this workflow."
+            exit 1
+          fi
+
+          sed -i "s/MARKETING_VERSION: .*/MARKETING_VERSION: \"$VERSION\"/" project.yml
+          git add project.yml
+          git commit -m "release: v$VERSION" -m "Release-Trigger: $TRIGGER_SHA"
+          git tag "v$VERSION"
+          git push origin HEAD:main
+          git push origin "v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: tag
+    if: needs.tag.outputs.version != ''
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.tag.outputs.version }}
+      ref: v${{ needs.tag.outputs.version }}
+      target: TestFlight
+    secrets: inherit
